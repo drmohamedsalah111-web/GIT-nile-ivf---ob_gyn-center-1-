@@ -76,9 +76,51 @@ export const db = {
       .from('visits')
       .select('*')
       .order('date', { ascending: false });
-      
+
     if (error) return [];
     return data as any; // Simplified for brevity
+  },
+
+  getVisitsForPatient: async (patientId: string): Promise<Visit[]> => {
+    const { data, error } = await supabase
+      .from('visits')
+      .select('*')
+      .eq('patient_id', patientId)
+      .order('date', { ascending: false });
+
+    if (error) return [];
+    return data.map((v: any) => ({
+      id: v.id,
+      patientId: v.patient_id,
+      date: v.date,
+      diagnosis: v.diagnosis,
+      prescription: v.prescription,
+      notes: v.notes,
+      vitals: v.vitals
+    }));
+  },
+
+  saveVisit: async (visit: Omit<Visit, 'id'>) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
+
+    const { data, error } = await supabase
+      .from('visits')
+      .insert([{
+        patient_id: visit.patientId,
+        date: visit.date,
+        diagnosis: visit.diagnosis,
+        prescription: visit.prescription,
+        notes: visit.notes,
+        vitals: visit.vitals,
+        doctor_id: user.id
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   },
 
   // --- Cycles ---

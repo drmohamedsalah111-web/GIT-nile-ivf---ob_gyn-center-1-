@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { db, calculateBMI, analyzeSemenAnalysis } from '../services/ivfService';
 import { EGYPTIAN_DRUGS } from '../constants';
-import { PrescriptionItem, Patient, Doctor } from '../types';
+import { PrescriptionItem, Patient, Doctor, Visit } from '../types';
 import { AlertTriangle, Plus, Trash2, Printer, FileText, Activity, Microscope, Info } from 'lucide-react';
 
 interface ClinicalStationProps {
@@ -33,11 +34,12 @@ interface FemaleFactor {
 const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
-  
+  const [visits, setVisits] = useState<Visit[]>([]);
+
   // Vitals & Male
   const [vitals, setVitals] = useState({ weight: '', height: '' });
   const [maleParams, setMaleParams] = useState({ vol: 0, conc: 0, mot: 0, morph: 0 });
-  
+
   // Female Workup State
   const [activeFemaleTab, setActiveFemaleTab] = useState<'hormones' | 'us' | 'scope'>('hormones');
   const [femaleData, setFemaleData] = useState<FemaleFactor>({
@@ -53,10 +55,22 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
   const [drugCategory, setDrugCategory] = useState('');
   const [selectedDrug, setSelectedDrug] = useState('');
 
+  // Notes
+  const [notes, setNotes] = useState('');
+
   // Initial Fetch
   useEffect(() => {
     db.getPatients().then(setPatients);
   }, []);
+
+  // Load visits when patient changes
+  useEffect(() => {
+    if (selectedPatientId) {
+      db.getVisitsForPatient(selectedPatientId).then(setVisits);
+    } else {
+      setVisits([]);
+    }
+  }, [selectedPatientId]);
 
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
 
@@ -122,6 +136,52 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
     setTimeout(() => {
       window.print();
     }, 100);
+  };
+
+  const handleSave = async () => {
+    if (!selectedPatient) return;
+
+    const bmiInfo = calculateBMI(Number(vitals.weight), Number(vitals.height));
+    const diagnosis = femaleFindings.join('; ');
+
+    try {
+      await db.saveVisit({
+        patientId: selectedPatient.id,
+        date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+        diagnosis,
+        prescription: rxItems,
+        notes,
+        vitals: {
+          weight: Number(vitals.weight) || undefined,
+          height: Number(vitals.height) || undefined,
+          bmi: bmiInfo.bmi || undefined
+        }
+      });
+
+      // Reload visits
+      const updatedVisits = await db.getVisitsForPatient(selectedPatient.id);
+      setVisits(updatedVisits);
+
+      // Clear form
+      setVitals({ weight: '', height: '' });
+      setMaleParams({ vol: 0, conc: 0, mot: 0, morph: 0 });
+      setFemaleData({
+        fsh: '', lh: '', e2: '', prolactin: '', tsh: '', amh: '',
+        endoThickness: '', afcR: '', afcL: '',
+        uterusPathology: [], ovaryPathology: [],
+        tubalStatus: 'Patent', hydrosalpinx: false,
+        hysteroscopy: [], laparoscopy: []
+      });
+      setRxItems([]);
+      setNotes('');
+      setDrugCategory('');
+      setSelectedDrug('');
+
+      toast.success('تم حفظ الزيارة بنجاح');
+    } catch (error) {
+      console.error('Error saving visit:', error);
+      toast.error('حدث خطأ في حفظ الزيارة');
+    }
   };
 
   const toggleCheckbox = (field: keyof FemaleFactor, value: string) => {
@@ -483,17 +543,81 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                 )}
               </div>
               
-              <div className="mt-4 pt-3 border-t border-gray-100">
-                 <button 
-                  onClick={handlePrint}
-                  disabled={rxItems.length === 0}
-                  className="w-full bg-gray-800 text-white py-2.5 rounded-xl font-bold hover:bg-gray-900 transition-colors flex items-center justify-center gap-2 text-sm"
-                >
-                  <Printer className="w-4 h-4" /> Print (A4)
-                </button>
+              <div className="mt-4 pt-3 border-t border-gray-100 space-y-3">
+                {/* Notes Field */}
+                <div>
+                  <label className="text-xs font-medium text-gray-600">ملاحظات الزيارة</label>
+                  <textarea
+                    className="w-full p-2 border rounded-lg mt-1 text-sm"
+                    rows={3}
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="أدخل ملاحظات إضافية..."
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSave}
+                    className="flex-1 bg-teal-600 text-white py-2.5 rounded-xl font-bold hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 text-sm"
+                  >
+                    <FileText className="w-4 h-4" /> حفظ الزيارة
+                  </button>
+                  <button
+                    onClick={handlePrint}
+                    disabled={rxItems.length === 0}
+                    className="flex-1 bg-gray-800 text-white py-2.5 rounded-xl font-bold hover:bg-gray-900 transition-colors flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Printer className="w-4 h-4" /> طباعة الروشتة
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Previous Visits Section */}
+          {visits.length > 0 && (
+            <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">الزيارات السابقة</h3>
+              <div className="space-y-3">
+                {visits.map(visit => (
+                  <div key={visit.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="font-bold text-teal-700">{new Date(visit.date).toLocaleDateString('ar-EG')}</div>
+                      {visit.vitals && (
+                        <div className="text-sm text-gray-600">
+                          الوزن: {visit.vitals.weight}kg | الطول: {visit.vitals.height}cm | BMI: {visit.vitals.bmi}
+                        </div>
+                      )}
+                    </div>
+                    {visit.diagnosis && (
+                      <div className="mb-2">
+                        <span className="font-medium text-gray-700">التشخيص:</span>
+                        <p className="text-sm text-gray-600 mt-1">{visit.diagnosis}</p>
+                      </div>
+                    )}
+                    {visit.prescription && visit.prescription.length > 0 && (
+                      <div className="mb-2">
+                        <span className="font-medium text-gray-700">الروشتة:</span>
+                        <ul className="text-sm text-gray-600 mt-1 list-disc list-inside">
+                          {visit.prescription.map((item, idx) => (
+                            <li key={idx}>{item.drug} - {item.dose}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {visit.notes && (
+                      <div>
+                        <span className="font-medium text-gray-700">ملاحظات:</span>
+                        <p className="text-sm text-gray-600 mt-1">{visit.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* PRINT VIEW - Hidden until print */}
            <div className="print-only w-full bg-white p-8">
@@ -512,10 +636,10 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
               </div>
             </div>
 
-            <div className="mb-8">
+            <div className="print-only mb-8">
               <h2 className="text-center text-2xl font-bold text-gray-800 mb-6">الروشتة الطبية</h2>
               <h3 className="text-4xl font-serif text-teal-700 text-center mb-8">R/</h3>
-              
+
               <div className="space-y-4">
                 {rxItems.map((item, idx) => (
                   <div key={idx} className="border-b border-gray-300 pb-3 flex flex-row-reverse justify-between items-start">
@@ -528,7 +652,7 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
               </div>
             </div>
 
-            <div className="border-t border-gray-300 pt-6 mt-12 text-center text-xs text-gray-500">
+            <div className="print-only border-t border-gray-300 pt-6 mt-12 text-center text-xs text-gray-500">
               <p>{doctorProfile?.clinic_name || 'Nile IVF Center'} - {doctorProfile?.clinic_address || 'Cairo, Egypt'}</p>
               <p className="mt-1">{doctorProfile?.clinic_phone || '+20 123 456 7890'}</p>
             </div>
