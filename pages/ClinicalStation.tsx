@@ -502,6 +502,8 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                  <div className="text-right">
                    <h1 className="text-3xl font-bold text-teal-800">{doctorProfile?.clinic_name || 'مركز نيل للعقم'}</h1>
                    <p className="text-gray-600 mt-2 text-sm">{doctorProfile?.clinic_name || 'Nile IVF Center'}</p>
+                   <p className="text-gray-700 mt-1 text-sm font-medium">الطبيب: {doctorProfile?.name || 'د. [اسم الطبيب]'}</p>
+                   <p className="text-gray-700 mt-1 text-sm">Doctor: {doctorProfile?.name || 'Dr. [Doctor Name]'}</p>
                  </div>
                 <div className="text-left text-sm text-gray-600">
                   <p>التاريخ: {new Date().toLocaleDateString('ar-EG')}</p>
