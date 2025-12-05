@@ -624,8 +624,8 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
              <div className="border-b-2 border-teal-700 pb-6 mb-8">
                <div className="flex flex-row-reverse justify-between items-end mb-4">
                  <div className="text-right">
-                   <h1 className="text-3xl font-bold text-teal-800">{doctorProfile?.clinic_name || 'مركز نيل للعقم'}</h1>
-                   <p className="text-gray-600 mt-2 text-sm">{doctorProfile?.clinic_name || 'Nile IVF Center'}</p>
+                   <h1 className="text-3xl font-bold text-teal-800">{doctorProfile?.clinic_name || 'نظام دكتور محمد صلاح جبر'}</h1>
+                   <p className="text-gray-600 mt-2 text-sm">{doctorProfile?.clinic_name || 'Dr. Mohamed Salah Gabr System'}</p>
                    <p className="text-gray-700 mt-1 text-sm font-medium">الطبيب: {doctorProfile?.name || 'د. [اسم الطبيب]'}</p>
                    <p className="text-gray-700 mt-1 text-sm">Doctor: {doctorProfile?.name || 'Dr. [Doctor Name]'}</p>
                  </div>
@@ -653,7 +653,7 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
             </div>
 
             <div className="print-only border-t border-gray-300 pt-6 mt-12 text-center text-xs text-gray-500">
-              <p>{doctorProfile?.clinic_name || 'Nile IVF Center'} - {doctorProfile?.clinic_address || 'Cairo, Egypt'}</p>
+              <p>{doctorProfile?.clinic_name || 'Dr. Mohamed Salah Gabr System'} - {doctorProfile?.clinic_address || 'Cairo, Egypt'}</p>
               <p className="mt-1">{doctorProfile?.clinic_phone || '+20 123 456 7890'}</p>
             </div>
           </div>

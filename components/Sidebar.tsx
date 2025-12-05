@@ -18,7 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, doctorPro
     { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings },
   ];
 
-  const clinicName = doctorProfile?.clinic_name || 'Nile IVF Center';
+  const clinicName = doctorProfile?.clinic_name || 'Dr. Mohamed Salah Gabr System';
   const clinicImage = doctorProfile?.clinic_image;
 
   return (

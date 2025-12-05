@@ -10,7 +10,7 @@ function createWindow() {
     height: 800,
     minWidth: 1024,
     minHeight: 768,
-    title: "Nile IVF Center EMR",
+    title: "Dr. Mohamed Salah Gabr System EMR",
     webPreferences: {
       nodeIntegration: false, // للأمان
       contextIsolation: true, // للأمان

@@ -9,7 +9,7 @@ interface LoginProps {
   clinicImage?: string;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLoginSuccess, clinicName = 'مركز نيل للعقم', clinicImage }) => {
+export const Login: React.FC<LoginProps> = ({ onLoginSuccess, clinicName = 'نظام دكتور محمد صلاح جبر', clinicImage }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

@@ -91,7 +91,7 @@ const App: React.FC = () => {
       <>
         <Login
           onLoginSuccess={() => setActivePage(Page.HOME)}
-          clinicName={doctorProfile?.clinic_name || 'مركز نيل للعقم'}
+          clinicName={doctorProfile?.clinic_name || 'نظام دكتور محمد صلاح جبر'}
           clinicImage={doctorProfile?.clinic_image}
         />
         <Toaster position="top-center" reverseOrder={false} />
