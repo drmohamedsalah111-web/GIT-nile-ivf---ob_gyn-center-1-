@@ -1,0 +1,536 @@
+
+import React, { useState, useEffect } from 'react';
+import { db, calculateBMI, analyzeSemenAnalysis } from '../services/ivfService';
+import { EGYPTIAN_DRUGS } from '../constants';
+import { PrescriptionItem, Patient } from '../types';
+import { AlertTriangle, Plus, Trash2, Printer, FileText, Activity, Microscope, Info } from 'lucide-react';
+
+interface FemaleFactor {
+  // Hormones
+  fsh: string;
+  lh: string;
+  e2: string;
+  prolactin: string;
+  tsh: string;
+  amh: string;
+  // Ultrasound
+  endoThickness: string;
+  afcR: string;
+  afcL: string;
+  uterusPathology: string[];
+  ovaryPathology: string[];
+  // Tubes & Scope
+  tubalStatus: string;
+  hydrosalpinx: boolean;
+  hysteroscopy: string[];
+  laparoscopy: string[];
+}
+
+const ClinicalStation: React.FC = () => {
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState('');
+  
+  // Vitals & Male
+  const [vitals, setVitals] = useState({ weight: '', height: '' });
+  const [maleParams, setMaleParams] = useState({ vol: 0, conc: 0, mot: 0, morph: 0 });
+  
+  // Female Workup State
+  const [activeFemaleTab, setActiveFemaleTab] = useState<'hormones' | 'us' | 'scope'>('hormones');
+  const [femaleData, setFemaleData] = useState<FemaleFactor>({
+    fsh: '', lh: '', e2: '', prolactin: '', tsh: '', amh: '',
+    endoThickness: '', afcR: '', afcL: '',
+    uterusPathology: [], ovaryPathology: [],
+    tubalStatus: 'Patent', hydrosalpinx: false,
+    hysteroscopy: [], laparoscopy: []
+  });
+
+  // Rx State
+  const [rxItems, setRxItems] = useState<PrescriptionItem[]>([]);
+  const [drugCategory, setDrugCategory] = useState('');
+  const [selectedDrug, setSelectedDrug] = useState('');
+
+  // Initial Fetch
+  useEffect(() => {
+    db.getPatients().then(setPatients);
+  }, []);
+
+  const selectedPatient = patients.find(p => p.id === selectedPatientId);
+
+  // Computed Values
+  const bmiInfo = calculateBMI(Number(vitals.weight), Number(vitals.height));
+  const spermDiagnosis = analyzeSemenAnalysis(maleParams.vol, maleParams.conc, maleParams.mot, maleParams.morph);
+
+  // --- Female Logic Engine ---
+  const getFemaleDiagnosis = () => {
+    const findings: string[] = [];
+    const fsh = Number(femaleData.fsh);
+    const lh = Number(femaleData.lh);
+    const e2 = Number(femaleData.e2);
+    const prl = Number(femaleData.prolactin);
+    const tsh = Number(femaleData.tsh);
+    const amh = Number(femaleData.amh);
+    const et = Number(femaleData.endoThickness);
+    const afcTotal = Number(femaleData.afcR) + Number(femaleData.afcL);
+
+    // Hormones
+    if (fsh > 10) findings.push("Diminished Ovarian Reserve (FSH > 10)");
+    if (fsh > 0 && lh / fsh > 2) findings.push("Suspect PCOS (LH/FSH ratio > 2)");
+    if (e2 > 80) findings.push("Functional Cyst / Poor Responder Risk (High E2)");
+    if (prl > 25) findings.push(prl > 100 ? "Hyperprolactinemia (Check MRI)" : "Hyperprolactinemia");
+    if (tsh > 2.5) findings.push("Subclinical Hypothyroidism (Treat for Fertility)");
+    if (femaleData.amh && amh < 1.0) findings.push("Low Ovarian Reserve (Poseidon Group)");
+    if (amh > 3.5) findings.push("High Reserve (PCOS Risk)");
+
+    // Ultrasound
+    if (femaleData.endoThickness && et < 7) findings.push("Thin Endometrium (< 7mm)");
+    if ((femaleData.afcR || femaleData.afcL) && afcTotal < 5) findings.push("Low AFC (< 5 Total)");
+    if (femaleData.uterusPathology.length > 0) findings.push(`Uterus: ${femaleData.uterusPathology.join(', ')}`);
+    if (femaleData.ovaryPathology.length > 0) findings.push(`Ovary: ${femaleData.ovaryPathology.join(', ')}`);
+
+    // Tubes
+    if (femaleData.hydrosalpinx) findings.push("CRITICAL: Hydrosalpinx (Clip/Remove before IVF)");
+    if (femaleData.tubalStatus !== 'Patent') findings.push(`Tubes: ${femaleData.tubalStatus}`);
+    
+    // Scopes
+    if (femaleData.laparoscopy.includes('Endometriosis')) findings.push("Endometriosis Confirmed");
+
+    return findings;
+  };
+
+  const femaleFindings = getFemaleDiagnosis();
+
+  // Handlers
+  const handleAddDrug = () => {
+    if (!drugCategory || !selectedDrug) return;
+    // @ts-ignore
+    const drugInfo = EGYPTIAN_DRUGS[drugCategory][selectedDrug];
+    const dose = drugInfo ? drugInfo.dose : '';
+    setRxItems([...rxItems, { category: drugCategory, drug: selectedDrug, dose }]);
+    setSelectedDrug('');
+  };
+
+  const removeDrug = (idx: number) => {
+    setRxItems(rxItems.filter((_, i) => i !== idx));
+  };
+
+  const handlePrint = () => {
+    if (!selectedPatient) return;
+    window.print();
+  };
+
+  const toggleCheckbox = (field: keyof FemaleFactor, value: string) => {
+    const list = femaleData[field] as string[];
+    const newList = list.includes(value) 
+      ? list.filter(item => item !== value)
+      : [...list, value];
+    setFemaleData({ ...femaleData, [field]: newList });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Patient Selector */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
+        <label className="block text-sm font-bold text-gray-700 mb-2">Select Patient</label>
+        <select 
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none bg-white"
+          value={selectedPatientId}
+          onChange={(e) => setSelectedPatientId(e.target.value)}
+        >
+          <option value="">-- Choose from Directory --</option>
+          {patients.map(p => (
+            <option key={p.id} value={p.id}>{p.name} (Husband: {p.husbandName})</option>
+          ))}
+        </select>
+      </div>
+
+      {selectedPatient && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
+            
+            {/* LEFT COLUMN: Vitals + Male (3 cols) */}
+            <div className="lg:col-span-3 space-y-6">
+              {/* BMI Calculator */}
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                <h3 className="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-teal-600" /> Vitals & BMI
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                     <div className="flex-1">
+                        <label className="text-xs text-gray-500">Weight (kg)</label>
+                        <input type="number" className="w-full p-2 border rounded text-sm" value={vitals.weight} onChange={e => setVitals({...vitals, weight: e.target.value})} />
+                     </div>
+                     <div className="flex-1">
+                        <label className="text-xs text-gray-500">Height (cm)</label>
+                        <input type="number" className="w-full p-2 border rounded text-sm" value={vitals.height} onChange={e => setVitals({...vitals, height: e.target.value})} />
+                     </div>
+                  </div>
+                  {bmiInfo.bmi > 0 && (
+                    <div className={`p-2 rounded text-xs flex items-center gap-2 ${bmiInfo.alert ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                      {bmiInfo.alert ? <AlertTriangle className="w-4 h-4" /> : <div className="w-4 h-4 rounded-full border-2 border-green-600" />}
+                      <span className="font-bold">{bmiInfo.bmi} {bmiInfo.alert && "(Obese)"}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Male Diagnosis */}
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                <h3 className="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
+                   <Microscope className="w-4 h-4 text-blue-600" /> Male Factor
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <label className="text-xs text-gray-500">Volume (ml)</label>
+                    <input type="number" placeholder="> 1.5" className="w-full p-2 border rounded" onChange={e => setMaleParams({...maleParams, vol: parseFloat(e.target.value)})} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Conc (M/ml)</label>
+                    <input type="number" placeholder="> 15" className="w-full p-2 border rounded" onChange={e => setMaleParams({...maleParams, conc: parseFloat(e.target.value)})} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Motility (%)</label>
+                    <input type="number" placeholder="> 40" className="w-full p-2 border rounded" onChange={e => setMaleParams({...maleParams, mot: parseFloat(e.target.value)})} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Morphology (%)</label>
+                    <input type="number" placeholder="> 4" className="w-full p-2 border rounded" onChange={e => setMaleParams({...maleParams, morph: parseFloat(e.target.value)})} />
+                  </div>
+                </div>
+                <div className="mt-3 p-2 bg-blue-50 rounded text-xs font-bold text-blue-800 border border-blue-100">
+                  {spermDiagnosis}
+                </div>
+              </div>
+            </div>
+
+            {/* MIDDLE COLUMN: Female Workup (6 cols) */}
+            <div className="lg:col-span-5 flex flex-col gap-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col">
+                <div className="border-b border-gray-100">
+                  <nav className="flex -mb-px">
+                    <button
+                      onClick={() => setActiveFemaleTab('hormones')}
+                      className={`flex-1 py-4 text-center text-sm font-medium border-b-2 transition-colors ${activeFemaleTab === 'hormones' ? 'border-pink-500 text-pink-600 bg-pink-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                      الهرمونات (Hormones)
+                    </button>
+                    <button
+                      onClick={() => setActiveFemaleTab('us')}
+                      className={`flex-1 py-4 text-center text-sm font-medium border-b-2 transition-colors ${activeFemaleTab === 'us' ? 'border-pink-500 text-pink-600 bg-pink-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                      السونار (Ultrasound)
+                    </button>
+                    <button
+                      onClick={() => setActiveFemaleTab('scope')}
+                      className={`flex-1 py-4 text-center text-sm font-medium border-b-2 transition-colors ${activeFemaleTab === 'scope' ? 'border-pink-500 text-pink-600 bg-pink-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                      المناظير (Endoscopy)
+                    </button>
+                  </nav>
+                </div>
+
+                <div className="p-6 flex-1 overflow-y-auto">
+                  
+                  {/* TAB 1: HORMONES */}
+                  {activeFemaleTab === 'hormones' && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2 text-xs text-gray-400 mb-2 font-bold">Day 2-3 Profile</div>
+                      
+                      <div className="relative">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">FSH (IU/L)</label>
+                        <input type="number" className={`w-full p-2 border rounded-lg ${Number(femaleData.fsh) > 10 ? 'border-red-300 bg-red-50' : ''}`} 
+                          value={femaleData.fsh} onChange={e => setFemaleData({...femaleData, fsh: e.target.value})} />
+                        {Number(femaleData.fsh) > 10 && <span className="text-[10px] text-red-600 absolute bottom-[-16px] right-0">Diminished Reserve</span>}
+                      </div>
+
+                      <div className="relative">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">LH (IU/L)</label>
+                        <input type="number" className="w-full p-2 border rounded-lg" 
+                          value={femaleData.lh} onChange={e => setFemaleData({...femaleData, lh: e.target.value})} />
+                      </div>
+
+                      <div className="relative">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">E2 (pg/mL)</label>
+                        <input type="number" className={`w-full p-2 border rounded-lg ${Number(femaleData.e2) > 80 ? 'border-yellow-300 bg-yellow-50' : ''}`}
+                          value={femaleData.e2} onChange={e => setFemaleData({...femaleData, e2: e.target.value})} />
+                      </div>
+
+                      <div className="relative">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Prolactin (ng/mL)</label>
+                        <input type="number" className={`w-full p-2 border rounded-lg ${Number(femaleData.prolactin) > 25 ? 'border-red-300 bg-red-50' : ''}`}
+                          value={femaleData.prolactin} onChange={e => setFemaleData({...femaleData, prolactin: e.target.value})} />
+                      </div>
+
+                      <div className="relative">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">TSH (mIU/L)</label>
+                        <input type="number" className={`w-full p-2 border rounded-lg ${Number(femaleData.tsh) > 2.5 ? 'border-yellow-300 bg-yellow-50' : ''}`}
+                          value={femaleData.tsh} onChange={e => setFemaleData({...femaleData, tsh: e.target.value})} />
+                      </div>
+
+                      <div className="relative">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">AMH (ng/mL)</label>
+                        <input type="number" className={`w-full p-2 border rounded-lg ${Number(femaleData.amh) < 1 ? 'border-red-300 bg-red-50' : Number(femaleData.amh) > 3.5 ? 'border-blue-300 bg-blue-50' : ''}`}
+                          value={femaleData.amh} onChange={e => setFemaleData({...femaleData, amh: e.target.value})} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: ULTRASOUND */}
+                  {activeFemaleTab === 'us' && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">بطانة الرحم (mm)</label>
+                          <input type="number" className={`w-full p-2 border rounded-lg ${Number(femaleData.endoThickness) > 0 && Number(femaleData.endoThickness) < 7 ? 'border-red-300 bg-red-50' : ''}`}
+                            value={femaleData.endoThickness} onChange={e => setFemaleData({...femaleData, endoThickness: e.target.value})} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">AFC Right</label>
+                          <input type="number" className="w-full p-2 border rounded-lg"
+                            value={femaleData.afcR} onChange={e => setFemaleData({...femaleData, afcR: e.target.value})} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">AFC Left</label>
+                          <input type="number" className="w-full p-2 border rounded-lg"
+                            value={femaleData.afcL} onChange={e => setFemaleData({...femaleData, afcL: e.target.value})} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase">Uterus Pathology (الرحم)</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {['Fibroids', 'Polyps', 'Adenomyosis', 'Septum'].map(item => (
+                            <button
+                              key={item}
+                              onClick={() => toggleCheckbox('uterusPathology', item)}
+                              className={`px-3 py-1 text-xs rounded-full border transition-colors ${femaleData.uterusPathology.includes(item) ? 'bg-pink-600 text-white border-pink-600' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase">Ovary Pathology (المبيض)</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {['Simple Cyst', 'Endometrioma', 'Dermoid', 'PCO Pattern'].map(item => (
+                            <button
+                              key={item}
+                              onClick={() => toggleCheckbox('ovaryPathology', item)}
+                              className={`px-3 py-1 text-xs rounded-full border transition-colors ${femaleData.ovaryPathology.includes(item) ? 'bg-pink-600 text-white border-pink-600' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 3: SCOPES & TUBES */}
+                  {activeFemaleTab === 'scope' && (
+                    <div className="space-y-6">
+                      
+                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <label className="block text-xs font-bold text-gray-700 mb-2">Tubal Patency (HSG/HyCoSy)</label>
+                        <select 
+                          className="w-full p-2 border rounded-lg mb-3"
+                          value={femaleData.tubalStatus}
+                          onChange={e => setFemaleData({...femaleData, tubalStatus: e.target.value})}
+                        >
+                          <option value="Patent">Patent Bilaterally (سليمة)</option>
+                          <option value="Right Blocked">Right Blocked (انسداد يمين)</option>
+                          <option value="Left Blocked">Left Blocked (انسداد يسار)</option>
+                          <option value="Bilateral Block">Bilateral Block (انسداد كلي)</option>
+                        </select>
+                        
+                        <label className="flex items-center gap-3 p-3 bg-white border border-red-100 rounded-lg cursor-pointer hover:bg-red-50 transition-colors">
+                          <input 
+                            type="checkbox" 
+                            checked={femaleData.hydrosalpinx} 
+                            onChange={e => setFemaleData({...femaleData, hydrosalpinx: e.target.checked})} 
+                            className="w-5 h-5 text-red-600 rounded focus:ring-red-500" 
+                          />
+                          <div>
+                            <span className="font-bold text-red-800 block text-sm">Hydrosalpinx Detected</span>
+                            <span className="text-xs text-red-600">ارتشاح بقناة فالوب (Must remove before IVF)</span>
+                          </div>
+                        </label>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-500 mb-2">Hysteroscopy Findings</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {['Normal Cavity', 'Adhesions', 'Polypectomy', 'Septum Resection'].map(item => (
+                            <button
+                              key={item}
+                              onClick={() => toggleCheckbox('hysteroscopy', item)}
+                              className={`px-3 py-1 text-xs rounded-full border transition-colors ${femaleData.hysteroscopy.includes(item) ? 'bg-purple-600 text-white border-purple-600' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-500 mb-2">Laparoscopy Findings</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {['Normal', 'Endometriosis I-II', 'Endometriosis III-IV', 'Adhesions'].map(item => (
+                            <button
+                              key={item}
+                              onClick={() => toggleCheckbox('laparoscopy', item)}
+                              className={`px-3 py-1 text-xs rounded-full border transition-colors ${femaleData.laparoscopy.includes(item) ? 'bg-purple-600 text-white border-purple-600' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
+
+                </div>
+                
+                {/* Summary / Diagnosis Box */}
+                <div className="bg-pink-50 p-4 border-t border-pink-100 min-h-[100px]">
+                  <h4 className="text-xs font-bold text-pink-800 uppercase mb-2 flex items-center gap-2">
+                    <Info className="w-4 h-4" /> Diagnosis & Findings
+                  </h4>
+                  {femaleFindings.length > 0 ? (
+                    <ul className="list-disc list-inside space-y-1">
+                      {femaleFindings.map((finding, i) => (
+                        <li key={i} className="text-sm text-pink-900 font-medium">
+                          {finding}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-pink-400 italic">Enter data to generate diagnosis...</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: Smart Rx (3 cols) */}
+            <div className="lg:col-span-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+              <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-teal-600" /> Smart Prescription
+              </h3>
+              
+              <div className="space-y-3 mb-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-600">Category</label>
+                  <select 
+                    className="w-full p-2 border rounded-lg mt-1 text-sm"
+                    value={drugCategory}
+                    onChange={e => { setDrugCategory(e.target.value); setSelectedDrug(''); }}
+                  >
+                    <option value="">Select Category</option>
+                    {Object.keys(EGYPTIAN_DRUGS).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="text-xs font-medium text-gray-600">Medication</label>
+                  <select 
+                    className="w-full p-2 border rounded-lg mt-1 text-sm"
+                    value={selectedDrug}
+                    onChange={e => setSelectedDrug(e.target.value)}
+                    disabled={!drugCategory}
+                  >
+                    <option value="">Select Drug</option>
+                    {drugCategory && Object.keys((EGYPTIAN_DRUGS as any)[drugCategory]).map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button 
+                  onClick={handleAddDrug}
+                  disabled={!selectedDrug}
+                  className="w-full bg-teal-600 text-white py-2 rounded-lg font-bold hover:bg-teal-700 disabled:bg-gray-300 transition-colors flex items-center justify-center gap-2 text-sm"
+                >
+                  <Plus className="w-4 h-4" /> Add
+                </button>
+              </div>
+
+              <div className="flex-1 border border-gray-100 rounded-lg p-3 bg-gray-50 overflow-y-auto max-h-[300px]">
+                {rxItems.length === 0 ? (
+                  <p className="text-center text-gray-400 text-xs mt-10">No items added</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {rxItems.map((item, idx) => (
+                      <li key={idx} className="bg-white p-2 rounded shadow-sm flex justify-between items-start">
+                        <div>
+                          <div className="font-bold text-gray-800 text-sm">{item.drug}</div>
+                          <div className="text-xs text-teal-600 font-mono mt-0.5">{item.dose}</div>
+                        </div>
+                        <button onClick={() => removeDrug(idx)} className="text-red-400 hover:text-red-600">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                 <button 
+                  onClick={handlePrint}
+                  disabled={rxItems.length === 0}
+                  className="w-full bg-gray-800 text-white py-2.5 rounded-xl font-bold hover:bg-gray-900 transition-colors flex items-center justify-center gap-2 text-sm"
+                >
+                  <Printer className="w-4 h-4" /> Print (A4)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* PRINT VIEW - Hidden until print */}
+          <div className="print-only fixed top-0 left-0 w-full h-full bg-white z-50 p-12">
+            <div className="border-b-2 border-teal-700 pb-6 mb-8 flex justify-between items-end">
+              <div>
+                <h1 className="text-4xl font-bold text-teal-800">Nile IVF Center</h1>
+                <p className="text-gray-500 mt-2">Dr. Senior Consultant, MD</p>
+              </div>
+              <div className="text-right text-sm text-gray-600">
+                <p>Date: {new Date().toLocaleDateString()}</p>
+                <p>Patient: <strong>{selectedPatient.name}</strong></p>
+                <p>Dx: {femaleFindings.length > 0 ? femaleFindings[0] + "..." : spermDiagnosis}</p>
+              </div>
+            </div>
+
+            <div className="mb-8">
+              <h2 className="text-3xl font-serif italic text-gray-800 text-center mb-8">R/</h2>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-gray-100 text-right text-gray-500 text-sm">
+                    <th className="py-2">Medication</th>
+                    <th className="py-2">Dose / Instructions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {rxItems.map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="py-4 font-bold text-lg">{item.drug}</td>
+                      <td className="py-4 text-teal-800 dir-rtl text-right font-medium">{item.dose}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="fixed bottom-12 w-full text-center text-xs text-gray-400 border-t pt-4">
+              Nile IVF Center - 123 Medical Tower, Cairo, Egypt - +20 123 456 7890
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default ClinicalStation;
