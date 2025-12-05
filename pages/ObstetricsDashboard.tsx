@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { Pregnancy, Patient } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { obstetricsService, calculateEDD } from '../services/obstetricsService';
+import { authService } from '../services/authService';
 import PregnancyHeader from './components/obstetrics/PregnancyHeader';
 import RiskAssessment from './components/obstetrics/RiskAssessment';
 import ANCFlowSheet from './components/obstetrics/ANCFlowSheet';
@@ -17,6 +18,7 @@ const ObstetricsDashboard: React.FC = () => {
   const [isLoadingPregnancy, setIsLoadingPregnancy] = useState(false);
   const [showNewPregnancyForm, setShowNewPregnancyForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [doctorId, setDoctorId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     lmp_date: '',
@@ -25,6 +27,7 @@ const ObstetricsDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchPatients();
+    fetchDoctorProfile();
   }, []);
 
   useEffect(() => {
@@ -68,10 +71,28 @@ const ObstetricsDashboard: React.FC = () => {
     }
   };
 
+  const fetchDoctorProfile = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (user) {
+        const doctor = await authService.getDoctorProfile(user.id);
+        setDoctorId(doctor.id);
+      }
+    } catch (error) {
+      console.error('Error fetching doctor profile:', error);
+      toast.error('فشل تحميل بيانات الطبيب');
+    }
+  };
+
   const handleCreatePregnancy = async () => {
     try {
       if (!selectedPatientId) {
         toast.error('اختر مريضة أولاً');
+        return;
+      }
+
+      if (!doctorId) {
+        toast.error('فشل تحميل بيانات الطبيب');
         return;
       }
 
@@ -84,24 +105,36 @@ const ObstetricsDashboard: React.FC = () => {
 
       const eddDate = formData.edd_by_scan || calculateEDD(formData.lmp_date);
 
-      const newPregnancy = await obstetricsService.createPregnancy({
+      const pregnancyData = {
+        doctor_id: doctorId,
         patient_id: selectedPatientId,
         lmp_date: formData.lmp_date || undefined,
         edd_date: eddDate,
         edd_by_scan: formData.edd_by_scan || undefined,
-        risk_level: 'low',
+        risk_level: 'low' as const,
         risk_factors: [],
         aspirin_prescribed: false,
         thromboprophylaxis_needed: false,
-      });
+      };
+
+      console.log('Creating pregnancy with data:', pregnancyData);
+
+      const newPregnancy = await obstetricsService.createPregnancy(pregnancyData);
 
       setPregnancy(newPregnancy);
       setShowNewPregnancyForm(false);
       setFormData({ lmp_date: '', edd_by_scan: '' });
       toast.success('تم إنشاء ملف الحمل بنجاح');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating pregnancy:', error);
-      toast.error('فشل إنشاء ملف الحمل');
+      console.error('Error details:', {
+        message: error?.message,
+        code: error?.code,
+        status: error?.status,
+        details: error?.details,
+        hint: error?.hint,
+      });
+      toast.error(`فشل إنشاء ملف الحمل: ${error?.message || 'خطأ غير معروف'}`);
     } finally {
       setIsSaving(false);
     }

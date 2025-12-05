@@ -185,14 +185,22 @@ export const getDueActions = (gaWeeks: number): string[] => {
 export const obstetricsService = {
   // PREGNANCIES
   createPregnancy: async (pregnancy: Omit<Pregnancy, 'id' | 'created_at' | 'updated_at'>) => {
-    const { data, error } = await supabase
-      .from('pregnancies')
-      .insert([pregnancy])
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('pregnancies')
+        .insert([pregnancy])
+        .select()
+        .single();
 
-    if (error) throw error;
-    return data;
+      if (error) {
+        console.error('Supabase error inserting pregnancy:', error);
+        throw new Error(`Failed to create pregnancy: ${error.message}`);
+      }
+      return data;
+    } catch (err: any) {
+      console.error('Exception in createPregnancy:', err);
+      throw err;
+    }
   },
 
   getPregnancyByPatient: async (patientId: string) => {
