@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
+import BottomNav from './components/BottomNav';
 import { Page } from './types';
 import Dashboard from './pages/Dashboard';
 import Reception from './pages/Reception';
@@ -21,14 +22,20 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-row-reverse font-[Tajawal]">
-      <Sidebar activePage={activePage} setPage={setActivePage} />
-      
-      <main className="flex-1 mr-64 p-8 transition-all duration-300 no-print">
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row-reverse font-[Tajawal]">
+      {/* Sidebar: hidden on mobile, visible md+ */}
+      <div className="hidden md:flex">
+        <Sidebar activePage={activePage} setPage={setActivePage} />
+      </div>
+
+      <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">
         <div className="max-w-7xl mx-auto">
           {renderContent()}
         </div>
       </main>
+
+      {/* Bottom navigation for mobile */}
+      <BottomNav activePage={activePage} setPage={setActivePage} />
 
       <Toaster position="top-center" reverseOrder={false} />
     </div>

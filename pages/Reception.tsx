@@ -82,7 +82,7 @@ const Reception: React.FC = () => {
         </button>
       </div>
 
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         {activeTab === 'register' ? (
           <form onSubmit={handleRegister} className="max-w-2xl mx-auto space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -178,40 +178,61 @@ const Reception: React.FC = () => {
                 <Loader2 className="w-8 h-8 animate-spin" />
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-gray-200">
-                <table className="w-full text-right">
-                  <thead className="bg-gray-50 text-gray-600 font-medium text-sm">
-                    <tr>
-                      <th className="px-6 py-4">ID</th>
-                      <th className="px-6 py-4">Patient Name</th>
-                      <th className="px-6 py-4">Age</th>
-                      <th className="px-6 py-4">Phone</th>
-                      <th className="px-6 py-4">Husband</th>
-                      <th className="px-6 py-4">History</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredPatients.length > 0 ? (
-                      filteredPatients.map((patient) => (
-                        <tr key={patient.id} className="hover:bg-teal-50/30 transition-colors text-sm text-gray-700">
-                          <td className="px-6 py-4 font-mono text-xs text-gray-400">{patient.id.slice(0, 6)}</td>
-                          <td className="px-6 py-4 font-bold text-gray-900">{patient.name}</td>
-                          <td className="px-6 py-4">{patient.age}</td>
-                          <td className="px-6 py-4">{patient.phone}</td>
-                          <td className="px-6 py-4">{patient.husbandName}</td>
-                          <td className="px-6 py-4 truncate max-w-xs">{patient.history}</td>
-                        </tr>
-                      ))
-                    ) : (
+              <>
+                {/* Mobile: render cards */}
+                <div className="block md:hidden space-y-3">
+                  {filteredPatients.length > 0 ? filteredPatients.map(patient => (
+                    <div key={patient.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-bold text-gray-900">{patient.name}</div>
+                          <div className="text-xs text-gray-500 mt-1">{patient.phone} • Age {patient.age}</div>
+                        </div>
+                        <div className="text-right text-xs text-gray-400 font-mono">{patient.id.slice(0,6)}</div>
+                      </div>
+                      <div className="mt-3 text-xs text-gray-600 truncate">{patient.history}</div>
+                    </div>
+                  )) : (
+                    <div className="text-center text-gray-400 py-8">No patients found matching your search.</div>
+                  )}
+                </div>
+
+                {/* Desktop: table */}
+                <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200">
+                  <table className="w-full text-right">
+                    <thead className="bg-gray-50 text-gray-600 font-medium text-sm">
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
-                          No patients found matching your search.
-                        </td>
+                        <th className="px-6 py-4">ID</th>
+                        <th className="px-6 py-4">Patient Name</th>
+                        <th className="px-6 py-4">Age</th>
+                        <th className="px-6 py-4">Phone</th>
+                        <th className="px-6 py-4">Husband</th>
+                        <th className="px-6 py-4">History</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredPatients.length > 0 ? (
+                        filteredPatients.map((patient) => (
+                          <tr key={patient.id} className="hover:bg-teal-50/30 transition-colors text-sm text-gray-700">
+                            <td className="px-6 py-4 font-mono text-xs text-gray-400">{patient.id.slice(0, 6)}</td>
+                            <td className="px-6 py-4 font-bold text-gray-900">{patient.name}</td>
+                            <td className="px-6 py-4">{patient.age}</td>
+                            <td className="px-6 py-4">{patient.phone}</td>
+                            <td className="px-6 py-4">{patient.husbandName}</td>
+                            <td className="px-6 py-4 truncate max-w-xs">{patient.history}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                            No patients found matching your search.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         )}

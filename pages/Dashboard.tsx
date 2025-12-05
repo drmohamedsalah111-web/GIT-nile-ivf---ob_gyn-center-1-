@@ -65,14 +65,14 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <header className="mb-8">
+      <header className="mb-6 md:mb-8">
         <h2 className="text-3xl font-bold text-gray-800">Dashboard Overview</h2>
         <p className="text-gray-500">Welcome back, Dr. Name</p>
       </header>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-gray-400">Total Patients</p>
             <h3 className="text-3xl font-bold text-gray-800 mt-1">{stats.totalPatients}</h3>
@@ -82,7 +82,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+        <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-gray-400">Active Cycles</p>
             <h3 className="text-3xl font-bold text-teal-600 mt-1">{stats.activeCycles}</h3>
@@ -92,7 +92,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+        <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-gray-400">Today's Visits</p>
             <h3 className="text-3xl font-bold text-purple-600 mt-1">{stats.todayVisits}</h3>

@@ -129,7 +129,7 @@ const ClinicalStation: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Patient Selector */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
+      <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
         <label className="block text-sm font-bold text-gray-700 mb-2">Select Patient</label>
         <select 
           className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none bg-white"
@@ -150,7 +150,7 @@ const ClinicalStation: React.FC = () => {
             {/* LEFT COLUMN: Vitals + Male (3 cols) */}
             <div className="lg:col-span-3 space-y-6">
               {/* BMI Calculator */}
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+              <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
                 <h3 className="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
                   <Activity className="w-4 h-4 text-teal-600" /> Vitals & BMI
                 </h3>
@@ -158,11 +158,11 @@ const ClinicalStation: React.FC = () => {
                   <div className="flex gap-2">
                      <div className="flex-1">
                         <label className="text-xs text-gray-500">Weight (kg)</label>
-                        <input type="number" className="w-full p-2 border rounded text-sm" value={vitals.weight} onChange={e => setVitals({...vitals, weight: e.target.value})} />
+                        <input type="number" className="w-full p-3 md:p-2 border rounded text-sm min-h-[48px]" value={vitals.weight} onChange={e => setVitals({...vitals, weight: e.target.value})} />
                      </div>
                      <div className="flex-1">
                         <label className="text-xs text-gray-500">Height (cm)</label>
-                        <input type="number" className="w-full p-2 border rounded text-sm" value={vitals.height} onChange={e => setVitals({...vitals, height: e.target.value})} />
+                        <input type="number" className="w-full p-3 md:p-2 border rounded text-sm min-h-[48px]" value={vitals.height} onChange={e => setVitals({...vitals, height: e.target.value})} />
                      </div>
                   </div>
                   {bmiInfo.bmi > 0 && (
@@ -175,26 +175,26 @@ const ClinicalStation: React.FC = () => {
               </div>
 
               {/* Male Diagnosis */}
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+              <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
                 <h3 className="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
                    <Microscope className="w-4 h-4 text-blue-600" /> Male Factor
                 </h3>
                 <div className="space-y-3 text-sm">
                   <div>
                     <label className="text-xs text-gray-500">Volume (ml)</label>
-                    <input type="number" placeholder="> 1.5" className="w-full p-2 border rounded" onChange={e => setMaleParams({...maleParams, vol: parseFloat(e.target.value)})} />
+                    <input type="number" placeholder="> 1.5" className="w-full p-3 md:p-2 border rounded min-h-[48px]" onChange={e => setMaleParams({...maleParams, vol: parseFloat(e.target.value)})} />
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">Conc (M/ml)</label>
-                    <input type="number" placeholder="> 15" className="w-full p-2 border rounded" onChange={e => setMaleParams({...maleParams, conc: parseFloat(e.target.value)})} />
+                    <input type="number" placeholder="> 15" className="w-full p-3 md:p-2 border rounded min-h-[48px]" onChange={e => setMaleParams({...maleParams, conc: parseFloat(e.target.value)})} />
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">Motility (%)</label>
-                    <input type="number" placeholder="> 40" className="w-full p-2 border rounded" onChange={e => setMaleParams({...maleParams, mot: parseFloat(e.target.value)})} />
+                    <input type="number" placeholder="> 40" className="w-full p-3 md:p-2 border rounded min-h-[48px]" onChange={e => setMaleParams({...maleParams, mot: parseFloat(e.target.value)})} />
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">Morphology (%)</label>
-                    <input type="number" placeholder="> 4" className="w-full p-2 border rounded" onChange={e => setMaleParams({...maleParams, morph: parseFloat(e.target.value)})} />
+                    <input type="number" placeholder="> 4" className="w-full p-3 md:p-2 border rounded min-h-[48px]" onChange={e => setMaleParams({...maleParams, morph: parseFloat(e.target.value)})} />
                   </div>
                 </div>
                 <div className="mt-3 p-2 bg-blue-50 rounded text-xs font-bold text-blue-800 border border-blue-100">

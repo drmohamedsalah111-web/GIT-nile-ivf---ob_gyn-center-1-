@@ -16,7 +16,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
   ];
 
   return (
-    <div className="w-64 bg-white h-screen shadow-lg flex flex-col fixed inset-y-0 right-0 z-10 no-print">
+    // Hidden on mobile, visible from md and up
+    <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 no-print">
       <div className="p-6 border-b border-gray-100 flex items-center justify-center">
         <div className="flex flex-col items-center">
           <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mb-2">
