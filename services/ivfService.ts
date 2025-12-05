@@ -96,10 +96,7 @@ export const db = {
       diagnosis: v.diagnosis,
       prescription: v.prescription,
       notes: v.notes,
-      vitals: v.vitals,
-      labResults: v.lab_results,
-      ultrasoundResults: v.ultrasound_results,
-      otherTests: v.other_tests
+      vitals: v.vitals
     }));
   },
 
@@ -117,9 +114,6 @@ export const db = {
         prescription: visit.prescription,
         notes: visit.notes,
         vitals: visit.vitals,
-        lab_results: visit.labResults,
-        ultrasound_results: visit.ultrasoundResults,
-        other_tests: visit.otherTests,
         doctor_id: user.id
       }])
       .select()
