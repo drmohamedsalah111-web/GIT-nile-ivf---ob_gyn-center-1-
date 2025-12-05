@@ -19,9 +19,32 @@
       
       @media print {
         .no-print { display: none !important; }
-        .print-only { display: block !important; }
-        body { background-color: white; }
-        #root { width: 100%; margin: 0; padding: 0; }
+        .print-only { 
+          display: block !important; 
+          position: static !important; 
+          top: auto !important; 
+          left: auto !important;
+          width: 100% !important;
+        }
+        body { 
+          background-color: white !important; 
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        #root { 
+          width: 100% !important; 
+          margin: 0 !important; 
+          padding: 0 !important;
+        }
+        * {
+          background-color: transparent !important;
+          box-shadow: none !important;
+          color: black !important;
+        }
+        a { text-decoration: underline; }
+        h1, h2, h3, h4, h5, h6 { page-break-after: avoid; }
+        table, pre { page-break-inside: avoid; }
+        img { max-width: 100%; }
       }
       .print-only { display: none; }
     </style>

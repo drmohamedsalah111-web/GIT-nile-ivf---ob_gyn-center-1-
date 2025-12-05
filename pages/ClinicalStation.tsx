@@ -114,8 +114,10 @@ const ClinicalStation: React.FC = () => {
   };
 
   const handlePrint = () => {
-    if (!selectedPatient) return;
-    window.print();
+    if (!selectedPatient || rxItems.length === 0) return;
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   const toggleCheckbox = (field: keyof FemaleFactor, value: string) => {
@@ -490,41 +492,39 @@ const ClinicalStation: React.FC = () => {
           </div>
 
           {/* PRINT VIEW - Hidden until print */}
-          <div className="print-only fixed top-0 left-0 w-full h-full bg-white z-50 p-12">
-            <div className="border-b-2 border-teal-700 pb-6 mb-8 flex justify-between items-end">
-              <div>
-                <h1 className="text-4xl font-bold text-teal-800">Nile IVF Center</h1>
-                <p className="text-gray-500 mt-2">Dr. Senior Consultant, MD</p>
-              </div>
-              <div className="text-right text-sm text-gray-600">
-                <p>Date: {new Date().toLocaleDateString()}</p>
-                <p>Patient: <strong>{selectedPatient.name}</strong></p>
-                <p>Dx: {femaleFindings.length > 0 ? femaleFindings[0] + "..." : spermDiagnosis}</p>
+          <div className="print-only absolute top-0 left-0 w-full bg-white p-8" style={{ direction: 'rtl' }}>
+            <div className="border-b-2 border-teal-700 pb-6 mb-8">
+              <div className="flex flex-row-reverse justify-between items-end mb-4">
+                <div className="text-right">
+                  <h1 className="text-3xl font-bold text-teal-800">مركز نيل للعقم</h1>
+                  <p className="text-gray-600 mt-2 text-sm">Nile IVF Center</p>
+                </div>
+                <div className="text-left text-sm text-gray-600">
+                  <p>التاريخ: {new Date().toLocaleDateString('ar-EG')}</p>
+                  <p>اسم المريضة: <strong>{selectedPatient?.name}</strong></p>
+                </div>
               </div>
             </div>
 
             <div className="mb-8">
-              <h2 className="text-3xl font-serif italic text-gray-800 text-center mb-8">R/</h2>
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b-2 border-gray-100 text-right text-gray-500 text-sm">
-                    <th className="py-2">Medication</th>
-                    <th className="py-2">Dose / Instructions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {rxItems.map((item, idx) => (
-                    <tr key={idx}>
-                      <td className="py-4 font-bold text-lg">{item.drug}</td>
-                      <td className="py-4 text-teal-800 dir-rtl text-right font-medium">{item.dose}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <h2 className="text-center text-2xl font-bold text-gray-800 mb-6">الروشتة الطبية</h2>
+              <h3 className="text-4xl font-serif text-teal-700 text-center mb-8">R/</h3>
+              
+              <div className="space-y-4">
+                {rxItems.map((item, idx) => (
+                  <div key={idx} className="border-b border-gray-300 pb-3 flex flex-row-reverse justify-between items-start">
+                    <div className="text-right flex-1">
+                      <div className="font-bold text-lg text-gray-800">{item.drug}</div>
+                      <div className="text-sm text-teal-700 font-medium mt-1">{item.dose}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="fixed bottom-12 w-full text-center text-xs text-gray-400 border-t pt-4">
-              Nile IVF Center - 123 Medical Tower, Cairo, Egypt - +20 123 456 7890
+            <div className="border-t border-gray-300 pt-6 mt-12 text-center text-xs text-gray-500">
+              <p>Nile IVF Center - Cairo, Egypt</p>
+              <p className="mt-1">+20 123 456 7890</p>
             </div>
           </div>
         </>
