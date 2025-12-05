@@ -49,6 +49,10 @@ export const db = {
   },
 
   savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
+
     const { data, error } = await supabase
       .from('patients')
       .insert([{
@@ -56,7 +60,8 @@ export const db = {
         age: patient.age,
         phone: patient.phone,
         husband_name: patient.husbandName,
-        history: patient.history
+        history: patient.history,
+        doctor_id: user.id
       }])
       .select()
       .single();
@@ -113,13 +118,18 @@ export const db = {
   },
 
   saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
+
     const { data, error } = await supabase
       .from('ivf_cycles')
       .insert([{
         patient_id: cycle.patientId,
         protocol: cycle.protocol,
         status: cycle.status,
-        start_date: cycle.startDate
+        start_date: cycle.startDate,
+        doctor_id: user.id
       }])
       .select()
       .single();
