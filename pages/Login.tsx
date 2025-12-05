@@ -5,9 +5,11 @@ import { LogIn, AlertCircle } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: () => void;
+  clinicName?: string;
+  clinicImage?: string;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+export const Login: React.FC<LoginProps> = ({ onLoginSuccess, clinicName = 'مركز نيل للعقم', clinicImage }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -70,13 +72,21 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="flex items-center justify-center mb-8">
-          <div className="bg-indigo-600 rounded-full p-3">
-            <LogIn className="text-white" size={24} />
-          </div>
+          {clinicImage ? (
+            <img
+              src={clinicImage}
+              alt="Clinic logo"
+              className="w-16 h-16 rounded-full object-cover"
+            />
+          ) : (
+            <div className="bg-indigo-600 rounded-full p-3">
+              <LogIn className="text-white" size={24} />
+            </div>
+          )}
         </div>
 
         <h1 className="text-3xl font-bold text-center text-gray-900 mb-2 font-[Tajawal]">
-          مركز نيل للعقم
+          {clinicName}
         </h1>
         <p className="text-center text-gray-600 mb-8 font-[Tajawal]">
           {showSignup ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}

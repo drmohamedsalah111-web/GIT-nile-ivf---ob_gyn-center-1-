@@ -1,13 +1,14 @@
 import React from 'react';
 import { LayoutDashboard, Users, Stethoscope, Baby, Heart, Settings, LogOut } from 'lucide-react';
-import { Page } from '../types';
+import { Page, Doctor } from '../types';
 
 interface SidebarProps {
   activePage: Page;
   setPage: (page: Page) => void;
+  doctorProfile: Doctor | null;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, doctorProfile }) => {
   const menuItems = [
     { id: Page.HOME, label: 'Dashboard', icon: LayoutDashboard },
     { id: Page.RECEPTION, label: 'Reception', icon: Users },
@@ -17,15 +18,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
     { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings },
   ];
 
+  const clinicName = doctorProfile?.clinic_name || 'Nile IVF Center';
+  const clinicImage = doctorProfile?.clinic_image;
+
   return (
     // Hidden on mobile, visible from md and up
     <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 no-print">
       <div className="p-6 border-b border-gray-100 flex items-center justify-center">
         <div className="flex flex-col items-center">
-          <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mb-2">
-            <Baby className="text-teal-700 w-8 h-8" />
-          </div>
-          <h1 className="text-xl font-bold text-gray-800">Nile IVF Center</h1>
+          {clinicImage ? (
+            <img
+              src={clinicImage}
+              alt="Clinic logo"
+              className="w-12 h-12 rounded-full object-cover mb-2"
+            />
+          ) : (
+            <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mb-2">
+              <Baby className="text-teal-700 w-8 h-8" />
+            </div>
+          )}
+          <h1 className="text-xl font-bold text-gray-800">{clinicName}</h1>
           <p className="text-xs text-gray-400 uppercase tracking-wider">EMR System</p>
         </div>
       </div>

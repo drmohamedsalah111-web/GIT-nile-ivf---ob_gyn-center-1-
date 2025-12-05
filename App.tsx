@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import BottomNav from './components/BottomNav';
-import { Page } from './types';
+import { Page, Doctor } from './types';
 import Dashboard from './pages/Dashboard';
 import Reception from './pages/Reception';
 import ClinicalStation from './pages/ClinicalStation';
@@ -16,18 +16,24 @@ import { LogOut } from 'lucide-react';
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
   const [user, setUser] = useState<any>(null);
+  const [doctorProfile, setDoctorProfile] = useState<Doctor | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    
+
     const checkUser = async () => {
       try {
         const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
+        if (currentUser?.id) {
+          const profile = await authService.getDoctorProfile(currentUser.id);
+          setDoctorProfile(profile);
+        }
       } catch (error) {
         console.log('No user logged in');
         setUser(null);
+        setDoctorProfile(null);
       } finally {
         setLoading(false);
       }
@@ -35,8 +41,19 @@ const App: React.FC = () => {
 
     checkUser();
 
-    const subscription = authService.onAuthStateChange((user) => {
+    const subscription = authService.onAuthStateChange(async (user) => {
       setUser(user);
+      if (user?.id) {
+        try {
+          const profile = await authService.getDoctorProfile(user.id);
+          setDoctorProfile(profile);
+        } catch (error) {
+          console.error('Failed to fetch doctor profile:', error);
+          setDoctorProfile(null);
+        }
+      } else {
+        setDoctorProfile(null);
+      }
       setLoading(false);
     });
 
@@ -51,6 +68,7 @@ const App: React.FC = () => {
     try {
       await authService.logout();
       setUser(null);
+      setDoctorProfile(null);
       setActivePage(Page.HOME);
     } catch (error) {
       console.error('Logout error:', error);
@@ -71,7 +89,11 @@ const App: React.FC = () => {
   if (!user) {
     return (
       <>
-        <Login onLoginSuccess={() => setActivePage(Page.HOME)} />
+        <Login
+          onLoginSuccess={() => setActivePage(Page.HOME)}
+          clinicName={doctorProfile?.clinic_name || 'مركز نيل للعقم'}
+          clinicImage={doctorProfile?.clinic_image}
+        />
         <Toaster position="top-center" reverseOrder={false} />
       </>
     );
@@ -81,7 +103,7 @@ const App: React.FC = () => {
     switch (activePage) {
       case Page.HOME: return <Dashboard />;
       case Page.RECEPTION: return <Reception />;
-      case Page.CLINICAL: return <ClinicalStation />;
+      case Page.CLINICAL: return <ClinicalStation doctorProfile={doctorProfile} />;
       case Page.IVF: return <IvfJourney />;
       case Page.OBSTETRICS: return <ObstetricsDashboard />;
       case Page.SETTINGS: return <Settings user={user} />;
@@ -92,7 +114,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row-reverse font-[Tajawal]">
       <div className="hidden md:flex">
-        <Sidebar activePage={activePage} setPage={setActivePage} />
+        <Sidebar activePage={activePage} setPage={setActivePage} doctorProfile={doctorProfile} />
       </div>
 
       <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">

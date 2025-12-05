@@ -2,8 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { db, calculateBMI, analyzeSemenAnalysis } from '../services/ivfService';
 import { EGYPTIAN_DRUGS } from '../constants';
-import { PrescriptionItem, Patient } from '../types';
+import { PrescriptionItem, Patient, Doctor } from '../types';
 import { AlertTriangle, Plus, Trash2, Printer, FileText, Activity, Microscope, Info } from 'lucide-react';
+
+interface ClinicalStationProps {
+  doctorProfile: Doctor | null;
+}
 
 interface FemaleFactor {
   // Hormones
@@ -26,7 +30,7 @@ interface FemaleFactor {
   laparoscopy: string[];
 }
 
-const ClinicalStation: React.FC = () => {
+const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   
@@ -492,13 +496,13 @@ const ClinicalStation: React.FC = () => {
           </div>
 
           {/* PRINT VIEW - Hidden until print */}
-          <div className="print-only w-full bg-white p-8" style={{ direction: 'rtl' }}>
-            <div className="border-b-2 border-teal-700 pb-6 mb-8">
-              <div className="flex flex-row-reverse justify-between items-end mb-4">
-                <div className="text-right">
-                  <h1 className="text-3xl font-bold text-teal-800">مركز نيل للعقم</h1>
-                  <p className="text-gray-600 mt-2 text-sm">Nile IVF Center</p>
-                </div>
+           <div className="print-only w-full bg-white p-8" style={{ direction: 'rtl' }}>
+             <div className="border-b-2 border-teal-700 pb-6 mb-8">
+               <div className="flex flex-row-reverse justify-between items-end mb-4">
+                 <div className="text-right">
+                   <h1 className="text-3xl font-bold text-teal-800">{doctorProfile?.clinic_name || 'مركز نيل للعقم'}</h1>
+                   <p className="text-gray-600 mt-2 text-sm">{doctorProfile?.clinic_name || 'Nile IVF Center'}</p>
+                 </div>
                 <div className="text-left text-sm text-gray-600">
                   <p>التاريخ: {new Date().toLocaleDateString('ar-EG')}</p>
                   <p>اسم المريضة: <strong>{selectedPatient?.name}</strong></p>
@@ -523,8 +527,8 @@ const ClinicalStation: React.FC = () => {
             </div>
 
             <div className="border-t border-gray-300 pt-6 mt-12 text-center text-xs text-gray-500">
-              <p>Nile IVF Center - Cairo, Egypt</p>
-              <p className="mt-1">+20 123 456 7890</p>
+              <p>{doctorProfile?.clinic_name || 'Nile IVF Center'} - {doctorProfile?.clinic_address || 'Cairo, Egypt'}</p>
+              <p className="mt-1">{doctorProfile?.clinic_phone || '+20 123 456 7890'}</p>
             </div>
           </div>
         </>
