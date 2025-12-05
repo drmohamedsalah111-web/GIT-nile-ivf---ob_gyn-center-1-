@@ -57,6 +57,16 @@ export interface OpuLabData {
   embryoGrades: string;
 }
 
+export interface Doctor {
+  id: string;
+  user_id: string;
+  email: string;
+  name: string;
+  specialization?: string;
+  phone?: string;
+  created_at?: string;
+}
+
 export enum Page {
   HOME = 'home',
   RECEPTION = 'reception',
