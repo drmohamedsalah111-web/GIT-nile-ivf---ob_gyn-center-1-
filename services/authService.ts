@@ -29,10 +29,20 @@ export const authService = {
             name: doctorData.name,
             specialization: doctorData.specialization || null,
             phone: doctorData.phone || null,
+            doctor_image: null,
+            clinic_name: null,
+            clinic_address: null,
+            clinic_phone: null,
+            clinic_image: null,
+            clinic_latitude: null,
+            clinic_longitude: null,
           }
         ]);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Doctor insert error:', dbError);
+        throw dbError;
+      }
     }
 
     return data;
@@ -106,5 +116,45 @@ export const authService = {
       .getPublicUrl(filePath);
 
     return data.publicUrl;
+  },
+
+  ensureDoctorRecord: async (userId: string, email: string) => {
+    const { data: existingDoctor, error: fetchError } = await supabase
+      .from('doctors')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (existingDoctor) {
+      return existingDoctor;
+    }
+
+    const { data: newDoctor, error: insertError } = await supabase
+      .from('doctors')
+      .insert([
+        {
+          user_id: userId,
+          email: email,
+          name: 'الطبيب',
+          specialization: null,
+          phone: null,
+          doctor_image: null,
+          clinic_name: null,
+          clinic_address: null,
+          clinic_phone: null,
+          clinic_image: null,
+          clinic_latitude: null,
+          clinic_longitude: null,
+        }
+      ])
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Error creating doctor record:', insertError);
+      throw insertError;
+    }
+
+    return newDoctor;
   }
 };

@@ -40,6 +40,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     const fetchDoctor = async () => {
       try {
         if (user?.id) {
+          await authService.ensureDoctorRecord(user.id, user.email);
           const doctorProfile = await authService.getDoctorProfile(user.id);
           setDoctor(doctorProfile);
           setFormData({
