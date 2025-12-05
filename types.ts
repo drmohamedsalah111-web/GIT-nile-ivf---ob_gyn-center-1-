@@ -20,6 +20,9 @@ export interface Visit {
     height?: number;
     bmi?: number;
   };
+  labResults?: string;
+  ultrasoundResults?: string;
+  otherTests?: string;
 }
 
 export interface PrescriptionItem {
