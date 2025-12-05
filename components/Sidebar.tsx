@@ -13,6 +13,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
     { id: Page.RECEPTION, label: 'Reception', icon: Users },
     { id: Page.CLINICAL, label: 'Clinical Station', icon: Stethoscope },
     { id: Page.IVF, label: 'IVF Journey', icon: Baby },
+    { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings },
   ];
 
   return (

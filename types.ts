@@ -65,11 +65,19 @@ export interface Doctor {
   specialization?: string;
   phone?: string;
   created_at?: string;
+  doctor_image?: string;
+  clinic_name?: string;
+  clinic_address?: string;
+  clinic_phone?: string;
+  clinic_image?: string;
+  clinic_latitude?: string;
+  clinic_longitude?: string;
 }
 
 export enum Page {
   HOME = 'home',
   RECEPTION = 'reception',
   CLINICAL = 'clinical',
-  IVF = 'ivf'
+  IVF = 'ivf',
+  SETTINGS = 'settings'
 }

@@ -66,5 +66,44 @@ export const authService = {
     });
 
     return subscription;
+  },
+
+  updateDoctorProfile: async (userId: string, updates: any) => {
+    const { data, error } = await supabase
+      .from('doctors')
+      .update(updates)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  updatePassword: async (newPassword: string) => {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
+  uploadImage: async (userId: string, file: File, folder: 'doctor_images' | 'clinic_images') => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}_${Date.now()}.${fileExt}`;
+    const filePath = `${folder}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('doctor-files')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('doctor-files')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
   }
 };
