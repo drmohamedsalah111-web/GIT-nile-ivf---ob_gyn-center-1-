@@ -72,11 +72,12 @@ export const authService = {
     const { data, error } = await supabase
       .from('doctors')
       .update(updates)
-      .eq('user_id', userId)
-      .select()
-      .single();
+      .eq('user_id', userId);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Update error details:', error);
+      throw new Error(error.message || 'Failed to update profile');
+    }
     return data;
   },
 
