@@ -195,10 +195,10 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
   return (
     <div className="space-y-6">
       {/* Patient Selector */}
-      <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
+      <div className="bg-white p-3 md:p-4 lg:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
         <label className="block text-sm font-bold text-gray-700 mb-2">Select Patient</label>
-        <select 
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none bg-white"
+        <select
+          className="w-full px-3 md:px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none bg-white text-sm md:text-base min-h-[48px]"
           value={selectedPatientId}
           onChange={(e) => setSelectedPatientId(e.target.value)}
         >
@@ -211,24 +211,24 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
 
       {selectedPatient && (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
-            
-            {/* LEFT COLUMN: Vitals + Male (3 cols) */}
-            <div className="lg:col-span-3 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 md:gap-6 no-print">
+
+            {/* LEFT COLUMN: Vitals + Male */}
+            <div className="md:col-span-1 lg:col-span-3 space-y-4 md:space-y-6">
               {/* BMI Calculator */}
-              <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <div className="bg-white p-3 md:p-4 lg:p-5 rounded-2xl shadow-sm border border-gray-100">
+                <h3 className="text-sm md:text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
                   <Activity className="w-4 h-4 text-teal-600" /> Vitals & BMI
                 </h3>
                 <div className="space-y-3">
-                  <div className="flex gap-2">
-                     <div className="flex-1">
+                  <div className="grid grid-cols-2 gap-2 md:flex md:gap-2">
+                     <div className="col-span-1">
                         <label className="text-xs text-gray-500">Weight (kg)</label>
-                        <input type="number" className="w-full p-3 md:p-2 border rounded text-sm min-h-[48px]" value={vitals.weight} onChange={e => setVitals({...vitals, weight: e.target.value})} />
+                        <input type="number" className="w-full p-2 md:p-3 border rounded text-sm min-h-[44px] md:min-h-[48px]" value={vitals.weight} onChange={e => setVitals({...vitals, weight: e.target.value})} />
                      </div>
-                     <div className="flex-1">
+                     <div className="col-span-1">
                         <label className="text-xs text-gray-500">Height (cm)</label>
-                        <input type="number" className="w-full p-3 md:p-2 border rounded text-sm min-h-[48px]" value={vitals.height} onChange={e => setVitals({...vitals, height: e.target.value})} />
+                        <input type="number" className="w-full p-2 md:p-3 border rounded text-sm min-h-[44px] md:min-h-[48px]" value={vitals.height} onChange={e => setVitals({...vitals, height: e.target.value})} />
                      </div>
                   </div>
                   {bmiInfo.bmi > 0 && (
@@ -241,26 +241,26 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
               </div>
 
               {/* Male Diagnosis */}
-              <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <div className="bg-white p-3 md:p-4 lg:p-5 rounded-2xl shadow-sm border border-gray-100">
+                <h3 className="text-sm md:text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
                    <Microscope className="w-4 h-4 text-blue-600" /> Male Factor
                 </h3>
-                <div className="space-y-3 text-sm">
+                <div className="space-y-2 md:space-y-3 text-sm">
                   <div>
                     <label className="text-xs text-gray-500">Volume (ml)</label>
-                    <input type="number" placeholder="> 1.5" className="w-full p-3 md:p-2 border rounded min-h-[48px]" onChange={e => setMaleParams({...maleParams, vol: parseFloat(e.target.value)})} />
+                    <input type="number" placeholder="> 1.5" className="w-full p-2 md:p-3 border rounded min-h-[44px] md:min-h-[48px]" onChange={e => setMaleParams({...maleParams, vol: parseFloat(e.target.value)})} />
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">Conc (M/ml)</label>
-                    <input type="number" placeholder="> 15" className="w-full p-3 md:p-2 border rounded min-h-[48px]" onChange={e => setMaleParams({...maleParams, conc: parseFloat(e.target.value)})} />
+                    <input type="number" placeholder="> 15" className="w-full p-2 md:p-3 border rounded min-h-[44px] md:min-h-[48px]" onChange={e => setMaleParams({...maleParams, conc: parseFloat(e.target.value)})} />
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">Motility (%)</label>
-                    <input type="number" placeholder="> 40" className="w-full p-3 md:p-2 border rounded min-h-[48px]" onChange={e => setMaleParams({...maleParams, mot: parseFloat(e.target.value)})} />
+                    <input type="number" placeholder="> 40" className="w-full p-2 md:p-3 border rounded min-h-[44px] md:min-h-[48px]" onChange={e => setMaleParams({...maleParams, mot: parseFloat(e.target.value)})} />
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">Morphology (%)</label>
-                    <input type="number" placeholder="> 4" className="w-full p-3 md:p-2 border rounded min-h-[48px]" onChange={e => setMaleParams({...maleParams, morph: parseFloat(e.target.value)})} />
+                    <input type="number" placeholder="> 4" className="w-full p-2 md:p-3 border rounded min-h-[44px] md:min-h-[48px]" onChange={e => setMaleParams({...maleParams, morph: parseFloat(e.target.value)})} />
                   </div>
                 </div>
                 <div className="mt-3 p-2 bg-blue-50 rounded text-xs font-bold text-blue-800 border border-blue-100">
@@ -269,33 +269,33 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
               </div>
             </div>
 
-            {/* MIDDLE COLUMN: Female Workup (6 cols) */}
-            <div className="lg:col-span-5 flex flex-col gap-6">
+            {/* MIDDLE COLUMN: Female Workup */}
+            <div className="md:col-span-1 lg:col-span-5 flex flex-col gap-4 md:gap-6">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col">
                 <div className="border-b border-gray-100">
                   <nav className="flex -mb-px">
                     <button
                       onClick={() => setActiveFemaleTab('hormones')}
-                      className={`flex-1 py-4 text-center text-sm font-medium border-b-2 transition-colors ${activeFemaleTab === 'hormones' ? 'border-pink-500 text-pink-600 bg-pink-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                      className={`flex-1 py-3 md:py-4 text-center text-xs md:text-sm font-medium border-b-2 transition-colors ${activeFemaleTab === 'hormones' ? 'border-pink-500 text-pink-600 bg-pink-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
                       الهرمونات (Hormones)
                     </button>
                     <button
                       onClick={() => setActiveFemaleTab('us')}
-                      className={`flex-1 py-4 text-center text-sm font-medium border-b-2 transition-colors ${activeFemaleTab === 'us' ? 'border-pink-500 text-pink-600 bg-pink-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                      className={`flex-1 py-3 md:py-4 text-center text-xs md:text-sm font-medium border-b-2 transition-colors ${activeFemaleTab === 'us' ? 'border-pink-500 text-pink-600 bg-pink-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
                       السونار (Ultrasound)
                     </button>
                     <button
                       onClick={() => setActiveFemaleTab('scope')}
-                      className={`flex-1 py-4 text-center text-sm font-medium border-b-2 transition-colors ${activeFemaleTab === 'scope' ? 'border-pink-500 text-pink-600 bg-pink-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                      className={`flex-1 py-3 md:py-4 text-center text-xs md:text-sm font-medium border-b-2 transition-colors ${activeFemaleTab === 'scope' ? 'border-pink-500 text-pink-600 bg-pink-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
                       المناظير (Endoscopy)
                     </button>
                   </nav>
                 </div>
 
-                <div className="p-6 flex-1 overflow-y-auto">
+                <div className="p-4 md:p-6 flex-1 overflow-y-auto">
                   
                   {/* TAB 1: HORMONES */}
                   {activeFemaleTab === 'hormones' && (
@@ -480,8 +480,8 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
               </div>
             </div>
 
-            {/* RIGHT COLUMN: Smart Rx (3 cols) */}
-            <div className="lg:col-span-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+            {/* RIGHT COLUMN: Smart Rx */}
+            <div className="md:col-span-2 lg:col-span-4 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
               <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-teal-600" /> Smart Prescription
               </h3>
@@ -489,8 +489,8 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
               <div className="space-y-3 mb-4">
                 <div>
                   <label className="text-xs font-medium text-gray-600">Category</label>
-                  <select 
-                    className="w-full p-2 border rounded-lg mt-1 text-sm"
+                  <select
+                    className="w-full p-2 md:p-3 border rounded-lg mt-1 text-sm min-h-[44px] md:min-h-[auto]"
                     value={drugCategory}
                     onChange={e => { setDrugCategory(e.target.value); setSelectedDrug(''); }}
                   >
@@ -498,11 +498,11 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                     {Object.keys(EGYPTIAN_DRUGS).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="text-xs font-medium text-gray-600">Medication</label>
-                  <select 
-                    className="w-full p-2 border rounded-lg mt-1 text-sm"
+                  <select
+                    className="w-full p-2 md:p-3 border rounded-lg mt-1 text-sm min-h-[44px] md:min-h-[auto]"
                     value={selectedDrug}
                     onChange={e => setSelectedDrug(e.target.value)}
                     disabled={!drugCategory}
@@ -514,10 +514,10 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                   </select>
                 </div>
 
-                <button 
+                <button
                   onClick={handleAddDrug}
                   disabled={!selectedDrug}
-                  className="w-full bg-teal-600 text-white py-2 rounded-lg font-bold hover:bg-teal-700 disabled:bg-gray-300 transition-colors flex items-center justify-center gap-2 text-sm"
+                  className="w-full bg-teal-600 text-white py-3 md:py-2 rounded-lg font-bold hover:bg-teal-700 disabled:bg-gray-300 transition-colors flex items-center justify-center gap-2 text-sm min-h-[48px] md:min-h-[auto]"
                 >
                   <Plus className="w-4 h-4" /> Add
                 </button>
@@ -548,7 +548,7 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                 <div>
                   <label className="text-xs font-medium text-gray-600">ملاحظات الزيارة</label>
                   <textarea
-                    className="w-full p-2 border rounded-lg mt-1 text-sm"
+                    className="w-full p-2 md:p-3 border rounded-lg mt-1 text-sm min-h-[80px] md:min-h-[auto]"
                     rows={3}
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
@@ -557,17 +557,17 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <button
                     onClick={handleSave}
-                    className="flex-1 bg-teal-600 text-white py-2.5 rounded-xl font-bold hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 text-sm"
+                    className="flex-1 bg-teal-600 text-white py-3 md:py-2.5 rounded-xl font-bold hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 text-sm min-h-[48px] md:min-h-[auto]"
                   >
                     <FileText className="w-4 h-4" /> حفظ الزيارة
                   </button>
                   <button
                     onClick={handlePrint}
                     disabled={rxItems.length === 0}
-                    className="flex-1 bg-gray-800 text-white py-2.5 rounded-xl font-bold hover:bg-gray-900 transition-colors flex items-center justify-center gap-2 text-sm"
+                    className="flex-1 bg-gray-800 text-white py-3 md:py-2.5 rounded-xl font-bold hover:bg-gray-900 transition-colors flex items-center justify-center gap-2 text-sm min-h-[48px] md:min-h-[auto]"
                   >
                     <Printer className="w-4 h-4" /> طباعة الروشتة
                   </button>
@@ -578,29 +578,29 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
 
           {/* Previous Visits Section */}
           {visits.length > 0 && (
-            <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">الزيارات السابقة</h3>
+            <div className="bg-white p-3 md:p-4 lg:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
+              <h3 className="text-base md:text-lg font-bold text-gray-800 mb-4">الزيارات السابقة</h3>
               <div className="space-y-3">
                 {visits.map(visit => (
-                  <div key={visit.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="font-bold text-teal-700">{new Date(visit.date).toLocaleDateString('ar-EG')}</div>
+                  <div key={visit.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
+                      <div className="font-bold text-teal-700 text-sm md:text-base">{new Date(visit.date).toLocaleDateString('ar-EG')}</div>
                       {visit.vitals && (
-                        <div className="text-sm text-gray-600">
+                        <div className="text-xs md:text-sm text-gray-600">
                           الوزن: {visit.vitals.weight}kg | الطول: {visit.vitals.height}cm | BMI: {visit.vitals.bmi}
                         </div>
                       )}
                     </div>
                     {visit.diagnosis && (
                       <div className="mb-2">
-                        <span className="font-medium text-gray-700">التشخيص:</span>
-                        <p className="text-sm text-gray-600 mt-1">{visit.diagnosis}</p>
+                        <span className="font-medium text-gray-700 text-sm">التشخيص:</span>
+                        <p className="text-xs md:text-sm text-gray-600 mt-1">{visit.diagnosis}</p>
                       </div>
                     )}
                     {visit.prescription && visit.prescription.length > 0 && (
                       <div className="mb-2">
-                        <span className="font-medium text-gray-700">الروشتة:</span>
-                        <ul className="text-sm text-gray-600 mt-1 list-disc list-inside">
+                        <span className="font-medium text-gray-700 text-sm">الروشتة:</span>
+                        <ul className="text-xs md:text-sm text-gray-600 mt-1 list-disc list-inside">
                           {visit.prescription.map((item, idx) => (
                             <li key={idx}>{item.drug} - {item.dose}</li>
                           ))}
@@ -609,8 +609,8 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                     )}
                     {visit.notes && (
                       <div>
-                        <span className="font-medium text-gray-700">ملاحظات:</span>
-                        <p className="text-sm text-gray-600 mt-1">{visit.notes}</p>
+                        <span className="font-medium text-gray-700 text-sm">ملاحظات:</span>
+                        <p className="text-xs md:text-sm text-gray-600 mt-1">{visit.notes}</p>
                       </div>
                     )}
                   </div>
