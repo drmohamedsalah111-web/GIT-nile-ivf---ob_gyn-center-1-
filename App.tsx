@@ -119,16 +119,17 @@ const App: React.FC = () => {
 
       <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">
         <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">
               مرحباً، {user?.email}
             </h1>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200 font-[Tajawal]"
+              className="flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200 font-[Tajawal] text-sm md:text-base min-h-[44px] w-full sm:w-auto"
             >
-              <LogOut size={18} />
-              تسجيل الخروج
+              <LogOut size={16} className="md:w-[18px] md:h-[18px]" />
+              <span className="hidden xs:inline">تسجيل الخروج</span>
+              <span className="xs:hidden">خروج</span>
             </button>
           </div>
           {renderContent()}
