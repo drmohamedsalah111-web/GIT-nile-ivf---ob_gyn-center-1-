@@ -177,10 +177,10 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
       setDrugCategory('');
       setSelectedDrug('');
 
-      toast.success('تم حفظ الزيارة بنجاح');
+      toast.success('Visit saved successfully');
     } catch (error) {
       console.error('Error saving visit:', error);
-      toast.error('حدث خطأ في حفظ الزيارة');
+      toast.error('Error saving visit');
     }
   };
 
@@ -278,19 +278,19 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                       onClick={() => setActiveFemaleTab('hormones')}
                       className={`flex-1 py-3 md:py-4 text-center text-xs md:text-sm font-medium border-b-2 transition-colors ${activeFemaleTab === 'hormones' ? 'border-pink-500 text-pink-600 bg-pink-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
-                      الهرمونات (Hormones)
+                      Hormones
                     </button>
                     <button
                       onClick={() => setActiveFemaleTab('us')}
                       className={`flex-1 py-3 md:py-4 text-center text-xs md:text-sm font-medium border-b-2 transition-colors ${activeFemaleTab === 'us' ? 'border-pink-500 text-pink-600 bg-pink-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
-                      السونار (Ultrasound)
+                      Ultrasound
                     </button>
                     <button
                       onClick={() => setActiveFemaleTab('scope')}
                       className={`flex-1 py-3 md:py-4 text-center text-xs md:text-sm font-medium border-b-2 transition-colors ${activeFemaleTab === 'scope' ? 'border-pink-500 text-pink-600 bg-pink-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
-                      المناظير (Endoscopy)
+                      Endoscopy
                     </button>
                   </nav>
                 </div>
@@ -346,7 +346,7 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                     <div className="space-y-4">
                       <div className="grid grid-cols-3 gap-4">
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">بطانة الرحم (mm)</label>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Endometrial Thickness (mm)</label>
                           <input type="number" className={`w-full p-2 border rounded-lg ${Number(femaleData.endoThickness) > 0 && Number(femaleData.endoThickness) < 7 ? 'border-red-300 bg-red-50' : ''}`}
                             value={femaleData.endoThickness} onChange={e => setFemaleData({...femaleData, endoThickness: e.target.value})} />
                         </div>
@@ -363,7 +363,7 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                       </div>
 
                       <div>
-                        <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase">Uterus Pathology (الرحم)</h4>
+                        <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase">Uterus Pathology</h4>
                         <div className="flex flex-wrap gap-2">
                           {['Fibroids', 'Polyps', 'Adenomyosis', 'Septum'].map(item => (
                             <button
@@ -378,7 +378,7 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                       </div>
 
                       <div>
-                        <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase">Ovary Pathology (المبيض)</h4>
+                        <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase">Ovary Pathology</h4>
                         <div className="flex flex-wrap gap-2">
                           {['Simple Cyst', 'Endometrioma', 'Dermoid', 'PCO Pattern'].map(item => (
                             <button
@@ -400,15 +400,15 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                       
                       <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                         <label className="block text-xs font-bold text-gray-700 mb-2">Tubal Patency (HSG/HyCoSy)</label>
-                        <select 
+                        <select
                           className="w-full p-2 border rounded-lg mb-3"
                           value={femaleData.tubalStatus}
                           onChange={e => setFemaleData({...femaleData, tubalStatus: e.target.value})}
                         >
-                          <option value="Patent">Patent Bilaterally (سليمة)</option>
-                          <option value="Right Blocked">Right Blocked (انسداد يمين)</option>
-                          <option value="Left Blocked">Left Blocked (انسداد يسار)</option>
-                          <option value="Bilateral Block">Bilateral Block (انسداد كلي)</option>
+                          <option value="Patent">Patent Bilaterally</option>
+                          <option value="Right Blocked">Right Blocked</option>
+                          <option value="Left Blocked">Left Blocked</option>
+                          <option value="Bilateral Block">Bilateral Block</option>
                         </select>
                         
                         <label className="flex items-center gap-3 p-3 bg-white border border-red-100 rounded-lg cursor-pointer hover:bg-red-50 transition-colors">
@@ -420,7 +420,7 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                           />
                           <div>
                             <span className="font-bold text-red-800 block text-sm">Hydrosalpinx Detected</span>
-                            <span className="text-xs text-red-600">ارتشاح بقناة فالوب (Must remove before IVF)</span>
+                            <span className="text-xs text-red-600">Must remove before IVF</span>
                           </div>
                         </label>
                       </div>
@@ -546,13 +546,13 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
               <div className="mt-4 pt-3 border-t border-gray-100 space-y-3">
                 {/* Notes Field */}
                 <div>
-                  <label className="text-xs font-medium text-gray-600">ملاحظات الزيارة</label>
+                  <label className="text-xs font-medium text-gray-600">Visit Notes</label>
                   <textarea
                     className="w-full p-2 md:p-3 border rounded-lg mt-1 text-sm min-h-[80px] md:min-h-[auto]"
                     rows={3}
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
-                    placeholder="أدخل ملاحظات إضافية..."
+                    placeholder="Enter additional notes..."
                   />
                 </div>
 
@@ -562,14 +562,14 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                     onClick={handleSave}
                     className="flex-1 bg-teal-600 text-white py-3 md:py-2.5 rounded-xl font-bold hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 text-sm min-h-[48px] md:min-h-[auto]"
                   >
-                    <FileText className="w-4 h-4" /> حفظ الزيارة
+                    <FileText className="w-4 h-4" /> Save Visit
                   </button>
                   <button
                     onClick={handlePrint}
                     disabled={rxItems.length === 0}
                     className="flex-1 bg-gray-800 text-white py-3 md:py-2.5 rounded-xl font-bold hover:bg-gray-900 transition-colors flex items-center justify-center gap-2 text-sm min-h-[48px] md:min-h-[auto]"
                   >
-                    <Printer className="w-4 h-4" /> طباعة الروشتة
+                    <Printer className="w-4 h-4" /> Print Prescription
                   </button>
                 </div>
               </div>
@@ -579,7 +579,7 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
           {/* Previous Visits Section */}
           {visits.length > 0 && (
             <div className="bg-white p-3 md:p-4 lg:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
-              <h3 className="text-base md:text-lg font-bold text-gray-800 mb-4">الزيارات السابقة</h3>
+              <h3 className="text-base md:text-lg font-bold text-gray-800 mb-4">Previous Visits</h3>
               <div className="space-y-3">
                 {visits.map(visit => (
                   <div key={visit.id} className="border border-gray-200 rounded-lg p-3 md:p-4">
@@ -587,19 +587,19 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                       <div className="font-bold text-teal-700 text-sm md:text-base">{new Date(visit.date).toLocaleDateString('ar-EG')}</div>
                       {visit.vitals && (
                         <div className="text-xs md:text-sm text-gray-600">
-                          الوزن: {visit.vitals.weight}kg | الطول: {visit.vitals.height}cm | BMI: {visit.vitals.bmi}
+                          Weight: {visit.vitals.weight}kg | Height: {visit.vitals.height}cm | BMI: {visit.vitals.bmi}
                         </div>
                       )}
                     </div>
                     {visit.diagnosis && (
                       <div className="mb-2">
-                        <span className="font-medium text-gray-700 text-sm">التشخيص:</span>
+                        <span className="font-medium text-gray-700 text-sm">Diagnosis:</span>
                         <p className="text-xs md:text-sm text-gray-600 mt-1">{visit.diagnosis}</p>
                       </div>
                     )}
                     {visit.prescription && visit.prescription.length > 0 && (
                       <div className="mb-2">
-                        <span className="font-medium text-gray-700 text-sm">الروشتة:</span>
+                        <span className="font-medium text-gray-700 text-sm">Prescription:</span>
                         <ul className="text-xs md:text-sm text-gray-600 mt-1 list-disc list-inside">
                           {visit.prescription.map((item, idx) => (
                             <li key={idx}>{item.drug} - {item.dose}</li>
@@ -609,7 +609,7 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                     )}
                     {visit.notes && (
                       <div>
-                        <span className="font-medium text-gray-700 text-sm">ملاحظات:</span>
+                        <span className="font-medium text-gray-700 text-sm">Notes:</span>
                         <p className="text-xs md:text-sm text-gray-600 mt-1">{visit.notes}</p>
                       </div>
                     )}
@@ -626,18 +626,17 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
                  <div className="text-right">
                    <h1 className="text-3xl font-bold text-teal-800">{doctorProfile?.clinic_name || 'نظام دكتور محمد صلاح جبر'}</h1>
                    <p className="text-gray-600 mt-2 text-sm">{doctorProfile?.clinic_name || 'Dr. Mohamed Salah Gabr System'}</p>
-                   <p className="text-gray-700 mt-1 text-sm font-medium">الطبيب: {doctorProfile?.name || 'د. [اسم الطبيب]'}</p>
-                   <p className="text-gray-700 mt-1 text-sm">Doctor: {doctorProfile?.name || 'Dr. [Doctor Name]'}</p>
+                   <p className="text-gray-700 mt-1 text-sm font-medium">Doctor: {doctorProfile?.name || 'Dr. [Doctor Name]'}</p>
                  </div>
                 <div className="text-left text-sm text-gray-600">
-                  <p>التاريخ: {new Date().toLocaleDateString('ar-EG')}</p>
-                  <p>اسم المريضة: <strong>{selectedPatient?.name}</strong></p>
+                  <p>Date: {new Date().toLocaleDateString('en-US')}</p>
+                  <p>Patient Name: <strong>{selectedPatient?.name}</strong></p>
                 </div>
               </div>
             </div>
 
             <div className="print-only mb-8">
-              <h2 className="text-center text-2xl font-bold text-gray-800 mb-6">الروشتة الطبية</h2>
+              <h2 className="text-center text-2xl font-bold text-gray-800 mb-6">Medical Prescription</h2>
               <h3 className="text-4xl font-serif text-teal-700 text-center mb-8">R/</h3>
 
               <div className="space-y-4">
