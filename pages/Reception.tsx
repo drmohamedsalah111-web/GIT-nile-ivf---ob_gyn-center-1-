@@ -53,8 +53,10 @@ const Reception: React.FC = () => {
       toast.success("Patient registered successfully!", { id: toastId });
       setFormData({ name: '', age: '', phone: '', husbandName: '', history: '' });
     } catch (error) {
-      toast.error("Failed to register patient", { id: toastId });
-      console.error(error);
+      // Provide more detailed error feedback for debugging
+      const msg = (error && (error as any).message) ? (error as any).message : JSON.stringify(error);
+      toast.error(`Failed to register patient: ${msg}`, { id: toastId });
+      console.error('Register patient error:', error);
     }
   };
 

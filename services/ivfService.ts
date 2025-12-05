@@ -58,8 +58,9 @@ export const db = {
         husband_name: patient.husbandName,
         history: patient.history
       }])
-      .select();
-      
+      .select()
+      .single();
+
     if (error) throw error;
     return data;
   },
