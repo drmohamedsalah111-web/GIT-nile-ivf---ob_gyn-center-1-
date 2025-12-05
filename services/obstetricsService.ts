@@ -1,0 +1,309 @@
+import { supabase } from './supabaseClient';
+import { Pregnancy, AntenatalVisit, BiometryScan } from '../types';
+
+// ============================================================================
+// CALCULATION FUNCTIONS
+// ============================================================================
+
+export const calculateGestationalAge = (lmpDate: string): { weeks: number; days: number } => {
+  const today = new Date();
+  const lmp = new Date(lmpDate);
+  const diffTime = Math.abs(today.getTime() - lmp.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const weeks = Math.floor(diffDays / 7);
+  const days = diffDays % 7;
+  return { weeks, days };
+};
+
+export const calculateEDD = (lmpDate: string): string => {
+  const lmp = new Date(lmpDate);
+  lmp.setDate(lmp.getDate() + 280);
+  return lmp.toISOString().split('T')[0];
+};
+
+export const calculateGAFromEDD = (eddDate: string): { weeks: number; days: number } => {
+  const today = new Date();
+  const edd = new Date(eddDate);
+  const diffTime = edd.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const weeksRemaining = Math.floor(diffDays / 7);
+  const daysRemaining = diffDays % 7;
+  const gaWeeks = 40 - weeksRemaining;
+  const gaDays = 7 - daysRemaining;
+  return { weeks: Math.max(0, gaWeeks), days: Math.max(0, gaDays) };
+};
+
+// Hadlock formula for Estimated Fetal Weight (EFW)
+export const calculateEFW = (
+  bpdMm: number,
+  hcMm: number,
+  acMm: number,
+  flMm: number
+): number => {
+  const log10EFW =
+    1.3404 +
+    0.0438 * hcMm +
+    0.158 * acMm +
+    0.0061 * bpdMm -
+    0.002322 * acMm * bpdMm;
+
+  return Math.round(Math.pow(10, log10EFW));
+};
+
+// Calculate percentile based on RCOG/NICE standards (simplified)
+export const calculatePercentile = (efwGrams: number, gaWeeks: number): number => {
+  const expectedWeights: { [key: number]: { p10: number; p50: number; p90: number } } = {
+    20: { p10: 300, p50: 330, p90: 370 },
+    22: { p10: 430, p50: 475, p90: 540 },
+    24: { p10: 600, p50: 660, p90: 750 },
+    26: { p10: 760, p50: 850, p90: 980 },
+    28: { p10: 1000, p50: 1100, p90: 1270 },
+    30: { p10: 1300, p50: 1440, p90: 1680 },
+    32: { p10: 1600, p50: 1840, p90: 2150 },
+    34: { p10: 2100, p50: 2450, p90: 2850 },
+    36: { p10: 2600, p50: 3000, p90: 3500 },
+    38: { p10: 3000, p50: 3400, p90: 3900 },
+    40: { p10: 3200, p50: 3500, p90: 3900 },
+  };
+
+  const weights = expectedWeights[gaWeeks];
+  if (!weights) return 50;
+
+  if (efwGrams <= weights.p10) return 10;
+  if (efwGrams >= weights.p90) return 90;
+  if (efwGrams <= weights.p50) {
+    return 10 + ((efwGrams - weights.p10) / (weights.p50 - weights.p10)) * 40;
+  }
+  return 50 + ((efwGrams - weights.p50) / (weights.p90 - weights.p50)) * 40;
+};
+
+// ============================================================================
+// RISK ASSESSMENT
+// ============================================================================
+
+export interface RiskFactors {
+  age_over_40: boolean;
+  bmi_over_30: boolean;
+  previous_preeclampsia: boolean;
+  twins: boolean;
+  autoimmune: boolean;
+  hypertension: boolean;
+  diabetes: boolean;
+  kidney_disease: boolean;
+}
+
+export const assessRiskLevel = (
+  riskFactors: RiskFactors
+): {
+  level: 'low' | 'moderate' | 'high';
+  riskFactorsList: string[];
+  aspirinNeeded: boolean;
+  thromboprophylaxisNeeded: boolean;
+} => {
+  const highRiskFactors = [
+    riskFactors.previous_preeclampsia,
+    riskFactors.hypertension,
+    riskFactors.kidney_disease,
+    riskFactors.diabetes,
+    riskFactors.autoimmune,
+  ].filter(Boolean).length;
+
+  const moderateRiskFactors = [
+    riskFactors.age_over_40,
+    riskFactors.bmi_over_30,
+    riskFactors.twins,
+  ].filter(Boolean).length;
+
+  let level: 'low' | 'moderate' | 'high' = 'low';
+  let aspirinNeeded = false;
+  let thromboprophylaxisNeeded = false;
+  const riskFactorsList: string[] = [];
+
+  if (highRiskFactors >= 1) {
+    level = 'high';
+    aspirinNeeded = true;
+  } else if (moderateRiskFactors >= 2) {
+    level = 'high';
+    aspirinNeeded = true;
+  } else if (moderateRiskFactors >= 1 || highRiskFactors === 0) {
+    level = 'moderate';
+  }
+
+  if (riskFactors.twins) {
+    thromboprophylaxisNeeded = true;
+  }
+
+  if (riskFactors.age_over_40) riskFactorsList.push('Age > 40');
+  if (riskFactors.bmi_over_30) riskFactorsList.push('BMI > 30');
+  if (riskFactors.previous_preeclampsia) riskFactorsList.push('Previous Pre-eclampsia');
+  if (riskFactors.twins) riskFactorsList.push('Multiple Pregnancy');
+  if (riskFactors.autoimmune) riskFactorsList.push('Autoimmune Disease');
+  if (riskFactors.hypertension) riskFactorsList.push('Hypertension');
+  if (riskFactors.diabetes) riskFactorsList.push('Diabetes');
+  if (riskFactors.kidney_disease) riskFactorsList.push('Kidney Disease');
+
+  return { level, riskFactorsList, aspirinNeeded, thromboprophylaxisNeeded };
+};
+
+// ============================================================================
+// DUE ACTIONS / ALERTS
+// ============================================================================
+
+export const getDueActions = (gaWeeks: number): string[] => {
+  const actions: string[] = [];
+
+  if (gaWeeks >= 11 && gaWeeks <= 13) {
+    actions.push('⚠️ Nuchal Translucency (NT) Scan Due');
+  }
+  if (gaWeeks >= 15 && gaWeeks <= 20) {
+    actions.push('⚠️ Quad Screen / NIPT Results Expected');
+  }
+  if (gaWeeks >= 20 && gaWeeks <= 22) {
+    actions.push('⚠️ Mid-Trimester Anomaly Scan Due');
+  }
+  if (gaWeeks === 28) {
+    actions.push('💉 Anti-D Prophylaxis Due (if Rh negative)');
+    actions.push('🧪 Glucose Tolerance Test (GTT) Due');
+    actions.push('💉 Tetanus Booster if needed');
+  }
+  if (gaWeeks >= 34 && gaWeeks <= 36) {
+    actions.push('⚠️ Growth Scan Recommended');
+    actions.push('🧪 Full Blood Count (FBC)');
+  }
+  if (gaWeeks >= 36) {
+    actions.push('👶 Position Check (Cephalic/Breech)');
+    actions.push('📋 Discuss Birth Plan');
+  }
+
+  return actions;
+};
+
+// ============================================================================
+// DATABASE OPERATIONS
+// ============================================================================
+
+export const obstetricsService = {
+  // PREGNANCIES
+  createPregnancy: async (pregnancy: Omit<Pregnancy, 'id' | 'created_at' | 'updated_at'>) => {
+    const { data, error } = await supabase
+      .from('pregnancies')
+      .insert([pregnancy])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  getPregnancyByPatient: async (patientId: string) => {
+    const { data, error } = await supabase
+      .from('pregnancies')
+      .select('*')
+      .eq('patient_id', patientId)
+      .order('created_at', { ascending: false })
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
+
+  updatePregnancy: async (pregnancyId: string, updates: Partial<Pregnancy>) => {
+    const { data, error } = await supabase
+      .from('pregnancies')
+      .update(updates)
+      .eq('id', pregnancyId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // ANTENATAL VISITS
+  createANCVisit: async (visit: Omit<AntenatalVisit, 'id' | 'created_at'>) => {
+    const { data, error } = await supabase
+      .from('antenatal_visits')
+      .insert([visit])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  getANCVisits: async (pregnancyId: string) => {
+    const { data, error } = await supabase
+      .from('antenatal_visits')
+      .select('*')
+      .eq('pregnancy_id', pregnancyId)
+      .order('visit_date', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  updateANCVisit: async (visitId: string, updates: Partial<AntenatalVisit>) => {
+    const { data, error } = await supabase
+      .from('antenatal_visits')
+      .update(updates)
+      .eq('id', visitId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  deleteANCVisit: async (visitId: string) => {
+    const { error } = await supabase
+      .from('antenatal_visits')
+      .delete()
+      .eq('id', visitId);
+
+    if (error) throw error;
+  },
+
+  // BIOMETRY SCANS
+  createBiometryScan: async (scan: Omit<BiometryScan, 'id' | 'created_at'>) => {
+    const { data, error } = await supabase
+      .from('biometry_scans')
+      .insert([scan])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  getBiometryScans: async (pregnancyId: string) => {
+    const { data, error } = await supabase
+      .from('biometry_scans')
+      .select('*')
+      .eq('pregnancy_id', pregnancyId)
+      .order('scan_date', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  updateBiometryScan: async (scanId: string, updates: Partial<BiometryScan>) => {
+    const { data, error } = await supabase
+      .from('biometry_scans')
+      .update(updates)
+      .eq('id', scanId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  deleteBiometryScan: async (scanId: string) => {
+    const { error } = await supabase
+      .from('biometry_scans')
+      .delete()
+      .eq('id', scanId);
+
+    if (error) throw error;
+  },
+};

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, Stethoscope, Baby, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Stethoscope, Baby, Heart, Settings, LogOut } from 'lucide-react';
 import { Page } from '../types';
 
 interface SidebarProps {
@@ -13,6 +13,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
     { id: Page.RECEPTION, label: 'Reception', icon: Users },
     { id: Page.CLINICAL, label: 'Clinical Station', icon: Stethoscope },
     { id: Page.IVF, label: 'IVF Journey', icon: Baby },
+    { id: Page.OBSTETRICS, label: 'Obstetrics', icon: Heart },
     { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings },
   ];
 

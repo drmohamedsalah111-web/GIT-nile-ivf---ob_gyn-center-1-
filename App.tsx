@@ -7,6 +7,7 @@ import Reception from './pages/Reception';
 import ClinicalStation from './pages/ClinicalStation';
 import IvfJourney from './pages/IvfJourney';
 import Settings from './pages/Settings';
+import ObstetricsDashboard from './pages/ObstetricsDashboard';
 import { Login } from './pages/Login';
 import { Toaster } from 'react-hot-toast';
 import { authService } from './services/authService';
@@ -82,6 +83,7 @@ const App: React.FC = () => {
       case Page.RECEPTION: return <Reception />;
       case Page.CLINICAL: return <ClinicalStation />;
       case Page.IVF: return <IvfJourney />;
+      case Page.OBSTETRICS: return <ObstetricsDashboard />;
       case Page.SETTINGS: return <Settings user={user} />;
       default: return <Dashboard />;
     }
