@@ -496,42 +496,43 @@ const ClinicalStation: React.FC<ClinicalStationProps> = ({ doctorProfile }) => {
           </div>
 
           {/* PRINT VIEW - Hidden until print */}
-           <div className="print-only w-full bg-white p-8" style={{ direction: 'rtl' }}>
-             <div className="border-b-2 border-teal-700 pb-6 mb-8">
-               <div className="flex flex-row-reverse justify-between items-end mb-4">
-                 <div className="text-right">
-                   <h1 className="text-3xl font-bold text-teal-800">{doctorProfile?.clinic_name || 'مركز نيل للعقم'}</h1>
-                   <p className="text-gray-600 mt-2 text-sm">{doctorProfile?.clinic_name || 'Nile IVF Center'}</p>
-                   <p className="text-gray-700 mt-1 text-sm font-medium">الطبيب: {doctorProfile?.name || 'د. [اسم الطبيب]'}</p>
-                   <p className="text-gray-700 mt-1 text-sm">Doctor: {doctorProfile?.name || 'Dr. [Doctor Name]'}</p>
-                 </div>
-                <div className="text-left text-sm text-gray-600">
-                  <p>التاريخ: {new Date().toLocaleDateString('ar-EG')}</p>
-                  <p>اسم المريضة: <strong>{selectedPatient?.name}</strong></p>
+          <div className="print-only w-full bg-white p-8" style={{ direction: 'rtl' }}>
+            <div className="border-b-2 border-teal-700 pb-6 mb-8">
+              <div className="flex flex-row-reverse justify-between items-end mb-4">
+                <div className="text-right">
+                  <h1 className="text-3xl font-bold text-teal-800">{doctorProfile?.clinic_name || 'مركز نيل للعقم'}</h1>
+                  <p className="text-gray-600 mt-2 text-sm">{doctorProfile?.clinic_name || 'Nile IVF Center'}</p>
+                  <p className="text-gray-700 mt-1 text-sm font-medium">الطبيب: {doctorProfile?.name || 'د. [اسم الطبيب]'}</p>
+                  <p className="text-gray-700 mt-1 text-sm">Doctor: {doctorProfile?.name || 'Dr. [Doctor Name]'}</p>
                 </div>
-              </div>
-            </div>
+               <div className="text-left text-sm text-gray-600">
+                 <p>التاريخ: {new Date().toLocaleDateString('ar-EG')}</p>
+                 <p>اسم المريضة: <strong>{selectedPatient?.name}</strong></p>
+               </div>
+             </div>
+           </div>
 
-            <div className="mb-8">
-              <h2 className="text-center text-2xl font-bold text-gray-800 mb-6">الروشتة الطبية</h2>
-              <h3 className="text-4xl font-serif text-teal-700 text-center mb-8">R/</h3>
-              
-              <div className="space-y-4">
-                {rxItems.map((item, idx) => (
-                  <div key={idx} className="border-b border-gray-300 pb-3 flex flex-row-reverse justify-between items-start">
-                    <div className="text-right flex-1">
-                      <div className="font-bold text-lg text-gray-800">{item.drug}</div>
-                      <div className="text-sm text-teal-700 font-medium mt-1">{item.dose}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+           <div className="mb-8">
+             <h2 className="text-center text-2xl font-bold text-gray-800 mb-6">الروشتة الطبية</h2>
+             <h3 className="text-4xl font-serif text-teal-700 text-center mb-8">R/</h3>
 
-            <div className="border-t border-gray-300 pt-6 mt-12 text-center text-xs text-gray-500">
-              <p>{doctorProfile?.clinic_name || 'Nile IVF Center'} - {doctorProfile?.clinic_address || 'Cairo, Egypt'}</p>
-              <p className="mt-1">{doctorProfile?.clinic_phone || '+20 123 456 7890'}</p>
-            </div>
+             <div className="space-y-4">
+               {rxItems.map((item, idx) => (
+                 <div key={idx} className="border-b border-gray-300 pb-3 flex flex-row-reverse justify-between items-start">
+                   <div className="text-right flex-1">
+                     <div className="font-bold text-lg text-gray-800">{item.drug}</div>
+                     <div className="text-sm text-teal-700 font-medium mt-1">{item.dose}</div>
+                   </div>
+                 </div>
+               ))}
+             </div>
+           </div>
+
+           <div className="border-t border-gray-300 pt-6 mt-12 text-center text-xs text-gray-500">
+             <p>{doctorProfile?.clinic_name || 'Nile IVF Center'} - {doctorProfile?.clinic_address || 'Cairo, Egypt'}</p>
+             <p className="mt-1">{doctorProfile?.clinic_phone || '+20 123 456 7890'}</p>
+           </div>
+          </div>
           </div>
         </>
       )}
