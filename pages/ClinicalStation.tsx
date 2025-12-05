@@ -492,7 +492,7 @@ const ClinicalStation: React.FC = () => {
           </div>
 
           {/* PRINT VIEW - Hidden until print */}
-          <div className="print-only absolute top-0 left-0 w-full bg-white p-8" style={{ direction: 'rtl' }}>
+          <div className="print-only w-full bg-white p-8" style={{ direction: 'rtl' }}>
             <div className="border-b-2 border-teal-700 pb-6 mb-8">
               <div className="flex flex-row-reverse justify-between items-end mb-4">
                 <div className="text-right">
