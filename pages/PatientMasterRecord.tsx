@@ -86,6 +86,223 @@ const PatientMasterRecord: React.FC = () => {
     });
   };
 
+  const renderClinicalData = (data: any, department?: string) => {
+    if (!data) return null;
+
+    switch (department) {
+      case 'GYNA':
+        return renderGynecologyData(data);
+      case 'OBS':
+        return renderObstetricsData(data);
+      case 'IVF_STIM':
+        return renderIVFData(data);
+      default:
+        return (
+          <div className="text-sm text-gray-600">
+            <pre className="whitespace-pre-wrap">{JSON.stringify(data, null, 2)}</pre>
+          </div>
+        );
+    }
+  };
+
+  const renderGynecologyData = (data: any) => {
+    const { assessment, diagnosis, procedureOrder, clinicalNotes } = data;
+
+    return (
+      <div className="space-y-3">
+        {/* Complaints */}
+        {assessment?.complaints && assessment.complaints.length > 0 && (
+          <div>
+            <span className="font-medium text-gray-700">Complaints:</span>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {assessment.complaints.map((complaint: string, idx: number) => (
+                <span key={idx} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                  {complaint}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* PV Examination */}
+        {assessment?.pvExamination && (
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {assessment.pvExamination.vulva && (
+              <div><span className="font-medium">Vulva:</span> {assessment.pvExamination.vulva}</div>
+            )}
+            {assessment.pvExamination.vagina && (
+              <div><span className="font-medium">Vagina:</span> {assessment.pvExamination.vagina}</div>
+            )}
+            {assessment.pvExamination.cervix && (
+              <div><span className="font-medium">Cervix:</span> {assessment.pvExamination.cervix}</div>
+            )}
+            {assessment.pvExamination.adnexa && (
+              <div><span className="font-medium">Adnexa:</span> {assessment.pvExamination.adnexa}</div>
+            )}
+          </div>
+        )}
+
+        {/* Ultrasound */}
+        {assessment?.ultrasound && (
+          <div>
+            <span className="font-medium text-gray-700">Ultrasound Findings:</span>
+            <div className="mt-2 space-y-2">
+              {assessment.ultrasound.uterus && (
+                <div className="bg-gray-50 p-2 rounded text-sm">
+                  <div className="font-medium text-gray-800">Uterus:</div>
+                  <div className="grid grid-cols-3 gap-2 mt-1 text-xs">
+                    {assessment.ultrasound.uterus.dimensions && (
+                      <div>Size: {assessment.ultrasound.uterus.dimensions}</div>
+                    )}
+                    {assessment.ultrasound.uterus.myometrium && (
+                      <div>Myometrium: {assessment.ultrasound.uterus.myometrium}</div>
+                    )}
+                    {assessment.ultrasound.uterus.cavity && (
+                      <div>Cavity: {assessment.ultrasound.uterus.cavity}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {(assessment.ultrasound.ovaries?.right || assessment.ultrasound.ovaries?.left) && (
+                <div className="bg-gray-50 p-2 rounded text-sm">
+                  <div className="font-medium text-gray-800">Ovaries:</div>
+                  <div className="grid grid-cols-2 gap-2 mt-1 text-xs">
+                    {assessment.ultrasound.ovaries.right && (
+                      <div>
+                        <div className="font-medium">Right:</div>
+                        <div>Size: {assessment.ultrasound.ovaries.right.size || 'N/A'}</div>
+                        {assessment.ultrasound.ovaries.right.cysts && (
+                          <div>Cysts: {assessment.ultrasound.ovaries.right.cysts}</div>
+                        )}
+                      </div>
+                    )}
+                    {assessment.ultrasound.ovaries.left && (
+                      <div>
+                        <div className="font-medium">Left:</div>
+                        <div>Size: {assessment.ultrasound.ovaries.left.size || 'N/A'}</div>
+                        {assessment.ultrasound.ovaries.left.cysts && (
+                          <div>Cysts: {assessment.ultrasound.ovaries.left.cysts}</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Diagnosis & Plan */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-200">
+          {diagnosis && (
+            <div>
+              <span className="font-medium text-green-700">Diagnosis:</span>
+              <div className="text-sm text-gray-700 mt-1">{diagnosis}</div>
+            </div>
+          )}
+          {procedureOrder && (
+            <div>
+              <span className="font-medium text-purple-700">Procedure:</span>
+              <div className="text-sm text-gray-700 mt-1">{procedureOrder}</div>
+            </div>
+          )}
+        </div>
+
+        {clinicalNotes && (
+          <div className="pt-2 border-t border-gray-200">
+            <span className="font-medium text-gray-700">Clinical Notes:</span>
+            <div className="text-sm text-gray-600 mt-1 italic">{clinicalNotes}</div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderObstetricsData = (data: any) => {
+    const { pregnancyId, gestationalAge, riskAssessment, currentStatus } = data;
+
+    return (
+      <div className="space-y-3">
+        {gestationalAge && (
+          <div>
+            <span className="font-medium text-gray-700">Gestational Age:</span>
+            <span className="text-blue-600 font-medium ml-2">
+              {gestationalAge.weeks} weeks {gestationalAge.days} days
+            </span>
+          </div>
+        )}
+
+        {riskAssessment && (
+          <div>
+            <span className="font-medium text-gray-700">Risk Assessment:</span>
+            <div className="mt-1 space-y-1 text-sm">
+              <div>Level: <span className={`font-medium ${
+                riskAssessment.level === 'high' ? 'text-red-600' :
+                riskAssessment.level === 'moderate' ? 'text-yellow-600' : 'text-green-600'
+              }`}>{riskAssessment.level}</span></div>
+              {riskAssessment.aspirin && <div>✅ Aspirin prescribed</div>}
+              {riskAssessment.thromboprophylaxis && <div>✅ Thromboprophylaxis needed</div>}
+            </div>
+          </div>
+        )}
+
+        {currentStatus && (
+          <div>
+            <span className="font-medium text-gray-700">Status:</span>
+            <span className="text-green-600 ml-2">{currentStatus}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderIVFData = (data: any) => {
+    const { cycleId, protocol, startDate, stimulationDays, currentStatus, latestHormones } = data;
+
+    return (
+      <div className="space-y-3">
+        {protocol && (
+          <div>
+            <span className="font-medium text-gray-700">Protocol:</span>
+            <span className="text-purple-600 ml-2">{protocol}</span>
+          </div>
+        )}
+
+        {startDate && (
+          <div>
+            <span className="font-medium text-gray-700">Started:</span>
+            <span className="text-gray-600 ml-2">{formatDate(startDate)}</span>
+          </div>
+        )}
+
+        {stimulationDays && (
+          <div>
+            <span className="font-medium text-gray-700">Stimulation Days:</span>
+            <span className="text-blue-600 ml-2">{stimulationDays}</span>
+          </div>
+        )}
+
+        {latestHormones && (
+          <div>
+            <span className="font-medium text-gray-700">Latest Hormones:</span>
+            <div className="mt-1 text-sm">
+              {latestHormones.e2 && <div>E2: {latestHormones.e2} pg/mL</div>}
+              {latestHormones.lh && <div>LH: {latestHormones.lh} IU/L</div>}
+            </div>
+          </div>
+        )}
+
+        {currentStatus && (
+          <div>
+            <span className="font-medium text-gray-700">Status:</span>
+            <span className="text-green-600 ml-2">{currentStatus}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-8">
@@ -194,10 +411,8 @@ const PatientMasterRecord: React.FC = () => {
                           {/* Clinical Data Preview */}
                           {visit.clinical_data && (
                             <div className="bg-white rounded border p-3 mb-3">
-                              <h5 className="text-sm font-medium text-gray-700 mb-2">Clinical Data:</h5>
-                              <pre className="text-xs text-gray-600 whitespace-pre-wrap">
-                                {JSON.stringify(visit.clinical_data, null, 2)}
-                              </pre>
+                              <h5 className="text-sm font-medium text-gray-700 mb-3">Clinical Assessment:</h5>
+                              {renderClinicalData(visit.clinical_data, visit.department)}
                             </div>
                           )}
 
