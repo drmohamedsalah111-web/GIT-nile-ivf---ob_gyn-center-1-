@@ -159,24 +159,24 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
     .filter(d => d.weight > 0 || d.systolic > 0);
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <div className="bg-white rounded-lg shadow-md p-6 mb-6" dir="ltr">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900 font-[Tajawal]">📋 سجل زيارات المتابعة</h2>
+        <h2 className="text-xl font-bold text-gray-900 font-[Tajawal]">📋 ANC Flowsheet</h2>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-[Tajawal] font-semibold transition-colors"
+          className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
         >
           <Plus size={18} />
-          إضافة زيارة
+          Add Visit
         </button>
       </div>
 
       {showForm && (
-        <div className="mb-6 p-6 bg-gray-50 rounded-lg border-2 border-teal-200">
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
+        <div className="mb-6 p-6 bg-gray-50 rounded-lg border-2 border-teal-200" dir="ltr">
+          <div className="grid md:grid-cols-2 gap-4 mb-4 text-left">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-                تاريخ الزيارة
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Visit Date
               </label>
               <input
                 type="date"
@@ -187,8 +187,8 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-                الوزن (كجم)
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Weight (kg)
               </label>
               <input
                 type="number"
@@ -200,8 +200,8 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-                ضغط الدم الانقباضي
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Systolic BP (mmHg)
               </label>
               <input
                 type="number"
@@ -212,8 +212,8 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-                ضغط الدم الانبساطي
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Diastolic BP (mmHg)
               </label>
               <input
                 type="number"
@@ -224,8 +224,8 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-                الألبومين في البول
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Urine Albuminuria
               </label>
               <select
                 value={formData.urine_albuminuria}
@@ -241,8 +241,8 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-                السكر في البول
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Urine Glycosuria
               </label>
               <select
                 value={formData.urine_glycosuria}
@@ -257,8 +257,8 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-                ارتفاع قاع الرحم (سم)
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Fundal Height (cm)
               </label>
               <input
                 type="number"
@@ -270,8 +270,8 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-                تاريخ الزيارة التالية
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Next Visit Date
               </label>
               <input
                 type="date"
@@ -290,7 +290,7 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
                 onChange={(e) => setFormData(prev => ({ ...prev, fetal_heart_sound: e.target.checked }))}
                 className="w-4 h-4"
               />
-              <span className="text-sm text-gray-700 font-[Tajawal]">ضربات قلب الجنين موجودة</span>
+              <span className="text-sm text-gray-700">Fetal Heart Sound (FHS) Detected</span>
             </label>
 
             <label className="flex items-center gap-2 cursor-pointer">
@@ -300,13 +300,13 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
                 onChange={(e) => setFormData(prev => ({ ...prev, edema: e.target.checked }))}
                 className="w-4 h-4"
               />
-              <span className="text-sm text-gray-700 font-[Tajawal]">وذمة</span>
+              <span className="text-sm text-gray-700">Edema Present</span>
             </label>
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-              ملاحظات
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Clinical Notes
             </label>
             <textarea
               value={formData.notes}
@@ -320,25 +320,25 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
             <button
               onClick={handleAddVisit}
               disabled={isSaving}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-[Tajawal] font-semibold transition-colors"
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
             >
               <Save size={18} />
-              {isSaving ? 'جاري الحفظ...' : editingId ? 'تحديث الزيارة' : 'إضافة الزيارة'}
+              {isSaving ? 'Saving...' : editingId ? 'Update Visit' : 'Add Visit'}
             </button>
             <button
               onClick={resetForm}
-              className="flex items-center gap-2 bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg font-[Tajawal] font-semibold transition-colors"
+              className="flex items-center gap-2 bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
             >
               <X size={18} />
-              إلغاء
+              Cancel
             </button>
           </div>
         </div>
       )}
 
       {chartData.length > 1 && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-sm font-bold text-gray-900 mb-4 font-[Tajawal]">📈 تطور الوزن وضغط الدم</h3>
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg" dir="ltr">
+          <h3 className="text-sm font-bold text-gray-900 mb-4">📈 Weight & BP Trends</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -347,8 +347,8 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
               <YAxis yAxisId="right" orientation="right" />
               <Tooltip />
               <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="weight" stroke="#14b8a6" name="الوزن (كجم)" />
-              <Line yAxisId="right" type="monotone" dataKey="systolic" stroke="#dc2626" name="الضغط الانقباضي" />
+              <Line yAxisId="left" type="monotone" dataKey="weight" stroke="#14b8a6" name="Weight (kg)" />
+              <Line yAxisId="right" type="monotone" dataKey="systolic" stroke="#dc2626" name="Systolic BP (mmHg)" />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -359,17 +359,17 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
         </div>
       ) : visits.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm font-[Tajawal]">
+        <div className="overflow-x-auto" dir="ltr">
+          <table className="w-full text-sm text-left">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-4 py-2 text-right">التاريخ</th>
-                <th className="px-4 py-2 text-right">GA</th>
-                <th className="px-4 py-2 text-right">الوزن</th>
-                <th className="px-4 py-2 text-right">ضغط الدم</th>
-                <th className="px-4 py-2 text-right">الألبومين</th>
-                <th className="px-4 py-2 text-right">قاع الرحم</th>
-                <th className="px-4 py-2 text-right">الإجراءات</th>
+                <th className="px-4 py-2">Visit Date</th>
+                <th className="px-4 py-2">GA (wks+days)</th>
+                <th className="px-4 py-2">Weight (kg)</th>
+                <th className="px-4 py-2">BP (mmHg)</th>
+                <th className="px-4 py-2">Urine Alb</th>
+                <th className="px-4 py-2">Fundal Height (cm)</th>
+                <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -381,20 +381,20 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
                   <td className="px-4 py-2">
                     {visit.gestational_age_weeks}w+{visit.gestational_age_days}d
                   </td>
-                  <td className="px-4 py-2">{visit.weight_kg || '-'} كجم</td>
+                  <td className="px-4 py-2">{visit.weight_kg || '-'}</td>
                   <td className="px-4 py-2">
                     {visit.systolic_bp && visit.diastolic_bp
                       ? `${visit.systolic_bp}/${visit.diastolic_bp}`
                       : '-'}
                   </td>
                   <td className="px-4 py-2">{visit.urine_albuminuria || '-'}</td>
-                  <td className="px-4 py-2">{visit.fundal_height_cm || '-'} سم</td>
+                  <td className="px-4 py-2">{visit.fundal_height_cm || '-'}</td>
                   <td className="px-4 py-2 flex gap-2">
                     <button
                       onClick={() => handleEditVisit(visit)}
                       className="text-blue-600 hover:text-blue-800 font-semibold"
                     >
-                      تحرير
+                      Edit
                     </button>
                     <button
                       onClick={() => handleDeleteVisit(visit.id)}
@@ -409,7 +409,7 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
           </table>
         </div>
       ) : (
-        <p className="text-center text-gray-500 py-8 font-[Tajawal]">لا توجد زيارات حتى الآن</p>
+        <p className="text-center text-gray-500 py-8">No visits recorded yet</p>
       )}
     </div>
   );
