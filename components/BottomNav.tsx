@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, Stethoscope, Baby, Heart, Settings, Activity } from 'lucide-react';
+import { LayoutDashboard, Users, Stethoscope, Baby, Heart, Settings, Activity, Shield } from 'lucide-react';
 import { Page } from '../types';
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
 const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
   return (
     <nav className="fixed bottom-0 w-full md:hidden bg-white border-t shadow-lg z-50">
-      <div className="max-w-3xl mx-auto grid grid-cols-7 overflow-x-auto">
+      <div className="max-w-3xl mx-auto flex overflow-x-auto">
         <button
           onClick={() => setPage(Page.HOME)}
           className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.HOME ? 'text-teal-600' : 'text-gray-500'}`}
@@ -67,11 +67,20 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
 
         <button
           onClick={() => setPage(Page.SETTINGS)}
-          className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.SETTINGS ? 'text-teal-600' : 'text-gray-500'}`}
+          className={`py-2 px-1 flex flex-col items-center justify-center text-xs min-w-fit ${activePage === Page.SETTINGS ? 'text-teal-600' : 'text-gray-500'}`}
           aria-label="Settings"
         >
           <Settings className="w-6 h-6" />
           <span className="mt-1 text-[12px]">Settings</span>
+        </button>
+
+        <button
+          onClick={() => setPage(Page.ADMIN)}
+          className={`py-2 px-1 flex flex-col items-center justify-center text-xs min-w-fit ${activePage === Page.ADMIN ? 'text-teal-600' : 'text-gray-500'}`}
+          aria-label="Admin"
+        >
+          <Shield className="w-6 h-6" />
+          <span className="mt-1 text-[12px]">Admin</span>
         </button>
       </div>
     </nav>

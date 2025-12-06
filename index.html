@@ -7,54 +7,7 @@
     <!-- سنستخدم Tailwind عبر التثبيت المحلي في package.json لكن سنبقي الـ CDN مؤقتاً للتأكد من التصميم -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <style>
-      body {
-        font-family: 'Tajawal', sans-serif;
-        background-color: #f3f4f6;
-      }
-      ::-webkit-scrollbar { width: 8px; height: 8px; }
-      ::-webkit-scrollbar-track { background: #f1f1f1; }
-      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-      
-      @media print {
-        body, html { 
-          background: white !important; 
-          margin: 0 !important;
-          padding: 0 !important;
-          width: 100% !important;
-          height: 100% !important;
-        }
-        
-        .no-print { display: none !important; }
-        
-        .print-only { 
-          display: block !important; 
-          position: relative !important; 
-          width: 100% !important;
-          margin: 0 !important;
-          padding: 32px !important;
-          background: white !important;
-        }
-        
-        #root { 
-          width: 100% !important; 
-          margin: 0 !important; 
-          padding: 0 !important;
-        }
-        
-        .print-only * { 
-          background: white !important;
-          color: #000 !important;
-        }
-        
-        .print-only h1, .print-only h2, .print-only h3 {
-          margin-top: 0 !important;
-          page-break-after: avoid !important;
-        }
-      }
-      .print-only { display: none; }
-    </style>
+    <link rel="stylesheet" href="/styles.css">
     <script>
       tailwind.config = {
         theme: {
@@ -86,8 +39,6 @@
 </head>
   <body>
     <div id="root"></div>
-    <!-- Vite سيقوم بحقن السكربت الصحيح هنا عند البناء -->
-    <script type="module" src="./index.tsx"></script>
-  <script type="module" src="/index.tsx"></script>
-</body>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>

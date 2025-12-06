@@ -135,5 +135,6 @@ export enum Page {
   IVF = 'ivf',
   PATIENT_RECORD = 'patient_record',
   SETTINGS = 'settings',
-  OBSTETRICS = 'obstetrics'
+  OBSTETRICS = 'obstetrics',
+  ADMIN = 'admin'
 }

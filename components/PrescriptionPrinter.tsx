@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Printer, X } from 'lucide-react';
 import { PrescriptionItem, Patient, Doctor } from '../types';
 import { authService } from '../services/authService';
+import { useBranding } from '../context/BrandingContext';
 import toast from 'react-hot-toast';
 
 interface PrescriptionPrinterProps {
@@ -21,6 +22,7 @@ const PrescriptionPrinter: React.FC<PrescriptionPrinterProps> = ({
   isOpen,
   onClose
 }) => {
+  const { branding } = useBranding();
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -145,16 +147,20 @@ const PrescriptionPrinter: React.FC<PrescriptionPrinterProps> = ({
             <div className="header">
               <div className="clinic-info">
                 <div className="clinic-name">
-                  {doctor?.clinic_name || 'عيادة متخصصة'}
+                  {branding?.clinic_name || 'عيادة متخصصة'}
                 </div>
                 <div className="clinic-details">
-                  {doctor?.clinic_address && <div>{doctor.clinic_address}</div>}
-                  {doctor?.clinic_phone && <div>ت: {doctor.clinic_phone}</div>}
+                  {branding?.clinic_address && <div>{branding.clinic_address}</div>}
+                  {branding?.clinic_phone && <div>ت: {branding.clinic_phone}</div>}
                   {doctor?.email && <div>البريد الإلكتروني: {doctor.email}</div>}
                 </div>
               </div>
               <div className="logo-area">
-                ℜ
+                {branding?.logo_url ? (
+                  <img src={branding.logo_url} alt="Logo" style={{ maxWidth: '80px', maxHeight: '80px' }} />
+                ) : (
+                  'ℜ'
+                )}
               </div>
             </div>
 

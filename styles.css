@@ -1,0 +1,67 @@
+body {
+  font-family: 'Tajawal', sans-serif;
+  background-color: #f3f4f6;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  body, html {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 32px !important;
+    background: white !important;
+  }
+
+  #root {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-only * {
+    background: white !important;
+    color: #000 !important;
+  }
+
+  .print-only h1,
+  .print-only h2,
+  .print-only h3 {
+    margin-top: 0 !important;
+    page-break-after: avoid !important;
+  }
+}

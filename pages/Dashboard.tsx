@@ -4,8 +4,10 @@ import { Users, Activity, CalendarCheck, TrendingUp, Loader2 } from 'lucide-reac
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { db } from '../services/ivfService';
 import { Patient } from '../types';
+import { useBranding } from '../context/BrandingContext';
 
 const Dashboard: React.FC = () => {
+  const { branding } = useBranding();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalPatients: 0,
@@ -66,8 +68,8 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <header className="mb-6 md:mb-8">
-        <h2 className="text-3xl font-bold text-gray-800">Dashboard Overview</h2>
-        <p className="text-gray-500">Welcome back, Dr. Name</p>
+        <h2 className="text-3xl font-bold text-gray-800">{branding?.clinic_name || 'Dashboard Overview'}</h2>
+        <p className="text-gray-500">Welcome back to your clinic management system</p>
       </header>
 
       {/* KPI Cards */}

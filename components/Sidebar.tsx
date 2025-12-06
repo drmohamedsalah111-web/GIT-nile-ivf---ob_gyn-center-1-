@@ -1,6 +1,7 @@
 import React from 'react';
-import { LayoutDashboard, Users, Stethoscope, Baby, Heart, Settings, LogOut, Activity, FileText } from 'lucide-react';
+import { LayoutDashboard, Users, Stethoscope, Baby, Heart, Settings, LogOut, Activity, FileText, Shield } from 'lucide-react';
 import { Page } from '../types';
+import { useBranding } from '../context/BrandingContext';
 
 interface SidebarProps {
   activePage: Page;
@@ -8,6 +9,8 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
+  const { branding } = useBranding();
+
   const menuItems = [
     { id: Page.HOME, label: 'Dashboard', icon: LayoutDashboard },
     { id: Page.RECEPTION, label: 'Reception', icon: Users },
@@ -17,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
     { id: Page.OBSTETRICS, label: 'Obstetrics', icon: Heart },
     { id: Page.PATIENT_RECORD, label: 'Patient Records', icon: FileText },
     { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings },
+    { id: Page.ADMIN, label: 'لوحة التحكم', icon: Shield },
   ];
 
   return (
@@ -24,10 +28,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
     <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 no-print">
       <div className="p-6 border-b border-gray-100 flex items-center justify-center">
         <div className="flex flex-col items-center">
-          <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mb-2">
-            <Baby className="text-teal-700 w-8 h-8" />
-          </div>
-          <h1 className="text-xl font-bold text-gray-800">Nile IVF Center</h1>
+          {branding?.logo_url ? (
+            <img src={branding.logo_url} alt="Logo" className="w-12 h-12 rounded-full mb-2 object-cover" />
+          ) : (
+            <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mb-2">
+              <Baby className="text-teal-700 w-8 h-8" />
+            </div>
+          )}
+          <h1 className="text-sm font-bold text-gray-800 text-center">{branding?.clinic_name || 'Nile IVF Center'}</h1>
           <p className="text-xs text-gray-400 uppercase tracking-wider">EMR System</p>
         </div>
       </div>

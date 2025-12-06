@@ -10,10 +10,12 @@ import IvfJourney from './pages/IvfJourney';
 import PatientMasterRecord from './pages/PatientMasterRecord';
 import Settings from './pages/Settings';
 import ObstetricsDashboard from './pages/ObstetricsDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import { Login } from './pages/Login';
 import { Toaster } from 'react-hot-toast';
 import { authService } from './services/authService';
 import { LogOut } from 'lucide-react';
+import { BrandingProvider } from './context/BrandingContext';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
@@ -89,38 +91,41 @@ const App: React.FC = () => {
       case Page.OBSTETRICS: return <ObstetricsDashboard />;
       case Page.PATIENT_RECORD: return <PatientMasterRecord />;
       case Page.SETTINGS: return <Settings user={user} />;
+      case Page.ADMIN: return <AdminDashboard />;
       default: return <Dashboard />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row-reverse font-[Tajawal]">
-      <div className="hidden md:flex">
-        <Sidebar activePage={activePage} setPage={setActivePage} />
-      </div>
-
-      <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">
-              مرحباً، {user?.email}
-            </h1>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200 font-[Tajawal]"
-            >
-              <LogOut size={18} />
-              تسجيل الخروج
-            </button>
-          </div>
-          {renderContent()}
+    <BrandingProvider>
+      <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row-reverse font-[Tajawal]">
+        <div className="hidden md:flex">
+          <Sidebar activePage={activePage} setPage={setActivePage} />
         </div>
-      </main>
 
-      <BottomNav activePage={activePage} setPage={setActivePage} />
+        <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">
+                مرحباً، {user?.email}
+              </h1>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200 font-[Tajawal]"
+              >
+                <LogOut size={18} />
+                تسجيل الخروج
+              </button>
+            </div>
+            {renderContent()}
+          </div>
+        </main>
 
-      <Toaster position="top-center" reverseOrder={false} />
-    </div>
+        <BottomNav activePage={activePage} setPage={setActivePage} />
+
+        <Toaster position="top-center" reverseOrder={false} />
+      </div>
+    </BrandingProvider>
   );
 };
 
