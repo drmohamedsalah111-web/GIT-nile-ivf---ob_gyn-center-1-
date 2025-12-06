@@ -44,9 +44,7 @@ CREATE POLICY "Doctors can read visits" ON visits
   USING (
     auth.uid() IS NOT NULL
     AND patient_id IN (
-      SELECT id FROM patients WHERE doctor_id = (
-        SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1
-      )
+      SELECT id FROM patients WHERE doctor_id = auth.uid()
     )
   );
 
@@ -55,9 +53,7 @@ CREATE POLICY "Doctors can insert visits" ON visits
   WITH CHECK (
     auth.uid() IS NOT NULL
     AND patient_id IN (
-      SELECT id FROM patients WHERE doctor_id = (
-        SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1
-      )
+      SELECT id FROM patients WHERE doctor_id = auth.uid()
     )
   );
 
@@ -66,17 +62,13 @@ CREATE POLICY "Doctors can update visits" ON visits
   USING (
     auth.uid() IS NOT NULL
     AND patient_id IN (
-      SELECT id FROM patients WHERE doctor_id = (
-        SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1
-      )
+      SELECT id FROM patients WHERE doctor_id = auth.uid()
     )
   )
   WITH CHECK (
     auth.uid() IS NOT NULL
     AND patient_id IN (
-      SELECT id FROM patients WHERE doctor_id = (
-        SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1
-      )
+      SELECT id FROM patients WHERE doctor_id = auth.uid()
     )
   );
 
