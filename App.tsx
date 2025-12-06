@@ -5,6 +5,7 @@ import { Page } from './types';
 import Dashboard from './pages/Dashboard';
 import Reception from './pages/Reception';
 import ClinicalStation from './pages/ClinicalStation';
+import Gynecology from './pages/Gynecology';
 import IvfJourney from './pages/IvfJourney';
 import Settings from './pages/Settings';
 import ObstetricsDashboard from './pages/ObstetricsDashboard';
@@ -82,6 +83,7 @@ const App: React.FC = () => {
       case Page.HOME: return <Dashboard />;
       case Page.RECEPTION: return <Reception />;
       case Page.CLINICAL: return <ClinicalStation />;
+      case Page.GYNECOLOGY: return <Gynecology />;
       case Page.IVF: return <IvfJourney />;
       case Page.OBSTETRICS: return <ObstetricsDashboard />;
       case Page.SETTINGS: return <Settings user={user} />;

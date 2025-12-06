@@ -15,6 +15,7 @@ export interface Visit {
   diagnosis: string;
   prescription: PrescriptionItem[];
   notes: string;
+  clinical_data?: any; // JSONB for structured clinical data
   vitals?: {
     weight?: number;
     height?: number;
@@ -129,6 +130,7 @@ export enum Page {
   HOME = 'home',
   RECEPTION = 'reception',
   CLINICAL = 'clinical',
+  GYNECOLOGY = 'gynecology',
   IVF = 'ivf',
   SETTINGS = 'settings',
   OBSTETRICS = 'obstetrics'
