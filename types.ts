@@ -30,14 +30,47 @@ export interface PrescriptionItem {
   dose: string;
 }
 
-export interface IvfCycle {
-  id: string;
-  patientId: string;
-  protocol: 'Long' | 'Antagonist' | 'Flare-up';
-  startDate: string;
-  status: 'Active' | 'Completed' | 'Cancelled';
-  logs: StimulationLog[];
-  lab?: OpuLabData;
+export interface MaleFactorAssessment {
+  volume?: number;
+  concentration?: number;
+  motility?: number;
+  morphology?: number;
+  tmsc?: number;
+  diagnosis?: string;
+  icsiIndicated?: boolean;
+}
+
+export interface FemaleFactorAssessment {
+  amh?: number;
+  fsh?: number;
+  lh?: number;
+  e2?: number;
+  afcRight?: number;
+  afcLeft?: number;
+  ovaryClassification?: 'Poor Responder' | 'Normal' | 'High Responder';
+}
+
+export interface TubalUterineAssessment {
+  hsgFindings?: string;
+  hysteroscopyFindings?: string;
+  septate?: boolean;
+  polyps?: boolean;
+  adhesions?: boolean;
+}
+
+export interface CoupleProfileAssessment {
+  infertilityDuration?: number;
+  infertilityType?: 'Primary' | 'Secondary';
+  previousAttempts?: number;
+  bmi?: number;
+  bmiAlert?: boolean;
+}
+
+export interface CycleAssessment {
+  coupleProfile?: CoupleProfileAssessment;
+  maleFactor?: MaleFactorAssessment;
+  femaleFactor?: FemaleFactorAssessment;
+  tubalUterine?: TubalUterineAssessment;
 }
 
 export interface StimulationLog {
@@ -50,13 +83,54 @@ export interface StimulationLog {
   lh: string;
   rtFollicles: string;
   ltFollicles: string;
+  endometriumThickness?: string;
 }
 
 export interface OpuLabData {
-  oocytesRetrieved: number;
-  mii: number;
-  fertilized2PN: number;
-  embryoGrades: string;
+  opuDate?: string;
+  totalOocytes?: number;
+  mii?: number;
+  mi?: number;
+  gv?: number;
+  atretic?: number;
+  maturationRate?: number;
+  fertilized2PN?: number;
+  fertilizationRate?: number;
+  embryoDay3A?: number;
+  embryoDay3B?: number;
+  embryoDay3C?: number;
+  blastocystsExpanded?: number;
+  blastocystsHatching?: number;
+}
+
+export interface TransferData {
+  transferDate?: string;
+  numberTransferred?: number;
+  embryoQuality?: string;
+  catheterDifficulty?: 'Easy' | 'Moderate' | 'Difficult';
+  lutealSupport?: string[];
+}
+
+export interface OutcomeData {
+  betaHcg?: number;
+  betaHcgPositive?: boolean;
+  clinicalPregnancy?: boolean;
+  gestationalSac?: boolean;
+  fHR?: boolean;
+}
+
+export interface IvfCycle {
+  id: string;
+  patientId: string;
+  protocol: 'Long' | 'Antagonist' | 'Flare-up' | 'Mini-IVF';
+  startDate: string;
+  status: 'Active' | 'Completed' | 'Cancelled';
+  assessment?: CycleAssessment;
+  logs: StimulationLog[];
+  lab?: OpuLabData;
+  transfer?: TransferData;
+  outcome?: OutcomeData;
+  cycleData?: any;
 }
 
 export interface Doctor {

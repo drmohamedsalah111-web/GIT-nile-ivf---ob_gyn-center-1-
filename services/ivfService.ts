@@ -10,6 +10,11 @@ export const calculateBMI = (weightKg: number, heightCm: number): { bmi: number;
   return { bmi, alert: bmi > 30 };
 };
 
+export const calculateTMSC = (volume: number, concentration: number, motility: number): number => {
+  if (!volume || !concentration || !motility) return 0;
+  return parseFloat(((volume * concentration * motility) / 100).toFixed(2));
+};
+
 export const analyzeSemenAnalysis = (vol: number, conc: number, motility: number, morph: number): string => {
   const findings: string[] = [];
   if (vol < 1.5) findings.push("Hypospermia");
@@ -19,6 +24,28 @@ export const analyzeSemenAnalysis = (vol: number, conc: number, motility: number
   
   if (findings.length === 0) return "Normozoospermia (WHO 2021)";
   return findings.join(" + ");
+};
+
+export const classifyOvarianReserve = (amh?: number, afc?: number): 'Poor Responder' | 'Normal' | 'High Responder' => {
+  if (!amh && !afc) return 'Normal';
+  
+  if ((amh && amh < 0.4) || (afc && afc < 5)) {
+    return 'Poor Responder';
+  }
+  if ((amh && amh > 4.5) || (afc && afc > 25)) {
+    return 'High Responder';
+  }
+  return 'Normal';
+};
+
+export const calculateMaturationRate = (totalOocytes: number, mii: number): number => {
+  if (!totalOocytes || totalOocytes === 0) return 0;
+  return parseFloat(((mii / totalOocytes) * 100).toFixed(1));
+};
+
+export const calculateFertilizationRate = (fertilized: number, mii: number): number => {
+  if (!mii || mii === 0) return 0;
+  return parseFloat(((fertilized / mii) * 100).toFixed(1));
 };
 
 // Database Service (Supabase Async)
@@ -157,17 +184,51 @@ export const db = {
   },
 
   updateLog: async (logId: string, updates: Partial<StimulationLog>) => {
+    const dbUpdates: any = {};
+    if (updates.fsh !== undefined) dbUpdates.fsh = updates.fsh;
+    if (updates.hmg !== undefined) dbUpdates.hmg = updates.hmg;
+    if (updates.e2 !== undefined) dbUpdates.e2 = updates.e2;
+    if (updates.lh !== undefined) dbUpdates.lh = updates.lh;
+    if (updates.rtFollicles !== undefined) dbUpdates.rt_follicles = updates.rtFollicles;
+    if (updates.ltFollicles !== undefined) dbUpdates.lt_follicles = updates.ltFollicles;
+    if (updates.endometriumThickness !== undefined) dbUpdates.endometrium_thickness = updates.endometriumThickness;
+    
     const { error } = await supabase
       .from('stimulation_logs')
-      .update({
-        fsh: updates.fsh,
-        hmg: updates.hmg,
-        e2: updates.e2,
-        lh: updates.lh,
-        rt_follicles: updates.rtFollicles,
-        lt_follicles: updates.ltFollicles
-      })
+      .update(dbUpdates)
       .eq('id', logId);
+    if (error) throw error;
+  },
+
+  updateCycleAssessment: async (cycleId: string, assessment: any) => {
+    const { error } = await supabase
+      .from('ivf_cycles')
+      .update({ assessment_data: assessment })
+      .eq('id', cycleId);
+    if (error) throw error;
+  },
+
+  updateCycleLabData: async (cycleId: string, labData: any) => {
+    const { error } = await supabase
+      .from('ivf_cycles')
+      .update({ lab_data: labData })
+      .eq('id', cycleId);
+    if (error) throw error;
+  },
+
+  updateCycleTransfer: async (cycleId: string, transferData: any) => {
+    const { error } = await supabase
+      .from('ivf_cycles')
+      .update({ transfer_data: transferData })
+      .eq('id', cycleId);
+    if (error) throw error;
+  },
+
+  updateCycleOutcome: async (cycleId: string, outcomeData: any) => {
+    const { error } = await supabase
+      .from('ivf_cycles')
+      .update({ outcome_data: outcomeData, status: 'Completed' })
+      .eq('id', cycleId);
     if (error) throw error;
   }
 };
