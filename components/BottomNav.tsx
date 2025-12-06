@@ -35,7 +35,7 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
           aria-label="Gynecology"
         >
           <Activity className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">Gyn</span>
+          <span className="mt-1 text-[12px]">نساء</span>
         </button>
 
         <button

@@ -12,7 +12,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
     { id: Page.HOME, label: 'Dashboard', icon: LayoutDashboard },
     { id: Page.RECEPTION, label: 'Reception', icon: Users },
     { id: Page.CLINICAL, label: 'Clinical Station', icon: Stethoscope },
-    { id: Page.GYNECOLOGY, label: 'Gynecology', icon: Activity },
+    { id: Page.GYNECOLOGY, label: 'عيادة النساء', icon: Activity },
     { id: Page.IVF, label: 'IVF Journey', icon: Baby },
     { id: Page.OBSTETRICS, label: 'Obstetrics', icon: Heart },
     { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings },
