@@ -65,8 +65,14 @@ const AdminDashboard: React.FC = () => {
   const handleBrandingSave = async () => {
     try {
       setSaving(true);
-      const logoFile = (document.querySelector('[type="file"]') as HTMLInputElement)?.files?.[0];
+      const fileInput = document.querySelector('[type="file"]') as HTMLInputElement;
+      const logoFile = fileInput?.files?.[0];
       
+      if (!brandingData.clinic_name.trim()) {
+        toast.error('يجب إدخال اسم العيادة');
+        return;
+      }
+
       await updateBranding(
         {
           clinic_name: brandingData.clinic_name,
@@ -80,9 +86,11 @@ const AdminDashboard: React.FC = () => {
       );
 
       toast.success('تم حفظ إعدادات العلامة التجارية بنجاح');
-    } catch (error) {
+      if (fileInput) fileInput.value = '';
+    } catch (error: any) {
       console.error('Error saving branding:', error);
-      toast.error('فشل حفظ الإعدادات');
+      const errorMsg = error?.message || 'فشل حفظ الإعدادات';
+      toast.error(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -187,6 +195,23 @@ const AdminDashboard: React.FC = () => {
         {/* Branding Tab */}
         {activeTab === 'branding' && (
           <div className="space-y-6">
+            {/* Setup Guide */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+              <h3 className="font-semibold text-amber-900 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                إعداد تخزين الشعار
+              </h3>
+              <div className="text-sm text-amber-800 space-y-2">
+                <p>لتمكين رفع الشعارات، تابع هذه الخطوات:</p>
+                <ol className="list-decimal list-inside space-y-1 ml-2">
+                  <li>اذهب إلى <strong>Supabase Dashboard → Storage</strong></li>
+                  <li>انقر على <strong>Create new bucket</strong></li>
+                  <li>أدخل الاسم: <code className="bg-amber-100 px-2 py-1 rounded">branding</code></li>
+                  <li>اختر <strong>Public bucket</strong></li>
+                  <li>انقر <strong>Create bucket</strong></li>
+                </ol>
+              </div>
+            </div>
             <div className="grid md:grid-cols-2 gap-6">
               {/* Clinic Name */}
               <div>

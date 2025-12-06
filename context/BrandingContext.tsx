@@ -74,28 +74,41 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       let logoUrl = updates.logo_url;
 
       if (logoFile) {
-        const user = await authService.getCurrentUser();
-        if (!user) throw new Error('User not authenticated');
+        try {
+          const user = await authService.getCurrentUser();
+          if (!user) throw new Error('User not authenticated');
 
-        const fileExt = logoFile.name.split('.').pop();
-        const fileName = `clinic_logo_${Date.now()}.${fileExt}`;
+          const fileExt = logoFile.name.split('.').pop();
+          const fileName = `clinic_logo_${Date.now()}.${fileExt}`;
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('branding')
-          .upload(fileName, logoFile, { upsert: true });
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('branding')
+            .upload(fileName, logoFile, { upsert: true });
 
-        if (uploadError) throw uploadError;
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            throw new Error('فشل رفع الشعار: تأكد من إنشاء bucket "branding" في Supabase Storage');
+          }
 
-        const { data: urlData } = supabase.storage
-          .from('branding')
-          .getPublicUrl(fileName);
+          const { data: urlData } = supabase.storage
+            .from('branding')
+            .getPublicUrl(fileName);
 
-        logoUrl = urlData.publicUrl;
+          logoUrl = urlData.publicUrl;
+        } catch (uploadErr: any) {
+          console.error('Logo upload failed:', uploadErr);
+          throw uploadErr;
+        }
       }
 
       const updateData = {
-        ...updates,
-        ...(logoUrl !== undefined && { logo_url: logoUrl }),
+        clinic_name: updates.clinic_name || branding?.clinic_name,
+        clinic_address: updates.clinic_address || branding?.clinic_address,
+        clinic_phone: updates.clinic_phone || branding?.clinic_phone,
+        primary_color: updates.primary_color || branding?.primary_color,
+        secondary_color: updates.secondary_color || branding?.secondary_color,
+        accent_color: updates.accent_color || branding?.accent_color,
+        ...(logoUrl && { logo_url: logoUrl }),
         updated_at: new Date().toISOString(),
       };
 
@@ -106,7 +119,10 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .select()
         .single();
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw updateError;
+      }
 
       setBranding(data);
     } catch (err) {
