@@ -263,7 +263,7 @@ const IvfJourney: React.FC = () => {
   const { bmi: bmiValue, alert: bmiAlert } = calculateBMI(bmi, 165);
   const ovaryClassification = classifyOvarianReserve(assessment.femaleFactor?.amh, assessment.femaleFactor?.afcRight);
   const maturationRate = calculateMaturationRate(labData.totalOocytes || 0, labData.mii || 0);
-  const fertilizationRate = calculateFertilizationRate(labData.fertilized2PN || 0, labData.mii || 0);
+  const fertilizationRate = calculateFertilizationRate(labData.fertilizedTwoPN || 0, labData.mii || 0);
 
   const chartData = activeCycle?.logs.map(log => ({
     day: `D${log.cycleDay}`,
@@ -791,7 +791,7 @@ const IvfJourney: React.FC = () => {
                         </div>
                         {tmsc < 5 && (
                           <div className="bg-yellow-50 p-2 rounded text-xs text-yellow-800 border border-yellow-200 mt-2">
-                            ⚠️ يُنصح بـ ICSI (TMSC < 5M)
+                            ????? ?? ICSI (TMSC less than 5 million)
                           </div>
                         )}
                       </div>
@@ -831,7 +831,7 @@ const IvfJourney: React.FC = () => {
                                 <div>• ابدأ بقمع OCP لمدة 2-3 أسابيع قبل الحيض</div>
                                 <div>• ابدأ GnRH agonist في اليوم 21 من OCP</div>
                                 <div>• ابدأ FSH/HMG عندما يكون E2 <50 pg/mL (تأكيد قمع الغدة النخامية)</div>
-                                <div>• الجرعة البدائية النموذجية: 150-225 IU FSH</div>
+                                <div>Start FSH/HMG when E2 less than 50 pg/mL</div>
                               </>
                             )}
                             {activeCycle.protocol === 'Antagonist' && (
@@ -889,7 +889,7 @@ const IvfJourney: React.FC = () => {
                         </div>
                       </div>
                     </div>
-
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-teal-700 text-white p-4 rounded-lg">
@@ -1051,8 +1051,8 @@ const IvfJourney: React.FC = () => {
                         <label className="block text-sm font-semibold text-gray-700 mb-1">2PN Count</label>
                         <input
                           type="number"
-                          value={labData.fertilized2PN || ''}
-                          onChange={(e) => setLabData({ ...labData, fertilized2PN: parseInt(e.target.value) })}
+                          value={labData.fertilizedTwoPN || ''}
+                          onChange={(e) => setLabData({ ...labData, fertilizedTwoPN: parseInt(e.target.value) })}
                           className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-blue-500 outline-none"
                         />
                       </div>
@@ -1071,7 +1071,7 @@ const IvfJourney: React.FC = () => {
                       <div className="font-semibold text-gray-800 mb-3">Fertilization Rate</div>
                       <div className="flex items-center justify-between">
                         <div className="text-2xl font-bold text-blue-700">{fertilizationRate}%</div>
-                        <div className="text-sm text-gray-600">({labData.fertilized2PN} / {labData.mii} MII oocytes)</div>
+                        <div className="text-sm text-gray-600">({labData.fertilizedTwoPN} / {labData.mii} MII oocytes)</div>
                       </div>
                     </div>
                   </div>

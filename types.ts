@@ -94,7 +94,7 @@ export interface OpuLabData {
   gv?: number;
   atretic?: number;
   maturationRate?: number;
-  fertilized2PN?: number;
+  fertilizedTwoPN?: number;
   fertilizationRate?: number;
   embryoDay3A?: number;
   embryoDay3B?: number;
