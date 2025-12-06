@@ -206,34 +206,66 @@ export const db = {
   },
 
   updateCycleAssessment: async (cycleId: string, assessment: any) => {
-    const { error } = await supabase
-      .from('ivf_cycles')
-      .update({ assessment_data: assessment })
-      .eq('id', cycleId);
-    if (error) throw error;
+    try {
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .update({ assessment_data: assessment, updated_at: new Date().toISOString() })
+        .eq('id', cycleId);
+      if (error) {
+        console.error('Error updating assessment:', error);
+        throw new Error(`Failed to update assessment: ${error.message}`);
+      }
+    } catch (e) {
+      console.error('updateCycleAssessment error:', e);
+      throw e;
+    }
   },
 
   updateCycleLabData: async (cycleId: string, labData: any) => {
-    const { error } = await supabase
-      .from('ivf_cycles')
-      .update({ lab_data: labData })
-      .eq('id', cycleId);
-    if (error) throw error;
+    try {
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .update({ lab_data: labData, updated_at: new Date().toISOString() })
+        .eq('id', cycleId);
+      if (error) {
+        console.error('Error updating lab data:', error);
+        throw new Error(`Failed to update lab data: ${error.message}`);
+      }
+    } catch (e) {
+      console.error('updateCycleLabData error:', e);
+      throw e;
+    }
   },
 
   updateCycleTransfer: async (cycleId: string, transferData: any) => {
-    const { error } = await supabase
-      .from('ivf_cycles')
-      .update({ transfer_data: transferData })
-      .eq('id', cycleId);
-    if (error) throw error;
+    try {
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .update({ transfer_data: transferData, updated_at: new Date().toISOString() })
+        .eq('id', cycleId);
+      if (error) {
+        console.error('Error updating transfer:', error);
+        throw new Error(`Failed to update transfer: ${error.message}`);
+      }
+    } catch (e) {
+      console.error('updateCycleTransfer error:', e);
+      throw e;
+    }
   },
 
   updateCycleOutcome: async (cycleId: string, outcomeData: any) => {
-    const { error } = await supabase
-      .from('ivf_cycles')
-      .update({ outcome_data: outcomeData, status: 'Completed' })
-      .eq('id', cycleId);
-    if (error) throw error;
+    try {
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .update({ outcome_data: outcomeData, status: 'Completed', updated_at: new Date().toISOString() })
+        .eq('id', cycleId);
+      if (error) {
+        console.error('Error updating outcome:', error);
+        throw new Error(`Failed to update outcome: ${error.message}`);
+      }
+    } catch (e) {
+      console.error('updateCycleOutcome error:', e);
+      throw e;
+    }
   }
 };

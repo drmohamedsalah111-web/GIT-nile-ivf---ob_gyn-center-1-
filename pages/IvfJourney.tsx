@@ -91,8 +91,9 @@ const IvfJourney: React.FC = () => {
       await db.updateCycleAssessment(activeCycle.id, assessment);
       setActiveCycle({ ...activeCycle, assessment });
       toast.success('Assessment saved');
-    } catch (error) {
-      toast.error('Failed to save assessment');
+    } catch (error: any) {
+      console.error('Save assessment error:', error);
+      toast.error('Failed to save assessment: ' + (error?.message || 'Unknown error'));
     }
   };
 
@@ -157,8 +158,9 @@ const IvfJourney: React.FC = () => {
       await db.updateCycleLabData(activeCycle.id, labData);
       setActiveCycle({ ...activeCycle, lab: labData });
       toast.success('Lab data saved');
-    } catch (error) {
-      toast.error('Failed to save lab data');
+    } catch (error: any) {
+      console.error('Save lab data error:', error);
+      toast.error('Failed to save lab data: ' + (error?.message || 'Unknown error'));
     }
   };
 
@@ -168,8 +170,9 @@ const IvfJourney: React.FC = () => {
       await db.updateCycleTransfer(activeCycle.id, transferData);
       setActiveCycle({ ...activeCycle, transfer: transferData });
       toast.success('Transfer data saved');
-    } catch (error) {
-      toast.error('Failed to save transfer data');
+    } catch (error: any) {
+      console.error('Save transfer data error:', error);
+      toast.error('Failed to save transfer data: ' + (error?.message || 'Unknown error'));
     }
   };
 
@@ -179,8 +182,9 @@ const IvfJourney: React.FC = () => {
       await db.updateCycleOutcome(activeCycle.id, outcomeData);
       setActiveCycle({ ...activeCycle, outcome: outcomeData, status: 'Completed' });
       toast.success('Outcome saved and cycle completed');
-    } catch (error) {
-      toast.error('Failed to save outcome');
+    } catch (error: any) {
+      console.error('Save outcome error:', error);
+      toast.error('Failed to save outcome: ' + (error?.message || 'Unknown error'));
     }
   };
 
