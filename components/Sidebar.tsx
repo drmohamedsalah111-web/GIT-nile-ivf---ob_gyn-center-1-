@@ -12,9 +12,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, doctorPro
   const menuItems = [
     { id: Page.HOME, label: 'Dashboard', icon: LayoutDashboard },
     { id: Page.RECEPTION, label: 'Reception', icon: Users },
-    { id: Page.CLINICAL, label: 'Clinical Station', icon: Stethoscope },
-    { id: Page.IVF, label: 'IVF Journey', icon: Baby },
-    { id: Page.OBSTETRICS, label: 'Obstetrics', icon: Heart },
+    { id: Page.GYNECOLOGY, label: 'قسم النسائية', icon: Heart },
+    { id: Page.OBSTETRICS, label: 'قسم الولادة', icon: Baby },
+    { id: Page.IVF, label: 'رحلة التلقيح', icon: Stethoscope },
     { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings },
   ];
 

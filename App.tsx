@@ -5,6 +5,8 @@ import { Page, Doctor } from './types';
 import Dashboard from './pages/Dashboard';
 import Reception from './pages/Reception';
 import ClinicalStation from './pages/ClinicalStation';
+import Gynecology from './pages/Gynecology';
+import Obstetrics from './pages/Obstetrics';
 import IvfJourney from './pages/IvfJourney';
 import Settings from './pages/Settings';
 import ObstetricsDashboard from './pages/ObstetricsDashboard';
@@ -103,9 +105,9 @@ const App: React.FC = () => {
     switch (activePage) {
       case Page.HOME: return <Dashboard />;
       case Page.RECEPTION: return <Reception />;
-      case Page.CLINICAL: return <ClinicalStation doctorProfile={doctorProfile} />;
+      case Page.GYNECOLOGY: return <Gynecology />;
+      case Page.OBSTETRICS: return <Obstetrics />;
       case Page.IVF: return <IvfJourney />;
-      case Page.OBSTETRICS: return <ObstetricsDashboard />;
       case Page.SETTINGS: return <Settings user={user} />;
       default: return <Dashboard />;
     }

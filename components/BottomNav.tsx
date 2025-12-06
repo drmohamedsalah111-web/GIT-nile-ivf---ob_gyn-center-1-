@@ -21,12 +21,21 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
         </button>
 
         <button
-          onClick={() => setPage(Page.CLINICAL)}
-          className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.CLINICAL ? 'text-teal-600' : 'text-gray-500'}`}
-          aria-label="Clinic"
+          onClick={() => setPage(Page.GYNECOLOGY)}
+          className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.GYNECOLOGY ? 'text-teal-600' : 'text-gray-500'}`}
+          aria-label="Gynecology"
         >
-          <Stethoscope className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">Clinic</span>
+          <Heart className="w-6 h-6" />
+          <span className="mt-1 text-[12px]">Gynecology</span>
+        </button>
+
+        <button
+          onClick={() => setPage(Page.OBSTETRICS)}
+          className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.OBSTETRICS ? 'text-teal-600' : 'text-gray-500'}`}
+          aria-label="Obstetrics"
+        >
+          <Baby className="w-6 h-6" />
+          <span className="mt-1 text-[12px]">Obstetrics</span>
         </button>
 
         <button
@@ -34,7 +43,7 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
           className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.IVF ? 'text-teal-600' : 'text-gray-500'}`}
           aria-label="IVF"
         >
-          <Baby className="w-6 h-6" />
+          <Stethoscope className="w-6 h-6" />
           <span className="mt-1 text-[12px]">IVF</span>
         </button>
 
@@ -45,15 +54,6 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
         >
           <Users className="w-6 h-6" />
           <span className="mt-1 text-[12px]">Patients</span>
-        </button>
-
-        <button
-          onClick={() => setPage(Page.OBSTETRICS)}
-          className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.OBSTETRICS ? 'text-teal-600' : 'text-gray-500'}`}
-          aria-label="Obstetrics"
-        >
-          <Heart className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">OB/GYN</span>
         </button>
 
         <button
