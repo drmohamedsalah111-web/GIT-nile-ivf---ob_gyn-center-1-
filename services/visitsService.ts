@@ -13,7 +13,7 @@ export const visitsService = {
   }) => {
     try {
       const visitData = {
-        patientId: params.patientId,
+        patient_id: params.patientId, // snake_case for database
         date: new Date().toISOString().split('T')[0],
         department: params.department,
         diagnosis: params.diagnosis || '',
@@ -64,7 +64,7 @@ export const visitsService = {
     const { data, error } = await supabase
       .from('visits')
       .select('*')
-      .eq('patientId', patientId)
+      .eq('patient_id', patientId) // snake_case for database
       .order('date', { ascending: false });
 
     if (error) throw error;
@@ -73,9 +73,18 @@ export const visitsService = {
 
   // Update a visit
   updateVisit: async (visitId: string, updates: Partial<Visit>) => {
+    // Convert camelCase to snake_case for database
+    const dbUpdates: any = {};
+    if (updates.patientId) dbUpdates.patient_id = updates.patientId;
+    if (updates.department !== undefined) dbUpdates.department = updates.department;
+    if (updates.diagnosis !== undefined) dbUpdates.diagnosis = updates.diagnosis;
+    if (updates.prescription !== undefined) dbUpdates.prescription = updates.prescription;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    if (updates.clinical_data !== undefined) dbUpdates.clinical_data = updates.clinical_data;
+
     const { data, error } = await supabase
       .from('visits')
-      .update(updates)
+      .update(dbUpdates)
       .eq('id', visitId)
       .select()
       .single();

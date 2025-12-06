@@ -42,7 +42,12 @@ const PatientMasterRecord: React.FC = () => {
     setIsLoading(true);
     try {
       const data = await visitsService.getVisitsByPatient(patientId);
-      setVisits(data || []);
+      // Map snake_case database columns to camelCase for display
+      const mappedData = (data || []).map((visit: any) => ({
+        ...visit,
+        patientId: visit.patient_id, // map back to camelCase for consistency
+      }));
+      setVisits(mappedData);
     } catch (error) {
       console.error('Error fetching visits:', error);
       toast.error('Failed to load patient visits');
