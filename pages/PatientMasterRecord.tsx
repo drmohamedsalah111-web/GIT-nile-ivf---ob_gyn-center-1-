@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, FileText, User, Activity, Heart, Baby } from 'lucide-react';
+import { Calendar, FileText, User, Activity, Heart, Baby, Printer } from 'lucide-react';
 import { Patient, Visit } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { visitsService } from '../services/visitsService';
 import toast from 'react-hot-toast';
+import PrescriptionPrinter from '../components/PrescriptionPrinter';
 
 const PatientMasterRecord: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [visits, setVisits] = useState<Visit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPrinterOpen, setIsPrinterOpen] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
 
   useEffect(() => {
     fetchPatients();
@@ -220,7 +223,7 @@ const PatientMasterRecord: React.FC = () => {
   };
 
   const renderObstetricsData = (data: any) => {
-    const { pregnancyId, gestationalAge, riskAssessment, currentStatus } = data;
+    const { gestationalAge, riskAssessment, currentStatus } = data;
 
     return (
       <div className="space-y-3">
@@ -258,7 +261,7 @@ const PatientMasterRecord: React.FC = () => {
   };
 
   const renderIVFData = (data: any) => {
-    const { cycleId, protocol, startDate, stimulationDays, currentStatus, latestHormones } = data;
+    const { protocol, startDate, stimulationDays, currentStatus, latestHormones } = data;
 
     return (
       <div className="space-y-3">
@@ -419,7 +422,19 @@ const PatientMasterRecord: React.FC = () => {
                           {/* Prescription */}
                           {visit.prescription && visit.prescription.length > 0 && (
                             <div className="bg-blue-50 rounded border border-blue-200 p-3">
-                              <h5 className="text-sm font-medium text-blue-800 mb-2">Prescription:</h5>
+                              <div className="flex items-center justify-between mb-2">
+                                <h5 className="text-sm font-medium text-blue-800">Prescription:</h5>
+                                <button
+                                  onClick={() => {
+                                    setSelectedVisit(visit);
+                                    setIsPrinterOpen(true);
+                                  }}
+                                  className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded transition-colors"
+                                >
+                                  <Printer className="w-3 h-3" />
+                                  Print
+                                </button>
+                              </div>
                               <div className="space-y-1">
                                 {visit.prescription.map((item, idx) => (
                                   <div key={idx} className="text-sm text-blue-700">
@@ -439,6 +454,20 @@ const PatientMasterRecord: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {selectedVisit && (
+        <PrescriptionPrinter
+          patient={selectedPatient || null}
+          prescriptions={selectedVisit.prescription || []}
+          diagnosis={selectedVisit.diagnosis}
+          notes={selectedVisit.notes}
+          isOpen={isPrinterOpen}
+          onClose={() => {
+            setIsPrinterOpen(false);
+            setSelectedVisit(null);
+          }}
+        />
       )}
     </div>
   );

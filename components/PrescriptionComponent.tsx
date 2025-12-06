@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Search, Pill } from 'lucide-react';
+import { Plus, Trash2, Search, Pill, Printer } from 'lucide-react';
 import { PrescriptionItem } from '../types';
 import { EGYPTIAN_MARKET_DRUGS, DrugEntry, searchDrugs, getDrugsByCategory } from '../data/egyptian_drugs';
 
 interface PrescriptionComponentProps {
   prescriptions: PrescriptionItem[];
   onPrescriptionsChange: (prescriptions: PrescriptionItem[]) => void;
+  onPrint?: () => void;
+  showPrintButton?: boolean;
 }
 
 const PrescriptionComponent: React.FC<PrescriptionComponentProps> = ({
   prescriptions,
-  onPrescriptionsChange
+  onPrescriptionsChange,
+  onPrint,
+  showPrintButton = false
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedDrug, setSelectedDrug] = useState<string>('');
@@ -65,9 +69,20 @@ const PrescriptionComponent: React.FC<PrescriptionComponentProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Pill className="w-5 h-5 text-purple-600" />
-        <h3 className="text-lg font-semibold text-gray-900">Prescription</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Pill className="w-5 h-5 text-purple-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Prescription</h3>
+        </div>
+        {showPrintButton && prescriptions.length > 0 && onPrint && (
+          <button
+            onClick={onPrint}
+            className="flex items-center gap-2 px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm transition-colors"
+          >
+            <Printer className="w-4 h-4" />
+            Print Prescription
+          </button>
+        )}
       </div>
 
       {/* Search Bar */}

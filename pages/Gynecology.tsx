@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Save, FileText, Activity, Stethoscope, ClipboardList, Pill } from 'lucide-react';
+import { Save, Stethoscope, ClipboardList, Pill } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Patient, PrescriptionItem } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { visitsService } from '../services/visitsService';
 import { authService } from '../services/authService';
 import PrescriptionComponent from '../components/PrescriptionComponent';
+import PrescriptionPrinter from '../components/PrescriptionPrinter';
 
 interface GynecologyData {
   // Assessment Tab
@@ -49,6 +50,7 @@ const Gynecology: React.FC = () => {
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'assessment' | 'diagnosis' | 'rx'>('assessment');
+  const [isPrinterOpen, setIsPrinterOpen] = useState(false);
 
   const [gynecologyData, setGynecologyData] = useState<GynecologyData>({
     complaints: [],
@@ -561,6 +563,8 @@ const Gynecology: React.FC = () => {
                 onPrescriptionsChange={(prescriptions) =>
                   setGynecologyData(prev => ({ ...prev, prescription: prescriptions }))
                 }
+                onPrint={() => setIsPrinterOpen(true)}
+                showPrintButton={true}
               />
             )}
           </div>
@@ -578,6 +582,15 @@ const Gynecology: React.FC = () => {
           </div>
         </div>
       )}
+
+      <PrescriptionPrinter
+        patient={selectedPatient || null}
+        prescriptions={gynecologyData.prescription}
+        diagnosis={gynecologyData.diagnosis}
+        notes={gynecologyData.clinicalNotes}
+        isOpen={isPrinterOpen}
+        onClose={() => setIsPrinterOpen(false)}
+      />
     </div>
   );
 };

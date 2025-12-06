@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Plus, Save } from 'lucide-react';
+import { Plus, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Pregnancy, Patient, PrescriptionItem } from '../types';
 import { supabase } from '../services/supabaseClient';
@@ -11,6 +11,7 @@ import RiskAssessment from './components/obstetrics/RiskAssessment';
 import ANCFlowSheet from './components/obstetrics/ANCFlowSheet';
 import FetalGrowthChart from './components/obstetrics/FetalGrowthChart';
 import PrescriptionComponent from '../components/PrescriptionComponent';
+import PrescriptionPrinter from '../components/PrescriptionPrinter';
 
 const ObstetricsDashboard: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -22,6 +23,7 @@ const ObstetricsDashboard: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [prescription, setPrescription] = useState<PrescriptionItem[]>([]);
+  const [isPrinterOpen, setIsPrinterOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     lmp_date: '',
@@ -261,6 +263,8 @@ const ObstetricsDashboard: React.FC = () => {
             <PrescriptionComponent
               prescriptions={prescription}
               onPrescriptionsChange={setPrescription}
+              onPrint={() => setIsPrinterOpen(true)}
+              showPrintButton={true}
             />
           </div>
 
@@ -345,6 +349,15 @@ const ObstetricsDashboard: React.FC = () => {
           <p className="text-gray-600 font-[Tajawal]">اختر مريضة لبدء المتابعة</p>
         </div>
       )}
+
+      <PrescriptionPrinter
+        patient={currentPatient || null}
+        prescriptions={prescription}
+        diagnosis={pregnancy ? `Pregnancy - ${pregnancy.risk_level} risk` : ''}
+        notes={pregnancy ? `Gestational age: ${calculateGestationalAge(pregnancy.lmp_date || '').weeks} weeks ${calculateGestationalAge(pregnancy.lmp_date || '').days} days` : ''}
+        isOpen={isPrinterOpen}
+        onClose={() => setIsPrinterOpen(false)}
+      />
     </div>
   );
 };

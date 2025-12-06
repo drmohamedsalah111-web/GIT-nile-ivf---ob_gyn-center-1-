@@ -5,9 +5,10 @@ import { PROTOCOLS } from '../constants';
 import { IvfCycle, Patient, StimulationLog, PrescriptionItem } from '../types';
 import { visitsService } from '../services/visitsService';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Baby, TestTube, PlusCircle, Save, FileText } from 'lucide-react';
+import { Baby, TestTube, PlusCircle, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PrescriptionComponent from '../components/PrescriptionComponent';
+import PrescriptionPrinter from '../components/PrescriptionPrinter';
 
 const IvfJourney: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -15,6 +16,7 @@ const IvfJourney: React.FC = () => {
   const [activeCycle, setActiveCycle] = useState<IvfCycle | null>(null);
   const [newProtocol, setNewProtocol] = useState('Long');
   const [prescription, setPrescription] = useState<PrescriptionItem[]>([]);
+  const [isPrinterOpen, setIsPrinterOpen] = useState(false);
   
   // Load Patients
   useEffect(() => {
@@ -273,6 +275,8 @@ const IvfJourney: React.FC = () => {
             <PrescriptionComponent
               prescriptions={prescription}
               onPrescriptionsChange={setPrescription}
+              onPrint={() => setIsPrinterOpen(true)}
+              showPrintButton={true}
             />
           </div>
 
@@ -292,6 +296,17 @@ const IvfJourney: React.FC = () => {
           <Baby className="w-16 h-16 mb-4 opacity-20" />
           <p>Select a patient and start a cycle to view the journey.</p>
         </div>
+      )}
+
+      {selectedPatientId && (
+        <PrescriptionPrinter
+          patient={patients.find(p => p.id === selectedPatientId) || null}
+          prescriptions={prescription}
+          diagnosis={activeCycle ? `IVF Stimulation - ${activeCycle.protocol} Protocol` : ''}
+          notes={activeCycle ? `Cycle started: ${activeCycle.startDate}, Days stimulated: ${activeCycle.logs.length}` : ''}
+          isOpen={isPrinterOpen}
+          onClose={() => setIsPrinterOpen(false)}
+        />
       )}
     </div>
   );
