@@ -707,6 +707,190 @@ const IvfJourney: React.FC = () => {
 
               {activeTab === 'stimulation' && (
                 <div className="space-y-6">
+                  {/* Assessment Data Summary - Beautiful Display */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200 shadow-sm">
+                    <h4 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                      <FileText className="w-6 h-6 text-blue-600" />
+                      ملخص البيانات من تقييم المريض - Assessment Data Summary
+                    </h4>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+                      {/* Couple Profile Card */}
+                      <div className="bg-white p-4 rounded-lg border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Baby className="w-5 h-5 text-blue-600" />
+                          <span className="font-semibold text-gray-800">الملف الزوجي</span>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">مدة العقم:</span>
+                            <span className="font-medium">{assessment.coupleProfile?.infertilityDuration ? `${assessment.coupleProfile.infertilityDuration} سنة` : 'غير محدد'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">الكتلة:</span>
+                            <span className={`font-medium ${bmiAlert ? 'text-red-600' : 'text-green-600'}`}>
+                              {bmi > 0 ? `${bmi.toFixed(1)} kg/m²` : 'غير محسوب'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">محاولات IVF السابقة:</span>
+                            <span className="font-medium">{assessment.coupleProfile?.previousAttempts || 0}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Ovarian Reserve Card */}
+                      <div className="bg-white p-4 rounded-lg border border-pink-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Heart className="w-5 h-5 text-pink-600" />
+                          <span className="font-semibold text-gray-800">احتياطي المبيض</span>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">التصنيف:</span>
+                            <span className={`font-bold px-2 py-1 rounded text-xs ${
+                              ovaryClassification === 'Poor Responder' ? 'bg-red-100 text-red-800' :
+                              ovaryClassification === 'High Responder' ? 'bg-purple-100 text-purple-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {ovaryClassification === 'Poor Responder' ? 'مستجيب ضعيف' :
+                               ovaryClassification === 'High Responder' ? 'مستجيب عالي' :
+                               'مستجيب طبيعي'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">AMH:</span>
+                            <span className="font-medium">{assessment.femaleFactor?.amh ? `${assessment.femaleFactor.amh} ng/mL` : 'غير محدد'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">AFC الكلي:</span>
+                            <span className="font-medium">{(assessment.femaleFactor?.afcRight || 0) + (assessment.femaleFactor?.afcLeft || 0)} جريب</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Male Factor Card */}
+                      <div className="bg-white p-4 rounded-lg border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Zap className="w-5 h-5 text-purple-600" />
+                          <span className="font-semibold text-gray-800">العامل الذكري</span>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">TMSC:</span>
+                            <span className="font-bold text-lg text-purple-700">{tmsc}M</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">الحركة:</span>
+                            <span className="font-medium">{assessment.maleFactor?.motility ? `${assessment.maleFactor.motility}%` : 'غير محدد'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">التركيز:</span>
+                            <span className="font-medium">{assessment.maleFactor?.concentration ? `${assessment.maleFactor.concentration} M/mL` : 'غير محدد'}</span>
+                          </div>
+                        </div>
+                        {tmsc < 5 && (
+                          <div className="bg-yellow-50 p-2 rounded text-xs text-yellow-800 border border-yellow-200 mt-2">
+                            ⚠️ يُنصح بـ ICSI (TMSC < 5M)
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Protocol Recommendation Card */}
+                      <div className="bg-white p-4 rounded-lg border border-green-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Pill className="w-5 h-5 text-green-600" />
+                          <span className="font-semibold text-gray-800">البروتوكول المقترح</span>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">البروتوكول الحالي:</span>
+                            <span className="font-bold text-green-700">{activeCycle.protocol}</span>
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            {ovaryClassification === 'Poor Responder' ? 'يُفضل بروتوكول Antagonist للمستجيبين الضعفاء' :
+                             ovaryClassification === 'High Responder' ? 'يُفضل بروتوكول Antagonist للمستجيبين العاليين' :
+                             'البروتوكول مناسب للمستجيبين الطبيعيين'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recommended Stimulation Guidance */}
+                    <div className="bg-white p-4 rounded-lg border border-indigo-200 shadow-sm">
+                      <h5 className="font-semibold text-indigo-800 mb-3 flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5" />
+                        إرشادات التحفيز الموصى بها - Recommended Stimulation Guidance
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <h6 className="font-medium text-gray-700 mb-2">📅 إرشادات البدء - Starting Guidance</h6>
+                          <div className="text-sm text-gray-600 space-y-1">
+                            {activeCycle.protocol === 'Long' && (
+                              <>
+                                <div>• ابدأ بقمع OCP لمدة 2-3 أسابيع قبل الحيض</div>
+                                <div>• ابدأ GnRH agonist في اليوم 21 من OCP</div>
+                                <div>• ابدأ FSH/HMG عندما يكون E2 <50 pg/mL (تأكيد قمع الغدة النخامية)</div>
+                                <div>• الجرعة البدائية النموذجية: 150-225 IU FSH</div>
+                              </>
+                            )}
+                            {activeCycle.protocol === 'Antagonist' && (
+                              <>
+                                <div>• ابدأ FSH/HMG في اليوم 2-3 من الدورة</div>
+                                <div>• أضف GnRH antagonist عندما يصل الجريب الرئيسي ≥14mm</div>
+                                <div>• بدء مرن، مدة أقصر</div>
+                                <div>• الجرعة البدائية النموذجية: 150-300 IU FSH (بناءً على احتياطي المبيض)</div>
+                              </>
+                            )}
+                            {activeCycle.protocol === 'Flare-up' && (
+                              <>
+                                <div>• ابدأ GnRH agonist في اليوم 2 من الدورة</div>
+                                <div>• ابدأ FSH/HMG بعد 2 أيام (اليوم 4)</div>
+                                <div>• مستويات LH أولية أعلى</div>
+                                <div>• الجرعة البدائية النموذجية: 225-375 IU FSH</div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h6 className="font-medium text-gray-700 mb-2">📊 المراقبة وتعديل الجرعات - Monitoring & Adjustments</h6>
+                          <div className="text-sm text-gray-600 space-y-1">
+                            <div>• راقب E2، LH، نمو الجريبات كل 2-3 أيام</div>
+                            <div>• عدل جرعة FSH/HMG بناءً على الاستجابة (±75 IU)</div>
+                            <div>• هدف 2-3 جريبات ≥17mm للحقن</div>
+                            <div>• يجب أن يكون البطانة ≥7mm عند الحقن</div>
+                            {ovaryClassification === 'Poor Responder' && (
+                              <div className="text-orange-600 font-medium">• فكر في جرعات بدائية أعلى للمستجيبين الضعفاء</div>
+                            )}
+                            {ovaryClassification === 'High Responder' && (
+                              <div className="text-purple-600 font-medium">• ابدأ بجرعات أقل لتجنب متلازمة OHSS</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Recommended Starting Dose */}
+                      <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-medium text-blue-800">الجرعة البدائية الموصى بها:</span>
+                            <span className="ml-2 text-lg font-bold text-blue-700">
+                              {ovaryClassification === 'Poor Responder' ? '225-300 IU FSH' :
+                               ovaryClassification === 'High Responder' ? '150-225 IU FSH' :
+                               '150-225 IU FSH'}
+                            </span>
+                          </div>
+                          <div className="text-xs text-blue-600">
+                            بناءً على تصنيف {ovaryClassification === 'Poor Responder' ? 'المستجيب الضعيف' :
+                                           ovaryClassification === 'High Responder' ? 'المستجيب العالي' :
+                                           'المستجيب الطبيعي'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-teal-700 text-white p-4 rounded-lg">
                       <div className="text-sm opacity-80">Protocol</div>
