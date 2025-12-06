@@ -352,14 +352,439 @@ const PatientMasterRecord: React.FC = () => {
             </div>
           </div>
 
+          {/* IVF Journey Integration */}
+          {visits.some(v => v.department === 'IVF_STIM') && (
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-lg mb-6 border border-green-200">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Baby className="w-5 h-5 text-green-600" />
+                IVF Journey Integration
+              </h4>
+
+              <div className="space-y-4">
+                {visits
+                  .filter(v => v.department === 'IVF_STIM')
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((ivfVisit, index) => {
+                    // Find related assessments within 90 days before IVF start
+                    const ivfDate = new Date(ivfVisit.date);
+                    const relatedAssessments = visits
+                      .filter(v => v.department === 'GYNA')
+                      .filter(v => {
+                        const assessmentDate = new Date(v.date);
+                        const daysDiff = (ivfDate.getTime() - assessmentDate.getTime()) / (1000 * 60 * 60 * 24);
+                        return daysDiff >= 0 && daysDiff <= 90; // Within 90 days before IVF
+                      })
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+                    return (
+                      <div key={ivfVisit.id} className="bg-white p-4 rounded-lg border border-green-200">
+                        <div className="flex items-start gap-4">
+                          <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                            <Baby className="w-5 h-5 text-green-600" />
+                          </div>
+
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="font-semibold text-green-800">
+                                IVF Cycle #{visits.filter(v => v.department === 'IVF_STIM').length - index}
+                              </h5>
+                              <span className="text-sm text-gray-500">{formatDate(ivfVisit.date)}</span>
+                            </div>
+
+                            {/* IVF Details */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3 text-sm">
+                              {ivfVisit.clinical_data?.protocol && (
+                                <div>
+                                  <span className="text-gray-600">Protocol:</span>
+                                  <span className="text-purple-700 ml-1 font-medium">{ivfVisit.clinical_data.protocol}</span>
+                                </div>
+                              )}
+                              {ivfVisit.clinical_data?.stimulationDays && (
+                                <div>
+                                  <span className="text-gray-600">Stimulation:</span>
+                                  <span className="text-blue-700 ml-1 font-medium">{ivfVisit.clinical_data.stimulationDays} days</span>
+                                </div>
+                              )}
+                              {ivfVisit.clinical_data?.latestHormones?.e2 && (
+                                <div>
+                                  <span className="text-gray-600">Peak E2:</span>
+                                  <span className="text-red-700 ml-1 font-medium">{ivfVisit.clinical_data.latestHormones.e2} pg/mL</span>
+                                </div>
+                              )}
+                              {ivfVisit.clinical_data?.currentStatus && (
+                                <div>
+                                  <span className="text-gray-600">Status:</span>
+                                  <span className="text-green-700 ml-1 font-medium">{ivfVisit.clinical_data.currentStatus}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Related Assessments */}
+                            {relatedAssessments.length > 0 && (
+                              <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                                <h6 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
+                                  <Heart className="w-4 h-4" />
+                                  Pre-IVF Assessment ({relatedAssessments.length} found)
+                                </h6>
+
+                                <div className="space-y-2">
+                                  {relatedAssessments.slice(0, 2).map((assessment, idx) => {
+                                    const daysBefore = Math.floor(
+                                      (ivfDate.getTime() - new Date(assessment.date).getTime()) / (1000 * 60 * 60 * 24)
+                                    );
+
+                                    return (
+                                      <div key={assessment.id} className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-blue-700">{assessment.diagnosis?.split(' - ')[0] || 'Assessment'}</span>
+                                          <span className="text-gray-500">({daysBefore} days before IVF)</span>
+                                        </div>
+
+                                        {assessment.clinical_data?.assessment?.complaints?.includes('PCOS') && (
+                                          <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">
+                                            PCOS Consideration
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+
+                                  {relatedAssessments.length > 2 && (
+                                    <div className="text-xs text-blue-600">
+                                      +{relatedAssessments.length - 2} more assessments available
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Clinical Insights */}
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              <div className="text-sm text-green-700">
+                                {ivfVisit.clinical_data?.protocol === 'Long' && relatedAssessments.some(a => a.clinical_data?.assessment?.complaints?.includes('PCOS')) ?
+                                  '💡 Long protocol with PCOS - Monitor ovarian response carefully' :
+                                  ivfVisit.clinical_data?.latestHormones?.e2 > 3000 ?
+                                  '⚠️ High E2 levels - Consider coasting or trigger timing' :
+                                  '✅ IVF cycle progressing within normal parameters'
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
           {/* Visit Timeline */}
           <div className="p-6">
             <div className="flex items-center gap-2 mb-6">
               <Calendar className="w-5 h-5 text-gray-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Visit Timeline</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Complete Clinical Timeline</h3>
               <span className="bg-teal-100 text-teal-800 px-2 py-1 rounded-full text-sm font-medium">
-                {visits.length} visits
+                {visits.length} clinical entries
               </span>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Heart className="w-5 h-5 text-blue-600" />
+                  <span className="font-medium text-blue-800">Gynecology</span>
+                </div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {visits.filter(v => v.department === 'GYNA').length}
+                </div>
+                <div className="text-sm text-blue-600">assessments</div>
+              </div>
+
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Baby className="w-5 h-5 text-green-600" />
+                  <span className="font-medium text-green-800">IVF</span>
+                </div>
+                <div className="text-2xl font-bold text-green-600">
+                  {visits.filter(v => v.department === 'IVF_STIM').length}
+                </div>
+                <div className="text-sm text-green-600">stimulation cycles</div>
+              </div>
+
+              <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="w-5 h-5 text-purple-600" />
+                  <span className="font-medium text-purple-800">Obstetrics</span>
+                </div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {visits.filter(v => v.department === 'OBS').length}
+                </div>
+                <div className="text-sm text-purple-600">pregnancy follow-ups</div>
+              </div>
+            </div>
+
+            {/* Current Clinical Summary */}
+            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg mb-6 border border-indigo-200">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-indigo-600" />
+                Current Clinical Summary
+              </h4>
+
+              {/* Cross-Department Insights */}
+              {(() => {
+                const gynaVisits = visits.filter(v => v.department === 'GYNA');
+                const ivfVisits = visits.filter(v => v.department === 'IVF_STIM');
+                const obsVisits = visits.filter(v => v.department === 'OBS');
+
+                const hasMultipleDepartments = [gynaVisits.length, ivfVisits.length, obsVisits.length].filter(count => count > 0).length > 1;
+
+                if (hasMultipleDepartments) {
+                  return (
+                    <div className="bg-white p-4 rounded-lg mb-4 border border-indigo-200">
+                      <h5 className="font-medium text-indigo-800 mb-3 flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Integrated Clinical Insights
+                      </h5>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        {/* IVF + Gynecology Link */}
+                        {gynaVisits.length > 0 && ivfVisits.length > 0 && (
+                          <div className="bg-gradient-to-r from-blue-50 to-green-50 p-3 rounded border">
+                            <div className="font-medium text-blue-800 mb-1">IVF Readiness Assessment</div>
+                            <div className="text-blue-700 space-y-1">
+                              {gynaVisits.some(v => v.clinical_data?.assessment?.complaints?.includes('PCOS')) && (
+                                <div>⚠️ PCOS detected - Modified stimulation protocol recommended</div>
+                              )}
+                              {gynaVisits.some(v => v.clinical_data?.assessment?.complaints?.includes('Endometriosis')) && (
+                                <div>⚠️ Endometriosis - Consider surgical evaluation before IVF</div>
+                              )}
+                              {gynaVisits.some(v => v.clinical_data?.assessment?.ultrasound?.ovaries?.left?.cysts || v.clinical_data?.assessment?.ultrasound?.ovaries?.right?.cysts) && (
+                                <div>⚠️ Ovarian cysts detected - Monitor during stimulation</div>
+                              )}
+                              {!gynaVisits.some(v => v.clinical_data?.assessment?.complaints?.includes('PCOS') || v.clinical_data?.assessment?.complaints?.includes('Endometriosis')) && (
+                                <div>✅ Normal gynecological assessment - Standard IVF protocol suitable</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* IVF Cycle Details with Assessment Link */}
+                        {ivfVisits.length > 0 && (
+                          <div className="bg-gradient-to-r from-green-50 to-teal-50 p-3 rounded border">
+                            <div className="font-medium text-green-800 mb-1">IVF Cycle Intelligence</div>
+                            <div className="text-green-700 space-y-1">
+                              {(() => {
+                                const latestIVF = ivfVisits.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                                const latestGyna = gynaVisits.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+                                if (latestIVF && latestGyna) {
+                                  const ivfDate = new Date(latestIVF.date);
+                                  const gynaDate = new Date(latestGyna.date);
+                                  const daysDiff = Math.floor((ivfDate.getTime() - gynaDate.getTime()) / (1000 * 60 * 60 * 24));
+
+                                  if (daysDiff <= 90) {
+                                    return (
+                                      <div>
+                                        📅 Recent assessment ({daysDiff} days ago) supports current IVF protocol
+                                        {latestIVF.clinical_data?.protocol && latestGyna.clinical_data?.assessment?.complaints?.includes('PCOS') && latestIVF.clinical_data.protocol === 'Long' && (
+                                          <div className="text-orange-600 text-xs mt-1">💡 Consider antagonist protocol for PCOS</div>
+                                        )}
+                                      </div>
+                                    );
+                                  }
+                                }
+                                return <div>🔄 IVF cycle in progress - monitor closely</div>;
+                              })()}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Obstetrics + Gynecology Link */}
+                        {gynaVisits.length > 0 && obsVisits.length > 0 && (
+                          <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded border">
+                            <div className="font-medium text-purple-800 mb-1">Reproductive History</div>
+                            <div className="text-purple-700">
+                              {obsVisits.length > 0 ?
+                                `📋 ${obsVisits.length} pregnancy record(s) available for reference` :
+                                '📝 No previous pregnancy records'
+                              }
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Overall Status */}
+                        <div className="bg-gradient-to-r from-teal-50 to-cyan-50 p-3 rounded border md:col-span-2">
+                          <div className="font-medium text-teal-800 mb-1">Patient Status Overview</div>
+                          <div className="text-teal-700">
+                            {gynaVisits.length > 0 && ivfVisits.length > 0 ?
+                              '🔄 Active IVF patient with complete gynecological workup' :
+                              gynaVisits.length > 0 ?
+                              '👩‍⚕️ Gynecology patient - consider fertility evaluation if needed' :
+                              ivfVisits.length > 0 ?
+                              '🧬 IVF patient - ensure complete gynecological assessment' :
+                              '📋 New patient - comprehensive evaluation recommended'
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Latest Gynecology Assessment */}
+                {(() => {
+                  const latestGyna = visits
+                    .filter(v => v.department === 'GYNA')
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+                  return latestGyna ? (
+                    <div className="bg-white p-4 rounded-lg border border-blue-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Heart className="w-4 h-4 text-blue-600" />
+                        <span className="font-medium text-blue-800">Latest Gynecology</span>
+                        <span className="text-xs text-gray-500">({formatDate(latestGyna.date)})</span>
+                      </div>
+
+                      {latestGyna.clinical_data?.assessment?.complaints?.length > 0 && (
+                        <div className="mb-2">
+                          <div className="text-xs text-gray-600 mb-1">Complaints:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {latestGyna.clinical_data.assessment.complaints.slice(0, 2).map((c: string, i: number) => (
+                              <span key={i} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
+                                {c}
+                              </span>
+                            ))}
+                            {latestGyna.clinical_data.assessment.complaints.length > 2 && (
+                              <span className="text-xs text-gray-500">+{latestGyna.clinical_data.assessment.complaints.length - 2} more</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {latestGyna.diagnosis && (
+                        <div className="text-xs">
+                          <span className="text-gray-600">Diagnosis:</span>
+                          <span className="text-green-700 ml-1">{latestGyna.diagnosis.split(' - ')[0]}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Heart className="w-4 h-4 text-gray-400" />
+                        <span className="font-medium text-gray-600">Gynecology</span>
+                      </div>
+                      <div className="text-sm text-gray-500">No assessments yet</div>
+                    </div>
+                  );
+                })()}
+
+                {/* Latest IVF Cycle */}
+                {(() => {
+                  const latestIVF = visits
+                    .filter(v => v.department === 'IVF_STIM')
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+                  return latestIVF ? (
+                    <div className="bg-white p-4 rounded-lg border border-green-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Baby className="w-4 h-4 text-green-600" />
+                        <span className="font-medium text-green-800">Latest IVF Cycle</span>
+                        <span className="text-xs text-gray-500">({formatDate(latestIVF.date)})</span>
+                      </div>
+
+                      {latestIVF.clinical_data?.protocol && (
+                        <div className="mb-2 text-xs">
+                          <span className="text-gray-600">Protocol:</span>
+                          <span className="text-purple-700 ml-1 font-medium">{latestIVF.clinical_data.protocol}</span>
+                        </div>
+                      )}
+
+                      {latestIVF.clinical_data?.stimulationDays && (
+                        <div className="mb-2 text-xs">
+                          <span className="text-gray-600">Stimulation:</span>
+                          <span className="text-blue-700 ml-1 font-medium">{latestIVF.clinical_data.stimulationDays} days</span>
+                        </div>
+                      )}
+
+                      {latestIVF.clinical_data?.latestHormones && (
+                        <div className="text-xs">
+                          <span className="text-gray-600">Latest E2:</span>
+                          <span className="text-red-700 ml-1 font-medium">
+                            {latestIVF.clinical_data.latestHormones.e2 || 'N/A'} pg/mL
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Baby className="w-4 h-4 text-gray-400" />
+                        <span className="font-medium text-gray-600">IVF Cycle</span>
+                      </div>
+                      <div className="text-sm text-gray-500">No cycles recorded</div>
+                    </div>
+                  );
+                })()}
+
+                {/* Latest Obstetrics */}
+                {(() => {
+                  const latestObs = visits
+                    .filter(v => v.department === 'OBS')
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+                  return latestObs ? (
+                    <div className="bg-white p-4 rounded-lg border border-purple-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Activity className="w-4 h-4 text-purple-600" />
+                        <span className="font-medium text-purple-800">Current Pregnancy</span>
+                        <span className="text-xs text-gray-500">({formatDate(latestObs.date)})</span>
+                      </div>
+
+                      {latestObs.clinical_data?.gestationalAge && (
+                        <div className="mb-2 text-xs">
+                          <span className="text-gray-600">GA:</span>
+                          <span className="text-blue-700 ml-1 font-medium">
+                            {latestObs.clinical_data.gestationalAge.weeks}w {latestObs.clinical_data.gestationalAge.days}d
+                          </span>
+                        </div>
+                      )}
+
+                      {latestObs.clinical_data?.riskAssessment && (
+                        <div className="mb-2 text-xs">
+                          <span className="text-gray-600">Risk:</span>
+                          <span className={`ml-1 font-medium ${
+                            latestObs.clinical_data.riskAssessment.level === 'high' ? 'text-red-700' :
+                            latestObs.clinical_data.riskAssessment.level === 'moderate' ? 'text-yellow-700' :
+                            'text-green-700'
+                          }`}>
+                            {latestObs.clinical_data.riskAssessment.level}
+                          </span>
+                        </div>
+                      )}
+
+                      {latestObs.clinical_data?.currentStatus && (
+                        <div className="text-xs">
+                          <span className="text-gray-600">Status:</span>
+                          <span className="text-green-700 ml-1">{latestObs.clinical_data.currentStatus}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Activity className="w-4 h-4 text-gray-400" />
+                        <span className="font-medium text-gray-600">Pregnancy</span>
+                      </div>
+                      <div className="text-sm text-gray-500">No pregnancy records</div>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
 
             {isLoading ? (
