@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../services/ivfService';
 import { PROTOCOLS } from '../constants';
 import { IvfCycle, Patient, StimulationLog, PrescriptionItem } from '../types';
+import { visitsService } from '../services/visitsService';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Baby, TestTube, PlusCircle, Save } from 'lucide-react';
+import { Baby, TestTube, PlusCircle, Save, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PrescriptionComponent from '../components/PrescriptionComponent';
 
@@ -82,9 +83,9 @@ const IvfJourney: React.FC = () => {
 
   const updateLog = async (id: string, field: keyof StimulationLog, value: string) => {
     if (!activeCycle) return;
-    
+
     // Optimistic UI Update
-    const updatedLogs = activeCycle.logs.map(log => 
+    const updatedLogs = activeCycle.logs.map(log =>
       log.id === id ? { ...log, [field]: value } : log
     );
     setActiveCycle({ ...activeCycle, logs: updatedLogs });
@@ -94,6 +95,43 @@ const IvfJourney: React.FC = () => {
       await db.updateLog(id, { [field]: value });
     } catch (e) {
       console.error("Save failed");
+    }
+  };
+
+  const handleSaveVisit = async () => {
+    if (!selectedPatientId || !activeCycle) {
+      toast.error('Please select a patient and ensure cycle is active');
+      return;
+    }
+
+    try {
+      const clinicalData = {
+        cycleId: activeCycle.id,
+        protocol: activeCycle.protocol,
+        startDate: activeCycle.startDate,
+        stimulationDays: activeCycle.logs.length,
+        currentStatus: activeCycle.status,
+        latestHormones: activeCycle.logs.length > 0 ? {
+          e2: activeCycle.logs[activeCycle.logs.length - 1].e2,
+          lh: activeCycle.logs[activeCycle.logs.length - 1].lh,
+        } : null,
+      };
+
+      await visitsService.saveVisit({
+        patientId: selectedPatientId,
+        department: 'IVF_STIM',
+        clinicalData: clinicalData,
+        diagnosis: `IVF Stimulation - ${activeCycle.protocol} Protocol`,
+        prescription: prescription,
+        notes: `Cycle started: ${activeCycle.startDate}, Days stimulated: ${activeCycle.logs.length}`,
+      });
+
+      toast.success('IVF visit saved successfully');
+      setPrescription([]); // Reset prescription after saving
+
+    } catch (error: any) {
+      console.error('Error saving visit:', error);
+      toast.error(`Failed to save visit: ${error.message}`);
     }
   };
 
@@ -236,6 +274,17 @@ const IvfJourney: React.FC = () => {
               prescriptions={prescription}
               onPrescriptionsChange={setPrescription}
             />
+          </div>
+
+          {/* Save Visit Button */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mt-6">
+            <button
+              onClick={handleSaveVisit}
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
+            >
+              <FileText className="w-5 h-5" />
+              Save IVF Visit
+            </button>
           </div>
         </>
       ) : (

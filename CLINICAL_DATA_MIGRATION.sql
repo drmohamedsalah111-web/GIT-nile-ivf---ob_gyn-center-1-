@@ -1,6 +1,9 @@
 -- ============================================================================
--- CLINICAL DATA MIGRATION - Add JSONB clinical_data column to visits table
+-- VISITS TABLE MIGRATION - Add department and clinical_data columns
 -- ============================================================================
+
+-- Add department column to visits table
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS department TEXT DEFAULT NULL;
 
 -- Add clinical_data column to visits table
 ALTER TABLE visits ADD COLUMN IF NOT EXISTS clinical_data JSONB DEFAULT NULL;
@@ -9,7 +12,7 @@ ALTER TABLE visits ADD COLUMN IF NOT EXISTS clinical_data JSONB DEFAULT NULL;
 CREATE INDEX IF NOT EXISTS idx_visits_clinical_data ON visits USING GIN (clinical_data);
 
 -- Create index for department queries
-CREATE INDEX IF NOT EXISTS idx_visits_clinical_department ON visits ((clinical_data->>'department'));
+CREATE INDEX IF NOT EXISTS idx_visits_department ON visits (department);
 
 -- Create index for patient visits with clinical data
 CREATE INDEX IF NOT EXISTS idx_visits_patient_clinical ON visits (patient_id, date DESC) WHERE clinical_data IS NOT NULL;
@@ -20,5 +23,5 @@ CREATE INDEX IF NOT EXISTS idx_visits_patient_clinical ON visits (patient_id, da
 -- Add comments for documentation
 COMMENT ON COLUMN visits.clinical_data IS 'Structured clinical data stored as JSONB for different departments (gynecology, obstetrics, ivf)';
 COMMENT ON INDEX idx_visits_clinical_data IS 'GIN index for efficient JSONB queries on clinical_data';
-COMMENT ON INDEX idx_visits_clinical_department IS 'Index for filtering visits by clinical department';
+COMMENT ON INDEX idx_visits_department IS 'Index for filtering visits by department';
 COMMENT ON INDEX idx_visits_patient_clinical IS 'Index for patient clinical visits ordered by date';

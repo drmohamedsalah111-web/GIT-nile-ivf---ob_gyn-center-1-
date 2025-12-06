@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Plus } from 'lucide-react';
+import { ChevronDown, Plus, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Pregnancy, Patient, PrescriptionItem } from '../types';
 import { supabase } from '../services/supabaseClient';
-import { obstetricsService, calculateEDD } from '../services/obstetricsService';
+import { obstetricsService, calculateEDD, calculateGestationalAge } from '../services/obstetricsService';
 import { authService } from '../services/authService';
+import { visitsService } from '../services/visitsService';
 import PregnancyHeader from './components/obstetrics/PregnancyHeader';
 import RiskAssessment from './components/obstetrics/RiskAssessment';
 import ANCFlowSheet from './components/obstetrics/ANCFlowSheet';
@@ -155,6 +156,46 @@ const ObstetricsDashboard: React.FC = () => {
     }
   };
 
+  const handleSaveVisit = async () => {
+    if (!selectedPatientId || !pregnancy) {
+      toast.error('Please select a patient and ensure pregnancy data is loaded');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const clinicalData = {
+        pregnancyId: pregnancy.id,
+        gestationalAge: calculateGestationalAge(pregnancy.lmp_date || ''),
+        riskAssessment: {
+          level: pregnancy.risk_level,
+          factors: pregnancy.risk_factors,
+          aspirin: pregnancy.aspirin_prescribed,
+          thromboprophylaxis: pregnancy.thromboprophylaxis_needed,
+        },
+        currentStatus: 'Active Pregnancy Monitoring',
+      };
+
+      await visitsService.saveVisit({
+        patientId: selectedPatientId,
+        department: 'OBS',
+        clinicalData: clinicalData,
+        diagnosis: `Pregnancy - ${pregnancy.risk_level} risk`,
+        prescription: prescription,
+        notes: `Gestational age: ${calculateGestationalAge(pregnancy.lmp_date || '').weeks} weeks ${calculateGestationalAge(pregnancy.lmp_date || '').days} days`,
+      });
+
+      toast.success('Obstetrics visit saved successfully');
+      setPrescription([]); // Reset prescription after saving
+
+    } catch (error: any) {
+      console.error('Error saving visit:', error);
+      toast.error(`Failed to save visit: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const currentPatient = patients.find(p => p.id === selectedPatientId);
 
   return (
@@ -221,6 +262,18 @@ const ObstetricsDashboard: React.FC = () => {
               prescriptions={prescription}
               onPrescriptionsChange={setPrescription}
             />
+          </div>
+
+          {/* Save Visit Button */}
+          <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+            <button
+              onClick={handleSaveVisit}
+              disabled={isSaving}
+              className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              <Save className="w-5 h-5" />
+              {isSaving ? 'Saving...' : 'Save Obstetrics Visit'}
+            </button>
           </div>
         </>
       ) : currentPatient ? (

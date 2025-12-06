@@ -125,7 +125,6 @@ const Gynecology: React.FC = () => {
     setIsLoading(true);
     try {
       const clinicalData = {
-        department: 'gynecology',
         assessment: {
           complaints: gynecologyData.complaints,
           pvExamination: gynecologyData.pvExamination,
@@ -134,19 +133,17 @@ const Gynecology: React.FC = () => {
         diagnosis: gynecologyData.diagnosis,
         procedureOrder: gynecologyData.procedureOrder,
         clinicalNotes: gynecologyData.clinicalNotes,
-        prescription: gynecologyData.prescription,
       };
 
-      const visitData = {
+      await visitsService.saveVisit({
         patientId: selectedPatientId,
-        date: new Date().toISOString().split('T')[0],
+        department: 'GYNA',
+        clinicalData: clinicalData,
         diagnosis: gynecologyData.diagnosis,
         prescription: gynecologyData.prescription,
         notes: gynecologyData.clinicalNotes,
-        clinical_data: clinicalData,
-      };
+      });
 
-      await visitsService.createVisit(visitData);
       toast.success('Gynecology visit saved successfully');
 
       // Reset form

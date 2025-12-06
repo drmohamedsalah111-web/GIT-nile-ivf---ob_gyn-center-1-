@@ -12,6 +12,7 @@ export interface Visit {
   id: string;
   patientId: string;
   date: string;
+  department?: string; // 'GYNA', 'OBS', 'IVF_STIM', 'IVF_LAB'
   diagnosis: string;
   prescription: PrescriptionItem[];
   notes: string;
@@ -132,6 +133,7 @@ export enum Page {
   CLINICAL = 'clinical',
   GYNECOLOGY = 'gynecology',
   IVF = 'ivf',
+  PATIENT_RECORD = 'patient_record',
   SETTINGS = 'settings',
   OBSTETRICS = 'obstetrics'
 }
