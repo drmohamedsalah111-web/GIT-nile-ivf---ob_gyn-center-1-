@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { db, calculateBMI, calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate } from '../services/ivfService';
-import { PROTOCOLS } from '../constants';
-import { IvfCycle, Patient, StimulationLog, CycleAssessment, OpuLabData, TransferData, OutcomeData } from '../types';
+import { PROTOCOLS, PROTOCOL_INFO, EGYPTIAN_DRUGS } from '../constants';
+import { IvfCycle, Patient, StimulationLog, CycleAssessment, OpuLabData, TransferData, OutcomeData, PrescriptionItem } from '../types';
 import { visitsService } from '../services/visitsService';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Baby, TestTube, PlusCircle, FileText, AlertCircle, CheckCircle, TrendingUp, Zap, PipetteIcon, Heart } from 'lucide-react';
+import { Baby, TestTube, PlusCircle, FileText, AlertCircle, CheckCircle, TrendingUp, Zap, PipetteIcon, Heart, Info, Pill, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const IvfJourney: React.FC = () => {
@@ -24,6 +24,7 @@ const IvfJourney: React.FC = () => {
   const [labData, setLabData] = useState<OpuLabData>({});
   const [transferData, setTransferData] = useState<TransferData>({ lutealSupport: [] });
   const [outcomeData, setOutcomeData] = useState<OutcomeData>({});
+  const [protocolPrescription, setProtocolPrescription] = useState<PrescriptionItem[]>([]);
 
   useEffect(() => {
     db.getPatients().then(setPatients);
@@ -181,6 +182,76 @@ const IvfJourney: React.FC = () => {
     } catch (error) {
       toast.error('Failed to save outcome');
     }
+  };
+
+  const generateProtocolPrescription = (protocol: string) => {
+    const protocolData = PROTOCOL_INFO[protocol as keyof typeof PROTOCOL_INFO];
+    if (!protocolData) return;
+
+    const drugs: PrescriptionItem[] = [];
+
+    if (protocolData.downRegDrugs && protocolData.downRegDrugs.length > 0) {
+      protocolData.downRegDrugs.forEach(drugName => {
+        if (EGYPTIAN_DRUGS['Down-Regulation (Antagonists/Agonists)']?.[drugName as keyof any]) {
+          drugs.push({
+            category: 'Down-Regulation',
+            drug: drugName,
+            dose: EGYPTIAN_DRUGS['Down-Regulation (Antagonists/Agonists)']?.[drugName as keyof any].dose || ''
+          });
+        }
+      });
+    }
+
+    if (protocolData.stimDrugs && protocolData.stimDrugs.length > 0) {
+      protocolData.stimDrugs.forEach(drugName => {
+        if (EGYPTIAN_DRUGS['Induction (Stimulation)']?.[drugName as keyof any]) {
+          drugs.push({
+            category: 'Induction (Stimulation)',
+            drug: drugName,
+            dose: EGYPTIAN_DRUGS['Induction (Stimulation)']?.[drugName as keyof any].dose || ''
+          });
+        }
+      });
+    }
+
+    if ((protocolData as any).antagonist && (protocolData as any).antagonist.length > 0) {
+      (protocolData as any).antagonist.forEach((drugName: string) => {
+        if (EGYPTIAN_DRUGS['Down-Regulation (Antagonists/Agonists)']?.[drugName as keyof any]) {
+          drugs.push({
+            category: 'GnRH Antagonist',
+            drug: drugName,
+            dose: EGYPTIAN_DRUGS['Down-Regulation (Antagonists/Agonists)']?.[drugName as keyof any].dose || ''
+          });
+        }
+      });
+    }
+
+    if (protocolData.trigger && protocolData.trigger.length > 0) {
+      protocolData.trigger.forEach(drugName => {
+        if (EGYPTIAN_DRUGS['Trigger Shots']?.[drugName as keyof any]) {
+          drugs.push({
+            category: 'Trigger Shots',
+            drug: drugName,
+            dose: EGYPTIAN_DRUGS['Trigger Shots']?.[drugName as keyof any].dose || ''
+          });
+        }
+      });
+    }
+
+    if (protocolData.luteal && protocolData.luteal.length > 0) {
+      protocolData.luteal.forEach(drugName => {
+        if (EGYPTIAN_DRUGS['Luteal Support (Progesterone)']?.[drugName as keyof any]) {
+          drugs.push({
+            category: 'Luteal Support',
+            drug: drugName,
+            dose: EGYPTIAN_DRUGS['Luteal Support (Progesterone)']?.[drugName as keyof any].dose || ''
+          });
+        }
+      });
+    }
+
+    setProtocolPrescription(drugs);
+    toast.success(`Generated ${drugs.length} drugs for ${protocol} Protocol`);
   };
 
   const tmsc = calculateTMSC(assessment.maleFactor?.volume || 0, assessment.maleFactor?.concentration || 0, assessment.maleFactor?.motility || 0);
@@ -538,6 +609,87 @@ const IvfJourney: React.FC = () => {
                         </label>
                       ))}
                     </div>
+                  </div>
+
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <Pill className="w-5 h-5 text-indigo-600" /> Protocol & Prescription
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Select Protocol</label>
+                        <select
+                          value={newProtocol}
+                          onChange={(e) => setNewProtocol(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:border-indigo-500 outline-none"
+                        >
+                          {PROTOCOLS.map(p => (
+                            <option key={p} value={p}>{p}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">&nbsp;</label>
+                        <button
+                          onClick={() => generateProtocolPrescription(newProtocol)}
+                          className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Copy className="w-4 h-4" /> Generate Prescription
+                        </button>
+                      </div>
+                    </div>
+
+                    {newProtocol && PROTOCOL_INFO[newProtocol as keyof typeof PROTOCOL_INFO] && (
+                      <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 mb-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <div className="flex items-start gap-2 mb-3">
+                              <Info className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-1" />
+                              <div>
+                                <div className="font-bold text-gray-800">{PROTOCOL_INFO[newProtocol as keyof typeof PROTOCOL_INFO].name}</div>
+                                <div className="text-sm text-gray-600 mt-1">{PROTOCOL_INFO[newProtocol as keyof typeof PROTOCOL_INFO].description}</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-sm">
+                              <div className="font-semibold text-gray-700 mb-2">📋 Protocol Details:</div>
+                              <div className="text-xs text-gray-600 space-y-1">
+                                <div><strong>Duration:</strong> {PROTOCOL_INFO[newProtocol as keyof typeof PROTOCOL_INFO].duration}</div>
+                                <div><strong>Stimulation:</strong> {PROTOCOL_INFO[newProtocol as keyof typeof PROTOCOL_INFO].stimDays}</div>
+                                <div><strong>Best For:</strong> {PROTOCOL_INFO[newProtocol as keyof typeof PROTOCOL_INFO].bestFor.join(', ')}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {protocolPrescription.length > 0 && (
+                      <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <div className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          Generated Prescription ({protocolPrescription.length} drugs)
+                        </div>
+                        <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
+                          {protocolPrescription.map((drug, idx) => (
+                            <div key={idx} className="bg-white p-2 rounded text-sm border border-gray-200">
+                              <div className="font-semibold text-gray-800">{drug.drug}</div>
+                              <div className="text-xs text-gray-500">{drug.category} • {drug.dose}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setProtocolPrescription([]);
+                            toast.success('Prescription cleared. Customize in Stimulation tab.');
+                          }}
+                          className="w-full bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-yellow-700 transition-colors text-sm"
+                        >
+                          Clear & Customize in Stimulation Tab
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <button

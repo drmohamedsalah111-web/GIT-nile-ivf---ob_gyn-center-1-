@@ -111,7 +111,67 @@ export const EGYPTIAN_DRUGS = {
   }
 };
 
-export const PROTOCOLS = ['Long', 'Antagonist', 'Flare-up'];
+export const PROTOCOLS = ['Long', 'Antagonist', 'Flare-up', 'Mini-IVF'];
+
+export const PROTOCOL_INFO = {
+  'Long': {
+    name: 'Long Agonist Protocol',
+    arabicName: 'بروتوكول الناهضات الطويلة',
+    description: 'Most commonly used protocol. Down-regulation starts in luteal phase of previous cycle.',
+    arabicDescription: 'الأكثر استخداماً. إيقاف الهرمونات يبدأ من المرحلة اللوتيالية للدورة السابقة.',
+    bestFor: ['Normal responders', 'Regular cycles', 'PCO patients'],
+    arabicBestFor: ['المستجيبون العاديون', 'الدورات المنتظمة', 'متلازمة تكيس المبايض'],
+    duration: '35-42 days total',
+    stimDays: '10-12 days',
+    downRegDrugs: ['Decapeptyl 0.1mg Daily', 'Zoladex 3.6mg'],
+    stimDrugs: ['Gonal-F 75 IU', 'Merional 75 IU', 'Fostimon 75 IU'],
+    trigger: ['Ovitrelle 250mcg', 'Choriomon 5000 IU'],
+    luteal: ['Cyclogest 400mg', 'Utrogestan 200mg', 'Crinone 8% Gel']
+  },
+  'Antagonist': {
+    name: 'Antagonist Protocol',
+    arabicName: 'بروتوكول المضادات',
+    description: 'Shorter protocol. GnRH antagonists used to prevent premature LH surge. Good for poor responders.',
+    arabicDescription: 'بروتوكول أقصر. استخدام مضادات لمنع ارتفاع LH المبكر. مناسب للمستجيبين الضعفاء.',
+    bestFor: ['Poor responders', 'Previous low response', 'PCOS with high response risk'],
+    arabicBestFor: ['المستجيبون الضعفاء', 'استجابة منخفضة سابقة', 'تكيس مبايض مع خطر استجابة عالية'],
+    duration: '14-16 days',
+    stimDays: '8-10 days',
+    downRegDrugs: [],
+    stimDrugs: ['Gonal-F 75-150 IU', 'Merional 75 IU', 'Menopur 75 IU'],
+    antagonist: ['Cetrotide 0.25mg', 'Orgalutran 0.25mg'],
+    trigger: ['Ovitrelle 250mcg', 'Decapeptyl 0.1mg (Trigger)'],
+    luteal: ['Cyclogest 400mg', 'Progynova 2mg']
+  },
+  'Flare-up': {
+    name: 'Flare-up Protocol',
+    arabicName: 'بروتوكول التنشيط الحاد',
+    description: 'Short protocol. Initial FSH surge from GnRH agonist boosts recruitment. Faster but needs monitoring.',
+    arabicDescription: 'بروتوكول قصير. ارتفاع FSH الأولي يعزز تجنيد البويضات. أسرع لكن يحتاج مراقبة.',
+    bestFor: ['Poor responders', 'Diminished ovarian reserve', 'Older patients'],
+    arabicBestFor: ['المستجيبون الضعفاء', 'قصور احتياطي المبيض', 'المريضات الأكبر سناً'],
+    duration: '10-12 days',
+    stimDays: '8-9 days',
+    downRegDrugs: ['Decapeptyl 3.75mg Depot'],
+    stimDrugs: ['Gonal-F 150-300 IU', 'Merional 150 IU'],
+    trigger: ['Ovitrelle 250mcg', 'Choriomon 5000 IU'],
+    luteal: ['Cyclogest 400mg', 'Duphaston 10mg']
+  },
+  'Mini-IVF': {
+    name: 'Mini-IVF Protocol',
+    arabicName: 'بروتوكول الحقن المجهري الخفيف',
+    description: 'Minimal stimulation. Lower hormone doses, suitable for poor responders and medical contraindications.',
+    arabicDescription: 'تنشيط بسيط جداً. جرعات هرمونية منخفضة، مناسب للمستجيبين الضعفاء والحالات الحساسة.',
+    bestFor: ['Poor responders', 'Previous OHSS', 'Medical contraindications'],
+    arabicBestFor: ['المستجيبون الضعفاء', 'فرط تنبيه سابق', 'موانع طبية'],
+    duration: '10-14 days',
+    stimDays: '7-8 days',
+    downRegDrugs: [],
+    stimDrugs: ['Clomid 50mg', 'Femara 2.5mg', 'Gonal-F 75 IU'],
+    trigger: ['Ovitrelle 250mcg'],
+    luteal: ['Cyclogest 200mg', 'Utrogestan 200mg']
+  }
+};
 
 export const WHO_SPERM_PARAMS = {
   volume: 1.5,
