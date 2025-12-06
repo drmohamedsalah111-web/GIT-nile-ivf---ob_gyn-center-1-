@@ -11,7 +11,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
   const menuItems = [
     { id: Page.HOME, label: 'Dashboard', icon: LayoutDashboard },
     { id: Page.RECEPTION, label: 'Reception', icon: Users },
-    { id: Page.CLINICAL, label: 'Clinical Station', icon: Stethoscope },
+    { id: Page.CLINICAL, label: 'IVF-ICSI', icon: Stethoscope },
     { id: Page.GYNECOLOGY, label: 'عيادة النساء', icon: Activity },
     { id: Page.IVF, label: 'IVF Journey', icon: Baby },
     { id: Page.OBSTETRICS, label: 'Obstetrics', icon: Heart },

@@ -26,7 +26,7 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
           aria-label="Clinic"
         >
           <Stethoscope className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">Clinic</span>
+          <span className="mt-1 text-[12px]">IVF-ICSI</span>
         </button>
 
         <button

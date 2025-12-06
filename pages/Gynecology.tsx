@@ -5,6 +5,7 @@ import { Patient, PrescriptionItem } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { visitsService } from '../services/visitsService';
 import { authService } from '../services/authService';
+import PrescriptionComponent from '../components/PrescriptionComponent';
 
 interface GynecologyData {
   // Assessment Tab
@@ -558,14 +559,12 @@ const Gynecology: React.FC = () => {
 
             {/* Rx Tab */}
             {activeTab === 'rx' && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Prescription</h3>
-                <div className="bg-gray-50 p-6 rounded-lg border-2 border-dashed border-gray-300 text-center">
-                  <Pill className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">Prescription functionality will be implemented here</p>
-                  <p className="text-sm text-gray-400 mt-2">Medication selection, dosage, and duration</p>
-                </div>
-              </div>
+              <PrescriptionComponent
+                prescriptions={gynecologyData.prescription}
+                onPrescriptionsChange={(prescriptions) =>
+                  setGynecologyData(prev => ({ ...prev, prescription: prescriptions }))
+                }
+              />
             )}
           </div>
 

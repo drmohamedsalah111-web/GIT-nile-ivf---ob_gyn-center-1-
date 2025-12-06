@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Pregnancy, Patient } from '../types';
+import { Pregnancy, Patient, PrescriptionItem } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { obstetricsService, calculateEDD } from '../services/obstetricsService';
 import { authService } from '../services/authService';
@@ -9,6 +9,7 @@ import PregnancyHeader from './components/obstetrics/PregnancyHeader';
 import RiskAssessment from './components/obstetrics/RiskAssessment';
 import ANCFlowSheet from './components/obstetrics/ANCFlowSheet';
 import FetalGrowthChart from './components/obstetrics/FetalGrowthChart';
+import PrescriptionComponent from '../components/PrescriptionComponent';
 
 const ObstetricsDashboard: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -19,6 +20,7 @@ const ObstetricsDashboard: React.FC = () => {
   const [showNewPregnancyForm, setShowNewPregnancyForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [doctorId, setDoctorId] = useState<string | null>(null);
+  const [prescription, setPrescription] = useState<PrescriptionItem[]>([]);
 
   const [formData, setFormData] = useState({
     lmp_date: '',
@@ -212,6 +214,14 @@ const ObstetricsDashboard: React.FC = () => {
           <RiskAssessment pregnancy={pregnancy} onUpdate={handleUpdatePregnancy} />
           <ANCFlowSheet pregnancyId={pregnancy.id} lmpDate={pregnancy.lmp_date} />
           <FetalGrowthChart pregnancyId={pregnancy.id} lmpDate={pregnancy.lmp_date} />
+
+          {/* Prescription Section */}
+          <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+            <PrescriptionComponent
+              prescriptions={prescription}
+              onPrescriptionsChange={setPrescription}
+            />
+          </div>
         </>
       ) : currentPatient ? (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">

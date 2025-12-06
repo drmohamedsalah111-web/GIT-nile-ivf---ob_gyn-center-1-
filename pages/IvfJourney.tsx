@@ -2,16 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/ivfService';
 import { PROTOCOLS } from '../constants';
-import { IvfCycle, Patient, StimulationLog } from '../types';
+import { IvfCycle, Patient, StimulationLog, PrescriptionItem } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Baby, TestTube, PlusCircle, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
+import PrescriptionComponent from '../components/PrescriptionComponent';
 
 const IvfJourney: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [activeCycle, setActiveCycle] = useState<IvfCycle | null>(null);
   const [newProtocol, setNewProtocol] = useState('Long');
+  const [prescription, setPrescription] = useState<PrescriptionItem[]>([]);
   
   // Load Patients
   useEffect(() => {
@@ -226,6 +228,14 @@ const IvfJourney: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Prescription Section */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mt-6">
+            <PrescriptionComponent
+              prescriptions={prescription}
+              onPrescriptionsChange={setPrescription}
+            />
           </div>
         </>
       ) : (
