@@ -101,15 +101,19 @@ const AdminDashboard: React.FC = () => {
       setRecordsLoading(true);
       const { data, error } = await supabase
         .from('visits')
-        .select('id, date, patientId, diagnosis, department')
+        .select('id, date, patient_id, diagnosis, department')
         .order('date', { ascending: false })
         .limit(50);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading records:', error);
+        throw error;
+      }
       setRecords(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading records:', error);
-      toast.error('فشل تحميل السجلات');
+      const errorMsg = error?.message || 'فشل تحميل السجلات. تأكد من وجود جدول visits في قاعدة البيانات';
+      toast.error(errorMsg);
     } finally {
       setRecordsLoading(false);
     }
@@ -538,8 +542,8 @@ const AdminDashboard: React.FC = () => {
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {new Date(record.date).toLocaleDateString('ar-EG')}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{record.patientId}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{record.diagnosis}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{record.patient_id}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{record.diagnosis || '-'}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{record.department || 'عام'}</td>
                         <td className="px-4 py-3 text-sm">
                           <button
