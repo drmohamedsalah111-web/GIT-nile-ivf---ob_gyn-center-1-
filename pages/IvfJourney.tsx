@@ -4,7 +4,7 @@ import { db } from '../services/ivfService';
 import { PROTOCOLS } from '../constants';
 import { IvfCycle, Patient, StimulationLog, IvfData } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Baby, TestTube, PlusCircle, Save, Microscope, Flask } from 'lucide-react';
+import { Baby, TestTube, PlusCircle, Save, Microscope } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../services/supabaseClient';
 import { authService } from '../services/authService';
@@ -370,7 +370,7 @@ const IvfJourney: React.FC = () => {
             {/* Lab Results */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Flask className="w-5 h-5 text-purple-600" />
+                <TestTube className="w-5 h-5 text-purple-600" />
                 نتائج المختبر
               </h3>
 
