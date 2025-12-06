@@ -15,124 +15,11 @@ export interface Visit {
   diagnosis: string;
   prescription: PrescriptionItem[];
   notes: string;
-  clinical_data?: ClinicalData;
   vitals?: {
     weight?: number;
     height?: number;
     bmi?: number;
   };
-}
-
-// Clinical Data Types for JSONB storage
-export type ClinicalData = GynecologyData | ObstetricsData | IvfData;
-
-export interface GynecologyData {
-  department: 'gynecology';
-  hormonalProfile?: HormonalProfile;
-  ultrasoundFindings?: UltrasoundFindings;
-  diagnosis?: string[];
-  clinicalNotes?: string;
-}
-
-export interface HormonalProfile {
-  fsh?: number; // IU/L
-  lh?: number; // IU/L
-  e2?: number; // pg/mL
-  prolactin?: number; // ng/mL
-  tsh?: number; // mIU/L
-  amh?: number; // ng/mL
-}
-
-export interface UltrasoundFindings {
-  uterus?: {
-    length?: number; // mm
-    width?: number; // mm
-    ap?: number; // mm
-    orientation?: 'AVF' | 'RVF';
-    myometrium?: 'Normal' | 'Adenomyosis' | 'Fibroid';
-  };
-  endometrium?: {
-    thickness?: number; // mm
-    pattern?: 'Triple Line' | 'Homogeneous';
-  };
-  ovaries?: {
-    right?: {
-      size?: string;
-      cysts?: string;
-    };
-    left?: {
-      size?: string;
-      cysts?: string;
-    };
-  };
-  pouchOfDouglas?: {
-    freeFluid?: boolean;
-  };
-}
-
-export interface ObstetricsData {
-  department: 'obstetrics';
-  pregnancyId?: string;
-  ancVisit?: AncVisitData;
-  fetalBiometry?: FetalBiometryData;
-}
-
-export interface AncVisitData {
-  gestationalAge?: {
-    weeks: number;
-    days: number;
-  };
-  bp?: {
-    systolic: number;
-    diastolic: number;
-  };
-  weight?: number; // kg
-  urine?: {
-    albuminuria?: string;
-    glycosuria?: string;
-  };
-  pallor?: boolean;
-  edema?: boolean;
-  edemaGrade?: string;
-  fetalHeartSound?: boolean;
-  fundalHeight?: number; // cm
-  notes?: string;
-}
-
-export interface FetalBiometryData {
-  bpd?: number; // mm
-  fl?: number; // mm
-  ac?: number; // mm
-  hc?: number; // mm
-  efw?: number; // grams
-  placentaLocation?: string;
-  liquor?: {
-    afi?: number;
-  };
-  dopplerIndices?: {
-    umbilicalRI?: number;
-    mcaPI?: number;
-  };
-}
-
-export interface IvfData {
-  department: 'ivf';
-  cycleId?: string;
-  labData?: LabData;
-  semenPrep?: SemenPrepData;
-}
-
-export interface LabData {
-  totalOocytes?: number;
-  mii?: number; // Mature oocytes
-  fertilized2PN?: number;
-  cleavageGrade?: string; // Day 3
-  blastocystGrade?: string; // Day 5
-}
-
-export interface SemenPrepData {
-  count?: number; // million/mL
-  motility?: number; // %
 }
 
 export interface PrescriptionItem {
@@ -241,8 +128,8 @@ export interface BiometryScan {
 export enum Page {
   HOME = 'home',
   RECEPTION = 'reception',
-  GYNECOLOGY = 'gynecology',
-  OBSTETRICS = 'obstetrics',
+  CLINICAL = 'clinical',
   IVF = 'ivf',
-  SETTINGS = 'settings'
+  SETTINGS = 'settings',
+  OBSTETRICS = 'obstetrics'
 }
