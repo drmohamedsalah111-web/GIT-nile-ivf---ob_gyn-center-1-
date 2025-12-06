@@ -76,7 +76,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         </div>
 
         <h1 className="text-3xl font-bold text-center text-gray-900 mb-2 font-[Tajawal]">
-          مركز نيل للعقم
+          نظام د محمد صلاح جبر
         </h1>
         <p className="text-center text-gray-600 mb-8 font-[Tajawal]">
           {showSignup ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}
