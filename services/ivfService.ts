@@ -167,20 +167,25 @@ export const db = {
 
   // --- Logs ---
   addLog: async (cycleId: string, log: Partial<StimulationLog>) => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('stimulation_logs')
       .insert([{
         cycle_id: cycleId,
         cycle_day: log.cycleDay,
         date: log.date,
-        fsh: log.fsh,
-        hmg: log.hmg,
-        e2: log.e2,
-        lh: log.lh,
-        rt_follicles: log.rtFollicles,
-        lt_follicles: log.ltFollicles
-      }]);
+        fsh: log.fsh || '',
+        hmg: log.hmg || '',
+        e2: log.e2 || '',
+        lh: log.lh || '',
+        rt_follicles: log.rtFollicles || '',
+        lt_follicles: log.ltFollicles || '',
+        endometrium_thickness: log.endometriumThickness || ''
+      }])
+      .select()
+      .single();
+    
     if (error) throw error;
+    return data;
   },
 
   updateLog: async (logId: string, updates: Partial<StimulationLog>) => {

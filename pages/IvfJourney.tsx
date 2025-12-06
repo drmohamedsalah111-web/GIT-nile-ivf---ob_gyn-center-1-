@@ -111,15 +111,27 @@ const IvfJourney: React.FC = () => {
     };
 
     try {
-      await db.addLog(activeCycle.id, newLog);
-      const optimisticLog = { ...newLog, id: crypto.randomUUID() };
+      const insertedLog = await db.addLog(activeCycle.id, newLog);
+      const mappedLog: StimulationLog = {
+        id: insertedLog.id,
+        date: insertedLog.date,
+        cycleDay: insertedLog.cycle_day,
+        fsh: insertedLog.fsh || '',
+        hmg: insertedLog.hmg || '',
+        e2: insertedLog.e2 || '',
+        lh: insertedLog.lh || '',
+        rtFollicles: insertedLog.rt_follicles || '',
+        ltFollicles: insertedLog.lt_follicles || '',
+        endometriumThickness: insertedLog.endometrium_thickness || ''
+      };
       setActiveCycle({
         ...activeCycle,
-        logs: [...activeCycle.logs, optimisticLog]
+        logs: [...activeCycle.logs, mappedLog]
       });
       toast.success('Day log added');
-    } catch (e) {
-      toast.error('Failed to add log');
+    } catch (e: any) {
+      console.error('addDayLog error:', e);
+      toast.error('Failed to add log: ' + (e?.message || 'Unknown error'));
     }
   };
 
