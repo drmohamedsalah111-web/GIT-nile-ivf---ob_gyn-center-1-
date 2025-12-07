@@ -4,7 +4,6 @@ import BottomNav from './components/BottomNav';
 import { Page } from './types';
 import Dashboard from './pages/Dashboard';
 import Reception from './pages/Reception';
-import ClinicalStation from './pages/ClinicalStation';
 import Gynecology from './pages/Gynecology';
 import IvfJourney from './pages/IvfJourney';
 import PatientMasterRecord from './pages/PatientMasterRecord';
@@ -85,7 +84,6 @@ const App: React.FC = () => {
     switch (activePage) {
       case Page.HOME: return <Dashboard />;
       case Page.RECEPTION: return <Reception />;
-      case Page.CLINICAL: return <ClinicalStation />;
       case Page.GYNECOLOGY: return <Gynecology />;
       case Page.IVF: return <IvfJourney />;
       case Page.OBSTETRICS: return <ObstetricsDashboard />;

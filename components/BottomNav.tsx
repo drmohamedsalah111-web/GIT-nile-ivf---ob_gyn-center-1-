@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, Stethoscope, Baby, Heart, Settings, Activity, Shield } from 'lucide-react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, Shield } from 'lucide-react';
 import { Page } from '../types';
 
 interface Props {
@@ -18,15 +18,6 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
         >
           <LayoutDashboard className="w-6 h-6" />
           <span className="mt-1 text-[12px]">Home</span>
-        </button>
-
-        <button
-          onClick={() => setPage(Page.CLINICAL)}
-          className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.CLINICAL ? 'text-teal-600' : 'text-gray-500'}`}
-          aria-label="Clinic"
-        >
-          <Stethoscope className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">IVF-ICSI</span>
         </button>
 
         <button

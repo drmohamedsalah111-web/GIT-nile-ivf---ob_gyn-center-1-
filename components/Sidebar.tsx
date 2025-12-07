@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, Stethoscope, Baby, Heart, Settings, LogOut, Activity, FileText, Shield } from 'lucide-react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText } from 'lucide-react';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
 
@@ -12,15 +12,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
   const { branding } = useBranding();
 
   const menuItems = [
-    { id: Page.HOME, label: 'Dashboard', icon: LayoutDashboard },
-    { id: Page.RECEPTION, label: 'Reception', icon: Users },
-    { id: Page.CLINICAL, label: 'IVF-ICSI', icon: Stethoscope },
-    { id: Page.GYNECOLOGY, label: 'عيادة النساء', icon: Activity },
-    { id: Page.IVF, label: 'IVF Journey', icon: Baby },
-    { id: Page.OBSTETRICS, label: 'Obstetrics', icon: Heart },
-    { id: Page.PATIENT_RECORD, label: 'Patient Records', icon: FileText },
-    { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings },
-    { id: Page.ADMIN, label: 'لوحة التحكم', icon: Shield },
+    { id: Page.HOME, label: 'Dashboard', arLabel: 'الرئيسية', icon: LayoutDashboard },
+    { id: Page.RECEPTION, label: 'Reception', arLabel: 'الاستقبال', icon: Users },
+    { id: Page.GYNECOLOGY, label: 'Gynecology', arLabel: 'عيادة النساء', icon: Activity },
+    { id: Page.OBSTETRICS, label: 'Obstetrics', arLabel: 'متابعة الحمل', icon: Heart },
+    { id: Page.IVF, label: 'IVF Center', arLabel: 'مركز الخصوبة', icon: Baby },
+    { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: FileText },
+    { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
   ];
 
   return (
@@ -56,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
                   }`}
                 >
                   <Icon className={`w-5 h-5 ${isActive ? 'text-teal-700' : 'text-gray-400'}`} />
-                  <span>{item.label}</span>
+                  <span>{item.arLabel || item.label}</span>
                 </button>
               </li>
             );

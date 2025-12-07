@@ -9,6 +9,16 @@ import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 
 interface GynecologyData {
+  // Vitals
+  vitals: {
+    weight?: number;
+    height?: number;
+    bmi?: number;
+    bpSystolic?: number;
+    bpDiastolic?: number;
+    temperature?: number;
+  };
+
   // Assessment Tab
   complaints: string[];
   pvExamination: {
@@ -53,6 +63,14 @@ const Gynecology: React.FC = () => {
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
 
   const [gynecologyData, setGynecologyData] = useState<GynecologyData>({
+    vitals: {
+      weight: undefined,
+      height: undefined,
+      bmi: undefined,
+      bpSystolic: undefined,
+      bpDiastolic: undefined,
+      temperature: undefined,
+    },
     complaints: [],
     pvExamination: {
       vulva: '',
@@ -127,6 +145,7 @@ const Gynecology: React.FC = () => {
     setIsLoading(true);
     try {
       const clinicalData = {
+        vitals: gynecologyData.vitals,
         assessment: {
           complaints: gynecologyData.complaints,
           pvExamination: gynecologyData.pvExamination,
@@ -150,6 +169,14 @@ const Gynecology: React.FC = () => {
 
       // Reset form
       setGynecologyData({
+        vitals: {
+          weight: undefined,
+          height: undefined,
+          bmi: undefined,
+          bpSystolic: undefined,
+          bpDiastolic: undefined,
+          temperature: undefined,
+        },
         complaints: [],
         pvExamination: {
           vulva: '',
@@ -195,6 +222,26 @@ const Gynecology: React.FC = () => {
         ? prev.complaints.filter(c => c !== complaint)
         : [...prev.complaints, complaint]
     }));
+  };
+
+  const handleVitalsChange = (field: keyof GynecologyData['vitals'], value: string) => {
+    const numValue = value ? parseFloat(value) : undefined;
+    
+    setGynecologyData(prev => {
+      const newVitals = { ...prev.vitals, [field]: numValue };
+      
+      if (field === 'weight' || field === 'height') {
+        if (newVitals.weight && newVitals.height && newVitals.height > 0) {
+          const heightInMeters = newVitals.height / 100;
+          newVitals.bmi = parseFloat((newVitals.weight / (heightInMeters * heightInMeters)).toFixed(1));
+        }
+      }
+      
+      return {
+        ...prev,
+        vitals: newVitals,
+      };
+    });
   };
 
   return (
@@ -272,18 +319,85 @@ const Gynecology: React.FC = () => {
           <div className="p-6">
             {/* Assessment Tab */}
             {activeTab === 'assessment' && (
-              <div className="space-y-6" dir="ltr">
-                {/* Complaints */}
-                <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Chief Complaints</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid md:grid-cols-2 gap-6" dir="ltr">
+                {/* LEFT COLUMN: Vitals & Complaints */}
+                <div className="space-y-6">
+                  {/* Vitals Section */}
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Vital Signs</h3>
+                    <div className="grid grid-cols-2 gap-3 text-left">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Weight (kg)</label>
+                        <input
+                          type="number"
+                          value={gynecologyData.vitals.weight || ''}
+                          onChange={(e) => handleVitalsChange('weight', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g., 65"
+                          step="0.1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Height (cm)</label>
+                        <input
+                          type="number"
+                          value={gynecologyData.vitals.height || ''}
+                          onChange={(e) => handleVitalsChange('height', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g., 165"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">BMI</label>
+                        <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium">
+                          {gynecologyData.vitals.bmi ? gynecologyData.vitals.bmi.toFixed(1) : '--'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Temp (°C)</label>
+                        <input
+                          type="number"
+                          value={gynecologyData.vitals.temperature || ''}
+                          onChange={(e) => handleVitalsChange('temperature', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g., 37"
+                          step="0.1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">BP Systolic</label>
+                        <input
+                          type="number"
+                          value={gynecologyData.vitals.bpSystolic || ''}
+                          onChange={(e) => handleVitalsChange('bpSystolic', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="mmHg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">BP Diastolic</label>
+                        <input
+                          type="number"
+                          value={gynecologyData.vitals.bpDiastolic || ''}
+                          onChange={(e) => handleVitalsChange('bpDiastolic', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="mmHg"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Complaints */}
+                  <div className="text-left">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Chief Complaints</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-2 gap-2">
                     {[
                       'Menorrhagia', 'Metrorrhagia', 'Dysmenorrhea', 'Amenorrhea', 'Infertility', 'Pelvic Pain', 'Vaginal Discharge'
                     ].map(complaint => (
                       <button
                         key={complaint}
                         onClick={() => toggleComplaint(complaint)}
-                        className={`px-4 py-2 text-sm rounded-lg border transition-colors ${
+                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
                           gynecologyData.complaints.includes(complaint)
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
@@ -294,9 +408,12 @@ const Gynecology: React.FC = () => {
                     ))}
                   </div>
                 </div>
+                </div>
 
+                {/* RIGHT COLUMN: Investigations & Scans */}
+                <div className="space-y-6">
                 {/* PV Examination */}
-                <div dir="ltr">
+                <div className="bg-green-50 p-4 rounded-lg" dir="ltr">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Vaginal Examination (PV)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
                     <div>
@@ -443,6 +560,7 @@ const Gynecology: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                </div>
                 </div>
               </div>
             )}
