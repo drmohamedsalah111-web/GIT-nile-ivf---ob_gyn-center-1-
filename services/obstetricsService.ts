@@ -5,20 +5,38 @@ import { Pregnancy, AntenatalVisit, BiometryScan } from '../types';
 // CALCULATION FUNCTIONS
 // ============================================================================
 
-export const calculateGestationalAge = (lmpDate: string): { weeks: number; days: number } => {
-  const today = new Date();
-  const lmp = new Date(lmpDate);
-  const diffTime = Math.abs(today.getTime() - lmp.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  const weeks = Math.floor(diffDays / 7);
-  const days = diffDays % 7;
-  return { weeks, days };
+export const calculateGestationalAge = (lmpDate: string | null | undefined): { weeks: number; days: number } => {
+  if (!lmpDate || lmpDate.trim() === '' || isNaN(new Date(lmpDate).getTime())) {
+    return { weeks: 0, days: 0 };
+  }
+
+  try {
+    const today = new Date();
+    const lmp = new Date(lmpDate);
+    const diffTime = Math.abs(today.getTime() - lmp.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const weeks = Math.floor(diffDays / 7);
+    const days = diffDays % 7;
+    return { weeks, days };
+  } catch (error) {
+    console.warn('Invalid LMP date provided to calculateGestationalAge:', lmpDate);
+    return { weeks: 0, days: 0 };
+  }
 };
 
-export const calculateEDD = (lmpDate: string): string => {
-  const lmp = new Date(lmpDate);
-  lmp.setDate(lmp.getDate() + 280);
-  return lmp.toISOString().split('T')[0];
+export const calculateEDD = (lmpDate: string | null | undefined): string => {
+  if (!lmpDate || lmpDate.trim() === '' || isNaN(new Date(lmpDate).getTime())) {
+    return '';
+  }
+
+  try {
+    const lmp = new Date(lmpDate);
+    lmp.setDate(lmp.getDate() + 280);
+    return lmp.toISOString().split('T')[0];
+  } catch (error) {
+    console.warn('Invalid LMP date provided to calculateEDD:', lmpDate);
+    return '';
+  }
 };
 
 export const calculateGAFromEDD = (eddDate: string): { weeks: number; days: number } => {
@@ -40,14 +58,33 @@ export const calculateEFW = (
   acMm: number,
   flMm: number
 ): number => {
-  const log10EFW =
-    1.3404 +
-    0.0438 * hcMm +
-    0.158 * acMm +
-    0.0061 * bpdMm -
-    0.002322 * acMm * bpdMm;
+  // Validate inputs - ensure all measurements are positive numbers
+  if (!bpdMm || !hcMm || !acMm || !flMm ||
+      bpdMm <= 0 || hcMm <= 0 || acMm <= 0 || flMm <= 0 ||
+      isNaN(bpdMm) || isNaN(hcMm) || isNaN(acMm) || isNaN(flMm)) {
+    return 0;
+  }
 
-  return Math.round(Math.pow(10, log10EFW));
+  try {
+    const log10EFW =
+      1.3404 +
+      0.0438 * hcMm +
+      0.158 * acMm +
+      0.0061 * bpdMm -
+      0.002322 * acMm * bpdMm;
+
+    const efw = Math.pow(10, log10EFW);
+
+    // Ensure result is reasonable (between 100g and 5000g)
+    if (isNaN(efw) || efw < 100 || efw > 5000) {
+      return 0;
+    }
+
+    return Math.round(efw);
+  } catch (error) {
+    console.warn('Error calculating EFW with inputs:', { bpdMm, hcMm, acMm, flMm });
+    return 0;
+  }
 };
 
 // Calculate percentile based on RCOG/NICE standards (simplified)
@@ -93,25 +130,37 @@ export interface RiskFactors {
 }
 
 export const assessRiskLevel = (
-  riskFactors: RiskFactors
+  riskFactors: RiskFactors | null | undefined
 ): {
   level: 'low' | 'moderate' | 'high';
   riskFactorsList: string[];
   aspirinNeeded: boolean;
   thromboprophylaxisNeeded: boolean;
 } => {
+  // Provide safe defaults if riskFactors is null/undefined
+  const safeRiskFactors = riskFactors || {
+    age_over_40: false,
+    bmi_over_30: false,
+    previous_preeclampsia: false,
+    twins: false,
+    autoimmune: false,
+    hypertension: false,
+    diabetes: false,
+    kidney_disease: false,
+  };
+
   const highRiskFactors = [
-    riskFactors.previous_preeclampsia,
-    riskFactors.hypertension,
-    riskFactors.kidney_disease,
-    riskFactors.diabetes,
-    riskFactors.autoimmune,
+    safeRiskFactors.previous_preeclampsia,
+    safeRiskFactors.hypertension,
+    safeRiskFactors.kidney_disease,
+    safeRiskFactors.diabetes,
+    safeRiskFactors.autoimmune,
   ].filter(Boolean).length;
 
   const moderateRiskFactors = [
-    riskFactors.age_over_40,
-    riskFactors.bmi_over_30,
-    riskFactors.twins,
+    safeRiskFactors.age_over_40,
+    safeRiskFactors.bmi_over_30,
+    safeRiskFactors.twins,
   ].filter(Boolean).length;
 
   let level: 'low' | 'moderate' | 'high' = 'low';
@@ -129,18 +178,18 @@ export const assessRiskLevel = (
     level = 'moderate';
   }
 
-  if (riskFactors.twins) {
+  if (safeRiskFactors.twins) {
     thromboprophylaxisNeeded = true;
   }
 
-  if (riskFactors.age_over_40) riskFactorsList.push('Age > 40');
-  if (riskFactors.bmi_over_30) riskFactorsList.push('BMI > 30');
-  if (riskFactors.previous_preeclampsia) riskFactorsList.push('Previous Pre-eclampsia');
-  if (riskFactors.twins) riskFactorsList.push('Multiple Pregnancy');
-  if (riskFactors.autoimmune) riskFactorsList.push('Autoimmune Disease');
-  if (riskFactors.hypertension) riskFactorsList.push('Hypertension');
-  if (riskFactors.diabetes) riskFactorsList.push('Diabetes');
-  if (riskFactors.kidney_disease) riskFactorsList.push('Kidney Disease');
+  if (safeRiskFactors.age_over_40) riskFactorsList.push('Age > 40');
+  if (safeRiskFactors.bmi_over_30) riskFactorsList.push('BMI > 30');
+  if (safeRiskFactors.previous_preeclampsia) riskFactorsList.push('Previous Pre-eclampsia');
+  if (safeRiskFactors.twins) riskFactorsList.push('Multiple Pregnancy');
+  if (safeRiskFactors.autoimmune) riskFactorsList.push('Autoimmune Disease');
+  if (safeRiskFactors.hypertension) riskFactorsList.push('Hypertension');
+  if (safeRiskFactors.diabetes) riskFactorsList.push('Diabetes');
+  if (safeRiskFactors.kidney_disease) riskFactorsList.push('Kidney Disease');
 
   return { level, riskFactorsList, aspirinNeeded, thromboprophylaxisNeeded };
 };

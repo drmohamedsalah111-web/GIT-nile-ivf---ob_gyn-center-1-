@@ -12,16 +12,18 @@ interface RiskAssessmentProps {
 const RiskAssessment: React.FC<RiskAssessmentProps> = ({ pregnancy, onUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
+  // Fix the risk factors parsing - ensure we handle null/undefined safely
+  const currentFactors = pregnancy.risk_factors || []; // Fallback to empty array
   const initialRiskFactors: RiskFactors = {
-    age_over_40: pregnancy.risk_factors?.includes('age_over_40') || false,
-    bmi_over_30: pregnancy.risk_factors?.includes('bmi_over_30') || false,
-    previous_preeclampsia: pregnancy.risk_factors?.includes('previous_preeclampsia') || false,
-    twins: pregnancy.risk_factors?.includes('twins') || false,
-    autoimmune: pregnancy.risk_factors?.includes('autoimmune') || false,
-    hypertension: pregnancy.risk_factors?.includes('hypertension') || false,
-    diabetes: pregnancy.risk_factors?.includes('diabetes') || false,
-    kidney_disease: pregnancy.risk_factors?.includes('kidney_disease') || false,
+    age_over_40: currentFactors.includes('age_over_40'),
+    bmi_over_30: currentFactors.includes('bmi_over_30'),
+    previous_preeclampsia: currentFactors.includes('previous_preeclampsia'),
+    twins: currentFactors.includes('twins'),
+    autoimmune: currentFactors.includes('autoimmune'),
+    hypertension: currentFactors.includes('hypertension'),
+    diabetes: currentFactors.includes('diabetes'),
+    kidney_disease: currentFactors.includes('kidney_disease'),
   };
 
   const [riskFactors, setRiskFactors] = useState<RiskFactors>(initialRiskFactors);
@@ -50,10 +52,10 @@ const RiskAssessment: React.FC<RiskAssessmentProps> = ({ pregnancy, onUpdate }) 
       setIsSaving(true);
       const updatedRiskFactors = Object.keys(riskFactors)
         .filter(key => riskFactors[key as keyof RiskFactors])
-        .map(key => key.replace(/_/g, '_'));
+        .map(key => key.replace(/_/g, '_')); // This was wrong - should keep underscores
 
       await onUpdate({
-        risk_factors: updatedRiskFactors,
+        risk_factors: updatedRiskFactors, // Ensure this is always an array, never null
         risk_level: riskAssessment.level,
         aspirin_prescribed: riskAssessment.aspirinNeeded,
         thromboprophylaxis_needed: riskAssessment.thromboprophylaxisNeeded,

@@ -108,14 +108,25 @@ const ObstetricsDashboard: React.FC = () => {
 
       setIsSaving(true);
 
+      // Ensure dates are valid before proceeding
+      if (!formData.lmp_date && !formData.edd_by_scan) {
+        toast.error('Please provide either LMP date or EDD by scan');
+        return;
+      }
+
       const eddDate = formData.edd_by_scan || calculateEDD(formData.lmp_date);
+
+      if (!eddDate) {
+        toast.error('Invalid date provided. Please check LMP or EDD by scan.');
+        return;
+      }
 
       const pregnancyData = {
         doctor_id: doctorId,
         patient_id: selectedPatientId,
-        lmp_date: formData.lmp_date || undefined,
+        lmp_date: formData.lmp_date || null, // Use null instead of undefined for database
         edd_date: eddDate,
-        edd_by_scan: formData.edd_by_scan || undefined,
+        edd_by_scan: formData.edd_by_scan || null, // Use null instead of undefined for database
         risk_level: 'low' as const,
         risk_factors: [],
         aspirin_prescribed: false,
@@ -159,21 +170,22 @@ const ObstetricsDashboard: React.FC = () => {
   };
 
   const handleSaveVisit = async () => {
-    if (!selectedPatientId || !pregnancy) {
+    if (!selectedPatientId || !pregnancy || !pregnancy.id) {
       toast.error('Please select a patient and ensure pregnancy data is loaded');
       return;
     }
 
     setIsSaving(true);
     try {
+      const gestationalAge = calculateGestationalAge(pregnancy.lmp_date);
       const clinicalData = {
         pregnancyId: pregnancy.id,
-        gestationalAge: calculateGestationalAge(pregnancy.lmp_date || ''),
+        gestationalAge: gestationalAge,
         riskAssessment: {
-          level: pregnancy.risk_level,
-          factors: pregnancy.risk_factors,
-          aspirin: pregnancy.aspirin_prescribed,
-          thromboprophylaxis: pregnancy.thromboprophylaxis_needed,
+          level: pregnancy.risk_level || 'low',
+          factors: pregnancy.risk_factors || [],
+          aspirin: pregnancy.aspirin_prescribed || false,
+          thromboprophylaxis: pregnancy.thromboprophylaxis_needed || false,
         },
         currentStatus: 'Active Pregnancy Monitoring',
       };
@@ -182,9 +194,11 @@ const ObstetricsDashboard: React.FC = () => {
         patientId: selectedPatientId,
         department: 'OBS',
         clinicalData: clinicalData,
-        diagnosis: `Pregnancy - ${pregnancy.risk_level} risk`,
+        diagnosis: `Pregnancy - ${pregnancy.risk_level || 'low'} risk`,
         prescription: prescription,
-        notes: `Gestational age: ${calculateGestationalAge(pregnancy.lmp_date || '').weeks} weeks ${calculateGestationalAge(pregnancy.lmp_date || '').days} days`,
+        notes: gestationalAge.weeks > 0
+          ? `Gestational age: ${gestationalAge.weeks} weeks ${gestationalAge.days} days`
+          : 'Gestational age: Not available',
       });
 
       toast.success('Obstetrics visit saved successfully');
@@ -251,7 +265,7 @@ const ObstetricsDashboard: React.FC = () => {
         <div className="flex items-center justify-center h-96">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
         </div>
-      ) : pregnancy ? (
+      ) : pregnancy && pregnancy.id ? (
         <>
           <PregnancyHeader pregnancy={pregnancy} />
           <RiskAssessment pregnancy={pregnancy} onUpdate={handleUpdatePregnancy} />
@@ -353,8 +367,11 @@ const ObstetricsDashboard: React.FC = () => {
       <PrescriptionPrinter
         patient={currentPatient || null}
         prescriptions={prescription}
-        diagnosis={pregnancy ? `Pregnancy - ${pregnancy.risk_level} risk` : ''}
-        notes={pregnancy ? `Gestational age: ${calculateGestationalAge(pregnancy.lmp_date || '').weeks} weeks ${calculateGestationalAge(pregnancy.lmp_date || '').days} days` : ''}
+        diagnosis={pregnancy ? `Pregnancy - ${pregnancy.risk_level || 'low'} risk` : ''}
+        notes={pregnancy ? (() => {
+          const ga = calculateGestationalAge(pregnancy.lmp_date);
+          return ga.weeks > 0 ? `Gestational age: ${ga.weeks} weeks ${ga.days} days` : 'Gestational age: Not available';
+        })() : ''}
         isOpen={isPrinterOpen}
         onClose={() => setIsPrinterOpen(false)}
       />

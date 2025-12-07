@@ -6078,184 +6078,6 @@ const AdminDashboard: React.FC = () => {
 export default AdminDashboard;
 </file>
 
-<file path="pages/Dashboard.tsx">
-import React, { useEffect, useState } from 'react';
-import { Users, Activity, CalendarCheck, TrendingUp, Loader2 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { db } from '../services/ivfService';
-import { Patient } from '../types';
-import { useBranding } from '../context/BrandingContext';
-
-const Dashboard: React.FC = () => {
-  const { branding } = useBranding();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalPatients: 0,
-    activeCycles: 0,
-    todayVisits: 0
-  });
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const patients = await db.getPatients();
-        const cycles = await db.getCycles();
-        // In a real app, we'd query visits by date via Supabase directly for performance
-        // const visits = await db.getVisits(); 
-        
-        setStats({
-          totalPatients: patients.length,
-          activeCycles: cycles.filter(c => c.status === 'Active').length,
-          todayVisits: 5 // Mock for now until visits table is fully populated
-        });
-      } catch (error) {
-        console.error("Failed to load dashboard data");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // Mock Data for Charts (Keep static for UI demo)
-  const growthData = [
-    { name: 'Jan', patients: 30 },
-    { name: 'Feb', patients: 45 },
-    { name: 'Mar', patients: 60 },
-    { name: 'Apr', patients: 90 },
-    { name: 'May', patients: 110 },
-    { name: 'Jun', patients: 150 },
-  ];
-
-  const visitTypes = [
-    { name: 'Consultation', value: 400 },
-    { name: 'Scan', value: 300 },
-    { name: 'Lab', value: 300 },
-    { name: 'Procedure', value: 200 },
-  ];
-  
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
-
-  if (loading) {
-    return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <Loader2 className="w-10 h-10 animate-spin text-teal-600" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <header className="mb-6 md:mb-8">
-        <h2 className="text-3xl font-bold text-gray-800">{branding?.clinic_name || 'Dashboard Overview'}</h2>
-        <p className="text-gray-500">Welcome back to your clinic management system</p>
-      </header>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-400">Total Patients</p>
-            <h3 className="text-3xl font-bold text-gray-800 mt-1">{stats.totalPatients}</h3>
-          </div>
-          <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-            <Users className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-400">Active Cycles</p>
-            <h3 className="text-3xl font-bold text-teal-600 mt-1">{stats.activeCycles}</h3>
-          </div>
-          <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
-            <Activity className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-400">Today's Visits</p>
-            <h3 className="text-3xl font-bold text-purple-600 mt-1">{stats.todayVisits}</h3>
-          </div>
-          <div className="w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-            <CalendarCheck className="w-6 h-6" />
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-        
-        {/* Patient Growth Area Chart */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-teal-600" />
-              Patient Growth
-            </h3>
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={growthData}>
-                <defs>
-                  <linearGradient id="colorPatients" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00838f" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#00838f" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                />
-                <Area type="monotone" dataKey="patients" stroke="#00838f" fillOpacity={1} fill="url(#colorPatients)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Visit Types Donut Chart */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-800 mb-6">Visit Distribution</h3>
-          <div className="h-64 flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={visitTypes}
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {visitTypes.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex justify-center gap-4 mt-4 flex-wrap">
-            {visitTypes.map((entry, index) => (
-              <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
-                {entry.name}
-              </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
-};
-
-export default Dashboard;
-</file>
-
 <file path="pages/Reception.tsx">
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Search, Phone, User, History, Loader2 } from 'lucide-react';
@@ -6691,6 +6513,185 @@ COMMENT ON COLUMN visits.clinical_data IS 'Structured clinical data stored as JS
 COMMENT ON INDEX idx_visits_clinical_data IS 'GIN index for efficient JSONB queries on clinical_data';
 COMMENT ON INDEX idx_visits_department IS 'Index for filtering visits by department';
 COMMENT ON INDEX idx_visits_patient_clinical IS 'Index for patient clinical visits ordered by date';
+</file>
+
+<file path="pages/Dashboard.tsx">
+import React, { useEffect, useState } from 'react';
+import { Users, Activity, CalendarCheck, TrendingUp, Loader2 } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { db } from '../services/ivfService';
+import { Patient } from '../types';
+import { useBranding } from '../context/BrandingContext';
+
+const Dashboard: React.FC = () => {
+  const { branding } = useBranding();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalPatients: 0,
+    activeCycles: 0,
+    todayVisits: 0
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const patients = await db.getPatients();
+        const cycles = await db.getCycles();
+        // In a real app, we'd query visits by date via Supabase directly for performance
+        // const visits = await db.getVisits(); 
+        
+        setStats({
+          totalPatients: patients.length,
+          activeCycles: cycles.filter(c => c.status === 'Active').length,
+          todayVisits: 5 // Mock for now until visits table is fully populated
+        });
+      } catch (error) {
+        console.error("Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Mock Data for Charts (Keep static for UI demo)
+  const growthData = [
+    { name: 'Jan', patients: 30 },
+    { name: 'Feb', patients: 45 },
+    { name: 'Mar', patients: 60 },
+    { name: 'Apr', patients: 90 },
+    { name: 'May', patients: 110 },
+    { name: 'Jun', patients: 150 },
+  ];
+
+  const visitTypes = [
+    { name: 'Consultation', value: 400 },
+    { name: 'Scan', value: 300 },
+    { name: 'Lab', value: 300 },
+    { name: 'Procedure', value: 200 },
+  ];
+  
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-teal-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <header className="mb-6 md:mb-8">
+        <h2 className="text-3xl font-bold text-gray-800">{branding?.clinic_name || 'Dashboard Overview'}</h2>
+        <p className="text-gray-500">Welcome back to your clinic management system</p>
+      </header>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
+        <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 md:gap-4">
+          <div className="flex-1">
+            <p className="text-xs md:text-sm font-medium text-gray-400">Total Patients</p>
+            <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mt-1">{stats.totalPatients}</h3>
+          </div>
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
+            <Users className="w-5 h-5 md:w-6 md:h-6" />
+          </div>
+        </div>
+
+        <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 md:gap-4">
+          <div className="flex-1">
+            <p className="text-xs md:text-sm font-medium text-gray-400">Active Cycles</p>
+            <h3 className="text-2xl md:text-3xl font-bold text-teal-600 mt-1">{stats.activeCycles}</h3>
+          </div>
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 flex-shrink-0">
+            <Activity className="w-5 h-5 md:w-6 md:h-6" />
+          </div>
+        </div>
+
+        <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 md:gap-4 sm:col-span-2 md:col-span-1">
+          <div className="flex-1">
+            <p className="text-xs md:text-sm font-medium text-gray-400">Today's Visits</p>
+            <h3 className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">{stats.todayVisits}</h3>
+          </div>
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 flex-shrink-0">
+            <CalendarCheck className="w-5 h-5 md:w-6 md:h-6" />
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-8">
+        
+        {/* Patient Growth Area Chart */}
+        <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <h3 className="text-sm md:text-lg font-bold text-gray-800 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-teal-600" />
+              Patient Growth
+            </h3>
+          </div>
+          <div className="h-48 md:h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={growthData}>
+                <defs>
+                  <linearGradient id="colorPatients" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#00838f" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#00838f" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Area type="monotone" dataKey="patients" stroke="#00838f" fillOpacity={1} fill="url(#colorPatients)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Visit Types Donut Chart */}
+        <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-sm md:text-lg font-bold text-gray-800 mb-4 md:mb-6">Visit Distribution</h3>
+          <div className="h-48 md:h-64 flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={visitTypes}
+                  innerRadius={40}
+                  outerRadius={60}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {visitTypes.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex justify-center gap-2 md:gap-4 mt-4 flex-wrap">
+            {visitTypes.map((entry, index) => (
+              <div key={index} className="flex items-center gap-2 text-xs md:text-sm text-gray-600">
+                <div className="w-2 h-2 md:w-3 md:h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                <span className="hidden sm:inline">{entry.name}</span>
+                <span className="sm:hidden">{entry.name.split(' ')[0]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
 </file>
 
 <file path="services/authService.ts">
@@ -8586,90 +8587,6 @@ const Gynecology: React.FC = () => {
 export default Gynecology;
 </file>
 
-<file path="components/BottomNav.tsx">
-import React from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, Shield } from 'lucide-react';
-import { Page } from '../types';
-
-interface Props {
-  activePage: Page;
-  setPage: (p: Page) => void;
-}
-
-const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
-  return (
-    <nav className="fixed bottom-0 w-full md:hidden bg-white border-t shadow-lg z-50">
-      <div className="max-w-3xl mx-auto flex overflow-x-auto">
-        <button
-          onClick={() => setPage(Page.HOME)}
-          className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.HOME ? 'text-teal-600' : 'text-gray-500'}`}
-          aria-label="Home"
-        >
-          <LayoutDashboard className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">Home</span>
-        </button>
-
-        <button
-          onClick={() => setPage(Page.GYNECOLOGY)}
-          className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.GYNECOLOGY ? 'text-teal-600' : 'text-gray-500'}`}
-          aria-label="Gynecology"
-        >
-          <Activity className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">نساء</span>
-        </button>
-
-        <button
-          onClick={() => setPage(Page.IVF)}
-          className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.IVF ? 'text-teal-600' : 'text-gray-500'}`}
-          aria-label="IVF"
-        >
-          <Baby className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">IVF</span>
-        </button>
-
-        <button
-          onClick={() => setPage(Page.RECEPTION)}
-          className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.RECEPTION ? 'text-teal-600' : 'text-gray-500'}`}
-          aria-label="Patients"
-        >
-          <Users className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">Patients</span>
-        </button>
-
-        <button
-          onClick={() => setPage(Page.OBSTETRICS)}
-          className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.OBSTETRICS ? 'text-teal-600' : 'text-gray-500'}`}
-          aria-label="Obstetrics"
-        >
-          <Heart className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">OB/GYN</span>
-        </button>
-
-        <button
-          onClick={() => setPage(Page.SETTINGS)}
-          className={`py-2 px-1 flex flex-col items-center justify-center text-xs min-w-fit ${activePage === Page.SETTINGS ? 'text-teal-600' : 'text-gray-500'}`}
-          aria-label="Settings"
-        >
-          <Settings className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">Settings</span>
-        </button>
-
-        <button
-          onClick={() => setPage(Page.ADMIN)}
-          className={`py-2 px-1 flex flex-col items-center justify-center text-xs min-w-fit ${activePage === Page.ADMIN ? 'text-teal-600' : 'text-gray-500'}`}
-          aria-label="Admin"
-        >
-          <Shield className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">Admin</span>
-        </button>
-      </div>
-    </nav>
-  );
-};
-
-export default BottomNav;
-</file>
-
 <file path="index.html">
 <!DOCTYPE html>
 <html lang="en" dir="rtl">
@@ -8990,6 +8907,128 @@ export const db = {
 };
 </file>
 
+<file path="components/BottomNav.tsx">
+import React from 'react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, MoreVertical } from 'lucide-react';
+import { Page } from '../types';
+
+interface Props {
+  activePage: Page;
+  setPage: (p: Page) => void;
+}
+
+const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
+  const [showMore, setShowMore] = React.useState(false);
+
+  const mainItems = [
+    { id: Page.HOME, label: 'الرئيسية', icon: LayoutDashboard },
+    { id: Page.RECEPTION, label: 'المرضى', icon: Users },
+    { id: Page.GYNECOLOGY, label: 'النساء', icon: Activity },
+    { id: Page.IVF, label: 'الخصوبة', icon: Baby },
+    { id: Page.OBSTETRICS, label: 'الحمل', icon: Heart },
+  ];
+
+  const moreItems = [
+    { id: Page.PATIENT_RECORD, label: 'السجلات', icon: 'record' },
+    { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings },
+    { id: Page.ADMIN, label: 'الإدارة', icon: 'admin' },
+  ];
+
+  const NavButton: React.FC<{ item: any, isActive: boolean }> = ({ item, isActive }) => {
+    const Icon = typeof item.icon === 'string' ? null : item.icon;
+    return (
+      <button
+        onClick={() => {
+          setPage(item.id);
+          setShowMore(false);
+        }}
+        className={`flex flex-col items-center justify-center flex-1 h-16 min-h-16 transition-colors duration-200 ${
+          isActive
+            ? 'text-teal-600 bg-teal-50 border-t-4 border-teal-600'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`}
+        aria-label={item.label}
+        aria-current={isActive ? 'page' : undefined}
+      >
+        {Icon && <Icon className="w-6 h-6 mb-1" />}
+        <span className="text-xs font-medium">{item.label}</span>
+      </button>
+    );
+  };
+
+  return (
+    <>
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-gray-200 shadow-xl z-50">
+        <div className="flex h-16">
+          {mainItems.map((item) => (
+            <NavButton
+              key={item.id}
+              item={item}
+              isActive={activePage === item.id}
+            />
+          ))}
+          {/* More Menu Button */}
+          <div className="relative flex-1 min-h-16">
+            <button
+              onClick={() => setShowMore(!showMore)}
+              className={`w-full h-full flex flex-col items-center justify-center transition-colors duration-200 ${
+                showMore
+                  ? 'text-teal-600 bg-teal-50 border-t-4 border-teal-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+              aria-label="More options"
+              aria-expanded={showMore}
+            >
+              <MoreVertical className="w-6 h-6 mb-1" />
+              <span className="text-xs font-medium">المزيد</span>
+            </button>
+
+            {/* More Menu Dropdown */}
+            {showMore && (
+              <div className="absolute bottom-full right-0 left-0 bg-white border border-gray-200 shadow-xl rounded-t-2xl z-50">
+                <div className="divide-y divide-gray-100">
+                  {moreItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setPage(item.id);
+                        setShowMore(false);
+                      }}
+                      className={`w-full px-4 py-3 flex items-center gap-3 transition-colors duration-200 ${
+                        activePage === item.id
+                          ? 'bg-teal-50 text-teal-600 font-semibold'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {typeof item.icon === 'string' && item.icon === 'record' && <Activity className="w-5 h-5" />}
+                      {typeof item.icon === 'string' && item.icon === 'admin' && <Settings className="w-5 h-5" />}
+                      {typeof item.icon !== 'string' && <item.icon className="w-5 h-5" />}
+                      <span className="text-sm font-medium">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* Overlay to close menu when clicking outside */}
+      {showMore && (
+        <div
+          className="fixed inset-0 md:hidden z-40"
+          onClick={() => setShowMore(false)}
+          aria-hidden="true"
+        />
+      )}
+    </>
+  );
+};
+
+export default BottomNav;
+</file>
+
 <file path="App.tsx">
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
@@ -9091,7 +9130,7 @@ const App: React.FC = () => {
     <BrandingProvider>
       <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row-reverse font-[Tajawal]">
         <div className="hidden md:flex">
-          <Sidebar activePage={activePage} setPage={setActivePage} />
+          <Sidebar activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
         </div>
 
         <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">
@@ -9132,9 +9171,10 @@ import { useBranding } from '../context/BrandingContext';
 interface SidebarProps {
   activePage: Page;
   setPage: (page: Page) => void;
+  onLogout: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout }) => {
   const { branding } = useBranding();
 
   const menuItems = [
@@ -9189,7 +9229,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
       </nav>
 
       <div className="p-4 border-t border-gray-100">
-        <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors">
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
+        >
           <LogOut className="w-4 h-4" />
           <span>Sign Out</span>
         </button>
@@ -9332,10 +9375,10 @@ const ClinicalStation: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Patient Selector */}
-      <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
-        <label className="block text-sm font-bold text-gray-700 mb-2">Select Patient</label>
+      <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
+        <label className="block text-xs md:text-sm font-bold text-gray-700 mb-2">Select Patient</label>
         <select 
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none bg-white"
+          className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none bg-white text-sm"
           value={selectedPatientId}
           onChange={(e) => setSelectedPatientId(e.target.value)}
         >
@@ -9348,13 +9391,13 @@ const ClinicalStation: React.FC = () => {
 
       {selectedPatient && (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 md:gap-6 no-print">
             
-            {/* LEFT COLUMN: Vitals + Male (3 cols) */}
-            <div className="lg:col-span-3 space-y-6">
+            {/* LEFT COLUMN: Vitals + Male (3 cols on desktop, 1 col on md) */}
+            <div className="md:col-span-1 lg:col-span-3 space-y-6">
               {/* BMI Calculator */}
-              <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <div className="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+                <h3 className="text-sm md:text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
                   <Activity className="w-4 h-4 text-teal-600" /> Vitals & BMI
                 </h3>
                 <div className="space-y-3">
@@ -9378,8 +9421,8 @@ const ClinicalStation: React.FC = () => {
               </div>
 
               {/* Male Diagnosis */}
-              <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <div className="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+                <h3 className="text-sm md:text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
                    <Microscope className="w-4 h-4 text-blue-600" /> Male Factor
                 </h3>
                 <div className="space-y-3 text-sm">
@@ -9406,8 +9449,8 @@ const ClinicalStation: React.FC = () => {
               </div>
             </div>
 
-            {/* MIDDLE COLUMN: Female Workup (6 cols) */}
-            <div className="lg:col-span-5 flex flex-col gap-6">
+            {/* MIDDLE COLUMN: Female Workup (6 cols on desktop, 1 col on md) */}
+            <div className="md:col-span-1 lg:col-span-5 flex flex-col gap-6">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col">
                 <div className="border-b border-gray-100">
                   <nav className="flex -mb-px">
@@ -9617,9 +9660,9 @@ const ClinicalStation: React.FC = () => {
               </div>
             </div>
 
-            {/* RIGHT COLUMN: Smart Rx (3 cols) */}
-            <div className="lg:col-span-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
-              <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
+            {/* RIGHT COLUMN: Smart Rx (4 cols on desktop, 2 cols on md, 1 col on mobile) */}
+            <div className="md:col-span-1 lg:col-span-4 bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+              <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-teal-600" /> Smart Prescription
               </h3>
               
@@ -9799,6 +9842,7 @@ export interface TubalUterineAssessment {
 }
 
 export interface CoupleProfileAssessment {
+  age?: number;
   infertilityDuration?: number;
   infertilityType?: 'Primary' | 'Secondary';
   previousAttempts?: number;
@@ -10014,7 +10058,7 @@ import React, { useState, useEffect } from 'react';
 import { db, calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate } from '../services/ivfService';
 import { Patient, PrescriptionItem, CycleAssessment, OpuLabData, TransferData, OutcomeData } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer } from 'lucide-react';
+import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer, Microscope, Activity, Stethoscope } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
@@ -10309,8 +10353,27 @@ const IvfJourney: React.FC = () => {
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6" style={{ fontFamily: 'Tajawal, sans-serif' }}>
       {/* Header */}
+      <div className="bg-gradient-to-r from-teal-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg" dir="ltr">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold mb-2">🔬 رحلة التلقيح الاصطناعي - IVF Journey</h1>
+            <p className="text-teal-100">
+              Patient: <span className="font-semibold">{selectedPatient?.name || 'Not selected'}</span>
+              {cycleData && (
+                <>
+                  {' • '}Protocol: <span className="font-semibold">{cycleData.protocol}</span>
+                  {' • '}Status: <span className="font-semibold">{cycleData.status}</span>
+                </>
+              )}
+            </p>
+          </div>
+          <Baby className="w-16 h-16 text-teal-200" />
+        </div>
+      </div>
+
+      {/* Patient Selection & Cycle Start */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100" dir="ltr">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div>
@@ -10356,39 +10419,115 @@ const IvfJourney: React.FC = () => {
 
       {cycleData ? (
         <>
-          {/* Tabs Navigation */}
+          {/* Top Tab Navigation */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="flex flex-wrap border-b border-gray-100 bg-gray-50">
+            <div className="flex border-b border-gray-100 bg-gray-50 overflow-x-auto">
               {[
-                { id: 'assessment', label: '📋 التقييم الذكي', icon: '📋' },
-                { id: 'stimulation', label: '💉 التحفيز والمراقبة', icon: '💉' },
-                { id: 'lab', label: '🔬 المعمل والأجنة', icon: '🔬' },
-                { id: 'transfer', label: '👶 النقل والنتيجة', icon: '👶' }
+                { id: 'assessment', label: '📊 التقييم الشامل', arLabel: 'Assessment', icon: Microscope },
+                { id: 'stimulation', label: '💉 المتابعة والتنشيط', arLabel: 'Stimulation', icon: Activity },
+                { id: 'lab', label: '🔬 السحب والمعمل', arLabel: 'Lab', icon: TestTube },
+                { id: 'transfer', label: '👶 النقل والنتيجة', arLabel: 'Transfer', icon: Heart }
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex-1 px-4 py-3 font-bold text-sm transition-colors ${
+                  className={`px-4 md:px-6 py-4 font-bold text-sm md:text-base whitespace-nowrap transition-all duration-200 flex-1 md:flex-none flex items-center justify-center gap-2 ${
                     activeTab === tab.id
                       ? 'border-b-4 border-teal-600 text-teal-700 bg-teal-50'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  {tab.label}
+                  <tab.icon className="w-5 h-5" />
+                  <span className="hidden md:inline">{tab.label}</span>
+                  <span className="md:hidden">{tab.arLabel}</span>
                 </button>
               ))}
             </div>
 
             <div className="p-6">
-              {/* Tab 1: Smart Assessment */}
+              {/* Tab 1: Assessment */}
               {activeTab === 'assessment' && (
                 <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-gray-800">📋 التقييم الذكي - Smart Assessment</h3>
+                  <div className="flex items-center gap-3 mb-6">
+                    <Microscope className="w-8 h-8 text-teal-600" />
+                    <h3 className="text-2xl font-bold text-gray-800">📊 التقييم الشامل - Comprehensive Assessment</h3>
+                  </div>
+
+                  {/* Couple Profile */}
+                  <div className="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                    <h4 className="text-lg font-semibold text-slate-800 mb-4">👫 ملف الزوجين - Couple Profile</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Age</label>
+                        <input
+                          type="number"
+                          value={cycleData.assessment.coupleProfile?.age || ''}
+                          onChange={(e) => setCycleData({
+                            ...cycleData,
+                            assessment: {
+                              ...cycleData.assessment,
+                              coupleProfile: { ...cycleData.assessment.coupleProfile, age: parseInt(e.target.value) || 0 }
+                            }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">BMI</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={cycleData.assessment.coupleProfile?.bmi || ''}
+                          onChange={(e) => setCycleData({
+                            ...cycleData,
+                            assessment: {
+                              ...cycleData.assessment,
+                              coupleProfile: { ...cycleData.assessment.coupleProfile, bmi: parseFloat(e.target.value) || 0 }
+                            }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Infertility Duration (years)</label>
+                        <input
+                          type="number"
+                          value={cycleData.assessment.coupleProfile?.infertilityDuration || ''}
+                          onChange={(e) => setCycleData({
+                            ...cycleData,
+                            assessment: {
+                              ...cycleData.assessment,
+                              coupleProfile: { ...cycleData.assessment.coupleProfile, infertilityDuration: parseInt(e.target.value) || 0 }
+                            }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Type</label>
+                        <select
+                          value={cycleData.assessment.coupleProfile?.infertilityType || ''}
+                          onChange={(e) => setCycleData({
+                            ...cycleData,
+                            assessment: {
+                              ...cycleData.assessment,
+                              coupleProfile: { ...cycleData.assessment.coupleProfile, infertilityType: e.target.value as 'Primary' | 'Secondary' }
+                            }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                        >
+                          <option value="">Select</option>
+                          <option value="Primary">Primary</option>
+                          <option value="Secondary">Secondary</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Male Factor */}
-                  <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
-                    <h4 className="text-lg font-semibold text-blue-800 mb-4">العامل الذكري - Male Factor (WHO 2021)</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 p-3 md:p-6 rounded-lg border border-blue-200">
+                    <h4 className="text-lg font-semibold text-blue-800 mb-4 text-sm md:text-base">العامل الذكري - Male Factor (WHO 2021)</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Volume (mL)</label>
                         <input
@@ -10468,9 +10607,9 @@ const IvfJourney: React.FC = () => {
                   </div>
 
                   {/* Female Factor */}
-                  <div className="bg-pink-50 p-6 rounded-lg border border-pink-200">
-                    <h4 className="text-lg font-semibold text-pink-800 mb-4">العامل الأنثوي - Female Factor (Ovarian Reserve)</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-pink-50 p-3 md:p-6 rounded-lg border border-pink-200">
+                    <h4 className="text-lg font-semibold text-pink-800 mb-4 text-sm md:text-base">العامل الأنثوي - Female Factor (Ovarian Reserve)</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">AMH (ng/mL)</label>
                         <input
@@ -10534,15 +10673,15 @@ const IvfJourney: React.FC = () => {
                   </div>
 
                   {/* Advanced Imaging Section */}
-                  <div className="bg-indigo-50 p-6 rounded-lg border border-indigo-200">
-                    <h4 className="text-lg font-semibold text-indigo-800 mb-4 flex items-center gap-2">
+                  <div className="bg-indigo-50 p-3 md:p-6 rounded-lg border border-indigo-200">
+                    <h4 className="text-lg font-semibold text-indigo-800 mb-4 flex items-center gap-2 text-sm md:text-base">
                       📺 التصوير المتقدم - Advanced Imaging
                     </h4>
 
                     {/* Baseline Ultrasound */}
                     <div className="mb-6">
-                      <h5 className="text-md font-semibold text-indigo-700 mb-3">Baseline Ultrasound (TVS)</h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <h5 className="text-md font-semibold text-indigo-700 mb-3 text-sm md:text-base">Baseline Ultrasound (TVS)</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
                         {/* Uterus */}
                         <div className="space-y-3">
                           <h6 className="font-medium text-gray-700">Uterus</h6>
@@ -10914,12 +11053,12 @@ const IvfJourney: React.FC = () => {
                   </div>
 
                   {/* Smart Protocol Recommender */}
-                  <div className="bg-green-50 p-6 rounded-lg border border-green-200">
-                    <h4 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
+                  <div className="bg-green-50 p-3 md:p-6 rounded-lg border border-green-200">
+                    <h4 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2 text-sm md:text-base">
                       🤖 محرك التوصية الذكي - Smart Protocol Recommender
                     </h4>
 
-                    <div className="flex gap-4 mb-4">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4">
                       <button
                         onClick={() => {
                           const age = selectedPatient?.age || 0;
@@ -10943,17 +11082,17 @@ const IvfJourney: React.FC = () => {
 
                           toast.success('Protocol recommendation generated!');
                         }}
-                        className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center gap-2"
+                        className="bg-green-600 text-white px-4 md:px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
                       >
                         <Pill className="w-5 h-5" />
-                        اقتراح البروتوكول - Suggest Protocol
+                        <span>Suggest Protocol</span>
                       </button>
                     </div>
 
                     {cycleData.assessment.plan && (
-                      <div className="bg-white p-4 rounded-lg border border-green-200">
-                        <h5 className="font-semibold text-green-800 mb-3">📋 Recommended Protocol</h5>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="bg-white p-3 md:p-4 rounded-lg border border-green-200">
+                        <h5 className="font-semibold text-green-800 mb-3 text-sm md:text-base">📋 Recommended Protocol</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mb-4 text-sm md:text-base">
                           <div>
                             <span className="font-medium text-gray-700">Protocol:</span>
                             <span className="ml-2 font-bold text-green-700">{cycleData.assessment.plan.recommendedProtocol}</span>
@@ -11015,21 +11154,22 @@ const IvfJourney: React.FC = () => {
               {/* Tab 2: Stimulation & Monitoring */}
               {activeTab === 'stimulation' && (
                 <div className="space-y-6">
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
                     <h3 className="text-xl font-bold text-gray-800">💉 التحفيز والمراقبة - Stimulation & Monitoring</h3>
-                    <div className="text-sm text-gray-600">
-                      Protocol: {cycleData.protocol} | Start: {cycleData.stimulation.logs[0]?.date || 'Not started'}
+                    <div className="text-xs md:text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                      <div>Protocol: {cycleData.protocol}</div>
+                      <div>Start: {cycleData.stimulation.logs[0]?.date || 'Not started'}</div>
                     </div>
                   </div>
 
                   {/* Charts */}
                   {chartData.length > 0 && (
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <div className="bg-gray-50 p-3 md:p-4 rounded-lg border border-gray-200">
+                      <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-sm md:text-base">
                         <TrendingUp className="w-5 h-5 text-teal-600" />
                         E2 Levels & Follicle Growth
                       </h4>
-                      <div className="h-64">
+                      <div className="h-48 md:h-64">
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
@@ -11047,26 +11187,26 @@ const IvfJourney: React.FC = () => {
                   )}
 
                   {/* Stimulation Table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm border border-gray-200 rounded-lg">
-                      <thead className="bg-gray-100">
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                    <table className="w-full text-xs md:text-sm bg-white">
+                      <thead className="bg-gray-100 sticky top-0">
                         <tr>
-                          <th className="px-4 py-3">CD</th>
-                          <th className="px-4 py-3">Date</th>
-                          <th className="px-4 py-3">FSH</th>
-                          <th className="px-4 py-3">HMG</th>
-                          <th className="px-4 py-3">E2</th>
-                          <th className="px-4 py-3">LH</th>
-                          <th className="px-4 py-3">Rt Follicles</th>
-                          <th className="px-4 py-3">Lt Follicles</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">CD</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">Date</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">FSH</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">HMG</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">E2</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">LH</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">Rt F</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">Lt F</th>
                         </tr>
                       </thead>
                       <tbody>
                         {cycleData.stimulation.logs.map((log, index) => (
-                          <tr key={index} className="border-t border-gray-200">
-                            <td className="px-4 py-3 font-bold">D{log.cd}</td>
-                            <td className="px-4 py-3">{log.date}</td>
-                            <td className="px-4 py-3">
+                          <tr key={index} className="border-t border-gray-200 hover:bg-gray-50">
+                            <td className="px-2 md:px-4 py-2 md:py-3 font-bold text-xs md:text-sm">D{log.cd}</td>
+                            <td className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm whitespace-nowrap">{log.date}</td>
+                            <td className="px-2 md:px-4 py-2 md:py-3">
                               <input
                                 type="number"
                                 value={log.fsh || ''}
@@ -11078,10 +11218,10 @@ const IvfJourney: React.FC = () => {
                                     stimulation: { ...cycleData.stimulation, logs: newLogs }
                                   });
                                 }}
-                                className="w-16 px-2 py-1 border rounded text-center"
+                                className="w-12 md:w-16 px-1 md:px-2 py-1 border rounded text-center text-xs"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 md:px-4 py-2 md:py-3">
                               <input
                                 type="number"
                                 value={log.hmg || ''}
@@ -11093,10 +11233,10 @@ const IvfJourney: React.FC = () => {
                                     stimulation: { ...cycleData.stimulation, logs: newLogs }
                                   });
                                 }}
-                                className="w-16 px-2 py-1 border rounded text-center"
+                                className="w-12 md:w-16 px-1 md:px-2 py-1 border rounded text-center text-xs"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 md:px-4 py-2 md:py-3">
                               <input
                                 type="number"
                                 value={log.e2 || ''}
@@ -11108,10 +11248,10 @@ const IvfJourney: React.FC = () => {
                                     stimulation: { ...cycleData.stimulation, logs: newLogs }
                                   });
                                 }}
-                                className="w-16 px-2 py-1 border rounded text-center"
+                                className="w-12 md:w-16 px-1 md:px-2 py-1 border rounded text-center text-xs"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 md:px-4 py-2 md:py-3">
                               <input
                                 type="number"
                                 value={log.lh || ''}
@@ -11123,10 +11263,10 @@ const IvfJourney: React.FC = () => {
                                     stimulation: { ...cycleData.stimulation, logs: newLogs }
                                   });
                                 }}
-                                className="w-16 px-2 py-1 border rounded text-center"
+                                className="w-12 md:w-16 px-1 md:px-2 py-1 border rounded text-center text-xs"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 md:px-4 py-2 md:py-3">
                               <input
                                 value={log.folliclesRt}
                                 onChange={(e) => {
@@ -11137,11 +11277,11 @@ const IvfJourney: React.FC = () => {
                                     stimulation: { ...cycleData.stimulation, logs: newLogs }
                                   });
                                 }}
-                                className="w-24 px-2 py-1 border rounded text-center"
-                                placeholder="18,20,22"
+                                className="w-14 md:w-24 px-1 md:px-2 py-1 border rounded text-center text-xs"
+                                placeholder="18,20"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 md:px-4 py-2 md:py-3">
                               <input
                                 value={log.folliclesLt}
                                 onChange={(e) => {
@@ -11152,8 +11292,8 @@ const IvfJourney: React.FC = () => {
                                     stimulation: { ...cycleData.stimulation, logs: newLogs }
                                   });
                                 }}
-                                className="w-24 px-2 py-1 border rounded text-center"
-                                placeholder="18,20,22"
+                                className="w-14 md:w-24 px-1 md:px-2 py-1 border rounded text-center text-xs"
+                                placeholder="18,20"
                               />
                             </td>
                           </tr>
