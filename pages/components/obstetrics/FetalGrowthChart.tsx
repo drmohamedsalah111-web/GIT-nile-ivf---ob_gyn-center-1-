@@ -57,37 +57,56 @@ const FetalGrowthChart: React.FC<FetalGrowthChartProps> = ({ pregnancyId, lmpDat
       const ac = parseFloat(formData.ac_mm);
       const fl = parseFloat(formData.fl_mm);
 
+      let ga = { weeks: 20, days: 0 };
+      if (lmpDate && formData.scan_date) {
+        try {
+          const lmpTimestamp = new Date(lmpDate).getTime();
+          const scanTimestamp = new Date(formData.scan_date).getTime();
+          if (!isNaN(lmpTimestamp) && !isNaN(scanTimestamp)) {
+            const diffTime = Math.abs(scanTimestamp - lmpTimestamp);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            ga = { weeks: Math.max(0, Math.floor(diffDays / 7)), days: Math.max(0, diffDays % 7) };
+          }
+        } catch (err) {
+          console.warn('Error calculating GA:', err);
+          ga = { weeks: 20, days: 0 };
+        }
+      }
+
+      if (isNaN(bpd) || isNaN(hc) || isNaN(ac) || isNaN(fl) || bpd <= 0 || hc <= 0 || ac <= 0 || fl <= 0) {
+        toast.error('جميع القياسات يجب أن تكون أرقام موجبة');
+        setIsSaving(false);
+        return;
+      }
+
       const efw = calculateEFW(bpd, hc, ac, fl);
-      const ga = lmpDate ? calculateGestationalAge(formData.scan_date) : { weeks: 20, days: 0 };
       const percentile = calculatePercentile(efw, ga.weeks);
 
+      if (!efw || efw === 0) {
+        toast.error('فشل حساب وزن الجنين المقدر. تحقق من القياسات');
+        setIsSaving(false);
+        return;
+      }
+
+      const scanData = {
+        scan_date: formData.scan_date,
+        bpd_mm: Math.max(0, bpd),
+        hc_mm: Math.max(0, hc),
+        ac_mm: Math.max(0, ac),
+        fl_mm: Math.max(0, fl),
+        efw_grams: Math.max(0, efw),
+        percentile: Math.max(0, Math.round(percentile)),
+        pregnancy_id: pregnancyId,
+        gestational_age_weeks: Math.max(0, ga.weeks),
+        gestational_age_days: Math.max(0, ga.days),
+        notes: formData.notes?.trim() || '',
+      };
+
       if (editingId) {
-        await obstetricsService.updateBiometryScan(editingId, {
-          ...formData,
-          bpd_mm: bpd,
-          hc_mm: hc,
-          ac_mm: ac,
-          fl_mm: fl,
-          efw_grams: efw,
-          percentile: Math.round(percentile),
-          pregnancy_id: pregnancyId,
-          gestational_age_weeks: ga.weeks,
-          gestational_age_days: ga.days,
-        });
+        await obstetricsService.updateBiometryScan(editingId, scanData);
         toast.success('تم تحديث المسح بنجاح');
       } else {
-        await obstetricsService.createBiometryScan({
-          ...formData,
-          bpd_mm: bpd,
-          hc_mm: hc,
-          ac_mm: ac,
-          fl_mm: fl,
-          efw_grams: efw,
-          percentile: Math.round(percentile),
-          pregnancy_id: pregnancyId,
-          gestational_age_weeks: ga.weeks,
-          gestational_age_days: ga.days,
-        });
+        await obstetricsService.createBiometryScan(scanData);
         toast.success('تم إضافة المسح بنجاح');
       }
 
@@ -140,17 +159,27 @@ const FetalGrowthChart: React.FC<FetalGrowthChartProps> = ({ pregnancyId, lmpDat
     setShowForm(false);
   };
 
-  const chartData = scans
-    .slice()
-    .reverse()
-    .map((scan, idx) => ({
-      name: `${scan.gestational_age_weeks}w`,
-      efw: scan.efw_grams || 0,
-      p10: getP10(scan.gestational_age_weeks),
-      p50: getP50(scan.gestational_age_weeks),
-      p90: getP90(scan.gestational_age_weeks),
-      percentile: scan.percentile || 50,
-    }));
+  const chartData = scans && Array.isArray(scans)
+    ? scans
+        .slice()
+        .reverse()
+        .map((scan, idx) => {
+          try {
+            const gaWeeks = Number(scan?.gestational_age_weeks) || 20;
+            return {
+              name: `${gaWeeks}w`,
+              efw: Number(scan?.efw_grams) || 0,
+              p10: getP10(gaWeeks),
+              p50: getP50(gaWeeks),
+              p90: getP90(gaWeeks),
+              percentile: Number(scan?.percentile) || 50,
+            };
+          } catch (err) {
+            console.warn('Error mapping scan data:', err);
+            return { name: '20w', efw: 0, p10: 0, p50: 0, p90: 0, percentile: 50 };
+          }
+        })
+    : [];
 
   const getP10 = (weeks: number): number => {
     const weights: { [key: number]: number } = {
@@ -365,50 +394,60 @@ const FetalGrowthChart: React.FC<FetalGrowthChartProps> = ({ pregnancyId, lmpDat
                 </tr>
               </thead>
               <tbody>
-                {scans.map((scan) => (
-                  <tr key={scan.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-2">
-                      {new Date(scan.scan_date).toLocaleDateString('ar-EG')}
-                    </td>
-                    <td className="px-4 py-2">
-                      {scan.gestational_age_weeks}w+{scan.gestational_age_days}d
-                    </td>
-                    <td className="px-4 py-2">{scan.bpd_mm} ملم</td>
-                    <td className="px-4 py-2">{scan.hc_mm} ملم</td>
-                    <td className="px-4 py-2">{scan.ac_mm} ملم</td>
-                    <td className="px-4 py-2">{scan.fl_mm} ملم</td>
-                    <td className="px-4 py-2 font-bold text-teal-700">
-                      {scan.efw_grams?.toLocaleString()} g
-                    </td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          scan.percentile && scan.percentile < 10
-                            ? 'bg-red-100 text-red-800'
-                            : scan.percentile && scan.percentile > 90
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}
-                      >
-                        {scan.percentile || 50}th
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 flex gap-2">
-                      <button
-                        onClick={() => handleEditScan(scan)}
-                        className="text-blue-600 hover:text-blue-800 font-semibold"
-                      >
-                        تحرير
-                      </button>
-                      <button
-                        onClick={() => handleDeleteScan(scan.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {Array.isArray(scans) && scans.map((scan) => {
+                  try {
+                    if (!scan || !scan.id) return null;
+                    const scanDate = scan?.scan_date ? new Date(scan.scan_date).toLocaleDateString('ar-EG') : '-';
+                    const gaWeeks = Number(scan?.gestational_age_weeks) || 0;
+                    const gaDays = Number(scan?.gestational_age_days) || 0;
+                    const efwGrams = Number(scan?.efw_grams) || 0;
+                    const percentile = Number(scan?.percentile) || 50;
+
+                    return (
+                      <tr key={scan.id} className="border-b hover:bg-gray-50">
+                        <td className="px-4 py-2">{scanDate}</td>
+                        <td className="px-4 py-2">{gaWeeks}w+{gaDays}d</td>
+                        <td className="px-4 py-2">{scan?.bpd_mm || '-'} ملم</td>
+                        <td className="px-4 py-2">{scan?.hc_mm || '-'} ملم</td>
+                        <td className="px-4 py-2">{scan?.ac_mm || '-'} ملم</td>
+                        <td className="px-4 py-2">{scan?.fl_mm || '-'} ملم</td>
+                        <td className="px-4 py-2 font-bold text-teal-700">
+                          {efwGrams > 0 ? efwGrams.toLocaleString() : '-'} g
+                        </td>
+                        <td className="px-4 py-2">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              percentile < 10
+                                ? 'bg-red-100 text-red-800'
+                                : percentile > 90
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-green-100 text-green-800'
+                            }`}
+                          >
+                            {percentile}th
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 flex gap-2">
+                          <button
+                            onClick={() => handleEditScan(scan)}
+                            className="text-blue-600 hover:text-blue-800 font-semibold"
+                          >
+                            تحرير
+                          </button>
+                          <button
+                            onClick={() => handleDeleteScan(scan.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  } catch (err) {
+                    console.warn('Error rendering scan row:', err);
+                    return null;
+                  }
+                })}
               </tbody>
             </table>
           </div>

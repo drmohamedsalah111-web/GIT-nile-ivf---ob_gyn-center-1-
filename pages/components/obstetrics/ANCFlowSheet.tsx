@@ -58,24 +58,44 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
 
       setIsSaving(true);
 
-      const ga = lmpDate ? calculateGestationalAge(formData.visit_date) : { weeks: 0, days: 0 };
+      let ga = { weeks: 0, days: 0 };
+      if (lmpDate && formData.visit_date) {
+        try {
+          const lmpTimestamp = new Date(lmpDate).getTime();
+          const visitTimestamp = new Date(formData.visit_date).getTime();
+          if (!isNaN(lmpTimestamp) && !isNaN(visitTimestamp)) {
+            const diffTime = Math.abs(visitTimestamp - lmpTimestamp);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            ga = { weeks: Math.max(0, Math.floor(diffDays / 7)), days: Math.max(0, diffDays % 7) };
+          }
+        } catch (err) {
+          console.warn('Error calculating GA:', err);
+          ga = { weeks: 0, days: 0 };
+        }
+      }
+
+      const systolicBP = formData.systolic_bp ? parseInt(formData.systolic_bp) : null;
+      const diastolicBP = formData.diastolic_bp ? parseInt(formData.diastolic_bp) : null;
+      const weightKg = formData.weight_kg ? parseFloat(formData.weight_kg) : null;
+      const fundalHeight = formData.fundal_height_cm ? parseFloat(formData.fundal_height_cm) : null;
+      const nextVisitDate = formData.next_visit_date?.trim() || null;
 
       const visitData = {
         visit_date: formData.visit_date,
         pregnancy_id: pregnancyId,
-        gestational_age_weeks: ga.weeks,
-        gestational_age_days: ga.days,
-        systolic_bp: formData.systolic_bp ? parseInt(formData.systolic_bp) : undefined,
-        diastolic_bp: formData.diastolic_bp ? parseInt(formData.diastolic_bp) : undefined,
-        weight_kg: formData.weight_kg ? parseFloat(formData.weight_kg) : undefined,
-        urine_albuminuria: formData.urine_albuminuria,
-        urine_glycosuria: formData.urine_glycosuria,
-        fetal_heart_sound: formData.fetal_heart_sound,
-        fundal_height_cm: formData.fundal_height_cm ? parseFloat(formData.fundal_height_cm) : undefined,
-        edema: formData.edema,
-        edema_grade: formData.edema_grade,
-        notes: formData.notes,
-        next_visit_date: formData.next_visit_date || undefined,
+        gestational_age_weeks: Math.max(0, ga.weeks),
+        gestational_age_days: Math.max(0, ga.days),
+        systolic_bp: !isNaN(Number(systolicBP)) && systolicBP !== null ? systolicBP : null,
+        diastolic_bp: !isNaN(Number(diastolicBP)) && diastolicBP !== null ? diastolicBP : null,
+        weight_kg: !isNaN(Number(weightKg)) && weightKg !== null ? weightKg : null,
+        urine_albuminuria: formData.urine_albuminuria || 'negative',
+        urine_glycosuria: formData.urine_glycosuria || 'negative',
+        fetal_heart_sound: Boolean(formData.fetal_heart_sound),
+        fundal_height_cm: !isNaN(Number(fundalHeight)) && fundalHeight !== null ? fundalHeight : null,
+        edema: Boolean(formData.edema),
+        edema_grade: formData.edema_grade || 'none',
+        notes: formData.notes?.trim() || '',
+        next_visit_date: nextVisitDate,
       };
 
       if (editingId) {
@@ -147,16 +167,26 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
     setShowForm(false);
   };
 
-  const chartData = visits
-    .slice()
-    .reverse()
-    .map(visit => ({
-      date: new Date(visit.visit_date).toLocaleDateString('ar-EG'),
-      weight: visit.weight_kg || 0,
-      systolic: visit.systolic_bp || 0,
-      diastolic: visit.diastolic_bp || 0,
-    }))
-    .filter(d => d.weight > 0 || d.systolic > 0);
+  const chartData = visits && Array.isArray(visits)
+    ? visits
+        .slice()
+        .reverse()
+        .map(visit => {
+          try {
+            const visitDate = visit?.visit_date ? new Date(visit.visit_date).toLocaleDateString('ar-EG') : 'Unknown Date';
+            return {
+              date: visitDate,
+              weight: Number(visit?.weight_kg) || 0,
+              systolic: Number(visit?.systolic_bp) || 0,
+              diastolic: Number(visit?.diastolic_bp) || 0,
+            };
+          } catch (err) {
+            console.warn('Error mapping visit data:', err);
+            return { date: 'Error', weight: 0, systolic: 0, diastolic: 0 };
+          }
+        })
+        .filter(d => d.weight > 0 || d.systolic > 0)
+    : [];
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6" dir="ltr">
@@ -373,38 +403,46 @@ const ANCFlowSheet: React.FC<ANCFlowSheetProps> = ({ pregnancyId, lmpDate }) => 
               </tr>
             </thead>
             <tbody>
-              {visits.map((visit) => (
-                <tr key={visit.id} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-2">
-                    {new Date(visit.visit_date).toLocaleDateString('ar-EG')}
-                  </td>
-                  <td className="px-4 py-2">
-                    {visit.gestational_age_weeks}w+{visit.gestational_age_days}d
-                  </td>
-                  <td className="px-4 py-2">{visit.weight_kg || '-'}</td>
-                  <td className="px-4 py-2">
-                    {visit.systolic_bp && visit.diastolic_bp
-                      ? `${visit.systolic_bp}/${visit.diastolic_bp}`
-                      : '-'}
-                  </td>
-                  <td className="px-4 py-2">{visit.urine_albuminuria || '-'}</td>
-                  <td className="px-4 py-2">{visit.fundal_height_cm || '-'}</td>
-                  <td className="px-4 py-2 flex gap-2">
-                    <button
-                      onClick={() => handleEditVisit(visit)}
-                      className="text-blue-600 hover:text-blue-800 font-semibold"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteVisit(visit.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {Array.isArray(visits) && visits.map((visit) => {
+                try {
+                  if (!visit || !visit.id) return null;
+                  return (
+                    <tr key={visit.id} className="border-b hover:bg-gray-50">
+                      <td className="px-4 py-2">
+                        {visit?.visit_date ? new Date(visit.visit_date).toLocaleDateString('ar-EG') : '-'}
+                      </td>
+                      <td className="px-4 py-2">
+                        {Number(visit?.gestational_age_weeks) || 0}w+{Number(visit?.gestational_age_days) || 0}d
+                      </td>
+                      <td className="px-4 py-2">{visit?.weight_kg || '-'}</td>
+                      <td className="px-4 py-2">
+                        {visit?.systolic_bp && visit?.diastolic_bp
+                          ? `${visit.systolic_bp}/${visit.diastolic_bp}`
+                          : '-'}
+                      </td>
+                      <td className="px-4 py-2">{visit?.urine_albuminuria || '-'}</td>
+                      <td className="px-4 py-2">{visit?.fundal_height_cm || '-'}</td>
+                      <td className="px-4 py-2 flex gap-2">
+                        <button
+                          onClick={() => handleEditVisit(visit)}
+                          className="text-blue-600 hover:text-blue-800 font-semibold"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteVisit(visit.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                } catch (err) {
+                  console.warn('Error rendering visit row:', err);
+                  return null;
+                }
+              })}
             </tbody>
           </table>
         </div>
