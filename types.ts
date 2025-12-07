@@ -62,6 +62,7 @@ export interface CoupleProfileAssessment {
   infertilityDuration?: number;
   infertilityType?: 'Primary' | 'Secondary';
   previousAttempts?: number;
+  height?: number;
   weight?: number;
   bmi?: number;
   bmiAlert?: boolean;
