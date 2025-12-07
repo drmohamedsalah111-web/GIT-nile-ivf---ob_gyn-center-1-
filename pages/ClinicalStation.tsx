@@ -131,10 +131,10 @@ const ClinicalStation: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Patient Selector */}
-      <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
-        <label className="block text-sm font-bold text-gray-700 mb-2">Select Patient</label>
+      <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
+        <label className="block text-xs md:text-sm font-bold text-gray-700 mb-2">Select Patient</label>
         <select 
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none bg-white"
+          className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none bg-white text-sm"
           value={selectedPatientId}
           onChange={(e) => setSelectedPatientId(e.target.value)}
         >
@@ -147,13 +147,13 @@ const ClinicalStation: React.FC = () => {
 
       {selectedPatient && (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 md:gap-6 no-print">
             
-            {/* LEFT COLUMN: Vitals + Male (3 cols) */}
-            <div className="lg:col-span-3 space-y-6">
+            {/* LEFT COLUMN: Vitals + Male (3 cols on desktop, 1 col on md) */}
+            <div className="md:col-span-1 lg:col-span-3 space-y-6">
               {/* BMI Calculator */}
-              <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <div className="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+                <h3 className="text-sm md:text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
                   <Activity className="w-4 h-4 text-teal-600" /> Vitals & BMI
                 </h3>
                 <div className="space-y-3">
@@ -177,8 +177,8 @@ const ClinicalStation: React.FC = () => {
               </div>
 
               {/* Male Diagnosis */}
-              <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <div className="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+                <h3 className="text-sm md:text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
                    <Microscope className="w-4 h-4 text-blue-600" /> Male Factor
                 </h3>
                 <div className="space-y-3 text-sm">
@@ -205,8 +205,8 @@ const ClinicalStation: React.FC = () => {
               </div>
             </div>
 
-            {/* MIDDLE COLUMN: Female Workup (6 cols) */}
-            <div className="lg:col-span-5 flex flex-col gap-6">
+            {/* MIDDLE COLUMN: Female Workup (6 cols on desktop, 1 col on md) */}
+            <div className="md:col-span-1 lg:col-span-5 flex flex-col gap-6">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col">
                 <div className="border-b border-gray-100">
                   <nav className="flex -mb-px">
@@ -416,9 +416,9 @@ const ClinicalStation: React.FC = () => {
               </div>
             </div>
 
-            {/* RIGHT COLUMN: Smart Rx (3 cols) */}
-            <div className="lg:col-span-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
-              <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
+            {/* RIGHT COLUMN: Smart Rx (4 cols on desktop, 2 cols on md, 1 col on mobile) */}
+            <div className="md:col-span-1 lg:col-span-4 bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+              <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-teal-600" /> Smart Prescription
               </h3>
               

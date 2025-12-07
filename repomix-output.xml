@@ -9808,11 +9808,29 @@ export interface CoupleProfileAssessment {
   bmiAlert?: boolean;
 }
 
+export interface ImagingAssessment {
+  baselineUltrasound: {
+    uterus: { dimensions: string, myometrium: string, cavity: string };
+    endometrium: { thickness: number, pattern: string };
+    ovaries: {
+      afcRight: number;
+      afcLeft: number;
+      pathology: { cyst: boolean, endometrioma: boolean, dermoid: boolean };
+    };
+    adnexa: { hydrosalpinx: boolean };
+  };
+  hysteroscopyHSG: {
+    status: string[];
+    actionTaken: string;
+  };
+}
+
 export interface CycleAssessment {
   coupleProfile?: CoupleProfileAssessment;
   maleFactor?: MaleFactorAssessment;
   femaleFactor?: FemaleFactorAssessment;
   tubalUterine?: TubalUterineAssessment;
+  imaging?: ImagingAssessment;
 }
 
 export interface StimulationLog {
@@ -10008,22 +10026,6 @@ interface CycleData {
   protocol: string;
   status: 'Assessment' | 'Active' | 'PickUp' | 'Transfer' | 'Frozen' | 'Done';
   assessment: CycleAssessment & {
-    imaging?: {
-      baselineUltrasound: {
-        uterus: { dimensions: string, myometrium: string, cavity: string };
-        endometrium: { thickness: number, pattern: string };
-        ovaries: {
-          afcRight: number;
-          afcLeft: number;
-          pathology: { cyst: boolean, endometrioma: boolean, dermoid: boolean };
-        };
-        adnexa: { hydrosalpinx: boolean };
-      };
-      hysteroscopyHSG: {
-        status: string[];
-        actionTaken: string;
-      };
-    };
     plan?: {
       recommendedProtocol: string;
       startingDose: string;
@@ -10110,6 +10112,23 @@ const safeParseInt = (value: string, defaultValue: number = 0): number => {
   return isNaN(parsed) ? defaultValue : parsed;
 };
 
+const defaultImaging = {
+  baselineUltrasound: {
+    uterus: { dimensions: '', myometrium: '', cavity: '' },
+    endometrium: { thickness: 0, pattern: '' },
+    ovaries: {
+      afcRight: 0,
+      afcLeft: 0,
+      pathology: { cyst: false, endometrioma: false, dermoid: false }
+    },
+    adnexa: { hydrosalpinx: false }
+  },
+  hysteroscopyHSG: {
+    status: [],
+    actionTaken: ''
+  }
+};
+
 const IvfJourney: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
@@ -10145,11 +10164,14 @@ const IvfJourney: React.FC = () => {
               id: activeCycle.id,
               protocol: activeCycle.protocol,
               status: activeCycle.status as any,
-              assessment: activeCycle.assessment || {
-                coupleProfile: {},
-                maleFactor: {},
-                femaleFactor: {},
-                tubalUterine: {}
+              assessment: {
+                ...(activeCycle.assessment || {
+                  coupleProfile: {},
+                  maleFactor: {},
+                  femaleFactor: {},
+                  tubalUterine: {}
+                }),
+                imaging: activeCycle.assessment?.imaging || defaultImaging
               },
               stimulation: {
                 logs: activeCycle.logs.map(log => ({
@@ -10205,7 +10227,8 @@ const IvfJourney: React.FC = () => {
           coupleProfile: {},
           maleFactor: {},
           femaleFactor: {},
-          tubalUterine: {}
+          tubalUterine: {},
+          imaging: defaultImaging
         },
         stimulation: {
           logs: [],

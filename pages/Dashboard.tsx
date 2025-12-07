@@ -73,50 +73,50 @@ const Dashboard: React.FC = () => {
       </header>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-400">Total Patients</p>
-            <h3 className="text-3xl font-bold text-gray-800 mt-1">{stats.totalPatients}</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
+        <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 md:gap-4">
+          <div className="flex-1">
+            <p className="text-xs md:text-sm font-medium text-gray-400">Total Patients</p>
+            <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mt-1">{stats.totalPatients}</h3>
           </div>
-          <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-            <Users className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-400">Active Cycles</p>
-            <h3 className="text-3xl font-bold text-teal-600 mt-1">{stats.activeCycles}</h3>
-          </div>
-          <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
-            <Activity className="w-6 h-6" />
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
+            <Users className="w-5 h-5 md:w-6 md:h-6" />
           </div>
         </div>
 
-        <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-400">Today's Visits</p>
-            <h3 className="text-3xl font-bold text-purple-600 mt-1">{stats.todayVisits}</h3>
+        <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 md:gap-4">
+          <div className="flex-1">
+            <p className="text-xs md:text-sm font-medium text-gray-400">Active Cycles</p>
+            <h3 className="text-2xl md:text-3xl font-bold text-teal-600 mt-1">{stats.activeCycles}</h3>
           </div>
-          <div className="w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-            <CalendarCheck className="w-6 h-6" />
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 flex-shrink-0">
+            <Activity className="w-5 h-5 md:w-6 md:h-6" />
+          </div>
+        </div>
+
+        <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 md:gap-4 sm:col-span-2 md:col-span-1">
+          <div className="flex-1">
+            <p className="text-xs md:text-sm font-medium text-gray-400">Today's Visits</p>
+            <h3 className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">{stats.todayVisits}</h3>
+          </div>
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 flex-shrink-0">
+            <CalendarCheck className="w-5 h-5 md:w-6 md:h-6" />
           </div>
         </div>
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-8">
         
         {/* Patient Growth Area Chart */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-teal-600" />
+        <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <h3 className="text-sm md:text-lg font-bold text-gray-800 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-teal-600" />
               Patient Growth
             </h3>
           </div>
-          <div className="h-64">
+          <div className="h-48 md:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={growthData}>
                 <defs>
@@ -126,8 +126,8 @@ const Dashboard: React.FC = () => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
                 <Tooltip 
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 />
@@ -138,15 +138,15 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Visit Types Donut Chart */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-800 mb-6">Visit Distribution</h3>
-          <div className="h-64 flex items-center justify-center">
+        <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-sm md:text-lg font-bold text-gray-800 mb-4 md:mb-6">Visit Distribution</h3>
+          <div className="h-48 md:h-64 flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={visitTypes}
-                  innerRadius={60}
-                  outerRadius={80}
+                  innerRadius={40}
+                  outerRadius={60}
                   paddingAngle={5}
                   dataKey="value"
                 >
@@ -158,11 +158,12 @@ const Dashboard: React.FC = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center gap-4 mt-4 flex-wrap">
+          <div className="flex justify-center gap-2 md:gap-4 mt-4 flex-wrap">
             {visitTypes.map((entry, index) => (
-              <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
-                {entry.name}
+              <div key={index} className="flex items-center gap-2 text-xs md:text-sm text-gray-600">
+                <div className="w-2 h-2 md:w-3 md:h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                <span className="hidden sm:inline">{entry.name}</span>
+                <span className="sm:hidden">{entry.name.split(' ')[0]}</span>
               </div>
             ))}
           </div>

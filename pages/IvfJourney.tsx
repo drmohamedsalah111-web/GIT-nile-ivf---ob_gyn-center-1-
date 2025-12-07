@@ -346,7 +346,7 @@ const IvfJourney: React.FC = () => {
         <>
           {/* Tabs Navigation */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="flex flex-wrap border-b border-gray-100 bg-gray-50">
+            <div className="flex border-b border-gray-100 bg-gray-50 overflow-x-auto">
               {[
                 { id: 'assessment', label: '📋 التقييم الذكي', icon: '📋' },
                 { id: 'stimulation', label: '💉 التحفيز والمراقبة', icon: '💉' },
@@ -356,27 +356,28 @@ const IvfJourney: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex-1 px-4 py-3 font-bold text-sm transition-colors ${
+                  className={`px-2 md:px-4 py-3 font-bold text-sm md:text-base whitespace-nowrap transition-colors flex-1 md:flex-none ${
                     activeTab === tab.id
                       ? 'border-b-4 border-teal-600 text-teal-700 bg-teal-50'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  {tab.label}
+                  <span className="md:hidden">{tab.icon}</span>
+                  <span className="hidden md:inline">{tab.label}</span>
                 </button>
               ))}
             </div>
 
-            <div className="p-6">
+            <div className="p-3 md:p-6">
               {/* Tab 1: Smart Assessment */}
               {activeTab === 'assessment' && (
                 <div className="space-y-6">
                   <h3 className="text-xl font-bold text-gray-800">📋 التقييم الذكي - Smart Assessment</h3>
 
                   {/* Male Factor */}
-                  <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
-                    <h4 className="text-lg font-semibold text-blue-800 mb-4">العامل الذكري - Male Factor (WHO 2021)</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 p-3 md:p-6 rounded-lg border border-blue-200">
+                    <h4 className="text-lg font-semibold text-blue-800 mb-4 text-sm md:text-base">العامل الذكري - Male Factor (WHO 2021)</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Volume (mL)</label>
                         <input
@@ -456,9 +457,9 @@ const IvfJourney: React.FC = () => {
                   </div>
 
                   {/* Female Factor */}
-                  <div className="bg-pink-50 p-6 rounded-lg border border-pink-200">
-                    <h4 className="text-lg font-semibold text-pink-800 mb-4">العامل الأنثوي - Female Factor (Ovarian Reserve)</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-pink-50 p-3 md:p-6 rounded-lg border border-pink-200">
+                    <h4 className="text-lg font-semibold text-pink-800 mb-4 text-sm md:text-base">العامل الأنثوي - Female Factor (Ovarian Reserve)</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">AMH (ng/mL)</label>
                         <input
@@ -522,15 +523,15 @@ const IvfJourney: React.FC = () => {
                   </div>
 
                   {/* Advanced Imaging Section */}
-                  <div className="bg-indigo-50 p-6 rounded-lg border border-indigo-200">
-                    <h4 className="text-lg font-semibold text-indigo-800 mb-4 flex items-center gap-2">
+                  <div className="bg-indigo-50 p-3 md:p-6 rounded-lg border border-indigo-200">
+                    <h4 className="text-lg font-semibold text-indigo-800 mb-4 flex items-center gap-2 text-sm md:text-base">
                       📺 التصوير المتقدم - Advanced Imaging
                     </h4>
 
                     {/* Baseline Ultrasound */}
                     <div className="mb-6">
-                      <h5 className="text-md font-semibold text-indigo-700 mb-3">Baseline Ultrasound (TVS)</h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <h5 className="text-md font-semibold text-indigo-700 mb-3 text-sm md:text-base">Baseline Ultrasound (TVS)</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
                         {/* Uterus */}
                         <div className="space-y-3">
                           <h6 className="font-medium text-gray-700">Uterus</h6>
@@ -902,12 +903,12 @@ const IvfJourney: React.FC = () => {
                   </div>
 
                   {/* Smart Protocol Recommender */}
-                  <div className="bg-green-50 p-6 rounded-lg border border-green-200">
-                    <h4 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
+                  <div className="bg-green-50 p-3 md:p-6 rounded-lg border border-green-200">
+                    <h4 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2 text-sm md:text-base">
                       🤖 محرك التوصية الذكي - Smart Protocol Recommender
                     </h4>
 
-                    <div className="flex gap-4 mb-4">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4">
                       <button
                         onClick={() => {
                           const age = selectedPatient?.age || 0;
@@ -931,17 +932,17 @@ const IvfJourney: React.FC = () => {
 
                           toast.success('Protocol recommendation generated!');
                         }}
-                        className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center gap-2"
+                        className="bg-green-600 text-white px-4 md:px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
                       >
                         <Pill className="w-5 h-5" />
-                        اقتراح البروتوكول - Suggest Protocol
+                        <span>Suggest Protocol</span>
                       </button>
                     </div>
 
                     {cycleData.assessment.plan && (
-                      <div className="bg-white p-4 rounded-lg border border-green-200">
-                        <h5 className="font-semibold text-green-800 mb-3">📋 Recommended Protocol</h5>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="bg-white p-3 md:p-4 rounded-lg border border-green-200">
+                        <h5 className="font-semibold text-green-800 mb-3 text-sm md:text-base">📋 Recommended Protocol</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mb-4 text-sm md:text-base">
                           <div>
                             <span className="font-medium text-gray-700">Protocol:</span>
                             <span className="ml-2 font-bold text-green-700">{cycleData.assessment.plan.recommendedProtocol}</span>
@@ -1003,21 +1004,22 @@ const IvfJourney: React.FC = () => {
               {/* Tab 2: Stimulation & Monitoring */}
               {activeTab === 'stimulation' && (
                 <div className="space-y-6">
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
                     <h3 className="text-xl font-bold text-gray-800">💉 التحفيز والمراقبة - Stimulation & Monitoring</h3>
-                    <div className="text-sm text-gray-600">
-                      Protocol: {cycleData.protocol} | Start: {cycleData.stimulation.logs[0]?.date || 'Not started'}
+                    <div className="text-xs md:text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                      <div>Protocol: {cycleData.protocol}</div>
+                      <div>Start: {cycleData.stimulation.logs[0]?.date || 'Not started'}</div>
                     </div>
                   </div>
 
                   {/* Charts */}
                   {chartData.length > 0 && (
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <div className="bg-gray-50 p-3 md:p-4 rounded-lg border border-gray-200">
+                      <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-sm md:text-base">
                         <TrendingUp className="w-5 h-5 text-teal-600" />
                         E2 Levels & Follicle Growth
                       </h4>
-                      <div className="h-64">
+                      <div className="h-48 md:h-64">
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
@@ -1035,26 +1037,26 @@ const IvfJourney: React.FC = () => {
                   )}
 
                   {/* Stimulation Table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm border border-gray-200 rounded-lg">
-                      <thead className="bg-gray-100">
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                    <table className="w-full text-xs md:text-sm bg-white">
+                      <thead className="bg-gray-100 sticky top-0">
                         <tr>
-                          <th className="px-4 py-3">CD</th>
-                          <th className="px-4 py-3">Date</th>
-                          <th className="px-4 py-3">FSH</th>
-                          <th className="px-4 py-3">HMG</th>
-                          <th className="px-4 py-3">E2</th>
-                          <th className="px-4 py-3">LH</th>
-                          <th className="px-4 py-3">Rt Follicles</th>
-                          <th className="px-4 py-3">Lt Follicles</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">CD</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">Date</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">FSH</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">HMG</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">E2</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">LH</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">Rt F</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">Lt F</th>
                         </tr>
                       </thead>
                       <tbody>
                         {cycleData.stimulation.logs.map((log, index) => (
-                          <tr key={index} className="border-t border-gray-200">
-                            <td className="px-4 py-3 font-bold">D{log.cd}</td>
-                            <td className="px-4 py-3">{log.date}</td>
-                            <td className="px-4 py-3">
+                          <tr key={index} className="border-t border-gray-200 hover:bg-gray-50">
+                            <td className="px-2 md:px-4 py-2 md:py-3 font-bold text-xs md:text-sm">D{log.cd}</td>
+                            <td className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm whitespace-nowrap">{log.date}</td>
+                            <td className="px-2 md:px-4 py-2 md:py-3">
                               <input
                                 type="number"
                                 value={log.fsh || ''}
@@ -1066,10 +1068,10 @@ const IvfJourney: React.FC = () => {
                                     stimulation: { ...cycleData.stimulation, logs: newLogs }
                                   });
                                 }}
-                                className="w-16 px-2 py-1 border rounded text-center"
+                                className="w-12 md:w-16 px-1 md:px-2 py-1 border rounded text-center text-xs"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 md:px-4 py-2 md:py-3">
                               <input
                                 type="number"
                                 value={log.hmg || ''}
@@ -1081,10 +1083,10 @@ const IvfJourney: React.FC = () => {
                                     stimulation: { ...cycleData.stimulation, logs: newLogs }
                                   });
                                 }}
-                                className="w-16 px-2 py-1 border rounded text-center"
+                                className="w-12 md:w-16 px-1 md:px-2 py-1 border rounded text-center text-xs"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 md:px-4 py-2 md:py-3">
                               <input
                                 type="number"
                                 value={log.e2 || ''}
@@ -1096,10 +1098,10 @@ const IvfJourney: React.FC = () => {
                                     stimulation: { ...cycleData.stimulation, logs: newLogs }
                                   });
                                 }}
-                                className="w-16 px-2 py-1 border rounded text-center"
+                                className="w-12 md:w-16 px-1 md:px-2 py-1 border rounded text-center text-xs"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 md:px-4 py-2 md:py-3">
                               <input
                                 type="number"
                                 value={log.lh || ''}
@@ -1111,10 +1113,10 @@ const IvfJourney: React.FC = () => {
                                     stimulation: { ...cycleData.stimulation, logs: newLogs }
                                   });
                                 }}
-                                className="w-16 px-2 py-1 border rounded text-center"
+                                className="w-12 md:w-16 px-1 md:px-2 py-1 border rounded text-center text-xs"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 md:px-4 py-2 md:py-3">
                               <input
                                 value={log.folliclesRt}
                                 onChange={(e) => {
@@ -1125,11 +1127,11 @@ const IvfJourney: React.FC = () => {
                                     stimulation: { ...cycleData.stimulation, logs: newLogs }
                                   });
                                 }}
-                                className="w-24 px-2 py-1 border rounded text-center"
-                                placeholder="18,20,22"
+                                className="w-14 md:w-24 px-1 md:px-2 py-1 border rounded text-center text-xs"
+                                placeholder="18,20"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 md:px-4 py-2 md:py-3">
                               <input
                                 value={log.folliclesLt}
                                 onChange={(e) => {
@@ -1140,8 +1142,8 @@ const IvfJourney: React.FC = () => {
                                     stimulation: { ...cycleData.stimulation, logs: newLogs }
                                   });
                                 }}
-                                className="w-24 px-2 py-1 border rounded text-center"
-                                placeholder="18,20,22"
+                                className="w-14 md:w-24 px-1 md:px-2 py-1 border rounded text-center text-xs"
+                                placeholder="18,20"
                               />
                             </td>
                           </tr>
