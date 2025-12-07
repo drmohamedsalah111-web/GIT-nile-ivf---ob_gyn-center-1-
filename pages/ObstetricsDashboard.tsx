@@ -101,34 +101,48 @@ const ObstetricsDashboard: React.FC = () => {
         return;
       }
 
-      if (!formData.lmp_date && !formData.edd_by_scan) {
+      const lmpDate = formData.lmp_date?.trim() || null;
+      const eddByScan = formData.edd_by_scan?.trim() || null;
+
+      if (!lmpDate && !eddByScan) {
         toast.error('أدخل تاريخ آخر دورة أو تاريخ الولادة المتوقع');
         return;
       }
 
       setIsSaving(true);
 
-      // Ensure dates are valid before proceeding
-      if (!formData.lmp_date && !formData.edd_by_scan) {
-        toast.error('Please provide either LMP date or EDD by scan');
-        return;
-      }
+      let eddDate: string | null = null;
 
-      const eddDate = formData.edd_by_scan || calculateEDD(formData.lmp_date);
+      if (eddByScan) {
+        if (isNaN(new Date(eddByScan).getTime())) {
+          toast.error('Invalid EDD date provided');
+          setIsSaving(false);
+          return;
+        }
+        eddDate = eddByScan;
+      } else if (lmpDate) {
+        eddDate = calculateEDD(lmpDate);
+        if (!eddDate) {
+          toast.error('Unable to calculate EDD from LMP date');
+          setIsSaving(false);
+          return;
+        }
+      }
 
       if (!eddDate) {
         toast.error('Invalid date provided. Please check LMP or EDD by scan.');
+        setIsSaving(false);
         return;
       }
 
       const pregnancyData = {
         doctor_id: doctorId,
         patient_id: selectedPatientId,
-        lmp_date: formData.lmp_date || null, // Use null instead of undefined for database
+        lmp_date: lmpDate,
         edd_date: eddDate,
-        edd_by_scan: formData.edd_by_scan || null, // Use null instead of undefined for database
+        edd_by_scan: eddByScan,
         risk_level: 'low' as const,
-        risk_factors: [],
+        risk_factors: [] as string[],
         aspirin_prescribed: false,
         thromboprophylaxis_needed: false,
       };
@@ -136,6 +150,10 @@ const ObstetricsDashboard: React.FC = () => {
       console.log('Creating pregnancy with data:', pregnancyData);
 
       const newPregnancy = await obstetricsService.createPregnancy(pregnancyData);
+
+      if (!newPregnancy || !newPregnancy.id) {
+        throw new Error('Failed to create pregnancy: Invalid response from server');
+      }
 
       setPregnancy(newPregnancy);
       setShowNewPregnancyForm(false);
@@ -157,14 +175,34 @@ const ObstetricsDashboard: React.FC = () => {
   };
 
   const handleUpdatePregnancy = async (updates: Partial<Pregnancy>) => {
-    if (!pregnancy) return;
+    if (!pregnancy || !pregnancy.id) {
+      console.error('Cannot update pregnancy: pregnancy data is invalid');
+      toast.error('فشل تحديث ملف الحمل: البيانات غير صحيحة');
+      return;
+    }
 
     try {
-      await obstetricsService.updatePregnancy(pregnancy.id, updates);
+      if (!updates || Object.keys(updates).length === 0) {
+        console.warn('No updates provided');
+        return;
+      }
+
+      const sanitizedUpdates = {
+        ...updates,
+        risk_factors: Array.isArray(updates.risk_factors) ? updates.risk_factors : [],
+      };
+
+      await obstetricsService.updatePregnancy(pregnancy.id, sanitizedUpdates);
       const updated = await obstetricsService.getPregnancyByPatient(pregnancy.patient_id);
-      setPregnancy(updated || null);
+      
+      if (!updated || !updated.id) {
+        throw new Error('Failed to fetch updated pregnancy data');
+      }
+      
+      setPregnancy(updated);
     } catch (error) {
       console.error('Error updating pregnancy:', error);
+      toast.error('فشل تحديث ملف الحمل');
       throw error;
     }
   };
@@ -177,36 +215,47 @@ const ObstetricsDashboard: React.FC = () => {
 
     setIsSaving(true);
     try {
+      if (!selectedPatientId || typeof selectedPatientId !== 'string') {
+        throw new Error('Invalid patient ID');
+      }
+
       const gestationalAge = calculateGestationalAge(pregnancy.lmp_date);
+      
+      if (!gestationalAge || typeof gestationalAge.weeks !== 'number' || typeof gestationalAge.days !== 'number') {
+        throw new Error('Invalid gestational age calculation');
+      }
+
       const clinicalData = {
         pregnancyId: pregnancy.id,
         gestationalAge: gestationalAge,
         riskAssessment: {
           level: pregnancy.risk_level || 'low',
-          factors: pregnancy.risk_factors || [],
-          aspirin: pregnancy.aspirin_prescribed || false,
-          thromboprophylaxis: pregnancy.thromboprophylaxis_needed || false,
+          factors: Array.isArray(pregnancy.risk_factors) ? pregnancy.risk_factors : [],
+          aspirin: Boolean(pregnancy.aspirin_prescribed),
+          thromboprophylaxis: Boolean(pregnancy.thromboprophylaxis_needed),
         },
         currentStatus: 'Active Pregnancy Monitoring',
       };
+
+      const notesText = gestationalAge.weeks > 0
+        ? `Gestational age: ${gestationalAge.weeks} weeks ${gestationalAge.days} days`
+        : 'Gestational age: Not available';
 
       await visitsService.saveVisit({
         patientId: selectedPatientId,
         department: 'OBS',
         clinicalData: clinicalData,
         diagnosis: `Pregnancy - ${pregnancy.risk_level || 'low'} risk`,
-        prescription: prescription,
-        notes: gestationalAge.weeks > 0
-          ? `Gestational age: ${gestationalAge.weeks} weeks ${gestationalAge.days} days`
-          : 'Gestational age: Not available',
+        prescription: Array.isArray(prescription) ? prescription : [],
+        notes: notesText,
       });
 
       toast.success('Obstetrics visit saved successfully');
-      setPrescription([]); // Reset prescription after saving
+      setPrescription([]);
 
     } catch (error: any) {
       console.error('Error saving visit:', error);
-      toast.error(`Failed to save visit: ${error.message}`);
+      toast.error(`Failed to save visit: ${error?.message || 'Unknown error'}`);
     } finally {
       setIsSaving(false);
     }
@@ -265,12 +314,12 @@ const ObstetricsDashboard: React.FC = () => {
         <div className="flex items-center justify-center h-96">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
         </div>
-      ) : pregnancy && pregnancy.id ? (
+      ) : pregnancy && pregnancy.id && pregnancy.patient_id ? (
         <>
           <PregnancyHeader pregnancy={pregnancy} />
           <RiskAssessment pregnancy={pregnancy} onUpdate={handleUpdatePregnancy} />
-          <ANCFlowSheet pregnancyId={pregnancy.id} lmpDate={pregnancy.lmp_date} />
-          <FetalGrowthChart pregnancyId={pregnancy.id} lmpDate={pregnancy.lmp_date} />
+          <ANCFlowSheet pregnancyId={pregnancy.id} lmpDate={pregnancy.lmp_date || undefined} />
+          <FetalGrowthChart pregnancyId={pregnancy.id} lmpDate={pregnancy.lmp_date || undefined} />
 
           {/* Prescription Section */}
           <div className="bg-white rounded-lg shadow-md p-6 mt-6">
@@ -366,11 +415,16 @@ const ObstetricsDashboard: React.FC = () => {
 
       <PrescriptionPrinter
         patient={currentPatient || null}
-        prescriptions={prescription}
-        diagnosis={pregnancy ? `Pregnancy - ${pregnancy.risk_level || 'low'} risk` : ''}
-        notes={pregnancy ? (() => {
-          const ga = calculateGestationalAge(pregnancy.lmp_date);
-          return ga.weeks > 0 ? `Gestational age: ${ga.weeks} weeks ${ga.days} days` : 'Gestational age: Not available';
+        prescriptions={Array.isArray(prescription) ? prescription : []}
+        diagnosis={pregnancy && pregnancy.id ? `Pregnancy - ${pregnancy.risk_level || 'low'} risk` : ''}
+        notes={pregnancy && pregnancy.id && pregnancy.lmp_date ? (() => {
+          try {
+            const ga = calculateGestationalAge(pregnancy.lmp_date);
+            return ga && ga.weeks > 0 ? `Gestational age: ${ga.weeks} weeks ${ga.days} days` : 'Gestational age: Not available';
+          } catch (err) {
+            console.warn('Error calculating GA for printer:', err);
+            return 'Gestational age: Not available';
+          }
         })() : ''}
         isOpen={isPrinterOpen}
         onClose={() => setIsPrinterOpen(false)}

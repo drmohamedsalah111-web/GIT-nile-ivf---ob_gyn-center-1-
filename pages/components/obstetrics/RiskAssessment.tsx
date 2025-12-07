@@ -50,12 +50,17 @@ const RiskAssessment: React.FC<RiskAssessmentProps> = ({ pregnancy, onUpdate }) 
   const handleSave = async () => {
     try {
       setIsSaving(true);
+      
       const updatedRiskFactors = Object.keys(riskFactors)
         .filter(key => riskFactors[key as keyof RiskFactors])
-        .map(key => key.replace(/_/g, '_')); // This was wrong - should keep underscores
+        .map(key => key as string);
+
+      if (!Array.isArray(updatedRiskFactors)) {
+        throw new Error('Risk factors must be an array');
+      }
 
       await onUpdate({
-        risk_factors: updatedRiskFactors, // Ensure this is always an array, never null
+        risk_factors: updatedRiskFactors || [],
         risk_level: riskAssessment.level,
         aspirin_prescribed: riskAssessment.aspirinNeeded,
         thromboprophylaxis_needed: riskAssessment.thromboprophylaxisNeeded,

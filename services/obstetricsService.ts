@@ -6,17 +6,27 @@ import { Pregnancy, AntenatalVisit, BiometryScan } from '../types';
 // ============================================================================
 
 export const calculateGestationalAge = (lmpDate: string | null | undefined): { weeks: number; days: number } => {
-  if (!lmpDate || lmpDate.trim() === '' || isNaN(new Date(lmpDate).getTime())) {
+  if (!lmpDate || typeof lmpDate !== 'string' || lmpDate.trim() === '') {
     return { weeks: 0, days: 0 };
   }
 
   try {
+    const timestamp = new Date(lmpDate).getTime();
+    if (isNaN(timestamp)) {
+      return { weeks: 0, days: 0 };
+    }
+
     const today = new Date();
-    const lmp = new Date(lmpDate);
+    const lmp = new Date(timestamp);
     const diffTime = Math.abs(today.getTime() - lmp.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const weeks = Math.floor(diffDays / 7);
-    const days = diffDays % 7;
+    const weeks = Math.max(0, Math.floor(diffDays / 7));
+    const days = Math.max(0, diffDays % 7);
+    
+    if (isNaN(weeks) || isNaN(days)) {
+      return { weeks: 0, days: 0 };
+    }
+    
     return { weeks, days };
   } catch (error) {
     console.warn('Invalid LMP date provided to calculateGestationalAge:', lmpDate);
@@ -25,14 +35,29 @@ export const calculateGestationalAge = (lmpDate: string | null | undefined): { w
 };
 
 export const calculateEDD = (lmpDate: string | null | undefined): string => {
-  if (!lmpDate || lmpDate.trim() === '' || isNaN(new Date(lmpDate).getTime())) {
+  if (!lmpDate || typeof lmpDate !== 'string' || lmpDate.trim() === '') {
     return '';
   }
 
   try {
-    const lmp = new Date(lmpDate);
+    const timestamp = new Date(lmpDate).getTime();
+    if (isNaN(timestamp)) {
+      return '';
+    }
+
+    const lmp = new Date(timestamp);
+    if (!lmp || isNaN(lmp.getTime())) {
+      return '';
+    }
+
     lmp.setDate(lmp.getDate() + 280);
-    return lmp.toISOString().split('T')[0];
+    const eddString = lmp.toISOString().split('T')[0];
+    
+    if (!eddString) {
+      return '';
+    }
+    
+    return eddString;
   } catch (error) {
     console.warn('Invalid LMP date provided to calculateEDD:', lmpDate);
     return '';
@@ -53,30 +78,41 @@ export const calculateGAFromEDD = (eddDate: string): { weeks: number; days: numb
 
 // Hadlock formula for Estimated Fetal Weight (EFW)
 export const calculateEFW = (
-  bpdMm: number,
-  hcMm: number,
-  acMm: number,
-  flMm: number
+  bpdMm: number | null | undefined,
+  hcMm: number | null | undefined,
+  acMm: number | null | undefined,
+  flMm: number | null | undefined
 ): number => {
-  // Validate inputs - ensure all measurements are positive numbers
-  if (!bpdMm || !hcMm || !acMm || !flMm ||
-      bpdMm <= 0 || hcMm <= 0 || acMm <= 0 || flMm <= 0 ||
-      isNaN(bpdMm) || isNaN(hcMm) || isNaN(acMm) || isNaN(flMm)) {
+  const inputs = [bpdMm, hcMm, acMm, flMm];
+  
+  if (inputs.some(input => input === null || input === undefined || isNaN(Number(input)))) {
+    return 0;
+  }
+
+  const bpd = Number(bpdMm);
+  const hc = Number(hcMm);
+  const ac = Number(acMm);
+  const fl = Number(flMm);
+
+  if (bpd <= 0 || hc <= 0 || ac <= 0 || fl <= 0) {
     return 0;
   }
 
   try {
     const log10EFW =
       1.3404 +
-      0.0438 * hcMm +
-      0.158 * acMm +
-      0.0061 * bpdMm -
-      0.002322 * acMm * bpdMm;
+      0.0438 * hc +
+      0.158 * ac +
+      0.0061 * bpd -
+      0.002322 * ac * bpd;
+
+    if (isNaN(log10EFW) || !isFinite(log10EFW)) {
+      return 0;
+    }
 
     const efw = Math.pow(10, log10EFW);
 
-    // Ensure result is reasonable (between 100g and 5000g)
-    if (isNaN(efw) || efw < 100 || efw > 5000) {
+    if (isNaN(efw) || !isFinite(efw) || efw < 100 || efw > 5000) {
       return 0;
     }
 
