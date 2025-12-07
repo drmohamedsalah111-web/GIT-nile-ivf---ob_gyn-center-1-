@@ -7565,6 +7565,16 @@ import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 
 interface GynecologyData {
+  // Vitals
+  vitals: {
+    weight?: number;
+    height?: number;
+    bmi?: number;
+    bpSystolic?: number;
+    bpDiastolic?: number;
+    temperature?: number;
+  };
+
   // Assessment Tab
   complaints: string[];
   pvExamination: {
@@ -7609,6 +7619,14 @@ const Gynecology: React.FC = () => {
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
 
   const [gynecologyData, setGynecologyData] = useState<GynecologyData>({
+    vitals: {
+      weight: undefined,
+      height: undefined,
+      bmi: undefined,
+      bpSystolic: undefined,
+      bpDiastolic: undefined,
+      temperature: undefined,
+    },
     complaints: [],
     pvExamination: {
       vulva: '',
@@ -7683,6 +7701,7 @@ const Gynecology: React.FC = () => {
     setIsLoading(true);
     try {
       const clinicalData = {
+        vitals: gynecologyData.vitals,
         assessment: {
           complaints: gynecologyData.complaints,
           pvExamination: gynecologyData.pvExamination,
@@ -7706,6 +7725,14 @@ const Gynecology: React.FC = () => {
 
       // Reset form
       setGynecologyData({
+        vitals: {
+          weight: undefined,
+          height: undefined,
+          bmi: undefined,
+          bpSystolic: undefined,
+          bpDiastolic: undefined,
+          temperature: undefined,
+        },
         complaints: [],
         pvExamination: {
           vulva: '',
@@ -7751,6 +7778,26 @@ const Gynecology: React.FC = () => {
         ? prev.complaints.filter(c => c !== complaint)
         : [...prev.complaints, complaint]
     }));
+  };
+
+  const handleVitalsChange = (field: keyof GynecologyData['vitals'], value: string) => {
+    const numValue = value ? parseFloat(value) : undefined;
+    
+    setGynecologyData(prev => {
+      const newVitals = { ...prev.vitals, [field]: numValue };
+      
+      if (field === 'weight' || field === 'height') {
+        if (newVitals.weight && newVitals.height && newVitals.height > 0) {
+          const heightInMeters = newVitals.height / 100;
+          newVitals.bmi = parseFloat((newVitals.weight / (heightInMeters * heightInMeters)).toFixed(1));
+        }
+      }
+      
+      return {
+        ...prev,
+        vitals: newVitals,
+      };
+    });
   };
 
   return (
@@ -7828,18 +7875,85 @@ const Gynecology: React.FC = () => {
           <div className="p-6">
             {/* Assessment Tab */}
             {activeTab === 'assessment' && (
-              <div className="space-y-6" dir="ltr">
-                {/* Complaints */}
-                <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Chief Complaints</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid md:grid-cols-2 gap-6" dir="ltr">
+                {/* LEFT COLUMN: Vitals & Complaints */}
+                <div className="space-y-6">
+                  {/* Vitals Section */}
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Vital Signs</h3>
+                    <div className="grid grid-cols-2 gap-3 text-left">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Weight (kg)</label>
+                        <input
+                          type="number"
+                          value={gynecologyData.vitals.weight || ''}
+                          onChange={(e) => handleVitalsChange('weight', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g., 65"
+                          step="0.1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Height (cm)</label>
+                        <input
+                          type="number"
+                          value={gynecologyData.vitals.height || ''}
+                          onChange={(e) => handleVitalsChange('height', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g., 165"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">BMI</label>
+                        <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium">
+                          {gynecologyData.vitals.bmi ? gynecologyData.vitals.bmi.toFixed(1) : '--'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Temp (°C)</label>
+                        <input
+                          type="number"
+                          value={gynecologyData.vitals.temperature || ''}
+                          onChange={(e) => handleVitalsChange('temperature', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g., 37"
+                          step="0.1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">BP Systolic</label>
+                        <input
+                          type="number"
+                          value={gynecologyData.vitals.bpSystolic || ''}
+                          onChange={(e) => handleVitalsChange('bpSystolic', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="mmHg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">BP Diastolic</label>
+                        <input
+                          type="number"
+                          value={gynecologyData.vitals.bpDiastolic || ''}
+                          onChange={(e) => handleVitalsChange('bpDiastolic', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="mmHg"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Complaints */}
+                  <div className="text-left">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Chief Complaints</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-2 gap-2">
                     {[
                       'Menorrhagia', 'Metrorrhagia', 'Dysmenorrhea', 'Amenorrhea', 'Infertility', 'Pelvic Pain', 'Vaginal Discharge'
                     ].map(complaint => (
                       <button
                         key={complaint}
                         onClick={() => toggleComplaint(complaint)}
-                        className={`px-4 py-2 text-sm rounded-lg border transition-colors ${
+                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
                           gynecologyData.complaints.includes(complaint)
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
@@ -7850,9 +7964,12 @@ const Gynecology: React.FC = () => {
                     ))}
                   </div>
                 </div>
+                </div>
 
+                {/* RIGHT COLUMN: Investigations & Scans */}
+                <div className="space-y-6">
                 {/* PV Examination */}
-                <div dir="ltr">
+                <div className="bg-green-50 p-4 rounded-lg" dir="ltr">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Vaginal Examination (PV)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
                     <div>
@@ -8000,6 +8117,7 @@ const Gynecology: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                </div>
               </div>
             )}
 
@@ -8105,7 +8223,7 @@ export default Gynecology;
 
 <file path="components/BottomNav.tsx">
 import React from 'react';
-import { LayoutDashboard, Users, Stethoscope, Baby, Heart, Settings, Activity, Shield } from 'lucide-react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, Shield } from 'lucide-react';
 import { Page } from '../types';
 
 interface Props {
@@ -8124,15 +8242,6 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
         >
           <LayoutDashboard className="w-6 h-6" />
           <span className="mt-1 text-[12px]">Home</span>
-        </button>
-
-        <button
-          onClick={() => setPage(Page.CLINICAL)}
-          className={`py-2 px-1 flex flex-col items-center justify-center text-xs ${activePage === Page.CLINICAL ? 'text-teal-600' : 'text-gray-500'}`}
-          aria-label="Clinic"
-        >
-          <Stethoscope className="w-6 h-6" />
-          <span className="mt-1 text-[12px]">IVF-ICSI</span>
         </button>
 
         <button
@@ -8523,7 +8632,6 @@ import BottomNav from './components/BottomNav';
 import { Page } from './types';
 import Dashboard from './pages/Dashboard';
 import Reception from './pages/Reception';
-import ClinicalStation from './pages/ClinicalStation';
 import Gynecology from './pages/Gynecology';
 import IvfJourney from './pages/IvfJourney';
 import PatientMasterRecord from './pages/PatientMasterRecord';
@@ -8604,7 +8712,6 @@ const App: React.FC = () => {
     switch (activePage) {
       case Page.HOME: return <Dashboard />;
       case Page.RECEPTION: return <Reception />;
-      case Page.CLINICAL: return <ClinicalStation />;
       case Page.GYNECOLOGY: return <Gynecology />;
       case Page.IVF: return <IvfJourney />;
       case Page.OBSTETRICS: return <ObstetricsDashboard />;
@@ -8653,7 +8760,7 @@ export default App;
 
 <file path="components/Sidebar.tsx">
 import React from 'react';
-import { LayoutDashboard, Users, Stethoscope, Baby, Heart, Settings, LogOut, Activity, FileText, Shield } from 'lucide-react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText } from 'lucide-react';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
 
@@ -8666,15 +8773,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
   const { branding } = useBranding();
 
   const menuItems = [
-    { id: Page.HOME, label: 'Dashboard', icon: LayoutDashboard },
-    { id: Page.RECEPTION, label: 'Reception', icon: Users },
-    { id: Page.CLINICAL, label: 'IVF-ICSI', icon: Stethoscope },
-    { id: Page.GYNECOLOGY, label: 'عيادة النساء', icon: Activity },
-    { id: Page.IVF, label: 'IVF Journey', icon: Baby },
-    { id: Page.OBSTETRICS, label: 'Obstetrics', icon: Heart },
-    { id: Page.PATIENT_RECORD, label: 'Patient Records', icon: FileText },
-    { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings },
-    { id: Page.ADMIN, label: 'لوحة التحكم', icon: Shield },
+    { id: Page.HOME, label: 'Dashboard', arLabel: 'الرئيسية', icon: LayoutDashboard },
+    { id: Page.RECEPTION, label: 'Reception', arLabel: 'الاستقبال', icon: Users },
+    { id: Page.GYNECOLOGY, label: 'Gynecology', arLabel: 'عيادة النساء', icon: Activity },
+    { id: Page.OBSTETRICS, label: 'Obstetrics', arLabel: 'متابعة الحمل', icon: Heart },
+    { id: Page.IVF, label: 'IVF Center', arLabel: 'مركز الخصوبة', icon: Baby },
+    { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: FileText },
+    { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
   ];
 
   return (
@@ -8710,7 +8815,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
                   }`}
                 >
                   <Icon className={`w-5 h-5 ${isActive ? 'text-teal-700' : 'text-gray-400'}`} />
-                  <span>{item.label}</span>
+                  <span>{item.arLabel || item.label}</span>
                 </button>
               </li>
             );
