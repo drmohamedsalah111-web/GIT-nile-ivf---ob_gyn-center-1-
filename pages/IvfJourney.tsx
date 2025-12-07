@@ -1,47 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { db, calculateBMI, calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate } from '../services/ivfService';
-import { PROTOCOLS, PROTOCOL_INFO, EGYPTIAN_DRUGS } from '../constants';
-import { IvfCycle, Patient, StimulationLog, CycleAssessment, OpuLabData, TransferData, OutcomeData, PrescriptionItem } from '../types';
+import { db, calculateFertilizationRate } from '../services/ivfService';
+import { IvfCycle, Patient, StimulationLog, OpuLabData, TransferData, OutcomeData } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Baby, TestTube, PlusCircle, FileText, AlertCircle, CheckCircle, TrendingUp, Zap, PipetteIcon, Heart, Info, Pill, Copy } from 'lucide-react';
+import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+// Self-contained data
+const PROTOCOL_OPTIONS = ['Long', 'Antagonist', 'Flare'];
+
+const IVF_DRUGS = {
+  Induction: ['Gonal-F 75 IU', 'Merional 75 IU', 'Fostimon 75 IU'],
+  Trigger: ['Ovitrelle 250mcg', 'Choriomon 5000 IU'],
+  Support: ['Cyclogest 400mg', 'Utrogestan 200mg', 'Crinone 8% Gel']
+};
 
 const IvfJourney: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [activeCycle, setActiveCycle] = useState<IvfCycle | null>(null);
-  const [activeTab, setActiveTab] = useState<'assessment' | 'stimulation' | 'opu' | 'transfer'>('assessment');
-  const [newProtocol, setNewProtocol] = useState('Long');
-
-  const [assessment, setAssessment] = useState<CycleAssessment>({
-    coupleProfile: {},
-    maleFactor: {},
-    femaleFactor: {},
-    tubalUterine: {}
-  });
-
+  const [logs, setLogs] = useState<StimulationLog[]>([]);
   const [labData, setLabData] = useState<OpuLabData>({});
   const [transferData, setTransferData] = useState<TransferData>({ lutealSupport: [] });
   const [outcomeData, setOutcomeData] = useState<OutcomeData>({});
-  const [protocolPrescription, setProtocolPrescription] = useState<PrescriptionItem[]>([]);
+  const [activeTab, setActiveTab] = useState<'stimulation' | 'opu' | 'transfer'>('stimulation');
+  const [newProtocol, setNewProtocol] = useState('Long');
 
   useEffect(() => {
-    db.getPatients().then(setPatients);
+    const loadPatients = async () => {
+      try {
+        const pats = await db.getPatients();
+        setPatients(pats);
+      } catch (error) {
+        toast.error('Failed to load patients');
+      }
+    };
+    loadPatients();
   }, []);
 
   useEffect(() => {
     const loadCycle = async () => {
       if (selectedPatientId) {
-        const cycles = await db.getCycles();
-        const current = cycles.find(c => c.patientId === selectedPatientId && c.status === 'Active');
-        if (current) {
-          setActiveCycle(current);
-          setAssessment(current.assessment || assessment);
-          setLabData(current.lab || {});
-          setTransferData(current.transfer || { lutealSupport: [] });
-          setOutcomeData(current.outcome || {});
-        } else {
-          setActiveCycle(null);
+        try {
+          const cycles = await db.getCycles();
+          const current = cycles.find(c => c.patientId === selectedPatientId && c.status === 'Active');
+          if (current) {
+            setActiveCycle(current);
+            setLogs(current.logs || []);
+            setLabData(current.lab || {});
+            setTransferData(current.transfer || { lutealSupport: [] });
+            setOutcomeData(current.outcome || {});
+          } else {
+            setActiveCycle(null);
+            setLogs([]);
+            setLabData({});
+            setTransferData({ lutealSupport: [] });
+            setOutcomeData({});
+          }
+        } catch (error) {
+          toast.error('Failed to load cycle');
         }
       }
     };
@@ -61,45 +77,23 @@ const IvfJourney: React.FC = () => {
         startDate: new Date().toISOString().split('T')[0],
         status: 'Active'
       });
-
-      setActiveCycle({
-        ...newCycle,
-        id: newCycle.id,
-        logs: [],
-        assessment: {
-          coupleProfile: {},
-          maleFactor: {},
-          femaleFactor: {},
-          tubalUterine: {}
-        }
-      });
-      setAssessment({ coupleProfile: {}, maleFactor: {}, femaleFactor: {}, tubalUterine: {} });
+      setActiveCycle(newCycle);
+      setLogs([]);
       setLabData({});
       setTransferData({ lutealSupport: [] });
       setOutcomeData({});
-      setActiveTab('assessment');
+      setActiveTab('stimulation');
       toast.success('New IVF Cycle Started', { id: toastId });
-    } catch (e) {
+    } catch (error) {
       toast.error('Error starting cycle', { id: toastId });
-    }
-  };
-
-  const saveAssessment = async () => {
-    if (!activeCycle) return;
-    try {
-      await db.updateCycleAssessment(activeCycle.id, assessment);
-      setActiveCycle({ ...activeCycle, assessment });
-      toast.success('Assessment saved');
-    } catch (error: any) {
-      console.error('Save assessment error:', error);
-      toast.error('Failed to save assessment: ' + (error?.message || 'Unknown error'));
     }
   };
 
   const addDayLog = async () => {
     if (!activeCycle) return;
-    const lastDay = activeCycle.logs.length > 0 ? activeCycle.logs[activeCycle.logs.length - 1].cycleDay : 0;
-    const newLog = {
+    const lastDay = logs.length > 0 ? logs[logs.length - 1].cycleDay : 0;
+    const newLog: StimulationLog = {
+      id: '',
       date: new Date().toISOString().split('T')[0],
       cycleDay: lastDay + 1,
       fsh: '',
@@ -110,7 +104,6 @@ const IvfJourney: React.FC = () => {
       ltFollicles: '',
       endometriumThickness: ''
     };
-
     try {
       const insertedLog = await db.addLog(activeCycle.id, newLog);
       const mappedLog: StimulationLog = {
@@ -125,28 +118,21 @@ const IvfJourney: React.FC = () => {
         ltFollicles: insertedLog.lt_follicles || '',
         endometriumThickness: insertedLog.endometrium_thickness || ''
       };
-      setActiveCycle({
-        ...activeCycle,
-        logs: [...activeCycle.logs, mappedLog]
-      });
+      setLogs([...logs, mappedLog]);
       toast.success('Day log added');
-    } catch (e: any) {
-      console.error('addDayLog error:', e);
-      toast.error('Failed to add log: ' + (e?.message || 'Unknown error'));
+    } catch (error) {
+      toast.error('Failed to add log');
     }
   };
 
   const updateLog = async (id: string, field: keyof StimulationLog, value: string) => {
-    if (!activeCycle) return;
-
-    const updatedLogs = activeCycle.logs.map(log =>
+    const updatedLogs = logs.map(log =>
       log.id === id ? { ...log, [field]: value } : log
     );
-    setActiveCycle({ ...activeCycle, logs: updatedLogs });
-
+    setLogs(updatedLogs);
     try {
       await db.updateLog(id, { [field]: value });
-    } catch (e) {
+    } catch (error) {
       console.error('Save failed');
     }
   };
@@ -157,9 +143,8 @@ const IvfJourney: React.FC = () => {
       await db.updateCycleLabData(activeCycle.id, labData);
       setActiveCycle({ ...activeCycle, lab: labData });
       toast.success('Lab data saved');
-    } catch (error: any) {
-      console.error('Save lab data error:', error);
-      toast.error('Failed to save lab data: ' + (error?.message || 'Unknown error'));
+    } catch (error) {
+      toast.error('Failed to save lab data');
     }
   };
 
@@ -169,9 +154,8 @@ const IvfJourney: React.FC = () => {
       await db.updateCycleTransfer(activeCycle.id, transferData);
       setActiveCycle({ ...activeCycle, transfer: transferData });
       toast.success('Transfer data saved');
-    } catch (error: any) {
-      console.error('Save transfer data error:', error);
-      toast.error('Failed to save transfer data: ' + (error?.message || 'Unknown error'));
+    } catch (error) {
+      toast.error('Failed to save transfer data');
     }
   };
 
@@ -181,107 +165,15 @@ const IvfJourney: React.FC = () => {
       await db.updateCycleOutcome(activeCycle.id, outcomeData);
       setActiveCycle({ ...activeCycle, outcome: outcomeData, status: 'Completed' });
       toast.success('Outcome saved and cycle completed');
-    } catch (error: any) {
-      console.error('Save outcome error:', error);
-      toast.error('Failed to save outcome: ' + (error?.message || 'Unknown error'));
+    } catch (error) {
+      toast.error('Failed to save outcome');
     }
   };
 
-  const generateProtocolPrescription = (protocol: string) => {
-    const protocolData = PROTOCOL_INFO[protocol as keyof typeof PROTOCOL_INFO];
-    if (!protocolData) return;
-
-    const drugs: PrescriptionItem[] = [];
-
-    if (protocolData.downRegDrugs && protocolData.downRegDrugs.length > 0) {
-      protocolData.downRegDrugs.forEach(drugName => {
-        if (EGYPTIAN_DRUGS['Down-Regulation (Antagonists/Agonists)']?.[drugName as keyof any]) {
-          drugs.push({
-            category: 'Down-Regulation',
-            drug: drugName,
-            dose: EGYPTIAN_DRUGS['Down-Regulation (Antagonists/Agonists)']?.[drugName as keyof any].dose || ''
-          });
-        }
-      });
-    }
-
-    if (protocolData.stimDrugs && protocolData.stimDrugs.length > 0) {
-      protocolData.stimDrugs.forEach(drugName => {
-        if (EGYPTIAN_DRUGS['Induction (Stimulation)']?.[drugName as keyof any]) {
-          drugs.push({
-            category: 'Induction (Stimulation)',
-            drug: drugName,
-            dose: EGYPTIAN_DRUGS['Induction (Stimulation)']?.[drugName as keyof any].dose || ''
-          });
-        }
-      });
-    }
-
-    if ((protocolData as any).antagonist && (protocolData as any).antagonist.length > 0) {
-      (protocolData as any).antagonist.forEach((drugName: string) => {
-        if (EGYPTIAN_DRUGS['Down-Regulation (Antagonists/Agonists)']?.[drugName as keyof any]) {
-          drugs.push({
-            category: 'GnRH Antagonist',
-            drug: drugName,
-            dose: EGYPTIAN_DRUGS['Down-Regulation (Antagonists/Agonists)']?.[drugName as keyof any].dose || ''
-          });
-        }
-      });
-    }
-
-    if (protocolData.trigger && protocolData.trigger.length > 0) {
-      protocolData.trigger.forEach(drugName => {
-        if (EGYPTIAN_DRUGS['Trigger Shots']?.[drugName as keyof any]) {
-          drugs.push({
-            category: 'Trigger Shots',
-            drug: drugName,
-            dose: EGYPTIAN_DRUGS['Trigger Shots']?.[drugName as keyof any].dose || ''
-          });
-        }
-      });
-    }
-
-    if (protocolData.luteal && protocolData.luteal.length > 0) {
-      protocolData.luteal.forEach(drugName => {
-        if (EGYPTIAN_DRUGS['Luteal Support (Progesterone)']?.[drugName as keyof any]) {
-          drugs.push({
-            category: 'Luteal Support',
-            drug: drugName,
-            dose: EGYPTIAN_DRUGS['Luteal Support (Progesterone)']?.[drugName as keyof any].dose || ''
-          });
-        }
-      });
-    }
-
-    setProtocolPrescription(drugs);
-    toast.success(`Generated ${drugs.length} drugs for ${protocol} Protocol`);
-  };
-
-  const tmsc = calculateTMSC(assessment.maleFactor?.volume || 0, assessment.maleFactor?.concentration || 0, assessment.maleFactor?.motility || 0);
-  const weight = assessment.coupleProfile?.weight || 0;
-  const height = assessment.coupleProfile?.height || 0;
-  const { bmi: bmiValue, alert: bmiAlert } = calculateBMI(weight, height);
-  const ovaryClassification = classifyOvarianReserve(assessment.femaleFactor?.amh, assessment.femaleFactor?.afcRight);
-  const maturationRate = calculateMaturationRate(labData.totalOocytes || 0, labData.mii || 0);
-  const fertilizationRate = calculateFertilizationRate(labData.fertilizedTwoPN || 0, labData.mii || 0);
-
-  const chartData = activeCycle?.logs.map(log => ({
+  const chartData = logs.map(log => ({
     day: `D${log.cycleDay}`,
-    e2: parseFloat(log.e2) || 0,
-    lh: parseFloat(log.lh) || 0,
-    follicles: Math.max(parseInt(log.rtFollicles?.split(',')[0]) || 0, parseInt(log.ltFollicles?.split(',')[0]) || 0)
-  })) || [];
-
-  const suggestedProtocol = ovaryClassification === 'Poor Responder' ? 'Antagonist' : ovaryClassification === 'High Responder' ? 'Antagonist' : newProtocol;
-
-  const LUTEAL_SUPPORT_OPTIONS = [
-    'Progesterone (Crinone)',
-    'Progesterone (Cyclogest)',
-    'hCG (1500 IU)',
-    'Estradiol (Progynova)',
-    'Aspirin 75mg',
-    'Prednisolone 10mg'
-  ];
+    e2: parseFloat(log.e2) || 0
+  }));
 
   return (
     <div className="space-y-6">
@@ -310,7 +202,7 @@ const IvfJourney: React.FC = () => {
                   value={newProtocol}
                   onChange={(e) => setNewProtocol(e.target.value)}
                 >
-                  {PROTOCOLS.map(p => (
+                  {PROTOCOL_OPTIONS.map(p => (
                     <option key={p} value={p}>{p}</option>
                   ))}
                 </select>
@@ -331,10 +223,9 @@ const IvfJourney: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="flex flex-wrap border-b border-gray-100 bg-gray-50">
               {[
-                { id: 'assessment', label: '📊 Assessment', icon: '📊' },
                 { id: 'stimulation', label: '💉 Stimulation', icon: '💉' },
-                { id: 'opu', label: '🥚 OPU & Embryology', icon: '🥚' },
-                { id: 'transfer', label: '👶 Transfer & Outcome', icon: '👶' }
+                { id: 'opu', label: '🥚 OPU & Lab', icon: '🥚' },
+                { id: 'transfer', label: '👶 Transfer', icon: '👶' }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -351,548 +242,8 @@ const IvfJourney: React.FC = () => {
             </div>
 
             <div className="p-6">
-              {activeTab === 'assessment' && (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <Baby className="w-5 h-5 text-teal-600" /> Couple Profile
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Duration of Infertility (years)</label>
-                        <input
-                          type="number"
-                          value={assessment.coupleProfile?.infertilityDuration?.toString() || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            coupleProfile: { ...assessment.coupleProfile, infertilityDuration: parseFloat(e.target.value) }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-teal-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Type</label>
-                        <select
-                          value={assessment.coupleProfile?.infertilityType || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            coupleProfile: { ...assessment.coupleProfile, infertilityType: e.target.value as any }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-teal-500 outline-none"
-                        >
-                          <option value="">Select</option>
-                          <option value="Primary">Primary</option>
-                          <option value="Secondary">Secondary</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Previous IVF Attempts</label>
-                        <input
-                          type="number"
-                          value={assessment.coupleProfile?.previousAttempts?.toString() || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            coupleProfile: { ...assessment.coupleProfile, previousAttempts: parseInt(e.target.value) }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-teal-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Height (cm)</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={assessment.coupleProfile?.height?.toString() || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            coupleProfile: { ...assessment.coupleProfile, height: parseFloat(e.target.value) }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-teal-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Weight (kg)</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={assessment.coupleProfile?.weight || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            coupleProfile: { ...assessment.coupleProfile, weight: parseFloat(e.target.value) }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-teal-500 outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <Zap className="w-5 h-5 text-blue-600" /> Male Factor (WHO 2021)
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Volume (mL)</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={assessment.maleFactor?.volume || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            maleFactor: { ...assessment.maleFactor, volume: parseFloat(e.target.value) }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-blue-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Concentration (M/mL)</label>
-                        <input
-                          type="number"
-                          value={assessment.maleFactor?.concentration || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            maleFactor: { ...assessment.maleFactor, concentration: parseFloat(e.target.value) }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-blue-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Motility (%)</label>
-                        <input
-                          type="number"
-                          value={assessment.maleFactor?.motility || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            maleFactor: { ...assessment.maleFactor, motility: parseFloat(e.target.value) }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-blue-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Morphology (%)</label>
-                        <input
-                          type="number"
-                          value={assessment.maleFactor?.morphology || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            maleFactor: { ...assessment.maleFactor, morphology: parseFloat(e.target.value) }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-blue-500 outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <TrendingUp className="w-5 h-5 text-blue-600" />
-                          <span className="font-semibold text-gray-800">TMSC</span>
-                        </div>
-                        <div className="text-2xl font-bold text-blue-700">{tmsc}M</div>
-                        {tmsc < 5 && (
-                          <div className="flex items-center gap-1 mt-2 text-yellow-700 text-sm">
-                            <AlertCircle className="w-4 h-4" />
-                            ICSI Indicated
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <div className="font-semibold text-gray-700 mb-2">Diagnosis</div>
-                        <div className="text-sm text-gray-600">
-                          {analyzeSemenAnalysis(assessment.maleFactor?.volume || 0, assessment.maleFactor?.concentration || 0, assessment.maleFactor?.motility || 0, assessment.maleFactor?.morphology || 0)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <Heart className="w-5 h-5 text-pink-600" /> Female Factor (Ovarian Reserve)
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">AMH (ng/mL)</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={assessment.femaleFactor?.amh || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            femaleFactor: { ...assessment.femaleFactor, amh: parseFloat(e.target.value) }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-pink-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">FSH (IU/L)</label>
-                        <input
-                          type="number"
-                          value={assessment.femaleFactor?.fsh || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            femaleFactor: { ...assessment.femaleFactor, fsh: parseFloat(e.target.value) }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-pink-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">AFC Right</label>
-                        <input
-                          type="number"
-                          value={assessment.femaleFactor?.afcRight || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            femaleFactor: { ...assessment.femaleFactor, afcRight: parseFloat(e.target.value) }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-pink-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">AFC Left</label>
-                        <input
-                          type="number"
-                          value={assessment.femaleFactor?.afcLeft || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            femaleFactor: { ...assessment.femaleFactor, afcLeft: parseFloat(e.target.value) }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-pink-500 outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="bg-pink-50 p-4 rounded-lg border border-pink-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle className="w-5 h-5 text-pink-600" />
-                        <span className="font-semibold text-gray-800">Ovarian Classification</span>
-                      </div>
-                      <div className={`text-lg font-bold ${
-                        ovaryClassification === 'Poor Responder' ? 'text-red-700' :
-                        ovaryClassification === 'High Responder' ? 'text-purple-700' :
-                        'text-green-700'
-                      }`}>
-                        {ovaryClassification}
-                      </div>
-                      {suggestedProtocol !== newProtocol && (
-                        <div className="text-sm text-gray-600 mt-2">
-                          💡 Consider "{suggestedProtocol}" protocol for {ovaryClassification} patients
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">Tubal & Uterine Assessment</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">HSG Findings</label>
-                        <textarea
-                          value={assessment.tubalUterine?.hsgFindings || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            tubalUterine: { ...assessment.tubalUterine, hsgFindings: e.target.value }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-teal-500 outline-none h-24 resize-none"
-                          placeholder="e.g., Patent bilateral tubes, uterus normal"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Hysteroscopy Findings</label>
-                        <textarea
-                          value={assessment.tubalUterine?.hysteroscopyFindings || ''}
-                          onChange={(e) => setAssessment({
-                            ...assessment,
-                            tubalUterine: { ...assessment.tubalUterine, hysteroscopyFindings: e.target.value }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-teal-500 outline-none h-24 resize-none"
-                          placeholder="e.g., Normal cavity"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-4 mt-4">
-                      {['septate', 'polyps', 'adhesions'].map(finding => (
-                        <label key={finding} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={(assessment.tubalUterine as any)?.[finding] || false}
-                            onChange={(e) => setAssessment({
-                              ...assessment,
-                              tubalUterine: { ...assessment.tubalUterine, [finding]: e.target.checked }
-                            })}
-                            className="rounded"
-                          />
-                          <span className="text-sm font-semibold text-gray-700 capitalize">{finding}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <Pill className="w-5 h-5 text-indigo-600" /> Protocol & Prescription
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Select Protocol</label>
-                        <select
-                          value={newProtocol}
-                          onChange={(e) => setNewProtocol(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:border-indigo-500 outline-none"
-                        >
-                          {PROTOCOLS.map(p => (
-                            <option key={p} value={p}>{p}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">&nbsp;</label>
-                        <button
-                          onClick={() => generateProtocolPrescription(newProtocol)}
-                          className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
-                        >
-                          <Copy className="w-4 h-4" /> Generate Prescription
-                        </button>
-                      </div>
-                    </div>
-
-                    {newProtocol && PROTOCOL_INFO[newProtocol as keyof typeof PROTOCOL_INFO] && (
-                      <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 mb-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <div className="flex items-start gap-2 mb-3">
-                              <Info className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-1" />
-                              <div>
-                                <div className="font-bold text-gray-800">{PROTOCOL_INFO[newProtocol as keyof typeof PROTOCOL_INFO].name}</div>
-                                <div className="text-sm text-gray-600 mt-1">{PROTOCOL_INFO[newProtocol as keyof typeof PROTOCOL_INFO].description}</div>
-                              </div>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-sm">
-                              <div className="font-semibold text-gray-700 mb-2">📋 Protocol Details:</div>
-                              <div className="text-xs text-gray-600 space-y-1">
-                                <div><strong>Duration:</strong> {PROTOCOL_INFO[newProtocol as keyof typeof PROTOCOL_INFO].duration}</div>
-                                <div><strong>Stimulation:</strong> {PROTOCOL_INFO[newProtocol as keyof typeof PROTOCOL_INFO].stimDays}</div>
-                                <div><strong>Best For:</strong> {PROTOCOL_INFO[newProtocol as keyof typeof PROTOCOL_INFO].bestFor.join(', ')}</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {protocolPrescription.length > 0 && (
-                      <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                        <div className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                          <CheckCircle className="w-5 h-5 text-green-600" />
-                          Generated Prescription ({protocolPrescription.length} drugs)
-                        </div>
-                        <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
-                          {protocolPrescription.map((drug, idx) => (
-                            <div key={idx} className="bg-white p-2 rounded text-sm border border-gray-200">
-                              <div className="font-semibold text-gray-800">{drug.drug}</div>
-                              <div className="text-xs text-gray-500">{drug.category} • {drug.dose}</div>
-                            </div>
-                          ))}
-                        </div>
-                        <button
-                          onClick={() => {
-                            setProtocolPrescription([]);
-                            toast.success('Prescription cleared. Customize in Stimulation tab.');
-                          }}
-                          className="w-full bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-yellow-700 transition-colors text-sm"
-                        >
-                          Clear & Customize in Stimulation Tab
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={saveAssessment}
-                    className="w-full bg-teal-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-teal-700 transition-colors mt-6"
-                  >
-                    Save Assessment
-                  </button>
-                </div>
-              )}
-
               {activeTab === 'stimulation' && (
                 <div className="space-y-6">
-                  {/* Assessment Data Summary - Beautiful Display */}
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200 shadow-sm">
-                    <h4 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                      <FileText className="w-6 h-6 text-blue-600" />
-Patient Assessment Data Summary
-                    </h4>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-                      {/* Couple Profile Card */}
-                      <div className="bg-white p-4 rounded-lg border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Baby className="w-5 h-5 text-blue-600" />
-                          <span className="font-semibold text-gray-800">Couple Profile</span>
-                        </div>
-                          <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Duration of Infertility:</span>
-                            <span className="font-medium">{assessment.coupleProfile?.infertilityDuration ? `${assessment.coupleProfile.infertilityDuration} years` : 'Not specified'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">BMI:</span>
-                            <span className={`font-medium ${bmiAlert ? 'text-red-600' : 'text-green-600'}`}>
-                              {bmiValue > 0 ? `${bmiValue.toFixed(1)} kg/m²` : 'Not calculated'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Previous IVF Attempts:</span>
-                            <span className="font-medium">{assessment.coupleProfile?.previousAttempts || 0}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Ovarian Reserve Card */}
-                      <div className="bg-white p-4 rounded-lg border border-pink-200 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Heart className="w-5 h-5 text-pink-600" />
-                          <span className="font-semibold text-gray-800">Ovarian Reserve</span>
-                        </div>
-                          <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">AMH:</span>
-                            <span className="font-medium">{assessment.femaleFactor?.amh ? `${assessment.femaleFactor.amh} ng/mL` : 'Not specified'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">AFC:</span>
-                            <span className="font-medium">{assessment.femaleFactor?.afcRight ? `${assessment.femaleFactor.afcRight} (Right)` : 'Not specified'}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-600">Classification:</span>
-                            <span className="font-medium">{ovaryClassification}</span>
-                          </div>
-                        </div>
-
-                      {/* Male Factor Card */}
-                      <div className="bg-white p-4 rounded-lg border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Zap className="w-5 h-5 text-purple-600" />
-                          <span className="font-semibold text-gray-800">Male Factor</span>
-                        </div>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">TMSC:</span>
-                            <span className="font-bold text-lg text-purple-700">{tmsc}M</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Motility:</span>
-                            <span className="font-medium">{assessment.maleFactor?.motility ? `${assessment.maleFactor.motility}%` : 'Not specified'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Concentration:</span>
-                            <span className="font-medium">{assessment.maleFactor?.concentration ? `${assessment.maleFactor.concentration} M/mL` : 'Not specified'}</span>
-                          </div>
-                        </div>
-                        {tmsc < 5 && (
-                          <div className="bg-yellow-50 p-2 rounded text-xs text-yellow-800 border border-yellow-200 mt-2">
-                            ICSI Indicated (TMSC < 5M)
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Protocol Recommendation Card */}
-                      <div className="bg-white p-4 rounded-lg border border-green-200 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Pill className="w-5 h-5 text-green-600" />
-                          <span className="font-semibold text-gray-800">Recommended Protocol</span>
-                        </div>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Current Protocol:</span>
-                            <span className="font-bold text-green-700">{activeCycle.protocol}</span>
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            {ovaryClassification === 'Poor Responder' ? 'Antagonist protocol preferred for poor responders' :
-                             ovaryClassification === 'High Responder' ? 'Antagonist protocol preferred for high responders' :
-                             'Protocol suitable for normal responders'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Recommended Stimulation Guidance */}
-                    <div className="bg-white p-4 rounded-lg border border-indigo-200 shadow-sm">
-                      <h5 className="font-semibold text-indigo-800 mb-3 flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5" />
-                        Recommended Stimulation Guidance
-                      </h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <h6 className="font-medium text-gray-700 mb-2">Starting Guidance</h6>
-                          <div className="text-sm text-gray-600 space-y-1">
-                            {activeCycle.protocol === 'Long' && (
-                              <>
-                                <div>• Start OCP suppression for 2-3 weeks before menses</div>
-                                <div>• Start GnRH agonist on day 21 of OCP</div>
-                                <div>• Start FSH/HMG when E2 <50 pg/mL (confirm pituitary suppression)</div>
-                                <div>• Start FSH/HMG when E2 less than 50 pg/mL</div>
-                              </>
-                            )}
-                            {activeCycle.protocol === 'Antagonist' && (
-                              <>
-                                <div>• Start FSH/HMG on day 2-3 of cycle</div>
-                                <div>• Add GnRH antagonist when leading follicle ≥14mm</div>
-                                <div>• Flexible start, shorter duration</div>
-                                <div>• Typical starting dose: 150-300 IU FSH (based on ovarian reserve)</div>
-                              </>
-                            )}
-                            {activeCycle.protocol === 'Flare-up' && (
-                              <>
-                                <div>• Start GnRH agonist on day 2 of cycle</div>
-                                <div>• Start FSH/HMG after 2 days (day 4)</div>
-                                <div>• Initially higher LH levels</div>
-                                <div>• Typical starting dose: 225-375 IU FSH</div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        <div>
-                          <h6 className="font-medium text-gray-700 mb-2">Monitoring & Adjustments</h6>
-                          <div className="text-sm text-gray-600 space-y-1">
-                            <div>• Monitor E2, LH, follicle growth every 2-3 days</div>
-                            <div>• Adjust FSH/HMG dose based on response (±75 IU)</div>
-                            <div>• Aim for 2-3 follicles ≥17mm for trigger</div>
-                            <div>• Endometrium should be ≥7mm at trigger</div>
-                            {ovaryClassification === 'Poor Responder' && (
-                              <div className="text-orange-600 font-medium">• Consider higher starting doses for poor responders</div>
-                            )}
-                            {ovaryClassification === 'High Responder' && (
-                              <div className="text-purple-600 font-medium">• Start with lower doses to avoid OHSS</div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Recommended Starting Dose */}
-                      <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-medium text-blue-800">Recommended Starting Dose:</span>
-                            <span className="ml-2 text-lg font-bold text-blue-700">
-                              {ovaryClassification === 'Poor Responder' ? '225-300 IU FSH' :
-                               ovaryClassification === 'High Responder' ? '150-225 IU FSH' :
-                               '150-225 IU FSH'}
-                            </span>
-                          </div>
-                          <div className="text-xs text-blue-600">
-                            Based on {ovaryClassification} classification
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-teal-700 text-white p-4 rounded-lg">
                       <div className="text-sm opacity-80">Protocol</div>
@@ -904,27 +255,24 @@ Patient Assessment Data Summary
                     </div>
                     <div className="bg-purple-700 text-white p-4 rounded-lg">
                       <div className="text-sm opacity-80">Stimulation Days</div>
-                      <div className="text-2xl font-bold">{activeCycle.logs.length}</div>
+                      <div className="text-2xl font-bold">{logs.length}</div>
                     </div>
                   </div>
 
                   {chartData.length > 0 && (
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                       <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-teal-600" /> Hormone Trends
+                        <TrendingUp className="w-5 h-5 text-teal-600" /> E2 vs Days
                       </h4>
                       <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                             <XAxis dataKey="day" axisLine={false} tickLine={false} />
-                            <YAxis yAxisId="left" axisLine={false} tickLine={false} />
-                            <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} />
+                            <YAxis axisLine={false} tickLine={false} />
                             <Tooltip />
                             <Legend />
-                            <Line yAxisId="left" type="monotone" dataKey="e2" stroke="#00838f" strokeWidth={2} dot={{r: 3}} name="E2 (pg/mL)" />
-                            <Line yAxisId="left" type="monotone" dataKey="lh" stroke="#0066cc" strokeWidth={2} dot={{r: 3}} name="LH (IU/L)" />
-                            <Line yAxisId="right" type="monotone" dataKey="follicles" stroke="#ff6b6b" strokeWidth={2} dot={{r: 3}} name="Max Follicle (mm)" />
+                            <Line type="monotone" dataKey="e2" stroke="#00838f" strokeWidth={2} dot={{r: 3}} name="E2 (pg/mL)" />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
@@ -955,11 +303,10 @@ Patient Assessment Data Summary
                           <th className="px-4 py-3 text-blue-700">LH</th>
                           <th className="px-4 py-3">Rt Foll</th>
                           <th className="px-4 py-3">Lt Foll</th>
-                          <th className="px-4 py-3">Endo</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 bg-white">
-                        {activeCycle.logs.map((log) => (
+                        {logs.map((log) => (
                           <tr key={log.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 font-bold text-gray-800">D{log.cycleDay}</td>
                             <td className="px-4 py-3 font-mono text-gray-500">{log.date.slice(5)}</td>
@@ -969,12 +316,11 @@ Patient Assessment Data Summary
                             <td className="p-2"><input className="w-14 p-1 text-center border rounded focus:border-blue-500 outline-none text-sm" value={log.lh} onChange={e => updateLog(log.id, 'lh', e.target.value)} placeholder="2" /></td>
                             <td className="p-2"><input className="w-20 p-1 border rounded focus:border-gray-400 outline-none text-sm" value={log.rtFollicles} onChange={e => updateLog(log.id, 'rtFollicles', e.target.value)} placeholder="18,20" /></td>
                             <td className="p-2"><input className="w-20 p-1 border rounded focus:border-gray-400 outline-none text-sm" value={log.ltFollicles} onChange={e => updateLog(log.id, 'ltFollicles', e.target.value)} placeholder="18,20" /></td>
-                            <td className="p-2"><input className="w-16 p-1 text-center border rounded focus:border-gray-400 outline-none text-sm" value={log.endometriumThickness || ''} onChange={e => updateLog(log.id, 'endometriumThickness', e.target.value)} placeholder="10" /></td>
                           </tr>
                         ))}
-                        {activeCycle.logs.length === 0 && (
+                        {logs.length === 0 && (
                           <tr>
-                            <td colSpan={9} className="py-8 text-gray-400 italic text-center">No stimulation logs. Click 'Add Day' to begin.</td>
+                            <td colSpan={8} className="py-8 text-gray-400 italic text-center">No stimulation logs. Click 'Add Day' to begin.</td>
                           </tr>
                         )}
                       </tbody>
@@ -987,20 +333,11 @@ Patient Assessment Data Summary
                 <div className="space-y-6">
                   <div className="border-b pb-6">
                     <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <PipetteIcon className="w-5 h-5 text-green-600" /> OPU Day
+                      <PipetteIcon className="w-5 h-5 text-green-600" /> OPU & Lab
                     </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Date</label>
-                        <input
-                          type="date"
-                          value={labData.opuDate || ''}
-                          onChange={(e) => setLabData({ ...labData, opuDate: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-green-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Total Oocytes</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Oocytes Retrieved</label>
                         <input
                           type="number"
                           value={labData.totalOocytes || ''}
@@ -1018,123 +355,31 @@ Patient Assessment Data Summary
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">MI</label>
-                        <input
-                          type="number"
-                          value={labData.mi || ''}
-                          onChange={(e) => setLabData({ ...labData, mi: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-green-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">GV</label>
-                        <input
-                          type="number"
-                          value={labData.gv || ''}
-                          onChange={(e) => setLabData({ ...labData, gv: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-green-500 outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <div className="font-semibold text-gray-800 mb-3">Maturation Rate</div>
-                    <div className="flex items-center justify-between">
-                      <div className="text-2xl font-bold text-green-700">{maturationRate}%</div>
-                      <div className="text-sm text-gray-600">({labData.mii} / {labData.totalOocytes} oocytes)</div>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">Fertilization (Day 1)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">2PN Count</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">2PN</label>
                         <input
                           type="number"
                           value={labData.fertilizedTwoPN || ''}
                           onChange={(e) => setLabData({ ...labData, fertilizedTwoPN: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-blue-500 outline-none"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-green-500 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Atretic</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Blastocysts</label>
                         <input
                           type="number"
-                          value={labData.atretic || ''}
-                          onChange={(e) => setLabData({ ...labData, atretic: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-blue-500 outline-none"
+                          value={labData.blastocystsExpanded || ''}
+                          onChange={(e) => setLabData({ ...labData, blastocystsExpanded: parseInt(e.target.value) })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-green-500 outline-none"
                         />
-                      </div>
-                    </div>
-
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                      <div className="font-semibold text-gray-800 mb-3">Fertilization Rate</div>
-                      <div className="flex items-center justify-between">
-                        <div className="text-2xl font-bold text-blue-700">{fertilizationRate}%</div>
-                        <div className="text-sm text-gray-600">({labData.fertilizedTwoPN} / {labData.mii} MII oocytes)</div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="border-t pt-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">Embryo Grading</h3>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">Day 3 Embryos</label>
-                      <div className="grid grid-cols-3 gap-4 mb-6">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-600 mb-1">Grade A</label>
-                          <input
-                            type="number"
-                            value={labData.embryoDay3A || ''}
-                            onChange={(e) => setLabData({ ...labData, embryoDay3A: parseInt(e.target.value) })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-teal-500 outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-600 mb-1">Grade B</label>
-                          <input
-                            type="number"
-                            value={labData.embryoDay3B || ''}
-                            onChange={(e) => setLabData({ ...labData, embryoDay3B: parseInt(e.target.value) })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-teal-500 outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-600 mb-1">Grade C</label>
-                          <input
-                            type="number"
-                            value={labData.embryoDay3C || ''}
-                            onChange={(e) => setLabData({ ...labData, embryoDay3C: parseInt(e.target.value) })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-teal-500 outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">Day 5 Blastocysts</label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-600 mb-1">Expanded</label>
-                          <input
-                            type="number"
-                            value={labData.blastocystsExpanded || ''}
-                            onChange={(e) => setLabData({ ...labData, blastocystsExpanded: parseInt(e.target.value) })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-teal-500 outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-600 mb-1">Hatching</label>
-                          <input
-                            type="number"
-                            value={labData.blastocystsHatching || ''}
-                            onChange={(e) => setLabData({ ...labData, blastocystsHatching: parseInt(e.target.value) })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-teal-500 outline-none"
-                          />
-                        </div>
-                      </div>
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className="font-semibold text-gray-800 mb-3">Fertilization Rate</div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold text-blue-700">{calculateFertilizationRate(labData.fertilizedTwoPN || 0, labData.mii || 0)}%</div>
+                      <div className="text-sm text-gray-600">({labData.fertilizedTwoPN || 0} / {labData.mii || 0} MII oocytes)</div>
                     </div>
                   </div>
 
@@ -1151,7 +396,7 @@ Patient Assessment Data Summary
                 <div className="space-y-6">
                   <div className="border-b pb-6">
                     <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <Heart className="w-5 h-5 text-red-600" /> Transfer Details
+                      <Heart className="w-5 h-5 text-red-600" /> Transfer
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
@@ -1164,7 +409,7 @@ Patient Assessment Data Summary
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">No. Transferred</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Count</label>
                         <input
                           type="number"
                           value={transferData.numberTransferred || ''}
@@ -1173,62 +418,21 @@ Patient Assessment Data Summary
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Catheter Difficulty</label>
-                        <select
-                          value={transferData.catheterDifficulty || ''}
-                          onChange={(e) => setTransferData({ ...transferData, catheterDifficulty: e.target.value as any })}
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Embryo Quality</label>
+                        <input
+                          type="text"
+                          value={transferData.embryoQuality || ''}
+                          onChange={(e) => setTransferData({ ...transferData, embryoQuality: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-red-500 outline-none"
-                        >
-                          <option value="">Select</option>
-                          <option value="Easy">Easy</option>
-                          <option value="Moderate">Moderate</option>
-                          <option value="Difficult">Difficult</option>
-                        </select>
+                          placeholder="e.g., Day 5 expanded blastocyst"
+                        />
                       </div>
                     </div>
-                    <div className="mt-4">
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Embryo Quality</label>
-                      <textarea
-                        value={transferData.embryoQuality || ''}
-                        onChange={(e) => setTransferData({ ...transferData, embryoQuality: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-red-500 outline-none h-16 resize-none"
-                        placeholder="e.g., Day 5 expanded blastocyst, Grade A"
-                      />
-                    </div>
                   </div>
 
                   <div className="border-t pt-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">Luteal Support</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      {LUTEAL_SUPPORT_OPTIONS.map(option => (
-                        <label key={option} className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                          <input
-                            type="checkbox"
-                            checked={transferData.lutealSupport?.includes(option) || false}
-                            onChange={(e) => {
-                              const newSupport = e.target.checked
-                                ? [...(transferData.lutealSupport || []), option]
-                                : transferData.lutealSupport?.filter(s => s !== option) || [];
-                              setTransferData({ ...transferData, lutealSupport: newSupport });
-                            }}
-                            className="rounded"
-                          />
-                          <span className="text-sm font-semibold text-gray-700">{option}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={saveTransferData}
-                    className="w-full bg-red-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-700 transition-colors"
-                  >
-                    Save Transfer Details
-                  </button>
-
-                  <div className="border-t pt-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">Cycle Outcome</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">Outcome</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1">Beta-HCG (mIU/mL)</label>
                         <input
@@ -1239,7 +443,7 @@ Patient Assessment Data Summary
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Beta-HCG Result</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Result</label>
                         <select
                           value={outcomeData.betaHcgPositive ? 'positive' : outcomeData.betaHcgPositive === false ? 'negative' : ''}
                           onChange={(e) => setOutcomeData({
@@ -1250,45 +454,22 @@ Patient Assessment Data Summary
                         >
                           <option value="">Select</option>
                           <option value="positive">Positive (≥5 mIU/mL)</option>
-                          <option value="negative">Negative (&lt;5 mIU/mL)</option>
+                          <option value="negative">Negative ({"<"}5 mIU/mL)</option>
                         </select>
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded border border-gray-200">
-                        <input
-                          type="checkbox"
-                          checked={outcomeData.clinicalPregnancy || false}
-                          onChange={(e) => setOutcomeData({ ...outcomeData, clinicalPregnancy: e.target.checked })}
-                          className="rounded"
-                        />
-                        <span className="text-sm font-semibold text-gray-700">Clinical Pregnancy</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded border border-gray-200">
-                        <input
-                          type="checkbox"
-                          checked={outcomeData.gestationalSac || false}
-                          onChange={(e) => setOutcomeData({ ...outcomeData, gestationalSac: e.target.checked })}
-                          className="rounded"
-                        />
-                        <span className="text-sm font-semibold text-gray-700">Gestational Sac</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded border border-gray-200">
-                        <input
-                          type="checkbox"
-                          checked={outcomeData.fHR || false}
-                          onChange={(e) => setOutcomeData({ ...outcomeData, fHR: e.target.checked })}
-                          className="rounded"
-                        />
-                        <span className="text-sm font-semibold text-gray-700">Fetal Heart Rate</span>
-                      </label>
                     </div>
                   </div>
 
                   <button
+                    onClick={saveTransferData}
+                    className="w-full bg-red-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-700 transition-colors"
+                  >
+                    Save Transfer Data
+                  </button>
+
+                  <button
                     onClick={saveOutcome}
-                    className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors mt-6"
+                    className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors mt-4"
                   >
                     Complete Cycle & Save Outcome
                   </button>

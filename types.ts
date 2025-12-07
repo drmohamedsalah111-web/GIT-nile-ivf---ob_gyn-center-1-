@@ -203,6 +203,41 @@ export interface BiometryScan {
   created_at?: string;
 }
 
+export interface ObstetricsData {
+  id?: string;
+  patientId: string;
+  lmp: string | null;
+  edd: string | null;
+  gestationalAge?: string;
+  riskFactors: string[];
+  isHighRisk: boolean;
+  notes?: string;
+}
+
+export interface AntenatalVisitData {
+  id: string;
+  date: string;
+  gaWeeks: number;
+  bp: string;
+  weight: string;
+  urine: string;
+  fetalHeart: string;
+  fundalHeight?: string;
+  edema?: string;
+  notes: string;
+}
+
+export interface FetalBiometryData {
+  date: string;
+  bpd?: number;
+  fl?: number;
+  ac?: number;
+  hc?: number;
+  efw?: number;
+  afi?: number;
+  placenta?: string;
+}
+
 export enum Page {
   HOME = 'home',
   RECEPTION = 'reception',
