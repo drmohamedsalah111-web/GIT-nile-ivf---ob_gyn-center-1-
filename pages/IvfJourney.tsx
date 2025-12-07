@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db, calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate } from '../services/ivfService';
 import { Patient, PrescriptionItem, CycleAssessment, OpuLabData, TransferData, OutcomeData } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer } from 'lucide-react';
+import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer, Microscope, Activity, Stethoscope } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
@@ -297,8 +297,27 @@ const IvfJourney: React.FC = () => {
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6" style={{ fontFamily: 'Tajawal, sans-serif' }}>
       {/* Header */}
+      <div className="bg-gradient-to-r from-teal-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg" dir="ltr">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold mb-2">🔬 رحلة التلقيح الاصطناعي - IVF Journey</h1>
+            <p className="text-teal-100">
+              Patient: <span className="font-semibold">{selectedPatient?.name || 'Not selected'}</span>
+              {cycleData && (
+                <>
+                  {' • '}Protocol: <span className="font-semibold">{cycleData.protocol}</span>
+                  {' • '}Status: <span className="font-semibold">{cycleData.status}</span>
+                </>
+              )}
+            </p>
+          </div>
+          <Baby className="w-16 h-16 text-teal-200" />
+        </div>
+      </div>
+
+      {/* Patient Selection & Cycle Start */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100" dir="ltr">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div>
@@ -344,35 +363,110 @@ const IvfJourney: React.FC = () => {
 
       {cycleData ? (
         <>
-          {/* Tabs Navigation */}
+          {/* Top Tab Navigation */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="flex border-b border-gray-100 bg-gray-50 overflow-x-auto">
               {[
-                { id: 'assessment', label: '📋 التقييم الذكي', icon: '📋' },
-                { id: 'stimulation', label: '💉 التحفيز والمراقبة', icon: '💉' },
-                { id: 'lab', label: '🔬 المعمل والأجنة', icon: '🔬' },
-                { id: 'transfer', label: '👶 النقل والنتيجة', icon: '👶' }
+                { id: 'assessment', label: '📊 التقييم الشامل', arLabel: 'Assessment', icon: Microscope },
+                { id: 'stimulation', label: '💉 المتابعة والتنشيط', arLabel: 'Stimulation', icon: Activity },
+                { id: 'lab', label: '🔬 السحب والمعمل', arLabel: 'Lab', icon: TestTube },
+                { id: 'transfer', label: '👶 النقل والنتيجة', arLabel: 'Transfer', icon: Heart }
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`px-2 md:px-4 py-3 font-bold text-sm md:text-base whitespace-nowrap transition-colors flex-1 md:flex-none ${
+                  className={`px-4 md:px-6 py-4 font-bold text-sm md:text-base whitespace-nowrap transition-all duration-200 flex-1 md:flex-none flex items-center justify-center gap-2 ${
                     activeTab === tab.id
                       ? 'border-b-4 border-teal-600 text-teal-700 bg-teal-50'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <span className="md:hidden">{tab.icon}</span>
+                  <tab.icon className="w-5 h-5" />
                   <span className="hidden md:inline">{tab.label}</span>
+                  <span className="md:hidden">{tab.arLabel}</span>
                 </button>
               ))}
             </div>
 
-            <div className="p-3 md:p-6">
-              {/* Tab 1: Smart Assessment */}
+            <div className="p-6">
+              {/* Tab 1: Assessment */}
               {activeTab === 'assessment' && (
                 <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-gray-800">📋 التقييم الذكي - Smart Assessment</h3>
+                  <div className="flex items-center gap-3 mb-6">
+                    <Microscope className="w-8 h-8 text-teal-600" />
+                    <h3 className="text-2xl font-bold text-gray-800">📊 التقييم الشامل - Comprehensive Assessment</h3>
+                  </div>
+
+                  {/* Couple Profile */}
+                  <div className="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                    <h4 className="text-lg font-semibold text-slate-800 mb-4">👫 ملف الزوجين - Couple Profile</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Age</label>
+                        <input
+                          type="number"
+                          value={cycleData.assessment.coupleProfile?.age || ''}
+                          onChange={(e) => setCycleData({
+                            ...cycleData,
+                            assessment: {
+                              ...cycleData.assessment,
+                              coupleProfile: { ...cycleData.assessment.coupleProfile, age: parseInt(e.target.value) || 0 }
+                            }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">BMI</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={cycleData.assessment.coupleProfile?.bmi || ''}
+                          onChange={(e) => setCycleData({
+                            ...cycleData,
+                            assessment: {
+                              ...cycleData.assessment,
+                              coupleProfile: { ...cycleData.assessment.coupleProfile, bmi: parseFloat(e.target.value) || 0 }
+                            }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Infertility Duration (years)</label>
+                        <input
+                          type="number"
+                          value={cycleData.assessment.coupleProfile?.infertilityDuration || ''}
+                          onChange={(e) => setCycleData({
+                            ...cycleData,
+                            assessment: {
+                              ...cycleData.assessment,
+                              coupleProfile: { ...cycleData.assessment.coupleProfile, infertilityDuration: parseInt(e.target.value) || 0 }
+                            }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Type</label>
+                        <select
+                          value={cycleData.assessment.coupleProfile?.infertilityType || ''}
+                          onChange={(e) => setCycleData({
+                            ...cycleData,
+                            assessment: {
+                              ...cycleData.assessment,
+                              coupleProfile: { ...cycleData.assessment.coupleProfile, infertilityType: e.target.value as 'Primary' | 'Secondary' }
+                            }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                        >
+                          <option value="">Select</option>
+                          <option value="Primary">Primary</option>
+                          <option value="Secondary">Secondary</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Male Factor */}
                   <div className="bg-blue-50 p-3 md:p-6 rounded-lg border border-blue-200">

@@ -59,6 +59,7 @@ export interface TubalUterineAssessment {
 }
 
 export interface CoupleProfileAssessment {
+  age?: number;
   infertilityDuration?: number;
   infertilityType?: 'Primary' | 'Secondary';
   previousAttempts?: number;

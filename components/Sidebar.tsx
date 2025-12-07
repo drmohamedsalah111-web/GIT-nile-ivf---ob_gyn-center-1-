@@ -6,9 +6,10 @@ import { useBranding } from '../context/BrandingContext';
 interface SidebarProps {
   activePage: Page;
   setPage: (page: Page) => void;
+  onLogout: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout }) => {
   const { branding } = useBranding();
 
   const menuItems = [
@@ -63,7 +64,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage }) => {
       </nav>
 
       <div className="p-4 border-t border-gray-100">
-        <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors">
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
+        >
           <LogOut className="w-4 h-4" />
           <span>Sign Out</span>
         </button>

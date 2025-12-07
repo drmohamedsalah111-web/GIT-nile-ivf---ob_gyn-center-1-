@@ -98,7 +98,7 @@ const App: React.FC = () => {
     <BrandingProvider>
       <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row-reverse font-[Tajawal]">
         <div className="hidden md:flex">
-          <Sidebar activePage={activePage} setPage={setActivePage} />
+          <Sidebar activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
         </div>
 
         <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">
