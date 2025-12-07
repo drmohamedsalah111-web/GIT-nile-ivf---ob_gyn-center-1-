@@ -68,11 +68,29 @@ export interface CoupleProfileAssessment {
   bmiAlert?: boolean;
 }
 
+export interface ImagingAssessment {
+  baselineUltrasound: {
+    uterus: { dimensions: string, myometrium: string, cavity: string };
+    endometrium: { thickness: number, pattern: string };
+    ovaries: {
+      afcRight: number;
+      afcLeft: number;
+      pathology: { cyst: boolean, endometrioma: boolean, dermoid: boolean };
+    };
+    adnexa: { hydrosalpinx: boolean };
+  };
+  hysteroscopyHSG: {
+    status: string[];
+    actionTaken: string;
+  };
+}
+
 export interface CycleAssessment {
   coupleProfile?: CoupleProfileAssessment;
   maleFactor?: MaleFactorAssessment;
   femaleFactor?: FemaleFactorAssessment;
   tubalUterine?: TubalUterineAssessment;
+  imaging?: ImagingAssessment;
 }
 
 export interface StimulationLog {
