@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db, calculateBMI, calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate } from '../services/ivfService';
 import { PROTOCOLS, PROTOCOL_INFO, EGYPTIAN_DRUGS } from '../constants';
 import { IvfCycle, Patient, StimulationLog, CycleAssessment, OpuLabData, TransferData, OutcomeData, PrescriptionItem } from '../types';
@@ -48,7 +48,7 @@ const IvfJourney: React.FC = () => {
     loadCycle();
   }, [selectedPatientId]);
 
-  const startNewCycle = useCallback(async () => {
+  const startNewCycle = async () => {
     if (!selectedPatientId) {
       toast.error('Select a patient first');
       return;
@@ -57,9 +57,9 @@ const IvfJourney: React.FC = () => {
     try {
       const newCycle = await db.saveCycle({
         patientId: selectedPatientId,
-        protocol: newProtocol as 'Long' | 'Antagonist' | 'Flare-up' | 'Mini-IVF',
+        protocol: newProtocol as any,
         startDate: new Date().toISOString().split('T')[0],
-        status: 'Active' as 'Active' | 'Completed' | 'Cancelled'
+        status: 'Active'
       });
 
       setActiveCycle({
@@ -79,27 +79,24 @@ const IvfJourney: React.FC = () => {
       setOutcomeData({});
       setActiveTab('assessment');
       toast.success('New IVF Cycle Started', { id: toastId });
-    } catch (error) {
-      console.error('Error starting cycle:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Error starting cycle: ${errorMessage}`, { id: toastId });
+    } catch (e) {
+      toast.error('Error starting cycle', { id: toastId });
     }
-  }, [selectedPatientId, newProtocol]);
+  };
 
-  const saveAssessment = useCallback(async () => {
+  const saveAssessment = async () => {
     if (!activeCycle) return;
     try {
       await db.updateCycleAssessment(activeCycle.id, assessment);
       setActiveCycle({ ...activeCycle, assessment });
       toast.success('Assessment saved');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Save assessment error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Failed to save assessment: ${errorMessage}`);
+      toast.error('Failed to save assessment: ' + (error?.message || 'Unknown error'));
     }
-  }, [activeCycle, assessment]);
+  };
 
-  const addDayLog = useCallback(async () => {
+  const addDayLog = async () => {
     if (!activeCycle) return;
     const lastDay = activeCycle.logs.length > 0 ? activeCycle.logs[activeCycle.logs.length - 1].cycleDay : 0;
     const newLog = {
@@ -133,17 +130,15 @@ const IvfJourney: React.FC = () => {
         logs: [...activeCycle.logs, mappedLog]
       });
       toast.success('Day log added');
-    } catch (error) {
-      console.error('addDayLog error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Failed to add log: ${errorMessage}`);
+    } catch (e: any) {
+      console.error('addDayLog error:', e);
+      toast.error('Failed to add log: ' + (e?.message || 'Unknown error'));
     }
-  }, [activeCycle]);
+  };
 
-  const updateLog = useCallback(async (id: string, field: keyof StimulationLog, value: string) => {
+  const updateLog = async (id: string, field: keyof StimulationLog, value: string) => {
     if (!activeCycle) return;
 
-    // 先更新本地状态
     const updatedLogs = activeCycle.logs.map(log =>
       log.id === id ? { ...log, [field]: value } : log
     );
@@ -152,56 +147,45 @@ const IvfJourney: React.FC = () => {
     try {
       await db.updateLog(id, { [field]: value });
     } catch (e) {
-      console.error('Save failed', e);
-      toast.error('Failed to save log entry');
-      // 如果保存失败，恢复原始状态
-      setActiveCycle(prev => ({
-        ...prev!,
-        logs: prev!.logs.map(log =>
-          log.id === id ? { ...log, [field]: activeCycle.logs.find(l => l.id === id)?.[field] || '' } : log
-        )
-      }));
+      console.error('Save failed');
     }
-  }, [activeCycle]);
+  };
 
-  const saveLabData = useCallback(async () => {
+  const saveLabData = async () => {
     if (!activeCycle) return;
     try {
       await db.updateCycleLabData(activeCycle.id, labData);
       setActiveCycle({ ...activeCycle, lab: labData });
       toast.success('Lab data saved');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Save lab data error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Failed to save lab data: ${errorMessage}`);
+      toast.error('Failed to save lab data: ' + (error?.message || 'Unknown error'));
     }
-  }, [activeCycle, labData]);
+  };
 
-  const saveTransferData = useCallback(async () => {
+  const saveTransferData = async () => {
     if (!activeCycle) return;
     try {
       await db.updateCycleTransfer(activeCycle.id, transferData);
       setActiveCycle({ ...activeCycle, transfer: transferData });
       toast.success('Transfer data saved');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Save transfer data error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Failed to save transfer data: ${errorMessage}`);
+      toast.error('Failed to save transfer data: ' + (error?.message || 'Unknown error'));
     }
-  }, [activeCycle, transferData]);
+  };
 
-  const saveOutcome = useCallback(async () => {
+  const saveOutcome = async () => {
     if (!activeCycle) return;
     try {
       await db.updateCycleOutcome(activeCycle.id, outcomeData);
       setActiveCycle({ ...activeCycle, outcome: outcomeData, status: 'Completed' });
       toast.success('Outcome saved and cycle completed');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Save outcome error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Failed to save outcome: ${errorMessage}`);
+      toast.error('Failed to save outcome: ' + (error?.message || 'Unknown error'));
     }
-  }, [activeCycle, outcomeData]);
+  };
 
   const generateProtocolPrescription = (protocol: string) => {
     const protocolData = PROTOCOL_INFO[protocol as keyof typeof PROTOCOL_INFO];
@@ -413,7 +397,7 @@ const IvfJourney: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Weight (kg)</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">BMI (kg/m²)</label>
                         <input
                           type="number"
                           step="0.1"
@@ -726,7 +710,7 @@ const IvfJourney: React.FC = () => {
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200 shadow-sm">
                     <h4 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
                       <FileText className="w-6 h-6 text-blue-600" />
-Patient Assessment Data Summary
+                      ملخص البيانات من تقييم المريض - Assessment Data Summary
                     </h4>
 
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
@@ -734,21 +718,21 @@ Patient Assessment Data Summary
                       <div className="bg-white p-4 rounded-lg border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-2 mb-3">
                           <Baby className="w-5 h-5 text-blue-600" />
-                          <span className="font-semibold text-gray-800">Couple Profile</span>
+                          <span className="font-semibold text-gray-800">الملف الزوجي</span>
                         </div>
-                          <div className="space-y-2 text-sm">
+                        <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Duration of Infertility:</span>
-                            <span className="font-medium">{assessment.coupleProfile?.infertilityDuration ? `${assessment.coupleProfile.infertilityDuration} years` : 'Not specified'}</span>
+                            <span className="text-gray-600">مدة العقم:</span>
+                            <span className="font-medium">{assessment.coupleProfile?.infertilityDuration ? `${assessment.coupleProfile.infertilityDuration} سنة` : 'غير محدد'}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">BMI:</span>
+                            <span className="text-gray-600">الكتلة:</span>
                             <span className={`font-medium ${bmiAlert ? 'text-red-600' : 'text-green-600'}`}>
-                              {bmiValue > 0 ? `${bmiValue.toFixed(1)} kg/m²` : 'Not calculated'}
+                              {bmi > 0 ? `${bmi.toFixed(1)} kg/m²` : 'غير محسوب'}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Previous IVF Attempts:</span>
+                            <span className="text-gray-600">محاولات IVF السابقة:</span>
                             <span className="font-medium">{assessment.coupleProfile?.previousAttempts || 0}</span>
                           </div>
                         </div>
@@ -758,28 +742,37 @@ Patient Assessment Data Summary
                       <div className="bg-white p-4 rounded-lg border border-pink-200 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-2 mb-3">
                           <Heart className="w-5 h-5 text-pink-600" />
-                          <span className="font-semibold text-gray-800">Ovarian Reserve</span>
+                          <span className="font-semibold text-gray-800">احتياطي المبيض</span>
                         </div>
-                          <div className="space-y-2 text-sm">
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">التصنيف:</span>
+                            <span className={`font-bold px-2 py-1 rounded text-xs ${
+                              ovaryClassification === 'Poor Responder' ? 'bg-red-100 text-red-800' :
+                              ovaryClassification === 'High Responder' ? 'bg-purple-100 text-purple-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {ovaryClassification === 'Poor Responder' ? 'مستجيب ضعيف' :
+                               ovaryClassification === 'High Responder' ? 'مستجيب عالي' :
+                               'مستجيب طبيعي'}
+                            </span>
+                          </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">AMH:</span>
-                            <span className="font-medium">{assessment.femaleFactor?.amh ? `${assessment.femaleFactor.amh} ng/mL` : 'Not specified'}</span>
+                            <span className="font-medium">{assessment.femaleFactor?.amh ? `${assessment.femaleFactor.amh} ng/mL` : 'غير محدد'}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">AFC:</span>
-                            <span className="font-medium">{assessment.femaleFactor?.afcRight ? `${assessment.femaleFactor.afcRight} (Right)` : 'Not specified'}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-600">Classification:</span>
-                            <span className="font-medium">{ovaryClassification}</span>
+                            <span className="text-gray-600">AFC الكلي:</span>
+                            <span className="font-medium">{(assessment.femaleFactor?.afcRight || 0) + (assessment.femaleFactor?.afcLeft || 0)} جريب</span>
                           </div>
                         </div>
+                      </div>
 
                       {/* Male Factor Card */}
                       <div className="bg-white p-4 rounded-lg border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-2 mb-3">
                           <Zap className="w-5 h-5 text-purple-600" />
-                          <span className="font-semibold text-gray-800">Male Factor</span>
+                          <span className="font-semibold text-gray-800">العامل الذكري</span>
                         </div>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
@@ -787,36 +780,35 @@ Patient Assessment Data Summary
                             <span className="font-bold text-lg text-purple-700">{tmsc}M</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Motility:</span>
-                            <span className="font-medium">{assessment.maleFactor?.motility ? `${assessment.maleFactor.motility}%` : 'Not specified'}</span>
+                            <span className="text-gray-600">الحركة:</span>
+                            <span className="font-medium">{assessment.maleFactor?.motility ? `${assessment.maleFactor.motility}%` : 'غير محدد'}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Concentration:</span>
-                            <span className="font-medium">{assessment.maleFactor?.concentration ? `${assessment.maleFactor.concentration} M/mL` : 'Not specified'}</span>
+                            <span className="text-gray-600">التركيز:</span>
+                            <span className="font-medium">{assessment.maleFactor?.concentration ? `${assessment.maleFactor.concentration} M/mL` : 'غير محدد'}</span>
                           </div>
                         </div>
                         {tmsc < 5 && (
                           <div className="bg-yellow-50 p-2 rounded text-xs text-yellow-800 border border-yellow-200 mt-2">
-                            ICSI Indicated (TMSC &lt; 5M)
+                            {"يُنصح بـ ICSI (TMSC < 5M)"}
                           </div>
-                        )}
                       </div>
 
                       {/* Protocol Recommendation Card */}
                       <div className="bg-white p-4 rounded-lg border border-green-200 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-2 mb-3">
                           <Pill className="w-5 h-5 text-green-600" />
-                          <span className="font-semibold text-gray-800">Recommended Protocol</span>
+                          <span className="font-semibold text-gray-800">البروتوكول المقترح</span>
                         </div>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Current Protocol:</span>
+                            <span className="text-gray-600">البروتوكول الحالي:</span>
                             <span className="font-bold text-green-700">{activeCycle.protocol}</span>
                           </div>
                           <div className="text-xs text-gray-600">
-                            {ovaryClassification === 'Poor Responder' ? 'Antagonist protocol preferred for poor responders' :
-                             ovaryClassification === 'High Responder' ? 'Antagonist protocol preferred for high responders' :
-                             'Protocol suitable for normal responders'}
+                            {ovaryClassification === 'Poor Responder' ? 'يُفضل بروتوكول Antagonist للمستجيبين الضعفاء' :
+                             ovaryClassification === 'High Responder' ? 'يُفضل بروتوكول Antagonist للمستجيبين العاليين' :
+                             'البروتوكول مناسب للمستجيبين الطبيعيين'}
                           </div>
                         </div>
                       </div>
@@ -826,51 +818,51 @@ Patient Assessment Data Summary
                     <div className="bg-white p-4 rounded-lg border border-indigo-200 shadow-sm">
                       <h5 className="font-semibold text-indigo-800 mb-3 flex items-center gap-2">
                         <CheckCircle className="w-5 h-5" />
-                        Recommended Stimulation Guidance
+                        إرشادات التحفيز الموصى بها - Recommended Stimulation Guidance
                       </h5>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <h6 className="font-medium text-gray-700 mb-2">Starting Guidance</h6>
+                          <h6 className="font-medium text-gray-700 mb-2">📅 إرشادات البدء - Starting Guidance</h6>
                           <div className="text-sm text-gray-600 space-y-1">
                             {activeCycle.protocol === 'Long' && (
                               <>
-                                <div>• Start OCP suppression for 2-3 weeks before menses</div>
-                                <div>• Start GnRH agonist on day 21 of OCP</div>
-                                <div>• Start FSH/HMG when E2 &lt;50 pg/mL (confirm pituitary suppression)</div>
-                                <div>• Start FSH/HMG when E2 less than 50 pg/mL</div>
+                                <div>• ابدأ بقمع OCP لمدة 2-3 أسابيع قبل الحيض</div>
+                                <div>• ابدأ GnRH agonist في اليوم 21 من OCP</div>
+                                <div>• ابدأ FSH/HMG عندما يكون E2 <50 pg/mL (تأكيد قمع الغدة النخامية)</div>
+                                <div>• الجرعة البدائية النموذجية: 150-225 IU FSH</div>
                               </>
                             )}
                             {activeCycle.protocol === 'Antagonist' && (
                               <>
-                                <div>• Start FSH/HMG on day 2-3 of cycle</div>
-                                <div>• Add GnRH antagonist when leading follicle ≥14mm</div>
-                                <div>• Flexible start, shorter duration</div>
-                                <div>• Typical starting dose: 150-300 IU FSH (based on ovarian reserve)</div>
+                                <div>• ابدأ FSH/HMG في اليوم 2-3 من الدورة</div>
+                                <div>• أضف GnRH antagonist عندما يصل الجريب الرئيسي ≥14mm</div>
+                                <div>• بدء مرن، مدة أقصر</div>
+                                <div>• الجرعة البدائية النموذجية: 150-300 IU FSH (بناءً على احتياطي المبيض)</div>
                               </>
                             )}
                             {activeCycle.protocol === 'Flare-up' && (
                               <>
-                                <div>• Start GnRH agonist on day 2 of cycle</div>
-                                <div>• Start FSH/HMG after 2 days (day 4)</div>
-                                <div>• Initially higher LH levels</div>
-                                <div>• Typical starting dose: 225-375 IU FSH</div>
+                                <div>• ابدأ GnRH agonist في اليوم 2 من الدورة</div>
+                                <div>• ابدأ FSH/HMG بعد 2 أيام (اليوم 4)</div>
+                                <div>• مستويات LH أولية أعلى</div>
+                                <div>• الجرعة البدائية النموذجية: 225-375 IU FSH</div>
                               </>
                             )}
                           </div>
                         </div>
 
                         <div>
-                          <h6 className="font-medium text-gray-700 mb-2">Monitoring & Adjustments</h6>
+                          <h6 className="font-medium text-gray-700 mb-2">📊 المراقبة وتعديل الجرعات - Monitoring & Adjustments</h6>
                           <div className="text-sm text-gray-600 space-y-1">
-                            <div>• Monitor E2, LH, follicle growth every 2-3 days</div>
-                            <div>• Adjust FSH/HMG dose based on response (±75 IU)</div>
-                            <div>• Aim for 2-3 follicles ≥17mm for trigger</div>
-                            <div>• Endometrium should be ≥7mm at trigger</div>
+                            <div>• راقب E2، LH، نمو الجريبات كل 2-3 أيام</div>
+                            <div>• عدل جرعة FSH/HMG بناءً على الاستجابة (±75 IU)</div>
+                            <div>• هدف 2-3 جريبات ≥17mm للحقن</div>
+                            <div>• يجب أن يكون البطانة ≥7mm عند الحقن</div>
                             {ovaryClassification === 'Poor Responder' && (
-                              <div className="text-orange-600 font-medium">• Consider higher starting doses for poor responders</div>
+                              <div className="text-orange-600 font-medium">• فكر في جرعات بدائية أعلى للمستجيبين الضعفاء</div>
                             )}
                             {ovaryClassification === 'High Responder' && (
-                              <div className="text-purple-600 font-medium">• Start with lower doses to avoid OHSS</div>
+                              <div className="text-purple-600 font-medium">• ابدأ بجرعات أقل لتجنب متلازمة OHSS</div>
                             )}
                           </div>
                         </div>
@@ -880,7 +872,7 @@ Patient Assessment Data Summary
                       <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                         <div className="flex items-center justify-between">
                           <div>
-                            <span className="font-medium text-blue-800">Recommended Starting Dose:</span>
+                            <span className="font-medium text-blue-800">{"الجرعة البدائية الموصى بها:"}</span>
                             <span className="ml-2 text-lg font-bold text-blue-700">
                               {ovaryClassification === 'Poor Responder' ? '225-300 IU FSH' :
                                ovaryClassification === 'High Responder' ? '150-225 IU FSH' :
@@ -888,7 +880,9 @@ Patient Assessment Data Summary
                             </span>
                           </div>
                           <div className="text-xs text-blue-600">
-                            Based on {ovaryClassification} classification
+                            {`بناءً على تصنيف ${ovaryClassification === 'Poor Responder' ? 'المستجيب الضعيف' :
+                                             ovaryClassification === 'High Responder' ? 'المستجيب العالي' :
+                                             'المستجيب الطبيعي'}`}
                           </div>
                         </div>
                       </div>
