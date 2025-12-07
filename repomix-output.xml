@@ -91,6 +91,7 @@ tsconfig.json
 types.ts
 vercel.json
 vite.config.ts
+write_file.py
 </directory_structure>
 
 <files>
@@ -2513,6 +2514,11 @@ USING (
     }
   ]
 }
+</file>
+
+<file path="write_file.py">
+import os  
+print(os.getcwd())
 </file>
 
 <file path="BRANDING_SETUP.sql">
