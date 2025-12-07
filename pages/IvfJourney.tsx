@@ -13,7 +13,31 @@ interface CycleData {
   id: string;
   protocol: string;
   status: 'Assessment' | 'Active' | 'PickUp' | 'Transfer' | 'Frozen' | 'Done';
-  assessment: CycleAssessment;
+  assessment: CycleAssessment & {
+    imaging?: {
+      baselineUltrasound: {
+        uterus: { dimensions: string, myometrium: string, cavity: string };
+        endometrium: { thickness: number, pattern: string };
+        ovaries: {
+          afcRight: number;
+          afcLeft: number;
+          pathology: { cyst: boolean, endometrioma: boolean, dermoid: boolean };
+        };
+        adnexa: { hydrosalpinx: boolean };
+      };
+      hysteroscopyHSG: {
+        status: string[];
+        actionTaken: string;
+      };
+    };
+    plan?: {
+      recommendedProtocol: string;
+      startingDose: string;
+      trigger: string;
+      hint: string;
+      suggestedMeds: string[];
+    };
+  };
   stimulation: {
     logs: Array<{ date: string, cd: number, fsh: number, hmg: number, e2: number, lh: number, folliclesRt: string, folliclesLt: string }>;
     trigger: { date: string, type: string, hours: number };
@@ -23,6 +47,74 @@ interface CycleData {
   transfer: TransferData;
   outcome: OutcomeData;
 }
+
+// Smart Protocol Recommender Engine
+const recommendProtocol = (age: number, bmi: number, amh: number, afc: number, pcosHistory: boolean) => {
+  // High Responder Criteria (PCOS or AMH > 3.5 or AFC > 20)
+  if (pcosHistory || amh > 3.5 || afc > 20) {
+    return {
+      recommendedProtocol: 'GnRH Antagonist',
+      trigger: 'Agonist Trigger (Decapeptyl) or Dual Trigger',
+      startingDose: '150 IU',
+      hint: 'High risk of OHSS. Avoid hCG trigger alone. Freeze-all strategy preferred.',
+      suggestedMeds: ['Gonal-F 75 IU', 'Merional 75 IU', 'Cetrotide 0.25mg', 'Decapeptyl 0.1mg (Trigger)']
+    };
+  }
+
+  // Poor Responder Criteria (AMH < 1.1)
+  if (amh < 1.1) {
+    return {
+      recommendedProtocol: 'GnRH Antagonist or Short Flare',
+      trigger: 'Ovitrelle 250mcg',
+      startingDose: '300 - 450 IU',
+      hint: 'Expect low oocyte yield. Consider accumulation cycles. Adjuvants: DHEA/Growth Hormone priming.',
+      suggestedMeds: ['Gonal-F 300 IU', 'Merional 150 IU', 'Cetrotide 0.25mg', 'Ovitrelle 250mcg']
+    };
+  }
+
+  // Normal Responder (AMH 1.2 - 3.5)
+  return {
+    recommendedProtocol: 'GnRH Antagonist',
+    trigger: 'Ovitrelle 250mcg',
+    startingDose: '225 IU',
+    hint: 'Standard response expected.',
+    suggestedMeds: ['Gonal-F 75 IU', 'Merional 75 IU', 'Cetrotide 0.25mg', 'Ovitrelle 250mcg']
+  };
+};
+
+// Utility function for safe nested state updates
+const updateNestedState = <T extends Record<string, any>>(
+  obj: T,
+  path: string[],
+  value: any
+): T => {
+  if (path.length === 0) return obj;
+
+  const [head, ...tail] = path;
+  if (tail.length === 0) {
+    return { ...obj, [head]: value };
+  }
+
+  const nested = obj[head] || {};
+  return {
+    ...obj,
+    [head]: updateNestedState(nested, tail, value)
+  };
+};
+
+// Input validation utilities
+const validateNumericInput = (value: string, min: number = 0, max?: number): number => {
+  const num = parseFloat(value);
+  if (isNaN(num) || num < min || (max !== undefined && num > max)) {
+    throw new Error(`Invalid input: must be a number between ${min} and ${max || 'unlimited'}`);
+  }
+  return num;
+};
+
+const safeParseInt = (value: string, defaultValue: number = 0): number => {
+  const parsed = parseInt(value, 10);
+  return isNaN(parsed) ? defaultValue : parsed;
+};
 
 const IvfJourney: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -422,6 +514,475 @@ const IvfJourney: React.FC = () => {
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Advanced Imaging Section */}
+                  <div className="bg-indigo-50 p-6 rounded-lg border border-indigo-200">
+                    <h4 className="text-lg font-semibold text-indigo-800 mb-4 flex items-center gap-2">
+                      📺 التصوير المتقدم - Advanced Imaging
+                    </h4>
+
+                    {/* Baseline Ultrasound */}
+                    <div className="mb-6">
+                      <h5 className="text-md font-semibold text-indigo-700 mb-3">Baseline Ultrasound (TVS)</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Uterus */}
+                        <div className="space-y-3">
+                          <h6 className="font-medium text-gray-700">Uterus</h6>
+                          <div>
+                            <label className="block text-sm text-gray-600">Dimensions</label>
+                            <input
+                              value={cycleData.assessment.imaging?.baselineUltrasound.uterus.dimensions || ''}
+                              onChange={(e) => setCycleData({
+                                ...cycleData,
+                                assessment: {
+                                  ...cycleData.assessment,
+                                  imaging: {
+                                    ...cycleData.assessment.imaging,
+                                    baselineUltrasound: {
+                                      ...cycleData.assessment.imaging?.baselineUltrasound,
+                                      uterus: { ...cycleData.assessment.imaging?.baselineUltrasound?.uterus, dimensions: e.target.value }
+                                    }
+                                  }
+                                }
+                              })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                              placeholder="e.g., 7.2 x 4.1 x 5.8 cm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm text-gray-600">Myometrium</label>
+                            <select
+                              value={cycleData.assessment.imaging?.baselineUltrasound.uterus.myometrium || ''}
+                              onChange={(e) => setCycleData({
+                                ...cycleData,
+                                assessment: {
+                                  ...cycleData.assessment,
+                                  imaging: {
+                                    ...cycleData.assessment.imaging,
+                                    baselineUltrasound: {
+                                      ...cycleData.assessment.imaging?.baselineUltrasound,
+                                      uterus: { ...cycleData.assessment.imaging?.baselineUltrasound?.uterus, myometrium: e.target.value }
+                                    }
+                                  }
+                                }
+                              })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            >
+                              <option value="">Select</option>
+                              <option value="Normal">Normal</option>
+                              <option value="Adenomyosis">Adenomyosis</option>
+                              <option value="Fibroids">Fibroids</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm text-gray-600">Cavity</label>
+                            <select
+                              value={cycleData.assessment.imaging?.baselineUltrasound.uterus.cavity || ''}
+                              onChange={(e) => setCycleData({
+                                ...cycleData,
+                                assessment: {
+                                  ...cycleData.assessment,
+                                  imaging: {
+                                    ...cycleData.assessment.imaging,
+                                    baselineUltrasound: {
+                                      ...cycleData.assessment.imaging?.baselineUltrasound,
+                                      uterus: { ...cycleData.assessment.imaging?.baselineUltrasound?.uterus, cavity: e.target.value }
+                                    }
+                                  }
+                                }
+                              })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            >
+                              <option value="">Select</option>
+                              <option value="Normal">Normal</option>
+                              <option value="Polyp">Polyp</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Endometrium */}
+                        <div className="space-y-3">
+                          <h6 className="font-medium text-gray-700">Endometrium</h6>
+                          <div>
+                            <label className="block text-sm text-gray-600">Thickness (mm)</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={cycleData.assessment.imaging?.baselineUltrasound.endometrium.thickness || ''}
+                              onChange={(e) => setCycleData({
+                                ...cycleData,
+                                assessment: {
+                                  ...cycleData.assessment,
+                                  imaging: {
+                                    ...cycleData.assessment.imaging,
+                                    baselineUltrasound: {
+                                      ...cycleData.assessment.imaging?.baselineUltrasound,
+                                      endometrium: { ...cycleData.assessment.imaging?.baselineUltrasound?.endometrium, thickness: parseFloat(e.target.value) || 0 }
+                                    }
+                                  }
+                                }
+                              })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm text-gray-600">Pattern</label>
+                            <select
+                              value={cycleData.assessment.imaging?.baselineUltrasound.endometrium.pattern || ''}
+                              onChange={(e) => setCycleData({
+                                ...cycleData,
+                                assessment: {
+                                  ...cycleData.assessment,
+                                  imaging: {
+                                    ...cycleData.assessment.imaging,
+                                    baselineUltrasound: {
+                                      ...cycleData.assessment.imaging?.baselineUltrasound,
+                                      endometrium: { ...cycleData.assessment.imaging?.baselineUltrasound?.endometrium, pattern: e.target.value }
+                                    }
+                                  }
+                                }
+                              })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            >
+                              <option value="">Select</option>
+                              <option value="Triple Line">Triple Line</option>
+                              <option value="Homogeneous">Homogeneous</option>
+                              <option value="Echogenic">Echogenic</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Ovaries */}
+                      <div className="mt-4">
+                        <h6 className="font-medium text-gray-700 mb-3">Ovaries</h6>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm text-gray-600">AFC Right</label>
+                            <input
+                              type="number"
+                              value={cycleData.assessment.imaging?.baselineUltrasound.ovaries.afcRight || ''}
+                              onChange={(e) => setCycleData({
+                                ...cycleData,
+                                assessment: {
+                                  ...cycleData.assessment,
+                                  imaging: {
+                                    ...cycleData.assessment.imaging,
+                                    baselineUltrasound: {
+                                      ...cycleData.assessment.imaging?.baselineUltrasound,
+                                      ovaries: { ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries, afcRight: parseInt(e.target.value) || 0 }
+                                    }
+                                  }
+                                }
+                              })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm text-gray-600">AFC Left</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="50"
+                              value={cycleData?.assessment?.imaging?.baselineUltrasound?.ovaries?.afcLeft || ''}
+                              onChange={(e) => {
+                                try {
+                                  const value = safeParseInt(e.target.value, 0);
+                                  if (cycleData) {
+                                    setCycleData(updateNestedState(
+                                      cycleData,
+                                      ['assessment', 'imaging', 'baselineUltrasound', 'ovaries', 'afcLeft'],
+                                      value
+                                    ));
+                                  }
+                                } catch (error) {
+                                  toast.error('Invalid AFC value');
+                                }
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm text-gray-600">Total AFC</label>
+                            <input
+                              type="number"
+                              value={(cycleData.assessment.imaging?.baselineUltrasound.ovaries.afcRight || 0) + (cycleData.assessment.imaging?.baselineUltrasound.ovaries.afcLeft || 0)}
+                              readOnly
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Pathology Checkboxes */}
+                        <div className="mt-3">
+                          <label className="block text-sm text-gray-600 mb-2">Pathology</label>
+                          <div className="flex gap-4">
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={cycleData.assessment.imaging?.baselineUltrasound.ovaries.pathology.cyst || false}
+                                onChange={(e) => setCycleData({
+                                  ...cycleData,
+                                  assessment: {
+                                    ...cycleData.assessment,
+                                    imaging: {
+                                      ...cycleData.assessment.imaging,
+                                      baselineUltrasound: {
+                                        ...cycleData.assessment.imaging?.baselineUltrasound,
+                                        ovaries: {
+                                          ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries,
+                                          pathology: { ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries.pathology, cyst: e.target.checked }
+                                        }
+                                      }
+                                    }
+                                  }
+                                })}
+                                className="rounded"
+                              />
+                              <span className="text-sm">Cyst</span>
+                            </label>
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={cycleData.assessment.imaging?.baselineUltrasound.ovaries.pathology.endometrioma || false}
+                                onChange={(e) => setCycleData({
+                                  ...cycleData,
+                                  assessment: {
+                                    ...cycleData.assessment,
+                                    imaging: {
+                                      ...cycleData.assessment.imaging,
+                                      baselineUltrasound: {
+                                        ...cycleData.assessment.imaging?.baselineUltrasound,
+                                        ovaries: {
+                                          ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries,
+                                          pathology: { ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries.pathology, endometrioma: e.target.checked }
+                                        }
+                                      }
+                                    }
+                                  }
+                                })}
+                                className="rounded"
+                              />
+                              <span className="text-sm">Endometrioma</span>
+                            </label>
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={cycleData.assessment.imaging?.baselineUltrasound.ovaries.pathology.dermoid || false}
+                                onChange={(e) => setCycleData({
+                                  ...cycleData,
+                                  assessment: {
+                                    ...cycleData.assessment,
+                                    imaging: {
+                                      ...cycleData.assessment.imaging,
+                                      baselineUltrasound: {
+                                        ...cycleData.assessment.imaging?.baselineUltrasound,
+                                        ovaries: {
+                                          ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries,
+                                          pathology: { ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries.pathology, dermoid: e.target.checked }
+                                        }
+                                      }
+                                    }
+                                  }
+                                })}
+                                className="rounded"
+                              />
+                              <span className="text-sm">Dermoid</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Adnexa */}
+                      <div className="mt-4">
+                        <h6 className="font-medium text-gray-700 mb-3">Adnexa</h6>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={cycleData.assessment.imaging?.baselineUltrasound.adnexa.hydrosalpinx || false}
+                            onChange={(e) => setCycleData({
+                              ...cycleData,
+                              assessment: {
+                                ...cycleData.assessment,
+                                imaging: {
+                                  ...cycleData.assessment.imaging,
+                                  baselineUltrasound: {
+                                    ...cycleData.assessment.imaging?.baselineUltrasound,
+                                    adnexa: { hydrosalpinx: e.target.checked }
+                                  }
+                                }
+                              }
+                            })}
+                            className="rounded"
+                          />
+                          <span className="text-sm font-medium text-red-600">Hydrosalpinx (Critical - Requires Surgery)</span>
+                        </label>
+                        {cycleData.assessment.imaging?.baselineUltrasound.adnexa.hydrosalpinx && (
+                          <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-red-700">
+                              <AlertCircle className="w-5 h-5" />
+                              <span className="font-semibold">⚠️ Critical Finding: Hydrosalpinx detected</span>
+                            </div>
+                            <p className="text-sm text-red-600 mt-1">
+                              Surgical intervention required before IVF. Hydrosalpinx significantly reduces pregnancy rates.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Hysteroscopy / HSG Findings */}
+                    <div className="border-t pt-4">
+                      <h5 className="text-md font-semibold text-indigo-700 mb-3">Hysteroscopy / HSG Findings</h5>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-2">Status</label>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {['Patent Tubes', 'Blocked', 'Septum', 'Adhesions', 'Cavity Normal'].map(status => (
+                              <label key={status} className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={cycleData.assessment.imaging?.hysteroscopyHSG.status?.includes(status) || false}
+                                  onChange={(e) => {
+                                    const currentStatus = cycleData.assessment.imaging?.hysteroscopyHSG.status || [];
+                                    const newStatus = e.target.checked
+                                      ? [...currentStatus, status]
+                                      : currentStatus.filter(s => s !== status);
+                                    setCycleData({
+                                      ...cycleData,
+                                      assessment: {
+                                        ...cycleData.assessment,
+                                        imaging: {
+                                          ...cycleData.assessment.imaging,
+                                          hysteroscopyHSG: {
+                                            ...cycleData.assessment.imaging?.hysteroscopyHSG,
+                                            status: newStatus
+                                          }
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  className="rounded"
+                                />
+                                <span className="text-sm">{status}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm text-gray-600">Action Taken</label>
+                          <textarea
+                            value={cycleData.assessment.imaging?.hysteroscopyHSG.actionTaken || ''}
+                            onChange={(e) => setCycleData({
+                              ...cycleData,
+                              assessment: {
+                                ...cycleData.assessment,
+                                imaging: {
+                                  ...cycleData.assessment.imaging,
+                                  hysteroscopyHSG: {
+                                    ...cycleData.assessment.imaging?.hysteroscopyHSG,
+                                    actionTaken: e.target.value
+                                  }
+                                }
+                              }
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            rows={2}
+                            placeholder="e.g., Septum resected on [date], Tubes patent after intervention"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Smart Protocol Recommender */}
+                  <div className="bg-green-50 p-6 rounded-lg border border-green-200">
+                    <h4 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
+                      🤖 محرك التوصية الذكي - Smart Protocol Recommender
+                    </h4>
+
+                    <div className="flex gap-4 mb-4">
+                      <button
+                        onClick={() => {
+                          const age = selectedPatient?.age || 0;
+                          const bmi = cycleData.assessment.coupleProfile?.weight && cycleData.assessment.coupleProfile?.height
+                            ? (cycleData.assessment.coupleProfile.weight / Math.pow(cycleData.assessment.coupleProfile.height / 100, 2))
+                            : 0;
+                          const amh = cycleData.assessment.femaleFactor?.amh || 0;
+                          const afc = (cycleData.assessment.imaging?.baselineUltrasound.ovaries.afcRight || 0) +
+                                     (cycleData.assessment.imaging?.baselineUltrasound.ovaries.afcLeft || 0);
+                          const pcosHistory = false; // This would come from patient history
+
+                          const recommendation = recommendProtocol(age, bmi, amh, afc, pcosHistory);
+
+                          setCycleData({
+                            ...cycleData,
+                            assessment: {
+                              ...cycleData.assessment,
+                              plan: recommendation
+                            }
+                          });
+
+                          toast.success('Protocol recommendation generated!');
+                        }}
+                        className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center gap-2"
+                      >
+                        <Pill className="w-5 h-5" />
+                        اقتراح البروتوكول - Suggest Protocol
+                      </button>
+                    </div>
+
+                    {cycleData.assessment.plan && (
+                      <div className="bg-white p-4 rounded-lg border border-green-200">
+                        <h5 className="font-semibold text-green-800 mb-3">📋 Recommended Protocol</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <span className="font-medium text-gray-700">Protocol:</span>
+                            <span className="ml-2 font-bold text-green-700">{cycleData.assessment.plan.recommendedProtocol}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700">Starting Dose:</span>
+                            <span className="ml-2 font-bold text-blue-700">{cycleData.assessment.plan.startingDose}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700">Trigger:</span>
+                            <span className="ml-2 text-gray-700">{cycleData.assessment.plan.trigger}</span>
+                          </div>
+                        </div>
+
+                        <div className="mb-4">
+                          <span className="font-medium text-gray-700">Clinical Hint:</span>
+                          <p className="mt-1 text-sm text-gray-600 bg-yellow-50 p-3 rounded border border-yellow-200">
+                            💡 {cycleData.assessment.plan.hint}
+                          </p>
+                        </div>
+
+                        <div className="mb-4">
+                          <span className="font-medium text-gray-700 mb-2 block">Suggested Medications:</span>
+                          <div className="flex flex-wrap gap-2">
+                            {cycleData.assessment.plan.suggestedMeds.map((med, index) => (
+                              <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                                {med}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            setCycleData({
+                              ...cycleData,
+                              protocol: cycleData.assessment.plan!.recommendedProtocol
+                            });
+                            toast.success('Protocol applied to cycle!');
+                          }}
+                          className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors text-sm"
+                        >
+                          Apply to Plan
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <button
