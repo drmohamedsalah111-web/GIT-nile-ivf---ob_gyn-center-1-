@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import BottomNav from './components/BottomNav';
+import SyncStatus from './components/SyncStatus';
 import { Page } from './types';
 import Dashboard from './pages/Dashboard';
 import Reception from './pages/Reception';
@@ -39,8 +40,10 @@ const App: React.FC = () => {
         const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
 
-        // TODO: Initialize sync manager when ready
-        // syncManager would start background sync here
+        // Initialize sync - process any pending items
+        if (currentUser) {
+          await syncService.initializeSync();
+        }
 
       } catch (error) {
         console.error('App initialization error:', error);
@@ -129,20 +132,25 @@ const App: React.FC = () => {
               <h1 className="text-2xl font-bold text-gray-900">
                 مرحباً، {user?.email}
               </h1>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200 font-[Tajawal]"
-              >
-                <LogOut size={18} />
-                تسجيل الخروج
-              </button>
+              <div className="flex items-center gap-4">
+                <SyncStatus />
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200 font-[Tajawal]"
+                >
+                  <LogOut size={18} />
+                  تسجيل الخروج
+                </button>
+              </div>
             </div>
 
             {/* Mobile Header - Simplified */}
-            <div className="md:hidden mb-4">
-              <h1 className="text-xl font-bold text-gray-900 text-center">
+            <div className="md:hidden mb-4 flex justify-between items-center">
+              <SyncStatus />
+              <h1 className="text-xl font-bold text-gray-900 text-center flex-1">
                 مرحباً، {user?.email?.split('@')[0]}
               </h1>
+              <div className="w-5"></div>
             </div>
 
             {renderContent()}

@@ -254,12 +254,13 @@ export class SyncService {
   private async syncItem(table: string, localId: number, localRecord: any): Promise<void> {
     try {
       let result;
+      const serverData = this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error']);
 
       switch (table) {
         case 'patients':
           result = await supabase
             .from('patients')
-            .insert([this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error'])])
+            .insert([serverData])
             .select()
             .single();
           break;
@@ -267,7 +268,7 @@ export class SyncService {
         case 'visits':
           result = await supabase
             .from('antenatal_visits')
-            .insert([this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error'])])
+            .insert([serverData])
             .select()
             .single();
           break;
@@ -275,7 +276,7 @@ export class SyncService {
         case 'ivf_cycles':
           result = await supabase
             .from('ivf_cycles')
-            .insert([this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error'])])
+            .insert([serverData])
             .select()
             .single();
           break;
@@ -283,7 +284,7 @@ export class SyncService {
         case 'stimulation_logs':
           result = await supabase
             .from('stimulation_logs')
-            .insert([this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error'])])
+            .insert([serverData])
             .select()
             .single();
           break;
@@ -291,7 +292,7 @@ export class SyncService {
         case 'pregnancies':
           result = await supabase
             .from('pregnancies')
-            .insert([this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error'])])
+            .insert([serverData])
             .select()
             .single();
           break;
@@ -299,7 +300,7 @@ export class SyncService {
         case 'biometry_scans':
           result = await supabase
             .from('biometry_scans')
-            .insert([this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error'])])
+            .insert([serverData])
             .select()
             .single();
           break;
@@ -314,7 +315,47 @@ export class SyncService {
       await markAsSynced(table, localId, result.data.id);
 
     } catch (error) {
-      await markSyncError(table, localId, error instanceof Error ? error.message : 'Unknown sync error');
+      // Self-healing: Handle duplicate key errors
+      if (error instanceof Error && error.message.includes('duplicate')) {
+        console.log(`⚠️ Duplicate key detected for ${table}, attempting self-healing...`);
+        await this.handleDuplicateKeyError(table, localId, localRecord);
+      } else {
+        await markSyncError(table, localId, error instanceof Error ? error.message : 'Unknown sync error');
+        throw error;
+      }
+    }
+  }
+
+  // Self-healing: Handle duplicate key errors by finding existing record and updating local reference
+  private async handleDuplicateKeyError(table: string, localId: number, localRecord: any): Promise<void> {
+    try {
+      console.log(`🔍 Searching for existing record on server for ${table}...`);
+      
+      let existingRecord;
+      let searchField = 'phone'; // Default for patients
+      let searchValue = localRecord.phone;
+
+      // Determine search criteria by table type
+      if (table === 'patients' && localRecord.phone) {
+        const { data } = await supabase
+          .from('patients')
+          .select('id')
+          .eq('phone', localRecord.phone)
+          .single();
+        existingRecord = data;
+      }
+
+      if (existingRecord) {
+        console.log(`✅ Found existing record with ID ${existingRecord.id}, marking as synced`);
+        // Mark local record as synced with the remote ID
+        await markAsSynced(table, localId, existingRecord.id);
+      } else {
+        console.warn(`❌ Could not find existing record for ${table}, marking as error`);
+        throw new Error(`Duplicate key detected but could not find existing record`);
+      }
+    } catch (error) {
+      console.error(`❌ Self-healing failed for ${table}:`, error);
+      await markSyncError(table, localId, 'Duplicate key - self-healing failed');
       throw error;
     }
   }
@@ -641,6 +682,23 @@ export class SyncService {
   // Force sync
   async forceSync(): Promise<void> {
     await this.performBackgroundSync();
+  }
+
+  // Initialize sync on app load - process pending items immediately
+  async initializeSync(): Promise<void> {
+    console.log('🚀 Initializing sync on app load...');
+    try {
+      if (this.isOnline) {
+        // Process any pending items immediately on app load
+        await this.processSyncQueue();
+        console.log('✅ Sync initialization completed');
+      } else {
+        console.log('📴 App is offline, sync will resume when connection is restored');
+      }
+    } catch (error) {
+      console.error('⚠️ Error during sync initialization:', error);
+      // Don't throw - let app continue even if sync fails
+    }
   }
 
   // Cleanup
