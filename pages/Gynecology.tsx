@@ -46,8 +46,8 @@ interface GynecologyData {
   };
 
   // Diagnosis & Plan Tab
-  diagnosis: string;
-  procedureOrder: string;
+  diagnosis: string[];
+  procedureOrder: string[];
   clinicalNotes: string;
 
   // Rx Tab
@@ -95,8 +95,8 @@ const Gynecology: React.FC = () => {
         pod: 'Clear',
       },
     },
-    diagnosis: '',
-    procedureOrder: '',
+    diagnosis: [],
+    procedureOrder: [],
     clinicalNotes: '',
     prescription: [],
   });
@@ -151,8 +151,8 @@ const Gynecology: React.FC = () => {
           pvExamination: gynecologyData.pvExamination,
           ultrasound: gynecologyData.ultrasound,
         },
-        diagnosis: gynecologyData.diagnosis,
-        procedureOrder: gynecologyData.procedureOrder,
+        diagnosis: gynecologyData.diagnosis.join('; '),
+        procedureOrder: gynecologyData.procedureOrder.join('; '),
         clinicalNotes: gynecologyData.clinicalNotes,
       };
 
@@ -201,8 +201,8 @@ const Gynecology: React.FC = () => {
             pod: 'Clear',
           },
         },
-        diagnosis: '',
-        procedureOrder: '',
+        diagnosis: [],
+        procedureOrder: [],
         clinicalNotes: '',
         prescription: [],
       });
@@ -221,6 +221,24 @@ const Gynecology: React.FC = () => {
       complaints: prev.complaints.includes(complaint)
         ? prev.complaints.filter(c => c !== complaint)
         : [...prev.complaints, complaint]
+    }));
+  };
+
+  const toggleDiagnosis = (diagnosis: string) => {
+    setGynecologyData(prev => ({
+      ...prev,
+      diagnosis: prev.diagnosis.includes(diagnosis)
+        ? prev.diagnosis.filter(d => d !== diagnosis)
+        : [...prev.diagnosis, diagnosis]
+    }));
+  };
+
+  const toggleProcedure = (procedure: string) => {
+    setGynecologyData(prev => ({
+      ...prev,
+      procedureOrder: prev.procedureOrder.includes(procedure)
+        ? prev.procedureOrder.filter(p => p !== procedure)
+        : [...prev.procedureOrder, procedure]
     }));
   };
 
@@ -570,43 +588,73 @@ const Gynecology: React.FC = () => {
               <div className="space-y-6" dir="ltr">
                 {/* Diagnosis */}
                 <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">ICD-10 Diagnosis</h3>
-                  <select
-                    value={gynecologyData.diagnosis}
-                    onChange={(e) => setGynecologyData(prev => ({ ...prev, diagnosis: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="">Select Diagnosis</option>
-                    <option value="E28.2 - PCOS (Polycystic Ovary Syndrome)">E28.2 - PCOS (Polycystic Ovary Syndrome)</option>
-                    <option value="N93.9 - Abnormal Uterine Bleeding (AUB)">N93.9 - Abnormal Uterine Bleeding (AUB)</option>
-                    <option value="N80 - Endometriosis">N80 - Endometriosis</option>
-                    <option value="D25 - Uterine Leiomyoma (Fibroid)">D25 - Uterine Leiomyoma (Fibroid)</option>
-                    <option value="N84 - Polyp of Female Genital Tract">N84 - Polyp of Female Genital Tract</option>
-                    <option value="N85.0 - Endometrial Hyperplasia">N85.0 - Endometrial Hyperplasia</option>
-                    <option value="N70 - Salpingitis and Oophoritis (PID)">N70 - Salpingitis and Oophoritis (PID)</option>
-                    <option value="N71 - Inflammatory Disease of Uterus">N71 - Inflammatory Disease of Uterus</option>
-                    <option value="N97 - Female Infertility">N97 - Female Infertility</option>
-                  </select>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">ICD-10 Diagnosis (Multi-Select)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {[
+                      'E28.2 - PCOS (Polycystic Ovary Syndrome)',
+                      'N93.9 - Abnormal Uterine Bleeding (AUB)',
+                      'N80 - Endometriosis',
+                      'D25 - Uterine Leiomyoma (Fibroid)',
+                      'N84 - Polyp of Female Genital Tract',
+                      'N85.0 - Endometrial Hyperplasia',
+                      'N70 - Salpingitis and Oophoritis (PID)',
+                      'N71 - Inflammatory Disease of Uterus',
+                      'N97 - Female Infertility'
+                    ].map(diagnosis => (
+                      <button
+                        key={diagnosis}
+                        onClick={() => toggleDiagnosis(diagnosis)}
+                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                          gynecologyData.diagnosis.includes(diagnosis)
+                            ? 'bg-amber-600 text-white border-amber-600'
+                            : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
+                        }`}
+                      >
+                        {diagnosis}
+                      </button>
+                    ))}
+                  </div>
+                  {gynecologyData.diagnosis.length > 0 && (
+                    <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-sm text-amber-800 font-medium">Selected Diagnoses:</p>
+                      <p className="text-sm text-amber-700 mt-1">{gynecologyData.diagnosis.join('; ')}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Procedure Order */}
                 <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Procedure / Management Plan</h3>
-                  <select
-                    value={gynecologyData.procedureOrder}
-                    onChange={(e) => setGynecologyData(prev => ({ ...prev, procedureOrder: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="">Select Procedure</option>
-                    <option value="Conservative Management">Conservative Management</option>
-                    <option value="Hysteroscopy + D&C">Hysteroscopy + D&C</option>
-                    <option value="Diagnostic Laparoscopy">Diagnostic Laparoscopy</option>
-                    <option value="Pap Smear Screening">Pap Smear Screening</option>
-                    <option value="Endometrial Biopsy">Endometrial Biopsy</option>
-                    <option value="Colposcopy">Colposcopy</option>
-                    <option value="Myomectomy">Myomectomy</option>
-                    <option value="IUD Insertion">IUD Insertion</option>
-                  </select>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Procedure / Management Plan (Multi-Select)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {[
+                      'Conservative Management',
+                      'Hysteroscopy + D&C',
+                      'Diagnostic Laparoscopy',
+                      'Pap Smear Screening',
+                      'Endometrial Biopsy',
+                      'Colposcopy',
+                      'Myomectomy',
+                      'IUD Insertion'
+                    ].map(procedure => (
+                      <button
+                        key={procedure}
+                        onClick={() => toggleProcedure(procedure)}
+                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                          gynecologyData.procedureOrder.includes(procedure)
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
+                        }`}
+                      >
+                        {procedure}
+                      </button>
+                    ))}
+                  </div>
+                  {gynecologyData.procedureOrder.length > 0 && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800 font-medium">Selected Procedures:</p>
+                      <p className="text-sm text-blue-700 mt-1">{gynecologyData.procedureOrder.join('; ')}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Clinical Notes */}
@@ -653,7 +701,7 @@ const Gynecology: React.FC = () => {
       <PrescriptionPrinter
         patient={selectedPatient || null}
         prescriptions={gynecologyData.prescription}
-        diagnosis={gynecologyData.diagnosis}
+        diagnosis={gynecologyData.diagnosis.join('; ')}
         notes={gynecologyData.clinicalNotes}
         isOpen={isPrinterOpen}
         onClose={() => setIsPrinterOpen(false)}

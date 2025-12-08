@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { User, Building2, Lock, Upload, Save, AlertCircle, CheckCircle, Info, Facebook, MessageCircle } from 'lucide-react';
+import { User, Palette, FileText, Lock, Upload, Save, AlertCircle, CheckCircle, Facebook, MessageCircle, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
+import { useBranding } from '../context/BrandingContext';
 import { Doctor } from '../types';
 
 interface SettingsProps {
@@ -9,12 +10,25 @@ interface SettingsProps {
 }
 
 const Settings: React.FC<SettingsProps> = ({ user }) => {
+  const { branding, updateBranding, loading: brandingLoading } = useBranding();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
-  const [activeTab, setActiveTab] = useState<'doctor' | 'clinic' | 'password' | 'about'>('doctor');
+  const [activeTab, setActiveTab] = useState<'branding' | 'prescription' | 'profile' | 'password'>('branding');
   
-  const [formData, setFormData] = useState({
+  const [brandingFormData, setBrandingFormData] = useState({
+    clinic_name: '',
+    primary_color: '',
+    logo_url: '' as string | null,
+  });
+
+  const [prescriptionFormData, setPrescriptionFormData] = useState({
+    clinic_address: '',
+    clinic_phone: '',
+    default_rx_notes: '',
+  });
+
+  const [profileFormData, setProfileFormData] = useState({
     name: '',
     email: '',
     phone: '',
@@ -22,41 +36,27 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     doctor_image: '',
   });
 
-  const [clinicData, setClinicData] = useState({
-    clinic_name: '',
-    clinic_address: '',
-    clinic_phone: '',
-    clinic_latitude: '',
-    clinic_longitude: '',
-    clinic_image: '',
-  });
-
   const [passwordData, setPasswordData] = useState({
     newPassword: '',
     confirmPassword: '',
   });
 
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoUploadLoading, setLogoUploadLoading] = useState(false);
+
   useEffect(() => {
-    const fetchDoctor = async () => {
+    const fetchData = async () => {
       try {
         if (user?.id) {
           await authService.ensureDoctorRecord(user.id, user.email);
           const doctorProfile = await authService.getDoctorProfile(user.id);
           setDoctor(doctorProfile);
-          setFormData({
+          setProfileFormData({
             name: doctorProfile.name || '',
             email: doctorProfile.email || '',
             phone: doctorProfile.phone || '',
             specialization: doctorProfile.specialization || '',
             doctor_image: doctorProfile.doctor_image || '',
-          });
-          setClinicData({
-            clinic_name: doctorProfile.clinic_name || '',
-            clinic_address: doctorProfile.clinic_address || '',
-            clinic_phone: doctorProfile.clinic_phone || '',
-            clinic_latitude: doctorProfile.clinic_latitude || '',
-            clinic_longitude: doctorProfile.clinic_longitude || '',
-            clinic_image: doctorProfile.clinic_image || '',
           });
         }
       } catch (error) {
@@ -67,58 +67,111 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
       }
     };
 
-    fetchDoctor();
+    fetchData();
   }, [user]);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'doctor' | 'clinic') => {
+  useEffect(() => {
+    if (branding) {
+      setBrandingFormData({
+        clinic_name: branding.clinic_name || '',
+        primary_color: branding.primary_color || '#2d5a6b',
+        logo_url: branding.logo_url || null,
+      });
+      setPrescriptionFormData({
+        clinic_address: branding.clinic_address || '',
+        clinic_phone: branding.clinic_phone || '',
+        default_rx_notes: branding.default_rx_notes || '',
+      });
+      setLogoPreview(branding.logo_url);
+    }
+  }, [branding]);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setLogoUploadLoading(true);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      await updateBranding({ clinic_name: brandingFormData.clinic_name }, file);
+      toast.success('تم رفع الشعار بنجاح');
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('فشل رفع الشعار. تأكد من إنشاء bucket "branding" في Supabase');
+      setLogoPreview(branding?.logo_url || null);
+    } finally {
+      setLogoUploadLoading(false);
+    }
+  };
+
+  const handleBrandingSave = async () => {
+    try {
+      setSaving(true);
+      await updateBranding({
+        clinic_name: brandingFormData.clinic_name,
+        primary_color: brandingFormData.primary_color,
+      });
+      toast.success('تم تحديث بيانات الهوية البصرية بنجاح');
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('فشل تحديث بيانات الهوية البصرية');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePrescriptionSave = async () => {
+    try {
+      setSaving(true);
+      await updateBranding({
+        clinic_address: prescriptionFormData.clinic_address,
+        clinic_phone: prescriptionFormData.clinic_phone,
+        default_rx_notes: prescriptionFormData.default_rx_notes,
+      });
+      toast.success('تم تحديث إعدادات الروشتة بنجاح');
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('فشل تحديث إعدادات الروشتة');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleProfileSave = async () => {
+    try {
+      setSaving(true);
+      await authService.updateDoctorProfile(user.id, {
+        name: profileFormData.name,
+        phone: profileFormData.phone,
+        specialization: profileFormData.specialization,
+        doctor_image: profileFormData.doctor_image,
+      });
+      toast.success('تم تحديث الملف الشخصي بنجاح');
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('فشل تحديث الملف الشخصي');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDoctorImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       setSaving(true);
-      const imageUrl = await authService.uploadImage(user.id, file, type === 'doctor' ? 'doctor_images' : 'clinic_images');
-      
-      if (type === 'doctor') {
-        setFormData(prev => ({ ...prev, doctor_image: imageUrl }));
-      } else {
-        setClinicData(prev => ({ ...prev, clinic_image: imageUrl }));
-      }
-      
+      const imageUrl = await authService.uploadImage(user.id, file, 'doctor_images');
+      setProfileFormData(prev => ({ ...prev, doctor_image: imageUrl }));
       toast.success('تم رفع الصورة بنجاح');
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('فشل رفع الصورة');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDoctorSave = async () => {
-    try {
-      setSaving(true);
-      await authService.updateDoctorProfile(user.id, {
-        name: formData.name,
-        phone: formData.phone,
-        specialization: formData.specialization,
-        doctor_image: formData.doctor_image,
-      });
-      toast.success('تم تحديث البيانات الشخصية بنجاح');
-    } catch (error) {
-      console.error('Save error:', error);
-      toast.error('فشل تحديث البيانات');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleClinicSave = async () => {
-    try {
-      setSaving(true);
-      await authService.updateDoctorProfile(user.id, clinicData);
-      toast.success('تم تحديث بيانات المركز بنجاح');
-    } catch (error) {
-      console.error('Save error:', error);
-      toast.error('فشل تحديث بيانات المركز');
     } finally {
       setSaving(false);
     }
@@ -148,7 +201,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     }
   };
 
-  if (loading) {
+  if (loading || brandingLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
@@ -157,31 +210,45 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h2 className="text-3xl font-bold text-gray-900 mb-8">الإعدادات</h2>
+    <div className="max-w-6xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">لوحة التحكم الإدارية</h1>
+        <p className="text-gray-600 font-[Tajawal]">تحكم في إعدادات التطبيق والهوية البصرية والروشتات الطبية</p>
+      </div>
 
-      <div className="flex gap-4 mb-8 border-b border-gray-200">
+      <div className="flex flex-col md:flex-row gap-4 mb-8 border-b border-gray-200">
         <button
-          onClick={() => setActiveTab('doctor')}
+          onClick={() => setActiveTab('branding')}
           className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${
-            activeTab === 'doctor'
+            activeTab === 'branding'
+              ? 'border-teal-600 text-teal-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Palette size={20} />
+          المظهر والهوية
+        </button>
+        <button
+          onClick={() => setActiveTab('prescription')}
+          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${
+            activeTab === 'prescription'
+              ? 'border-teal-600 text-teal-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <FileText size={20} />
+          إعدادات الروشتة
+        </button>
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${
+            activeTab === 'profile'
               ? 'border-teal-600 text-teal-600'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
           <User size={20} />
           الملف الشخصي
-        </button>
-        <button
-          onClick={() => setActiveTab('clinic')}
-          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${
-            activeTab === 'clinic'
-              ? 'border-teal-600 text-teal-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <Building2 size={20} />
-          المركز
         </button>
         <button
           onClick={() => setActiveTab('password')}
@@ -194,67 +261,196 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
           <Lock size={20} />
           كلمة المرور
         </button>
-        <button
-          onClick={() => setActiveTab('about')}
-          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${
-            activeTab === 'about'
-              ? 'border-teal-600 text-teal-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <Info size={20} />
-          عن النظام
-        </button>
       </div>
 
-      {activeTab === 'doctor' && (
+      {activeTab === 'branding' && (
         <div className="bg-white rounded-lg shadow-md p-8">
           <div className="grid md:grid-cols-2 gap-8">
             <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-6">بيانات الطبيب</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">المظهر والهوية</h3>
               
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">الاسم</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">اسم العيادة</label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  value={brandingFormData.clinic_name}
+                  onChange={(e) => setBrandingFormData(prev => ({ ...prev, clinic_name: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                  placeholder="سيظهر في الشريط الجانبي وصفحة تسجيل الدخول"
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">اللون الأساسي</label>
+                <div className="flex gap-4 items-center">
+                  <input
+                    type="color"
+                    value={brandingFormData.primary_color}
+                    onChange={(e) => setBrandingFormData(prev => ({ ...prev, primary_color: e.target.value }))}
+                    className="w-16 h-10 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={brandingFormData.primary_color}
+                    onChange={(e) => setBrandingFormData(prev => ({ ...prev, primary_color: e.target.value }))}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                    placeholder="#2d5a6b"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2 font-[Tajawal]">سيظهر في الأزرار والعناوين والروابط</p>
+              </div>
+
+              <button
+                onClick={handleBrandingSave}
+                disabled={saving}
+                className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
+              >
+                <Save size={18} />
+                {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+              </button>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">شعار العيادة</h3>
+              
+              <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
+                {logoPreview ? (
+                  <div className="mb-4">
+                    <img
+                      src={logoPreview}
+                      alt="Clinic logo"
+                      className="w-40 h-40 rounded-lg mx-auto object-cover border-4 border-teal-600 mb-4"
+                    />
+                  </div>
+                ) : (
+                  <Palette size={64} className="mx-auto text-gray-400 mb-4" />
+                )}
+                
+                <label className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg cursor-pointer font-[Tajawal] font-semibold transition-colors">
+                  {logoUploadLoading ? (
+                    <>
+                      <Loader size={18} className="animate-spin" />
+                      جاري الرفع...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={18} />
+                      اختر شعار
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    disabled={logoUploadLoading}
+                    className="hidden"
+                  />
+                </label>
+                
+                <p className="text-xs text-gray-500 mt-4 font-[Tajawal]">PNG, JPG حتى 10MB</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'prescription' && (
+        <div className="bg-white rounded-lg shadow-md p-8 max-w-2xl">
+          <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">إعدادات الروشتة الطبية</h3>
+          
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">عنوان العيادة</label>
+            <textarea
+              value={prescriptionFormData.clinic_address}
+              onChange={(e) => setPrescriptionFormData(prev => ({ ...prev, clinic_address: e.target.value }))}
+              rows={3}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+              placeholder="سيظهر في الجزء السفلي من الروشتة المطبوعة"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">رقم هاتف العيادة</label>
+            <input
+              type="tel"
+              value={prescriptionFormData.clinic_phone}
+              onChange={(e) => setPrescriptionFormData(prev => ({ ...prev, clinic_phone: e.target.value }))}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+              placeholder="مثال: 201003418068"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">تعليمات الروشتة الافتراضية</label>
+            <textarea
+              value={prescriptionFormData.default_rx_notes}
+              onChange={(e) => setPrescriptionFormData(prev => ({ ...prev, default_rx_notes: e.target.value }))}
+              rows={5}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+              placeholder="أدخل التعليمات الافتراضية التي ستظهر في كل روشتة..."
+            />
+            <p className="text-xs text-gray-500 mt-2 font-[Tajawal]">ستظهر هذه التعليمات تلقائياً في جميع الروشتات الجديدة</p>
+          </div>
+
+          <button
+            onClick={handlePrescriptionSave}
+            disabled={saving}
+            className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
+          >
+            <Save size={18} />
+            {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'profile' && (
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <div className="grid md:grid-cols-2 gap-8">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">بيانات الملف الشخصي</h3>
+              
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">الاسم</label>
+                <input
+                  type="text"
+                  value={profileFormData.name}
+                  onChange={(e) => setProfileFormData(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
                 />
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">البريد الإلكتروني</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">البريد الإلكتروني</label>
                 <input
                   type="email"
-                  value={formData.email}
+                  value={profileFormData.email}
                   disabled
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 font-[Tajawal]"
                 />
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">الهاتف</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">الهاتف</label>
                 <input
                   type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  value={profileFormData.phone}
+                  onChange={(e) => setProfileFormData(prev => ({ ...prev, phone: e.target.value }))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
                 />
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">التخصص</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">التخصص</label>
                 <input
                   type="text"
-                  value={formData.specialization}
-                  onChange={(e) => setFormData(prev => ({ ...prev, specialization: e.target.value }))}
+                  value={profileFormData.specialization}
+                  onChange={(e) => setProfileFormData(prev => ({ ...prev, specialization: e.target.value }))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
                 />
               </div>
 
               <button
-                onClick={handleDoctorSave}
+                onClick={handleProfileSave}
                 disabled={saving}
                 className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
               >
@@ -264,13 +460,13 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
             </div>
 
             <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-6">صورة الملف الشخصي</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">صورة الملف الشخصي</h3>
               
               <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
-                {formData.doctor_image ? (
+                {profileFormData.doctor_image ? (
                   <div className="mb-4">
                     <img
-                      src={formData.doctor_image}
+                      src={profileFormData.doctor_image}
                       alt="Doctor profile"
                       className="w-40 h-40 rounded-full mx-auto object-cover border-4 border-teal-600 mb-4"
                     />
@@ -285,117 +481,13 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleImageUpload(e, 'doctor')}
+                    onChange={handleDoctorImageUpload}
                     disabled={saving}
                     className="hidden"
                   />
                 </label>
                 
-                <p className="text-xs text-gray-500 mt-4">PNG, JPG حتى 10MB</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'clinic' && (
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-6">بيانات المركز</h3>
-              
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">اسم المركز</label>
-                <input
-                  type="text"
-                  value={clinicData.clinic_name}
-                  onChange={(e) => setClinicData(prev => ({ ...prev, clinic_name: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
-                />
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">العنوان</label>
-                <textarea
-                  value={clinicData.clinic_address}
-                  onChange={(e) => setClinicData(prev => ({ ...prev, clinic_address: e.target.value }))}
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
-                />
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">رقم الهاتف</label>
-                <input
-                  type="tel"
-                  value={clinicData.clinic_phone}
-                  onChange={(e) => setClinicData(prev => ({ ...prev, clinic_phone: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">خط العرض</label>
-                  <input
-                    type="text"
-                    value={clinicData.clinic_latitude}
-                    onChange={(e) => setClinicData(prev => ({ ...prev, clinic_latitude: e.target.value }))}
-                    placeholder="30.0444"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">خط الطول</label>
-                  <input
-                    type="text"
-                    value={clinicData.clinic_longitude}
-                    onChange={(e) => setClinicData(prev => ({ ...prev, clinic_longitude: e.target.value }))}
-                    placeholder="31.2357"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
-                  />
-                </div>
-              </div>
-
-              <button
-                onClick={handleClinicSave}
-                disabled={saving}
-                className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
-              >
-                <Save size={18} />
-                {saving ? 'جاري الحفظ...' : 'حفظ البيانات'}
-              </button>
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-6">شعار/صورة المركز</h3>
-              
-              <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
-                {clinicData.clinic_image ? (
-                  <div className="mb-4">
-                    <img
-                      src={clinicData.clinic_image}
-                      alt="Clinic logo"
-                      className="w-40 h-40 rounded-lg mx-auto object-cover border-4 border-teal-600 mb-4"
-                    />
-                  </div>
-                ) : (
-                  <Building2 size={64} className="mx-auto text-gray-400 mb-4" />
-                )}
-                
-                <label className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg cursor-pointer font-[Tajawal] font-semibold transition-colors">
-                  <Upload size={18} />
-                  اختر صورة
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleImageUpload(e, 'clinic')}
-                    disabled={saving}
-                    className="hidden"
-                  />
-                </label>
-                
-                <p className="text-xs text-gray-500 mt-4">PNG, JPG حتى 10MB</p>
+                <p className="text-xs text-gray-500 mt-4 font-[Tajawal]">PNG, JPG حتى 10MB</p>
               </div>
             </div>
           </div>
@@ -404,7 +496,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
       {activeTab === 'password' && (
         <div className="bg-white rounded-lg shadow-md p-8 max-w-xl">
-          <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2 font-[Tajawal]">
             <AlertCircle size={24} className="text-orange-500" />
             تغيير كلمة المرور
           </h3>
@@ -444,120 +536,6 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
             <Save size={18} />
             {saving ? 'جاري التحديث...' : 'تحديث كلمة المرور'}
           </button>
-        </div>
-      )}
-
-      {activeTab === 'about' && (
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <div className="text-center mb-8">
-            <div className="bg-teal-600 rounded-full p-4 w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-              <Info size={32} className="text-white" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2 font-[Tajawal]">نظام د. محمد صلاح جبر</h3>
-            <p className="text-gray-600 font-[Tajawal]">نظام إدارة عيادة الخصوبة والتوليد</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <h4 className="text-lg font-bold text-gray-900 mb-4 font-[Tajawal]">معلومات النظام</h4>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 font-[Tajawal]">الإصدار:</span>
-                  <span className="font-semibold">1.0.0</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 font-[Tajawal]">تاريخ الإصدار:</span>
-                  <span className="font-semibold">2025</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 font-[Tajawal]">المنصة:</span>
-                  <span className="font-semibold">Web Application</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-bold text-gray-900 mb-4 font-[Tajawal]">المطور</h4>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="text-center">
-                  <div className="bg-teal-100 rounded-full p-3 w-16 h-16 mx-auto mb-3 flex items-center justify-center">
-                    <User size={24} className="text-teal-600" />
-                  </div>
-                  <h5 className="font-bold text-gray-900 font-[Tajawal]">د. محمد صلاح جبر</h5>
-                  <p className="text-sm text-gray-600 font-[Tajawal]">مطور البرمجيات الطبية</p>
-                  <p className="text-xs text-gray-500 mt-2 font-[Tajawal]">
-                    برمجة وتطوير النظام المتكامل لإدارة عيادات الخصوبة والتوليد
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <h4 className="text-lg font-bold text-gray-900 mb-4 font-[Tajawal]">تواصل مع المطور</h4>
-            <div className="grid md:grid-cols-2 gap-4">
-              <a
-                href="https://www.facebook.com/profile.php?id=100000785193419"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg p-4 transition-all duration-200"
-              >
-                <div className="bg-blue-600 rounded-full p-3 flex items-center justify-center flex-shrink-0">
-                  <Facebook size={20} className="text-white" />
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-blue-900 font-[Tajawal]">تابعنا على فيسبوك</div>
-                  <div className="text-xs text-blue-700 font-[Tajawal]">Dr. Mohammed Salah Jaber</div>
-                </div>
-              </a>
-
-              <a
-                href="https://wa.me/201003418068"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg p-4 transition-all duration-200"
-              >
-                <div className="bg-green-600 rounded-full p-3 flex items-center justify-center flex-shrink-0">
-                  <MessageCircle size={20} className="text-white" />
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-green-900 font-[Tajawal]">راسلنا على واتساب</div>
-                  <div className="text-xs text-green-700 font-[Tajawal]">201003418068</div>
-                </div>
-              </a>
-            </div>
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <h4 className="text-lg font-bold text-gray-900 mb-4 font-[Tajawal]">التقنيات المستخدمة</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-blue-50 rounded-lg p-3 text-center">
-                <div className="font-semibold text-blue-700">React</div>
-                <div className="text-xs text-blue-600">Frontend Framework</div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-3 text-center">
-                <div className="font-semibold text-green-700">TypeScript</div>
-                <div className="text-xs text-green-600">Programming Language</div>
-              </div>
-              <div className="bg-purple-50 rounded-lg p-3 text-center">
-                <div className="font-semibold text-purple-700">Supabase</div>
-                <div className="text-xs text-purple-600">Database & Auth</div>
-              </div>
-              <div className="bg-orange-50 rounded-lg p-3 text-center">
-                <div className="font-semibold text-orange-700">Tailwind CSS</div>
-                <div className="text-xs text-orange-600">Styling Framework</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 text-center">
-            <p className="text-sm text-gray-500 font-[Tajawal]">
-              Copyright © 2025 Nile IVF Center. All Rights Reserved.
-            </p>
-            <p className="text-xs text-gray-400 mt-2 font-[Tajawal]">
-              تم التطوير بواسطة د. محمد صلاح جبر
-            </p>
-          </div>
         </div>
       )}
     </div>

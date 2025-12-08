@@ -11,6 +11,7 @@ interface BrandingSettings {
   primary_color: string;
   secondary_color: string;
   accent_color: string;
+  default_rx_notes: string | null;
   updated_at: string;
 }
 
@@ -61,6 +62,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     primary_color: '#2d5a6b',
     secondary_color: '#00838f',
     accent_color: '#00bcd4',
+    default_rx_notes: null,
     updated_at: new Date().toISOString(),
   });
 
@@ -102,15 +104,18 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       const updateData = {
-        clinic_name: updates.clinic_name || branding?.clinic_name,
-        clinic_address: updates.clinic_address || branding?.clinic_address,
-        clinic_phone: updates.clinic_phone || branding?.clinic_phone,
-        primary_color: updates.primary_color || branding?.primary_color,
-        secondary_color: updates.secondary_color || branding?.secondary_color,
-        accent_color: updates.accent_color || branding?.accent_color,
+        clinic_name: updates.clinic_name ?? branding?.clinic_name,
+        clinic_address: updates.clinic_address ?? branding?.clinic_address,
+        clinic_phone: updates.clinic_phone ?? branding?.clinic_phone,
+        primary_color: updates.primary_color ?? branding?.primary_color,
+        secondary_color: updates.secondary_color ?? branding?.secondary_color,
+        accent_color: updates.accent_color ?? branding?.accent_color,
+        default_rx_notes: updates.default_rx_notes ?? branding?.default_rx_notes,
         ...(logoUrl && { logo_url: logoUrl }),
         updated_at: new Date().toISOString(),
       };
+
+      setBranding(prev => prev ? { ...prev, ...updateData } : null);
 
       const { data, error: updateError } = await supabase
         .from('app_settings')
@@ -124,7 +129,9 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         throw updateError;
       }
 
-      setBranding(data);
+      if (data) {
+        setBranding(data);
+      }
     } catch (err) {
       console.error('Failed to update branding:', err);
       setError('فشل تحديث إعدادات العلامة التجارية');
