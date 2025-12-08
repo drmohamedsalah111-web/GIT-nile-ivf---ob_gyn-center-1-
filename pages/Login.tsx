@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
-import { LogIn, AlertCircle, Mail, Lock, User, Phone, Stethoscope } from 'lucide-react';
+import { LogIn, AlertCircle, Mail, Lock, User, Phone, Stethoscope, Facebook, MessageCircle } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -287,6 +287,28 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           <div className="pt-8 border-t border-gray-200 text-center text-gray-500 text-sm">
             <p>Copyright © 2025 مركز د صلاح للخصوبة. All Rights Reserved.</p>
             <p className="mt-1">تم التطوير بواسطة د. محمد صلاح جبر</p>
+            
+            <div className="mt-4 flex items-center justify-center gap-4">
+              <a
+                href="https://www.facebook.com/profile.php?id=100000785193419"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors font-medium"
+              >
+                <Facebook size={16} />
+                <span>تابعنا على فيسبوك</span>
+              </a>
+              <span className="text-gray-300">|</span>
+              <a
+                href="https://wa.me/201003418068"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors font-medium"
+              >
+                <MessageCircle size={16} />
+                <span>راسلنا على واتساب</span>
+              </a>
+            </div>
           </div>
         </div>
       </div>
