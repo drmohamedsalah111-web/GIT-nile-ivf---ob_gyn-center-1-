@@ -176,83 +176,60 @@ export const initLocalDB = async (): Promise<void> => {
     await db.open();
     console.log('Local database initialized successfully');
   } catch (error) {
-    console.error('Failed to open local database, attempting to recreate:', error);
-    try {
-      // If opening fails, delete and recreate the database
-      await db.delete();
-      console.log('Deleted corrupted database, recreating...');
-      // Recreate the database instance
-      const newDb = new ClinicLocalDB();
-      Object.assign(db, newDb); // Replace the db instance
-      await db.open();
-      console.log('Local database recreated successfully');
-    } catch (recreateError) {
-      console.error('Failed to recreate local database:', recreateError);
-      throw recreateError;
+    console.error('Failed to open local database:', error);
+
+    // --- تعديل: لا تحذف القاعدة فوراً إلا في حالات نادرة جداً ---
+    // إذا كان الخطأ متعلق بالإصدار (VersionError)، قد نحتاج للتحديث
+    if ((error as any).name === 'VersionError') {
+        console.warn('Database version mismatch, keeping data but might need migration.');
+        // يمكن هنا إضافة منطق للتعامل مع تحديث الإصدار دون حذف
+    } else {
+        // في الحالات الأخرى، الحذف خطر جداً. يفضل تنبيه المستخدم
+        console.error('CRITICAL: Local DB Error. Check console.');
+
+        // تم تعطيل الحذف التلقائي لحماية البيانات
+        /*
+        try {
+          await db.delete();
+          const newDb = new ClinicLocalDB();
+          Object.assign(db, newDb);
+          await db.open();
+          console.log('Local database recreated successfully');
+        } catch (recreateError) {
+          throw recreateError;
+        }
+        */
     }
   }
 
+  // الحفاظ على بقية الكود (الـ hooks) كما هو أدناه
   try {
     // Create indexes for better query performance
     await db.patients.hook('creating', (primKey, obj, trans) => {
-      if (!obj.created_at) {
-        obj.created_at = new Date().toISOString();
-      }
-      if (!obj.updated_at) {
-        obj.updated_at = new Date().toISOString();
-      }
+      if (!obj.created_at) obj.created_at = new Date().toISOString();
+      if (!obj.updated_at) obj.updated_at = new Date().toISOString();
     });
-
-    await db.visits.hook('creating', (primKey, obj, trans) => {
-      if (!obj.created_at) {
-        obj.created_at = new Date().toISOString();
-      }
-      if (!obj.updated_at) {
-        obj.updated_at = new Date().toISOString();
-      }
-    });
-
-    await db.ivf_cycles.hook('creating', (primKey, obj, trans) => {
-      if (!obj.created_at) {
-        obj.created_at = new Date().toISOString();
-      }
-      if (!obj.updated_at) {
-        obj.updated_at = new Date().toISOString();
-      }
-    });
-
-    await db.stimulation_logs.hook('creating', (primKey, obj, trans) => {
-      if (!obj.created_at) {
-        obj.created_at = new Date().toISOString();
-      }
-      if (!obj.updated_at) {
-        obj.updated_at = new Date().toISOString();
-      }
-    });
-
-    await db.pregnancies.hook('creating', (primKey, obj, trans) => {
-      if (!obj.created_at) {
-        obj.created_at = new Date().toISOString();
-      }
-      if (!obj.updated_at) {
-        obj.updated_at = new Date().toISOString();
-      }
-    });
-
-    await db.biometry_scans.hook('creating', (primKey, obj, trans) => {
-      if (!obj.created_at) {
-        obj.created_at = new Date().toISOString();
-      }
-      if (!obj.updated_at) {
-        obj.updated_at = new Date().toISOString();
-      }
-    });
-
-  } catch (hookError) {
-    console.error('Failed to set up database hooks:', hookError);
-    // Don't throw for hook errors, as database is still usable
-  }
-};
+await db.visits.hook('creating', (primKey, obj, trans) => {
+  if (!obj.created_at) obj.created_at = new Date().toISOString();
+  if (!obj.updated_at) obj.updated_at = new Date().toISOString();
+});
+await db.ivf_cycles.hook('creating', (primKey, obj, trans) => {
+  if (!obj.created_at) obj.created_at = new Date().toISOString();
+  if (!obj.updated_at) obj.updated_at = new Date().toISOString();
+});
+await db.stimulation_logs.hook('creating', (primKey, obj, trans) => {
+  if (!obj.created_at) obj.created_at = new Date().toISOString();
+  if (!obj.updated_at) obj.updated_at = new Date().toISOString();
+});
+await db.pregnancies.hook('creating', (primKey, obj, trans) => {
+  if (!obj.created_at) obj.created_at = new Date().toISOString();
+  if (!obj.updated_at) obj.updated_at = new Date().toISOString();
+});
+await db.biometry_scans.hook('creating', (primKey, obj, trans) => {
+  if (!obj.created_at) obj.created_at = new Date().toISOString();
+  if (!obj.updated_at) obj.updated_at = new Date().toISOString();
+});
+} catch (hookError) { console.error('Failed to set up database hooks:', hookError); } };
 
 // Helper functions for database operations
 export const getPendingSyncItems = async (table?: string): Promise<SyncQueueItem[]> => {
