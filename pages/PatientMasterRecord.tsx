@@ -3,14 +3,15 @@ import {
   Calendar, FileText, User, Heart, Baby, TestTube, Download, ChevronDown, ChevronUp,
   X, Image as ImageIcon, Printer
 } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Patient, Visit } from '../types';
+import { db } from '../src/db/localDB';
 import { supabase } from '../services/supabaseClient';
 import { visitsService } from '../services/visitsService';
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 
 const PatientMasterRecord: React.FC = () => {
-  const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [visits, setVisits] = useState<Visit[]>([]);
   const [patientFiles, setPatientFiles] = useState<any[]>([]);
@@ -22,9 +23,19 @@ const PatientMasterRecord: React.FC = () => {
   const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
 
-  useEffect(() => {
-    fetchPatients();
-  }, []);
+  const localPatients = useLiveQuery(async () => {
+    return await db.patients.toArray();
+  }, []) || [];
+
+  const patients: Patient[] = localPatients.map((p: any) => ({
+    id: p.id || p.remoteId,
+    name: p.name,
+    age: p.age,
+    phone: p.phone,
+    husbandName: p.husbandName || p.husband_name,
+    history: p.history,
+    createdAt: p.created_at || p.createdAt?.toString()
+  }));
 
   useEffect(() => {
     if (selectedPatientId) {
@@ -35,21 +46,6 @@ const PatientMasterRecord: React.FC = () => {
       setPatientFiles([]);
     }
   }, [selectedPatientId]);
-
-  const fetchPatients = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('patients')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPatients(data || []);
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-      toast.error('Failed to load patients');
-    }
-  };
 
   const fetchPatientVisits = async (patientId: string) => {
     setIsLoading(true);
