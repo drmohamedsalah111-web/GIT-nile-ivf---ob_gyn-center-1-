@@ -1,13 +1,14 @@
 import React from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, MoreVertical } from 'lucide-react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, MoreVertical, LogOut } from 'lucide-react';
 import { Page } from '../types';
 
 interface Props {
   activePage: Page;
   setPage: (p: Page) => void;
+  onLogout: () => void;
 }
 
-const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
+const BottomNav: React.FC<Props> = ({ activePage, setPage, onLogout }) => {
   const [showMore, setShowMore] = React.useState(false);
 
   const mainItems = [
@@ -19,9 +20,9 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
   ];
 
   const moreItems = [
-    { id: Page.PATIENT_RECORD, label: 'السجلات', icon: 'record' },
-    { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings },
-    { id: Page.ADMIN, label: 'الإدارة', icon: 'admin' },
+    { id: Page.PATIENT_RECORD, label: 'السجلات', icon: 'record', action: null },
+    { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings, action: null },
+    { id: 'logout', label: 'تسجيل الخروج', icon: LogOut, action: onLogout },
   ];
 
   const NavButton: React.FC<{ item: any, isActive: boolean }> = ({ item, isActive }) => {
@@ -82,17 +83,22 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage }) => {
                     <button
                       key={item.id}
                       onClick={() => {
-                        setPage(item.id);
+                        if (item.action) {
+                          item.action();
+                        } else {
+                          setPage(item.id as Page);
+                        }
                         setShowMore(false);
                       }}
                       className={`w-full px-4 py-3 flex items-center gap-3 transition-colors duration-200 ${
                         activePage === item.id
                           ? 'bg-teal-50 text-teal-600 font-semibold'
+                          : item.id === 'logout'
+                          ? 'text-red-600 hover:bg-red-50'
                           : 'text-gray-700 hover:bg-gray-50'
                       }`}
                     >
                       {typeof item.icon === 'string' && item.icon === 'record' && <Activity className="w-5 h-5" />}
-                      {typeof item.icon === 'string' && item.icon === 'admin' && <Settings className="w-5 h-5" />}
                       {typeof item.icon !== 'string' && <item.icon className="w-5 h-5" />}
                       <span className="text-sm font-medium">{item.label}</span>
                     </button>

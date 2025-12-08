@@ -375,15 +375,15 @@ const IvfJourney: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`px-4 md:px-6 py-4 font-bold text-sm md:text-base whitespace-nowrap transition-all duration-200 flex-1 md:flex-none flex items-center justify-center gap-2 ${
+                  className={`px-3 md:px-6 py-3 md:py-4 font-bold text-xs md:text-base whitespace-nowrap transition-all duration-200 flex-1 md:flex-none flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 min-w-0 ${
                     activeTab === tab.id
-                      ? 'border-b-4 border-teal-600 text-teal-700 bg-teal-50'
+                      ? 'border-b-4 md:border-b-4 border-teal-600 text-teal-700 bg-teal-50'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <tab.icon className="w-5 h-5" />
-                  <span className="hidden md:inline">{tab.label}</span>
-                  <span className="md:hidden">{tab.arLabel}</span>
+                  <tab.icon className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="text-center leading-tight">{tab.arLabel}</span>
+                  <span className="hidden lg:inline text-sm">{tab.label.split(' ').slice(1).join(' ')}</span>
                 </button>
               ))}
             </div>

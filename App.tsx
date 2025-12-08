@@ -103,7 +103,8 @@ const App: React.FC = () => {
 
         <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">
           <div className="max-w-7xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
+            {/* Desktop Header with Logout */}
+            <div className="hidden md:flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-gray-900">
                 مرحباً، {user?.email}
               </h1>
@@ -115,11 +116,19 @@ const App: React.FC = () => {
                 تسجيل الخروج
               </button>
             </div>
+
+            {/* Mobile Header - Simplified */}
+            <div className="md:hidden mb-4">
+              <h1 className="text-xl font-bold text-gray-900 text-center">
+                مرحباً، {user?.email?.split('@')[0]}
+              </h1>
+            </div>
+
             {renderContent()}
           </div>
         </main>
 
-        <BottomNav activePage={activePage} setPage={setActivePage} />
+        <BottomNav activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
 
         <Toaster position="top-center" reverseOrder={false} />
       </div>
