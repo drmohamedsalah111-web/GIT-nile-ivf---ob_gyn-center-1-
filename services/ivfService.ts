@@ -1,5 +1,6 @@
 
 import { supabase } from './supabaseClient';
+import { authService } from './authService';
 import { syncManager } from '../src/services/syncService';
 import { db as localDB } from '../src/lib/localDb';
 import { networkStatus } from '../src/lib/networkStatus';
@@ -103,15 +104,11 @@ export const db = {
 
     if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
 
-    // Ensure doctor record exists and get the correct public ID
-    const doctor = await supabase
-      .from('doctors')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
+    // Get the correct doctor profile ID
+    const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
 
-    if (doctor.error || !doctor.data) {
-      throw new Error('Doctor profile missing. Please log out and sign in again.');
+    if (!doctor || !doctor.id) {
+      throw new Error('فشل في العثور على ملف الطبيب');
     }
 
     const patientData = {
@@ -120,7 +117,7 @@ export const db = {
       phone: patient.phone,
       husband_name: patient.husbandName,
       history: patient.history,
-      doctor_id: doctor.data.id
+      doctor_id: doctor.id
     };
 
     try {
@@ -220,15 +217,11 @@ export const db = {
 
     if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
 
-    // Ensure doctor record exists and get the correct public ID
-    const doctor = await supabase
-      .from('doctors')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
+    // Get the correct doctor profile ID
+    const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
 
-    if (doctor.error || !doctor.data) {
-      throw new Error('Doctor profile missing. Please log out and sign in again.');
+    if (!doctor || !doctor.id) {
+      throw new Error('فشل في العثور على ملف الطبيب');
     }
 
     const cycleData = {
@@ -236,7 +229,7 @@ export const db = {
       protocol: cycle.protocol,
       status: cycle.status,
       start_date: cycle.startDate,
-      doctor_id: doctor.data.id
+      doctor_id: doctor.id
     };
 
     try {
