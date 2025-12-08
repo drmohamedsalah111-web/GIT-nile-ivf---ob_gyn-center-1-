@@ -82,7 +82,11 @@ pages/ObstetricsDashboard.tsx
 pages/PatientMasterRecord.tsx
 pages/Reception.tsx
 pages/Settings.tsx
+public/apple-touch-icon.png
+public/favicon-96x96.png
 public/manifest.json
+public/pwa-192x192.png
+public/pwa-512x512.png
 public/sw.js
 PWA_SETUP.md
 README.md
@@ -92,7 +96,11 @@ services/obstetricsService.ts
 services/supabaseClient.ts
 services/visitsService.ts
 services/workupService.ts
+src/components/SyncStatus.tsx
+src/db/localDB.ts
+src/hooks/useSyncStatus.ts
 src/lib/localDb.ts
+src/lib/networkStatus.ts
 src/lib/pwa.ts
 src/services/syncService.ts
 styles.css
@@ -106,1037 +114,6 @@ write_file.py
 
 <files>
 This section contains the contents of the repository's files.
-
-<file path="public/manifest.json">
-{
-  "name": "Nile IVF Center",
-  "short_name": "Nile IVF",
-  "description": "Comprehensive IVF and Obstetrics Management System",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#00838f",
-  "orientation": "portrait",
-  "scope": "/",
-  "icons": [
-    {
-      "src": "/pwa-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/pwa-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "categories": ["medical", "health", "productivity"],
-  "lang": "ar-EG",
-  "dir": "ltr"
-}
-</file>
-
-<file path="public/sw.js">
-// Service Worker for Nile IVF PWA
-const CACHE_NAME = 'nile-ivf-v1';
-const STATIC_CACHE = 'nile-ivf-static-v1';
-const DYNAMIC_CACHE = 'nile-ivf-dynamic-v1';
-
-// Assets to cache immediately
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/styles.css',
-  // Add other static assets as needed
-];
-
-// Install event - cache static assets
-self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
-  event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then((cache) => {
-        console.log('Service Worker: Caching static assets');
-        return cache.addAll(STATIC_ASSETS);
-      })
-      .catch((error) => {
-        console.error('Service Worker: Failed to cache static assets:', error);
-      })
-  );
-  self.skipWaiting();
-});
-
-// Activate event - clean up old caches
-self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating...');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
-            console.log('Service Worker: Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
-  self.clients.claim();
-});
-
-// Fetch event - serve from cache or network
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // Skip non-GET requests
-  if (request.method !== 'GET') return;
-
-  // Handle Supabase API requests with network-first strategy
-  if (url.hostname.includes('supabase.co')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful responses
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(DYNAMIC_CACHE).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Fallback to cache if network fails
-          return caches.match(request);
-        })
-    );
-    return;
-  }
-
-  // Handle static assets with cache-first strategy
-  event.respondWith(
-    caches.match(request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-
-        return fetch(request)
-          .then((response) => {
-            // Cache successful responses
-            if (response.ok && response.type === 'basic') {
-              const responseClone = response.clone();
-              caches.open(DYNAMIC_CACHE).then((cache) => {
-                cache.put(request, responseClone);
-              });
-            }
-            return response;
-          })
-          .catch((error) => {
-            console.error('Service Worker: Fetch failed:', error);
-            // Return offline fallback for navigation requests
-            if (request.mode === 'navigate') {
-              return caches.match('/index.html');
-            }
-          });
-      })
-  );
-});
-
-// Background sync for offline actions
-self.addEventListener('sync', (event) => {
-  console.log('Service Worker: Background sync triggered:', event.tag);
-
-  if (event.tag === 'sync-pending-data') {
-    event.waitUntil(syncPendingData());
-  }
-});
-
-// Function to sync pending data when back online
-async function syncPendingData() {
-  try {
-    // This would integrate with the sync manager
-    console.log('Service Worker: Syncing pending data...');
-    // Implementation would go here
-  } catch (error) {
-    console.error('Service Worker: Failed to sync pending data:', error);
-  }
-}
-
-// Push notifications (for future use)
-self.addEventListener('push', (event) => {
-  if (event.data) {
-    const data = event.data.json();
-    const options = {
-      body: data.body,
-      icon: '/pwa-192x192.png',
-      badge: '/pwa-192x192.png',
-      vibrate: [100, 50, 100],
-      data: data.data
-    };
-
-    event.waitUntil(
-      self.registration.showNotification(data.title, options)
-    );
-  }
-});
-
-// Notification click handler
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-
-  event.waitUntil(
-    clients.openWindow(event.notification.data?.url || '/')
-  );
-});
-</file>
-
-<file path="PWA_SETUP.md">
-# Nile IVF Center - Offline-First PWA Setup
-
-## Overview
-The Nile IVF Center app has been upgraded to a fully functional **Offline-First Progressive Web App (PWA)** that works seamlessly without internet connectivity and automatically syncs data when online.
-
-## 🚀 Features Implemented
-
-### 1. **PWA Configuration**
-- **Service Worker**: Caches all static assets and implements network-first strategy for API calls
-- **Web App Manifest**: Defines app metadata, icons, and installation behavior
-- **Offline Support**: App loads and functions completely offline
-- **Auto-Updates**: Automatically updates when new versions are available
-
-### 2. **Local Database (Dexie)**
-- **IndexedDB Wrapper**: Fast, reliable local storage using Dexie
-- **Schema Mirroring**: Local database structure matches Supabase tables
-- **Sync Status Tracking**: Each record tracks sync status (pending/synced/error)
-
-### 3. **Sync Engine**
-- **Offline-First**: Data saved locally first, then synced to server
-- **Background Sync**: Automatically syncs pending data when back online
-- **Conflict Resolution**: Handles data conflicts gracefully
-- **Retry Logic**: Failed syncs are retried with exponential backoff
-
-### 4. **User Experience**
-- **Instant Loading**: Data loads instantly from local cache
-- **Offline Indicator**: Visual indicators for online/offline status
-- **Sync Status**: Shows pending syncs and sync progress
-- **Error Handling**: Graceful fallbacks when sync fails
-
-## 📁 File Structure
-
-```
-src/
-├── lib/
-│   ├── localDb.ts          # Dexie database configuration
-│   ├── pwa.ts             # PWA registration and utilities
-│   └── syncService.ts     # Sync manager implementation
-├── services/
-│   ├── syncService.ts     # Sync manager singleton
-│   └── [existing services] # Modified to use sync manager
-public/
-├── manifest.json          # PWA manifest
-├── sw.js                 # Service worker
-└── pwa-*.png            # App icons (see below)
-```
-
-## 🖼️ Required App Icons
-
-Place these icon files in the `public/` directory:
-
-- `pwa-192x192.png` - 192x192px (required)
-- `pwa-512x512.png` - 512x512px (required)
-- `apple-touch-icon.png` - 180x180px (optional, for iOS)
-
-**Icon Generation**: Use a tool like [PWA Asset Generator](https://github.com/elegantapp/pwa-asset-generator) or [RealFaviconGenerator](https://realfavicongenerator.net/) to generate these from your app logo.
-
-## 🔧 Installation & Setup
-
-### 1. Install Dependencies
-```bash
-npm install dexie vite-plugin-pwa
-```
-
-### 2. Build for Production
-```bash
-npm run build
-```
-
-### 3. Deploy
-The PWA will be automatically configured during the build process.
-
-## 📱 Installation Instructions
-
-### For Users:
-1. **Chrome/Edge**: Click the install icon in the address bar or use the "Install" menu
-2. **Firefox**: Use the "Install This Site as an App" option in the page menu
-3. **Safari (iOS)**: Use "Add to Home Screen" from the share menu
-4. **Android**: Use "Add to Home Screen" from the browser menu
-
-## 🔄 How Offline Sync Works
-
-### Data Flow:
-1. **User Action**: User enters data (e.g., saves a patient)
-2. **Local Save**: Data saved to IndexedDB immediately
-3. **UI Update**: App shows data instantly (no loading)
-4. **Background Sync**: When online, data synced to Supabase
-5. **Status Update**: Local record marked as "synced"
-
-### Conflict Resolution:
-- **Server Wins**: If server data is newer, it overwrites local
-- **Manual Merge**: Conflicts shown to user for resolution
-- **Retry Failed**: Failed syncs automatically retried
-
-## 🛠️ Development Notes
-
-### Testing Offline Mode:
-1. Open DevTools → Network tab
-2. Check "Offline" to simulate no internet
-3. Test all app functionality
-4. Uncheck "Offline" to test sync
-
-### Database Inspection:
-- Chrome DevTools → Application → IndexedDB → ClinicDB
-- View local data and sync status
-
-### Service Worker Debugging:
-- Chrome DevTools → Application → Service Workers
-- Check registration, updates, and cache status
-
-## 🚨 Important Considerations
-
-### Data Security:
-- **Local Encryption**: Sensitive data should be encrypted locally
-- **Sync Security**: Ensure sync happens over HTTPS only
-- **Auth Tokens**: Handle authentication token refresh offline
-
-### Performance:
-- **Database Size**: Monitor IndexedDB size limits (~50MB-1GB)
-- **Sync Frequency**: Balance between real-time and battery usage
-- **Cleanup**: Implement data cleanup for old records
-
-### Error Handling:
-- **Network Errors**: Graceful degradation when offline
-- **Sync Failures**: Clear user communication about sync status
-- **Data Loss**: Backup strategies for critical data
-
-## 🔮 Future Enhancements
-
-- **Push Notifications**: Real-time alerts for critical updates
-- **Background Sync**: Periodic data synchronization
-- **Conflict UI**: Visual conflict resolution interface
-- **Data Export**: Offline data export capabilities
-- **Multi-device Sync**: Sync across multiple devices
-
-## 🐛 Troubleshooting
-
-### Common Issues:
-1. **Service Worker Not Registering**: Check browser support and HTTPS
-2. **Sync Not Working**: Verify network permissions and API endpoints
-3. **Database Errors**: Clear IndexedDB and reinstall app
-4. **Icons Not Showing**: Ensure correct file paths and formats
-
-### Debug Commands:
-```javascript
-// Check PWA status
-console.log('PWA Installed:', window.matchMedia('(display-mode: standalone)').matches);
-
-// Check online status
-console.log('Online:', navigator.onLine);
-
-// Force sync
-// syncManager.forceSync(); // When implemented
-```
-
----
-
-## 📞 Support
-
-For technical support or questions about the PWA implementation, contact the development team.
-
-**Last Updated**: December 2025
-**Version**: 1.0.0
-</file>
-
-<file path="src/lib/localDb.ts">
-import Dexie, { Table } from 'dexie';
-
-// Types for local database
-export interface LocalPatient {
-  id?: number; // Auto-incremented local ID
-  remoteId: string; // Supabase ID
-  name: string;
-  phone: string;
-  email?: string;
-  dateOfBirth?: string;
-  address?: string;
-  syncStatus: 'pending' | 'synced' | 'error';
-  lastModified: Date;
-  createdAt: Date;
-}
-
-export interface LocalVisit {
-  id?: number;
-  remoteId: string;
-  patientId: string;
-  department: string;
-  visitDate: string;
-  clinicalData: any;
-  diagnosis?: string;
-  prescription?: any[];
-  notes?: string;
-  syncStatus: 'pending' | 'synced' | 'error';
-  lastModified: Date;
-  createdAt: Date;
-}
-
-export interface LocalPregnancy {
-  id?: number;
-  remoteId: string;
-  patientId: string;
-  lmpDate?: string;
-  eddDate?: string;
-  riskLevel?: string;
-  aspirinPrescribed?: boolean;
-  currentStatus?: string;
-  syncStatus: 'pending' | 'synced' | 'error';
-  lastModified: Date;
-  createdAt: Date;
-}
-
-export interface LocalCycle {
-  id?: number;
-  remoteId: string;
-  patientId: string;
-  protocol: string;
-  startDate: string;
-  status: string;
-  assessment?: any;
-  logs?: any[];
-  lab?: any;
-  transfer?: any;
-  outcome?: any;
-  syncStatus: 'pending' | 'synced' | 'error';
-  lastModified: Date;
-  createdAt: Date;
-}
-
-export interface SyncQueueItem {
-  id?: number;
-  table: string;
-  action: 'insert' | 'update' | 'delete';
-  payload: any;
-  remoteId?: string;
-  retryCount: number;
-  lastAttempt?: Date;
-  createdAt: Date;
-}
-
-export class ClinicDatabase extends Dexie {
-  patients!: Table<LocalPatient>;
-  visits!: Table<LocalVisit>;
-  pregnancies!: Table<LocalPregnancy>;
-  cycles!: Table<LocalCycle>;
-  syncQueue!: Table<SyncQueueItem>;
-
-  constructor() {
-    super('ClinicDB');
-
-    this.version(1).stores({
-      patients: '++id, remoteId, name, phone, syncStatus, lastModified',
-      visits: '++id, remoteId, patientId, visitDate, syncStatus, lastModified',
-      pregnancies: '++id, remoteId, patientId, syncStatus, lastModified',
-      cycles: '++id, remoteId, patientId, syncStatus, lastModified',
-      syncQueue: '++id, table, action, retryCount, createdAt'
-    });
-  }
-}
-
-// Create and export database instance
-export const db = new ClinicDatabase();
-
-// Initialize database
-export const initDatabase = async (): Promise<void> => {
-  try {
-    await db.open();
-    console.log('Local database initialized successfully');
-  } catch (error) {
-    console.error('Failed to initialize local database:', error);
-    throw error;
-  }
-};
-
-// Helper functions for database operations
-export const getPendingSyncItems = async (): Promise<SyncQueueItem[]> => {
-  return await db.syncQueue.where('retryCount').below(3).toArray();
-};
-
-export const addToSyncQueue = async (item: Omit<SyncQueueItem, 'id' | 'createdAt'>): Promise<void> => {
-  await db.syncQueue.add({
-    ...item,
-    createdAt: new Date()
-  });
-};
-
-export const removeFromSyncQueue = async (id: number): Promise<void> => {
-  await db.syncQueue.delete(id);
-};
-
-export const updateSyncQueueRetry = async (id: number): Promise<void> => {
-  await db.syncQueue.update(id, {
-    retryCount: await db.syncQueue.get(id).then(item => (item?.retryCount || 0) + 1),
-    lastAttempt: new Date()
-  });
-};
-
-export const markAsSynced = async (table: string, localId: number): Promise<void> => {
-  const tableMap: { [key: string]: Table } = {
-    patients: db.patients,
-    visits: db.visits,
-    pregnancies: db.pregnancies,
-    cycles: db.cycles
-  };
-
-  const targetTable = tableMap[table];
-  if (targetTable) {
-    await targetTable.update(localId, { syncStatus: 'synced' });
-  }
-};
-
-export const getUnsyncedRecords = async (table: string): Promise<any[]> => {
-  const tableMap: { [key: string]: Table } = {
-    patients: db.patients,
-    visits: db.visits,
-    pregnancies: db.pregnancies,
-    cycles: db.cycles
-  };
-
-  const targetTable = tableMap[table];
-  if (targetTable) {
-    return await targetTable.where('syncStatus').equals('pending').toArray();
-  }
-  return [];
-};
-</file>
-
-<file path="src/lib/pwa.ts">
-// PWA Registration and Management
-export const registerServiceWorker = async (): Promise<void> => {
-  if ('serviceWorker' in navigator) {
-    try {
-      const registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/'
-      });
-
-      console.log('Service Worker registered successfully:', registration.scope);
-
-      // Handle updates
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        if (newWorker) {
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // New version available
-              showUpdateNotification();
-            }
-          });
-        }
-      });
-
-      // Handle controller change (new SW activated)
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        window.location.reload();
-      });
-
-    } catch (error) {
-      console.error('Service Worker registration failed:', error);
-    }
-  }
-};
-
-const showUpdateNotification = (): void => {
-  // Create a toast or notification for app update
-  const updateToast = document.createElement('div');
-  updateToast.className = 'fixed top-4 left-4 right-4 z-50 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg';
-  updateToast.innerHTML = `
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="font-semibold">تحديث متاح</p>
-        <p class="text-sm">تم تحديث التطبيق. انقر للتحديث</p>
-      </div>
-      <button id="update-btn" class="bg-white text-blue-600 px-3 py-1 rounded text-sm font-semibold hover:bg-gray-100">
-        تحديث
-      </button>
-    </div>
-  `;
-
-  document.body.appendChild(updateToast);
-
-  document.getElementById('update-btn')?.addEventListener('click', () => {
-    window.location.reload();
-  });
-
-  // Auto-hide after 10 seconds
-  setTimeout(() => {
-    updateToast.remove();
-  }, 10000);
-};
-
-// Check if app is installed
-export const isPWAInstalled = (): boolean => {
-  return window.matchMedia('(display-mode: standalone)').matches ||
-         (window.navigator as any).standalone === true;
-};
-
-// Request notification permission
-export const requestNotificationPermission = async (): Promise<NotificationPermission> => {
-  if ('Notification' in window) {
-    return await Notification.requestPermission();
-  }
-  return 'denied';
-};
-
-// Check online status
-export const isOnline = (): boolean => {
-  return navigator.onLine;
-};
-
-// Listen for online/offline events
-export const setupNetworkListeners = (
-  onOnline: () => void,
-  onOffline: () => void
-): void => {
-  window.addEventListener('online', onOnline);
-  window.addEventListener('offline', onOffline);
-};
-
-// Initialize PWA features
-export const initPWA = async (): Promise<void> => {
-  // Register service worker
-  await registerServiceWorker();
-
-  // Request notification permission
-  const permission = await requestNotificationPermission();
-  if (permission === 'granted') {
-    console.log('Notification permission granted');
-  }
-
-  // Log PWA status
-  console.log('PWA Status:', {
-    installed: isPWAInstalled(),
-    online: isOnline(),
-    notifications: permission
-  });
-};
-</file>
-
-<file path="src/services/syncService.ts">
-import { supabase } from './supabaseClient';
-import {
-  db,
-  addToSyncQueue,
-  removeFromSyncQueue,
-  updateSyncQueueRetry,
-  markAsSynced,
-  getUnsyncedRecords,
-  SyncQueueItem,
-  LocalPatient,
-  LocalVisit,
-  LocalPregnancy,
-  LocalCycle
-} from '../lib/localDb';
-
-export class SyncManager {
-  private isOnline: boolean = navigator.onLine;
-  private syncInProgress: boolean = false;
-
-  constructor() {
-    this.setupNetworkListeners();
-    this.startPeriodicSync();
-  }
-
-  private setupNetworkListeners(): void {
-    window.addEventListener('online', () => {
-      console.log('Network connection restored');
-      this.isOnline = true;
-      this.performSync();
-    });
-
-    window.addEventListener('offline', () => {
-      console.log('Network connection lost');
-      this.isOnline = false;
-    });
-  }
-
-  private startPeriodicSync(): void {
-    // Sync every 30 seconds when online
-    setInterval(() => {
-      if (this.isOnline && !this.syncInProgress) {
-        this.performSync();
-      }
-    }, 30000);
-  }
-
-  // Main sync method
-  async performSync(): Promise<void> {
-    if (this.syncInProgress || !this.isOnline) return;
-
-    this.syncInProgress = true;
-    console.log('Starting sync process...');
-
-    try {
-      // Process sync queue
-      await this.processSyncQueue();
-
-      // Pull latest data from server
-      await this.pullLatestData();
-
-      console.log('Sync completed successfully');
-    } catch (error) {
-      console.error('Sync failed:', error);
-    } finally {
-      this.syncInProgress = false;
-    }
-  }
-
-  // Process items in sync queue
-  private async processSyncQueue(): Promise<void> {
-    const pendingItems = await db.syncQueue.where('retryCount').below(3).toArray();
-
-    for (const item of pendingItems) {
-      try {
-        await this.processSyncItem(item);
-        await removeFromSyncQueue(item.id!);
-      } catch (error) {
-        console.error(`Failed to sync item ${item.id}:`, error);
-        await updateSyncQueueRetry(item.id!);
-      }
-    }
-  }
-
-  // Process individual sync item
-  private async processSyncItem(item: SyncQueueItem): Promise<void> {
-    const { table, action, payload, remoteId } = item;
-
-    switch (action) {
-      case 'insert':
-        await this.syncInsert(table, payload);
-        break;
-      case 'update':
-        if (remoteId) {
-          await this.syncUpdate(table, remoteId, payload);
-        }
-        break;
-      case 'delete':
-        if (remoteId) {
-          await this.syncDelete(table, remoteId);
-        }
-        break;
-    }
-  }
-
-  // Sync insert operation
-  private async syncInsert(table: string, payload: any): Promise<void> {
-    const { data, error } = await supabase
-      .from(table)
-      .insert([payload])
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Update local record with remote ID and mark as synced
-    const localRecord = await this.findLocalRecord(table, payload);
-    if (localRecord) {
-      await this.updateLocalRecord(table, localRecord.id!, {
-        remoteId: data.id,
-        syncStatus: 'synced'
-      });
-    }
-  }
-
-  // Sync update operation
-  private async syncUpdate(table: string, remoteId: string, payload: any): Promise<void> {
-    const { error } = await supabase
-      .from(table)
-      .update(payload)
-      .eq('id', remoteId);
-
-    if (error) throw error;
-  }
-
-  // Sync delete operation
-  private async syncDelete(table: string, remoteId: string): Promise<void> {
-    const { error } = await supabase
-      .from(table)
-      .delete()
-      .eq('id', remoteId);
-
-    if (error) throw error;
-  }
-
-  // Pull latest data from server and update local DB
-  private async pullLatestData(): Promise<void> {
-    try {
-      // Pull patients
-      await this.pullTableData('patients');
-
-      // Pull visits
-      await this.pullTableData('antenatal_visits');
-
-      // Pull pregnancies
-      await this.pullTableData('pregnancies');
-
-      // Pull IVF cycles
-      await this.pullTableData('ivf_cycles');
-
-    } catch (error) {
-      console.error('Failed to pull latest data:', error);
-    }
-  }
-
-  // Pull data for a specific table
-  private async pullTableData(tableName: string): Promise<void> {
-    const { data, error } = await supabase
-      .from(tableName)
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(100); // Limit to prevent large data transfers
-
-    if (error) throw error;
-
-    // Update local database with server data
-    for (const record of data || []) {
-      await this.upsertLocalRecord(tableName, record);
-    }
-  }
-
-  // Save data with sync capability
-  async save(table: string, data: any): Promise<any> {
-    try {
-      // Save to local DB first
-      const localRecord = await this.saveToLocal(table, data);
-
-      // Try to sync immediately if online
-      if (this.isOnline) {
-        try {
-          await this.syncInsert(table, data);
-          await markAsSynced(table, localRecord.id!);
-          return localRecord;
-        } catch (error) {
-          // Add to sync queue for later
-          await addToSyncQueue({
-            table,
-            action: 'insert',
-            payload: data,
-            retryCount: 0
-          });
-        }
-      } else {
-        // Add to sync queue
-        await addToSyncQueue({
-          table,
-          action: 'insert',
-          payload: data,
-          retryCount: 0
-        });
-      }
-
-      return localRecord;
-    } catch (error) {
-      console.error(`Failed to save ${table}:`, error);
-      throw error;
-    }
-  }
-
-  // Update data with sync capability
-  async update(table: string, remoteId: string, data: any): Promise<void> {
-    try {
-      // Update local DB first
-      await this.updateLocalRecordByRemoteId(table, remoteId, data);
-
-      // Try to sync immediately if online
-      if (this.isOnline) {
-        try {
-          await this.syncUpdate(table, remoteId, data);
-          await this.markLocalSynced(table, remoteId);
-        } catch (error) {
-          // Add to sync queue
-          await addToSyncQueue({
-            table,
-            action: 'update',
-            payload: data,
-            remoteId,
-            retryCount: 0
-          });
-        }
-      } else {
-        // Add to sync queue
-        await addToSyncQueue({
-          table,
-          action: 'update',
-          payload: data,
-          remoteId,
-          retryCount: 0
-        });
-      }
-    } catch (error) {
-      console.error(`Failed to update ${table}:`, error);
-      throw error;
-    }
-  }
-
-  // Read data from local DB (fast) with optional server sync
-  async read(table: string, query?: any): Promise<any[]> {
-    try {
-      // Always read from local DB first for instant response
-      let localData = await this.readFromLocal(table, query);
-
-      // If online, trigger background sync to get latest data
-      if (this.isOnline) {
-        setTimeout(() => this.pullLatestData(), 0);
-      }
-
-      return localData;
-    } catch (error) {
-      console.error(`Failed to read ${table}:`, error);
-      throw error;
-    }
-  }
-
-  // Local database operations
-  private async saveToLocal(table: string, data: any): Promise<any> {
-    const localData = {
-      ...data,
-      remoteId: data.id || '',
-      syncStatus: 'pending' as const,
-      lastModified: new Date(),
-      createdAt: new Date()
-    };
-
-    switch (table) {
-      case 'patients':
-        return await db.patients.add(localData);
-      case 'antenatal_visits':
-        return await db.visits.add(localData);
-      case 'pregnancies':
-        return await db.pregnancies.add(localData);
-      case 'ivf_cycles':
-        return await db.cycles.add(localData);
-      default:
-        throw new Error(`Unknown table: ${table}`);
-    }
-  }
-
-  private async readFromLocal(table: string, query?: any): Promise<any[]> {
-    let collection;
-
-    switch (table) {
-      case 'patients':
-        collection = db.patients;
-        break;
-      case 'antenatal_visits':
-        collection = db.visits;
-        break;
-      case 'pregnancies':
-        collection = db.pregnancies;
-        break;
-      case 'ivf_cycles':
-        collection = db.cycles;
-        break;
-      default:
-        throw new Error(`Unknown table: ${table}`);
-    }
-
-    if (query) {
-      return await collection.where(query).toArray();
-    }
-
-    return await collection.toArray();
-  }
-
-  private async findLocalRecord(table: string, criteria: any): Promise<any> {
-    const data = await this.readFromLocal(table);
-    return data.find(record =>
-      Object.keys(criteria).every(key => record[key] === criteria[key])
-    );
-  }
-
-  private async updateLocalRecord(table: string, localId: number, updates: any): Promise<void> {
-    switch (table) {
-      case 'patients':
-        await db.patients.update(localId, { ...updates, lastModified: new Date() });
-        break;
-      case 'antenatal_visits':
-        await db.visits.update(localId, { ...updates, lastModified: new Date() });
-        break;
-      case 'pregnancies':
-        await db.pregnancies.update(localId, { ...updates, lastModified: new Date() });
-        break;
-      case 'ivf_cycles':
-        await db.cycles.update(localId, { ...updates, lastModified: new Date() });
-        break;
-    }
-  }
-
-  private async updateLocalRecordByRemoteId(table: string, remoteId: string, updates: any): Promise<void> {
-    const data = await this.readFromLocal(table);
-    const record = data.find(r => r.remoteId === remoteId);
-    if (record) {
-      await this.updateLocalRecord(table, record.id, updates);
-    }
-  }
-
-  private async markLocalSynced(table: string, remoteId: string): Promise<void> {
-    const data = await this.readFromLocal(table);
-    const record = data.find(r => r.remoteId === remoteId);
-    if (record) {
-      await this.updateLocalRecord(table, record.id, { syncStatus: 'synced' });
-    }
-  }
-
-  private async upsertLocalRecord(table: string, remoteData: any): Promise<void> {
-    const existing = await this.readFromLocal(table);
-    const record = existing.find(r => r.remoteId === remoteData.id);
-
-    if (record) {
-      // Update existing
-      await this.updateLocalRecord(table, record.id, {
-        ...remoteData,
-        remoteId: remoteData.id,
-        syncStatus: 'synced'
-      });
-    } else {
-      // Insert new
-      await this.saveToLocal(table, {
-        ...remoteData,
-        id: remoteData.id,
-        syncStatus: 'synced'
-      });
-    }
-  }
-
-  // Get sync status
-  getSyncStatus(): { isOnline: boolean; syncInProgress: boolean; pendingItems: number } {
-    return {
-      isOnline: this.isOnline,
-      syncInProgress: this.syncInProgress,
-      pendingItems: 0 // This would need to be calculated asynchronously
-    };
-  }
-
-  // Force sync
-  async forceSync(): Promise<void> {
-    await this.performSync();
-  }
-}
-
-// Create and export singleton instance
-export const syncManager = new SyncManager();
-</file>
 
 <file path=".gitignore">
 # Logs
@@ -3329,6 +2306,360 @@ const InfertilityWizard: React.FC<InfertilityWizardProps> = ({ patientId, patien
 export default InfertilityWizard;
 </file>
 
+<file path="public/manifest.json">
+{
+  "name": "Nile IVF Center",
+  "short_name": "Nile IVF",
+  "description": "Comprehensive IVF and Obstetrics Management System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#00838f",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["medical", "health", "productivity"],
+  "lang": "ar-EG",
+  "dir": "ltr"
+}
+</file>
+
+<file path="public/sw.js">
+// Service Worker for Nile IVF PWA
+const CACHE_NAME = 'nile-ivf-v1';
+const STATIC_CACHE = 'nile-ivf-static-v1';
+const DYNAMIC_CACHE = 'nile-ivf-dynamic-v1';
+
+// Assets to cache immediately
+const STATIC_ASSETS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/styles.css',
+  // Add other static assets as needed
+];
+
+// Install event - cache static assets
+self.addEventListener('install', (event) => {
+  console.log('Service Worker: Installing...');
+  event.waitUntil(
+    caches.open(STATIC_CACHE)
+      .then((cache) => {
+        console.log('Service Worker: Caching static assets');
+        return cache.addAll(STATIC_ASSETS);
+      })
+      .catch((error) => {
+        console.error('Service Worker: Failed to cache static assets:', error);
+      })
+  );
+  self.skipWaiting();
+});
+
+// Activate event - clean up old caches
+self.addEventListener('activate', (event) => {
+  console.log('Service Worker: Activating...');
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
+            console.log('Service Worker: Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
+});
+
+// Fetch event - serve from cache or network
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Skip non-GET requests
+  if (request.method !== 'GET') return;
+
+  // Handle Supabase API requests with network-first strategy
+  if (url.hostname.includes('supabase.co')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Cache successful responses
+          if (response.ok) {
+            const responseClone = response.clone();
+            caches.open(DYNAMIC_CACHE).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cache if network fails
+          return caches.match(request);
+        })
+    );
+    return;
+  }
+
+  // Handle static assets with cache-first strategy
+  event.respondWith(
+    caches.match(request)
+      .then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+
+        return fetch(request)
+          .then((response) => {
+            // Cache successful responses
+            if (response.ok && response.type === 'basic') {
+              const responseClone = response.clone();
+              caches.open(DYNAMIC_CACHE).then((cache) => {
+                cache.put(request, responseClone);
+              });
+            }
+            return response;
+          })
+          .catch((error) => {
+            console.error('Service Worker: Fetch failed:', error);
+            // Return offline fallback for navigation requests
+            if (request.mode === 'navigate') {
+              return caches.match('/index.html');
+            }
+          });
+      })
+  );
+});
+
+// Background sync for offline actions
+self.addEventListener('sync', (event) => {
+  console.log('Service Worker: Background sync triggered:', event.tag);
+
+  if (event.tag === 'sync-pending-data') {
+    event.waitUntil(syncPendingData());
+  }
+});
+
+// Function to sync pending data when back online
+async function syncPendingData() {
+  try {
+    // This would integrate with the sync manager
+    console.log('Service Worker: Syncing pending data...');
+    // Implementation would go here
+  } catch (error) {
+    console.error('Service Worker: Failed to sync pending data:', error);
+  }
+}
+
+// Push notifications (for future use)
+self.addEventListener('push', (event) => {
+  if (event.data) {
+    const data = event.data.json();
+    const options = {
+      body: data.body,
+      icon: '/pwa-192x192.png',
+      badge: '/pwa-192x192.png',
+      vibrate: [100, 50, 100],
+      data: data.data
+    };
+
+    event.waitUntil(
+      self.registration.showNotification(data.title, options)
+    );
+  }
+});
+
+// Notification click handler
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  event.waitUntil(
+    clients.openWindow(event.notification.data?.url || '/')
+  );
+});
+</file>
+
+<file path="PWA_SETUP.md">
+# Nile IVF Center - Offline-First PWA Setup
+
+## Overview
+The Nile IVF Center app has been upgraded to a fully functional **Offline-First Progressive Web App (PWA)** that works seamlessly without internet connectivity and automatically syncs data when online.
+
+## 🚀 Features Implemented
+
+### 1. **PWA Configuration**
+- **Service Worker**: Caches all static assets and implements network-first strategy for API calls
+- **Web App Manifest**: Defines app metadata, icons, and installation behavior
+- **Offline Support**: App loads and functions completely offline
+- **Auto-Updates**: Automatically updates when new versions are available
+
+### 2. **Local Database (Dexie)**
+- **IndexedDB Wrapper**: Fast, reliable local storage using Dexie
+- **Schema Mirroring**: Local database structure matches Supabase tables
+- **Sync Status Tracking**: Each record tracks sync status (pending/synced/error)
+
+### 3. **Sync Engine**
+- **Offline-First**: Data saved locally first, then synced to server
+- **Background Sync**: Automatically syncs pending data when back online
+- **Conflict Resolution**: Handles data conflicts gracefully
+- **Retry Logic**: Failed syncs are retried with exponential backoff
+
+### 4. **User Experience**
+- **Instant Loading**: Data loads instantly from local cache
+- **Offline Indicator**: Visual indicators for online/offline status
+- **Sync Status**: Shows pending syncs and sync progress
+- **Error Handling**: Graceful fallbacks when sync fails
+
+## 📁 File Structure
+
+```
+src/
+├── lib/
+│   ├── localDb.ts          # Dexie database configuration
+│   ├── pwa.ts             # PWA registration and utilities
+│   └── syncService.ts     # Sync manager implementation
+├── services/
+│   ├── syncService.ts     # Sync manager singleton
+│   └── [existing services] # Modified to use sync manager
+public/
+├── manifest.json          # PWA manifest
+├── sw.js                 # Service worker
+└── pwa-*.png            # App icons (see below)
+```
+
+## 🖼️ Required App Icons
+
+Place these icon files in the `public/` directory:
+
+- `pwa-192x192.png` - 192x192px (required)
+- `pwa-512x512.png` - 512x512px (required)
+- `apple-touch-icon.png` - 180x180px (optional, for iOS)
+
+**Icon Generation**: Use a tool like [PWA Asset Generator](https://github.com/elegantapp/pwa-asset-generator) or [RealFaviconGenerator](https://realfavicongenerator.net/) to generate these from your app logo.
+
+## 🔧 Installation & Setup
+
+### 1. Install Dependencies
+```bash
+npm install dexie vite-plugin-pwa
+```
+
+### 2. Build for Production
+```bash
+npm run build
+```
+
+### 3. Deploy
+The PWA will be automatically configured during the build process.
+
+## 📱 Installation Instructions
+
+### For Users:
+1. **Chrome/Edge**: Click the install icon in the address bar or use the "Install" menu
+2. **Firefox**: Use the "Install This Site as an App" option in the page menu
+3. **Safari (iOS)**: Use "Add to Home Screen" from the share menu
+4. **Android**: Use "Add to Home Screen" from the browser menu
+
+## 🔄 How Offline Sync Works
+
+### Data Flow:
+1. **User Action**: User enters data (e.g., saves a patient)
+2. **Local Save**: Data saved to IndexedDB immediately
+3. **UI Update**: App shows data instantly (no loading)
+4. **Background Sync**: When online, data synced to Supabase
+5. **Status Update**: Local record marked as "synced"
+
+### Conflict Resolution:
+- **Server Wins**: If server data is newer, it overwrites local
+- **Manual Merge**: Conflicts shown to user for resolution
+- **Retry Failed**: Failed syncs automatically retried
+
+## 🛠️ Development Notes
+
+### Testing Offline Mode:
+1. Open DevTools → Network tab
+2. Check "Offline" to simulate no internet
+3. Test all app functionality
+4. Uncheck "Offline" to test sync
+
+### Database Inspection:
+- Chrome DevTools → Application → IndexedDB → ClinicDB
+- View local data and sync status
+
+### Service Worker Debugging:
+- Chrome DevTools → Application → Service Workers
+- Check registration, updates, and cache status
+
+## 🚨 Important Considerations
+
+### Data Security:
+- **Local Encryption**: Sensitive data should be encrypted locally
+- **Sync Security**: Ensure sync happens over HTTPS only
+- **Auth Tokens**: Handle authentication token refresh offline
+
+### Performance:
+- **Database Size**: Monitor IndexedDB size limits (~50MB-1GB)
+- **Sync Frequency**: Balance between real-time and battery usage
+- **Cleanup**: Implement data cleanup for old records
+
+### Error Handling:
+- **Network Errors**: Graceful degradation when offline
+- **Sync Failures**: Clear user communication about sync status
+- **Data Loss**: Backup strategies for critical data
+
+## 🔮 Future Enhancements
+
+- **Push Notifications**: Real-time alerts for critical updates
+- **Background Sync**: Periodic data synchronization
+- **Conflict UI**: Visual conflict resolution interface
+- **Data Export**: Offline data export capabilities
+- **Multi-device Sync**: Sync across multiple devices
+
+## 🐛 Troubleshooting
+
+### Common Issues:
+1. **Service Worker Not Registering**: Check browser support and HTTPS
+2. **Sync Not Working**: Verify network permissions and API endpoints
+3. **Database Errors**: Clear IndexedDB and reinstall app
+4. **Icons Not Showing**: Ensure correct file paths and formats
+
+### Debug Commands:
+```javascript
+// Check PWA status
+console.log('PWA Installed:', window.matchMedia('(display-mode: standalone)').matches);
+
+// Check online status
+console.log('Online:', navigator.onLine);
+
+// Force sync
+// syncManager.forceSync(); // When implemented
+```
+
+---
+
+## 📞 Support
+
+For technical support or questions about the PWA implementation, contact the development team.
+
+**Last Updated**: December 2025
+**Version**: 1.0.0
+</file>
+
 <file path="services/supabaseClient.ts">
 import { createClient } from '@supabase/supabase-js';
 
@@ -3583,6 +2914,1580 @@ export const generateDiagnosis = (data: WorkupState): { diagnosis: string; plan:
 
   return { diagnosis, plan };
 };
+</file>
+
+<file path="src/components/SyncStatus.tsx">
+import React from 'react';
+import { Cloud, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, getSyncStats } from '../db/localDB';
+
+interface SyncStatusProps {
+  className?: string;
+}
+
+const SyncStatus: React.FC<SyncStatusProps> = ({ className = '' }) => {
+  // Get sync statistics from local database
+  const syncStats = useLiveQuery(async () => {
+    return await getSyncStats();
+  }, []);
+
+  // Check online status
+  const [isOnline, setIsOnline] = React.useState(navigator.onLine);
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  if (!syncStats) {
+    return (
+      <div className={`flex items-center gap-2 text-gray-500 ${className}`}>
+        <RefreshCw className="w-4 h-4 animate-spin" />
+        <span className="text-sm">Loading...</span>
+      </div>
+    );
+  }
+
+  const { synced, pending, errors } = syncStats;
+  const hasPendingItems = pending > 0;
+  const hasErrors = errors > 0;
+
+  // Determine status and styling
+  const getStatusInfo = () => {
+    if (!isOnline) {
+      return {
+        icon: CloudOff,
+        color: 'text-gray-500',
+        bgColor: 'bg-gray-100',
+        text: 'Offline Mode',
+        description: hasPendingItems ? `${pending} items pending` : 'All data saved locally'
+      };
+    }
+
+    if (hasErrors) {
+      return {
+        icon: AlertTriangle,
+        color: 'text-red-600',
+        bgColor: 'bg-red-100',
+        text: 'Sync Issues',
+        description: `${errors} items failed to sync`
+      };
+    }
+
+    if (hasPendingItems) {
+      return {
+        icon: RefreshCw,
+        color: 'text-yellow-600',
+        bgColor: 'bg-yellow-100',
+        text: 'Syncing...',
+        description: `${pending} items pending`
+      };
+    }
+
+    return {
+      icon: Cloud,
+      color: 'text-green-600',
+      bgColor: 'bg-green-100',
+      text: 'All Synced',
+      description: `${synced} items synced`
+    };
+  };
+
+  const statusInfo = getStatusInfo();
+  const Icon = statusInfo.icon;
+
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${statusInfo.bgColor}`}>
+        <Icon
+          className={`w-4 h-4 ${statusInfo.color} ${hasPendingItems && isOnline ? 'animate-spin' : ''}`}
+        />
+        <div className="flex flex-col">
+          <span className={`text-sm font-medium ${statusInfo.color}`}>
+            {statusInfo.text}
+          </span>
+          <span className="text-xs text-gray-600">
+            {statusInfo.description}
+          </span>
+        </div>
+      </div>
+
+      {/* Additional info for pending items */}
+      {hasPendingItems && isOnline && (
+        <div className="text-xs text-yellow-600">
+          Auto-sync in progress...
+        </div>
+      )}
+
+      {/* Error indicator */}
+      {hasErrors && (
+        <div className="text-xs text-red-600">
+          Check connection
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SyncStatus;
+</file>
+
+<file path="src/db/localDB.ts">
+import Dexie, { Table } from 'dexie';
+
+// Define the sync status enum
+export enum SyncStatus {
+  SYNCED = 0,        // Successfully synced with server
+  PENDING_CREATE = 1, // Created locally, needs to be pushed to server
+  PENDING_UPDATE = 2, // Updated locally, needs to be pushed to server
+  PENDING_DELETE = 3, // Marked for deletion, needs to be pushed to server
+  ERROR = 4          // Sync failed, needs retry
+}
+
+// Patient interface for local storage
+export interface LocalPatient {
+  id?: number; // Auto-incremented local ID
+  remoteId?: string; // Supabase ID (when synced)
+  name: string;
+  age?: number;
+  phone: string;
+  husbandName?: string;
+  history?: string;
+  doctor_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  sync_status: SyncStatus;
+  last_sync_attempt?: string;
+  sync_error?: string;
+}
+
+// Visit interface for local storage
+export interface LocalVisit {
+  id?: number;
+  remoteId?: string;
+  patient_id: string;
+  department: string;
+  visit_date: string;
+  clinical_data?: any;
+  diagnosis?: string;
+  prescription?: any[];
+  notes?: string;
+  doctor_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  sync_status: SyncStatus;
+  last_sync_attempt?: string;
+  sync_error?: string;
+}
+
+// IVF Cycle interface for local storage
+export interface LocalIVFCycle {
+  id?: number;
+  remoteId?: string;
+  patient_id: string;
+  protocol: string;
+  start_date: string;
+  status: string;
+  assessment_data?: any;
+  lab_data?: any;
+  transfer_data?: any;
+  outcome_data?: any;
+  doctor_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  sync_status: SyncStatus;
+  last_sync_attempt?: string;
+  sync_error?: string;
+}
+
+// Stimulation Log interface for local storage
+export interface LocalStimulationLog {
+  id?: number;
+  remoteId?: string;
+  cycle_id: string;
+  cycle_day: number;
+  date: string;
+  fsh?: string;
+  hmg?: string;
+  e2?: string;
+  lh?: string;
+  rt_follicles?: string;
+  lt_follicles?: string;
+  endometrium_thickness?: string;
+  created_at?: string;
+  updated_at?: string;
+  sync_status: SyncStatus;
+  last_sync_attempt?: string;
+  sync_error?: string;
+}
+
+// Pregnancy interface for local storage
+export interface LocalPregnancy {
+  id?: number;
+  remoteId?: string;
+  patient_id: string;
+  lmp_date?: string;
+  edd_date?: string;
+  risk_level?: string;
+  aspirin_prescribed?: boolean;
+  current_status?: string;
+  clinical_data?: any;
+  doctor_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  sync_status: SyncStatus;
+  last_sync_attempt?: string;
+  sync_error?: string;
+}
+
+// Biometry Scan interface for local storage
+export interface LocalBiometryScan {
+  id?: number;
+  remoteId?: string;
+  pregnancy_id: string;
+  scan_date: string;
+  gestational_age_weeks: number;
+  gestational_age_days: number;
+  bpd_mm?: number;
+  hc_mm?: number;
+  ac_mm?: number;
+  fl_mm?: number;
+  efw_grams?: number;
+  percentile?: number;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+  sync_status: SyncStatus;
+  last_sync_attempt?: string;
+  sync_error?: string;
+}
+
+// Sync Queue for tracking failed operations
+export interface SyncQueueItem {
+  id?: number;
+  table: string;
+  operation: 'create' | 'update' | 'delete';
+  localId: number;
+  remoteId?: string;
+  payload?: any;
+  retryCount: number;
+  maxRetries: number;
+  lastAttempt?: string;
+  nextRetry?: string;
+  created_at: string;
+}
+
+// Define the database class
+export class ClinicLocalDB extends Dexie {
+  patients!: Table<LocalPatient>;
+  visits!: Table<LocalVisit>;
+  ivf_cycles!: Table<LocalIVFCycle>;
+  stimulation_logs!: Table<LocalStimulationLog>;
+  pregnancies!: Table<LocalPregnancy>;
+  biometry_scans!: Table<LocalBiometryScan>;
+  syncQueue!: Table<SyncQueueItem>;
+
+  constructor() {
+    super('ClinicLocalDB');
+
+    this.version(1).stores({
+      patients: '++id, remoteId, name, phone, created_at, [sync_status]',
+      visits: '++id, remoteId, patient_id, date, [sync_status]',
+      ivf_cycles: '++id, remoteId, patient_id, status, [sync_status]',
+      stimulation_logs: '++id, remoteId, cycle_id, [sync_status]',
+      pregnancies: '++id, remoteId, patient_id, [sync_status]',
+      biometry_scans: '++id, remoteId, pregnancy_id, [sync_status]',
+      syncQueue: '++id, table, operation, retryCount, created_at'
+    });
+  }
+}
+
+// Create and export database instance
+export const db = new ClinicLocalDB();
+
+// Initialize database
+export const initLocalDB = async (): Promise<void> => {
+  try {
+    await db.open();
+    console.log('Local database initialized successfully');
+
+    // Create indexes for better query performance
+    await db.patients.hook('creating', (primKey, obj, trans) => {
+      if (!obj.created_at) {
+        obj.created_at = new Date().toISOString();
+      }
+      if (!obj.updated_at) {
+        obj.updated_at = new Date().toISOString();
+      }
+    });
+
+    await db.visits.hook('creating', (primKey, obj, trans) => {
+      if (!obj.created_at) {
+        obj.created_at = new Date().toISOString();
+      }
+      if (!obj.updated_at) {
+        obj.updated_at = new Date().toISOString();
+      }
+    });
+
+    await db.ivf_cycles.hook('creating', (primKey, obj, trans) => {
+      if (!obj.created_at) {
+        obj.created_at = new Date().toISOString();
+      }
+      if (!obj.updated_at) {
+        obj.updated_at = new Date().toISOString();
+      }
+    });
+
+    await db.stimulation_logs.hook('creating', (primKey, obj, trans) => {
+      if (!obj.created_at) {
+        obj.created_at = new Date().toISOString();
+      }
+      if (!obj.updated_at) {
+        obj.updated_at = new Date().toISOString();
+      }
+    });
+
+    await db.pregnancies.hook('creating', (primKey, obj, trans) => {
+      if (!obj.created_at) {
+        obj.created_at = new Date().toISOString();
+      }
+      if (!obj.updated_at) {
+        obj.updated_at = new Date().toISOString();
+      }
+    });
+
+    await db.biometry_scans.hook('creating', (primKey, obj, trans) => {
+      if (!obj.created_at) {
+        obj.created_at = new Date().toISOString();
+      }
+      if (!obj.updated_at) {
+        obj.updated_at = new Date().toISOString();
+      }
+    });
+
+  } catch (error) {
+    console.error('Failed to initialize local database:', error);
+    throw error;
+  }
+};
+
+// Helper functions for database operations
+export const getPendingSyncItems = async (table?: string): Promise<SyncQueueItem[]> => {
+  if (table) {
+    return await db.syncQueue.where('table').equals(table).toArray();
+  }
+  return await db.syncQueue.toArray();
+};
+
+export const addToSyncQueue = async (item: Omit<SyncQueueItem, 'id' | 'created_at'>): Promise<number> => {
+  return await db.syncQueue.add({
+    ...item,
+    created_at: new Date().toISOString()
+  });
+};
+
+export const removeFromSyncQueue = async (id: number): Promise<void> => {
+  await db.syncQueue.delete(id);
+};
+
+export const updateSyncQueueItem = async (id: number, updates: Partial<SyncQueueItem>): Promise<void> => {
+  await db.syncQueue.update(id, updates);
+};
+
+export const markAsSynced = async (table: string, localId: number, remoteId?: string): Promise<void> => {
+  const tableMap: { [key: string]: Table } = {
+    patients: db.patients,
+    visits: db.visits,
+    ivf_cycles: db.ivf_cycles,
+    stimulation_logs: db.stimulation_logs,
+    pregnancies: db.pregnancies,
+    biometry_scans: db.biometry_scans
+  };
+
+  const targetTable = tableMap[table];
+  if (targetTable) {
+    const updateData: any = {
+      sync_status: SyncStatus.SYNCED,
+      last_sync_attempt: new Date().toISOString(),
+      sync_error: undefined
+    };
+
+    if (remoteId) {
+      updateData.remoteId = remoteId;
+    }
+
+    await targetTable.update(localId, updateData);
+  }
+};
+
+export const markSyncError = async (table: string, localId: number, error: string): Promise<void> => {
+  const tableMap: { [key: string]: Table } = {
+    patients: db.patients,
+    visits: db.visits,
+    ivf_cycles: db.ivf_cycles,
+    stimulation_logs: db.stimulation_logs,
+    pregnancies: db.pregnancies,
+    biometry_scans: db.biometry_scans
+  };
+
+  const targetTable = tableMap[table];
+  if (targetTable) {
+    await targetTable.update(localId, {
+      sync_status: SyncStatus.ERROR,
+      last_sync_attempt: new Date().toISOString(),
+      sync_error: error
+    });
+  }
+};
+
+export const getUnsyncedRecords = async (table: string): Promise<any[]> => {
+  const tableMap: { [key: string]: Table } = {
+    patients: db.patients,
+    visits: db.visits,
+    ivf_cycles: db.ivf_cycles,
+    stimulation_logs: db.stimulation_logs,
+    pregnancies: db.pregnancies,
+    biometry_scans: db.biometry_scans
+  };
+
+  const targetTable = tableMap[table];
+  if (targetTable) {
+    return await targetTable.where('sync_status').above(SyncStatus.SYNCED).toArray();
+  }
+  return [];
+};
+
+export const getSyncStats = async (): Promise<{
+  total: number;
+  synced: number;
+  pending: number;
+  errors: number;
+}> => {
+  const [patients, visits, cycles, logs, pregnancies, biometryScans] = await Promise.all([
+    db.patients.toArray(),
+    db.visits.toArray(),
+    db.ivf_cycles.toArray(),
+    db.stimulation_logs.toArray(),
+    db.pregnancies.toArray(),
+    db.biometry_scans.toArray()
+  ]);
+
+  const allRecords = [...patients, ...visits, ...cycles, ...logs, ...pregnancies, ...biometryScans];
+
+  return {
+    total: allRecords.length,
+    synced: allRecords.filter(r => r.sync_status === SyncStatus.SYNCED).length,
+    pending: allRecords.filter(r => r.sync_status > SyncStatus.SYNCED && r.sync_status < SyncStatus.ERROR).length,
+    errors: allRecords.filter(r => r.sync_status === SyncStatus.ERROR).length
+  };
+};
+</file>
+
+<file path="src/hooks/useSyncStatus.ts">
+import { useEffect, useState } from 'react';
+import { db } from '../lib/localDb';
+
+export interface SyncStatus {
+  isOnline: boolean;
+  syncInProgress: boolean;
+  pendingItemsCount: number;
+  lastSyncTime?: Date;
+}
+
+export const useSyncStatus = () => {
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
+    isOnline: navigator.onLine,
+    syncInProgress: false,
+    pendingItemsCount: 0,
+  });
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setSyncStatus(prev => ({ ...prev, isOnline: true }));
+    };
+
+    const handleOffline = () => {
+      setSyncStatus(prev => ({ ...prev, isOnline: false }));
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    const updatePendingCount = async () => {
+      const pendingItems = await db.syncQueue.where('retryCount').below(3).toArray();
+      setSyncStatus(prev => ({
+        ...prev,
+        pendingItemsCount: pendingItems.length
+      }));
+    };
+
+    const interval = setInterval(updatePendingCount, 5000);
+    updatePendingCount();
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(interval);
+    };
+  }, []);
+
+  return syncStatus;
+};
+
+export const useNetworkStatus = () => {
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  return isOnline;
+};
+</file>
+
+<file path="src/lib/localDb.ts">
+import Dexie, { Table } from 'dexie';
+
+// Types for local database
+export interface LocalPatient {
+  id?: number; // Auto-incremented local ID
+  remoteId: string; // Supabase ID
+  name: string;
+  phone: string;
+  email?: string;
+  dateOfBirth?: string;
+  address?: string;
+  syncStatus: 'pending' | 'synced' | 'error';
+  lastModified: Date;
+  createdAt: Date;
+}
+
+export interface LocalVisit {
+  id?: number;
+  remoteId: string;
+  patientId: string;
+  department: string;
+  visitDate: string;
+  clinicalData: any;
+  diagnosis?: string;
+  prescription?: any[];
+  notes?: string;
+  syncStatus: 'pending' | 'synced' | 'error';
+  lastModified: Date;
+  createdAt: Date;
+}
+
+export interface LocalPregnancy {
+  id?: number;
+  remoteId: string;
+  patientId: string;
+  lmpDate?: string;
+  eddDate?: string;
+  riskLevel?: string;
+  aspirinPrescribed?: boolean;
+  currentStatus?: string;
+  syncStatus: 'pending' | 'synced' | 'error';
+  lastModified: Date;
+  createdAt: Date;
+}
+
+export interface LocalCycle {
+  id?: number;
+  remoteId: string;
+  patientId: string;
+  protocol: string;
+  startDate: string;
+  status: string;
+  assessment?: any;
+  logs?: any[];
+  lab?: any;
+  transfer?: any;
+  outcome?: any;
+  syncStatus: 'pending' | 'synced' | 'error';
+  lastModified: Date;
+  createdAt: Date;
+}
+
+export interface SyncQueueItem {
+  id?: number;
+  table: string;
+  action: 'insert' | 'update' | 'delete';
+  payload: any;
+  remoteId?: string;
+  retryCount: number;
+  lastAttempt?: Date;
+  createdAt: Date;
+}
+
+export class ClinicDatabase extends Dexie {
+  patients!: Table<LocalPatient>;
+  visits!: Table<LocalVisit>;
+  pregnancies!: Table<LocalPregnancy>;
+  cycles!: Table<LocalCycle>;
+  syncQueue!: Table<SyncQueueItem>;
+
+  constructor() {
+    super('ClinicDB');
+
+    this.version(1).stores({
+      patients: '++id, remoteId, name, phone, syncStatus, lastModified',
+      visits: '++id, remoteId, patientId, visitDate, syncStatus, lastModified',
+      pregnancies: '++id, remoteId, patientId, syncStatus, lastModified',
+      cycles: '++id, remoteId, patientId, syncStatus, lastModified',
+      syncQueue: '++id, table, action, retryCount, createdAt'
+    });
+  }
+}
+
+// Create and export database instance
+export const db = new ClinicDatabase();
+
+// Initialize database
+export const initDatabase = async (): Promise<void> => {
+  try {
+    await db.open();
+    console.log('Local database initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize local database:', error);
+    throw error;
+  }
+};
+
+// Helper functions for database operations
+export const getPendingSyncItems = async (): Promise<SyncQueueItem[]> => {
+  return await db.syncQueue.where('retryCount').below(3).toArray();
+};
+
+export const addToSyncQueue = async (item: Omit<SyncQueueItem, 'id' | 'createdAt'>): Promise<void> => {
+  await db.syncQueue.add({
+    ...item,
+    createdAt: new Date()
+  });
+};
+
+export const removeFromSyncQueue = async (id: number): Promise<void> => {
+  await db.syncQueue.delete(id);
+};
+
+export const updateSyncQueueRetry = async (id: number): Promise<void> => {
+  await db.syncQueue.update(id, {
+    retryCount: await db.syncQueue.get(id).then(item => (item?.retryCount || 0) + 1),
+    lastAttempt: new Date()
+  });
+};
+
+export const markAsSynced = async (table: string, localId: number): Promise<void> => {
+  const tableMap: { [key: string]: Table } = {
+    patients: db.patients,
+    visits: db.visits,
+    pregnancies: db.pregnancies,
+    cycles: db.cycles
+  };
+
+  const targetTable = tableMap[table];
+  if (targetTable) {
+    await targetTable.update(localId, { syncStatus: 'synced' });
+  }
+};
+
+export const getUnsyncedRecords = async (table: string): Promise<any[]> => {
+  const tableMap: { [key: string]: Table } = {
+    patients: db.patients,
+    visits: db.visits,
+    pregnancies: db.pregnancies,
+    cycles: db.cycles
+  };
+
+  const targetTable = tableMap[table];
+  if (targetTable) {
+    return await targetTable.where('syncStatus').equals('pending').toArray();
+  }
+  return [];
+};
+</file>
+
+<file path="src/lib/networkStatus.ts">
+export class NetworkStatus {
+  private static instance: NetworkStatus;
+  private isOnline: boolean = navigator.onLine;
+  private listeners: Set<(isOnline: boolean) => void> = new Set();
+
+  private constructor() {
+    this.setupListeners();
+  }
+
+  static getInstance(): NetworkStatus {
+    if (!NetworkStatus.instance) {
+      NetworkStatus.instance = new NetworkStatus();
+    }
+    return NetworkStatus.instance;
+  }
+
+  private setupListeners(): void {
+    window.addEventListener('online', () => {
+      this.isOnline = true;
+      this.notifyListeners();
+    });
+
+    window.addEventListener('offline', () => {
+      this.isOnline = false;
+      this.notifyListeners();
+    });
+  }
+
+  getStatus(): boolean {
+    return this.isOnline;
+  }
+
+  subscribe(callback: (isOnline: boolean) => void): () => void {
+    this.listeners.add(callback);
+    return () => {
+      this.listeners.delete(callback);
+    };
+  }
+
+  private notifyListeners(): void {
+    this.listeners.forEach(listener => listener(this.isOnline));
+  }
+}
+
+export const networkStatus = NetworkStatus.getInstance();
+</file>
+
+<file path="src/lib/pwa.ts">
+// PWA Registration and Management
+export const registerServiceWorker = async (): Promise<void> => {
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/'
+      });
+
+      console.log('Service Worker registered successfully:', registration.scope);
+
+      // Handle updates
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // New version available
+              showUpdateNotification();
+            }
+          });
+        }
+      });
+
+      // Handle controller change (new SW activated)
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
+
+    } catch (error) {
+      console.error('Service Worker registration failed:', error);
+    }
+  }
+};
+
+const showUpdateNotification = (): void => {
+  // Create a toast or notification for app update
+  const updateToast = document.createElement('div');
+  updateToast.className = 'fixed top-4 left-4 right-4 z-50 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg';
+  updateToast.innerHTML = `
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="font-semibold">تحديث متاح</p>
+        <p class="text-sm">تم تحديث التطبيق. انقر للتحديث</p>
+      </div>
+      <button id="update-btn" class="bg-white text-blue-600 px-3 py-1 rounded text-sm font-semibold hover:bg-gray-100">
+        تحديث
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(updateToast);
+
+  document.getElementById('update-btn')?.addEventListener('click', () => {
+    window.location.reload();
+  });
+
+  // Auto-hide after 10 seconds
+  setTimeout(() => {
+    updateToast.remove();
+  }, 10000);
+};
+
+// Check if app is installed
+export const isPWAInstalled = (): boolean => {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         (window.navigator as any).standalone === true;
+};
+
+// Request notification permission
+export const requestNotificationPermission = async (): Promise<NotificationPermission> => {
+  if ('Notification' in window) {
+    return await Notification.requestPermission();
+  }
+  return 'denied';
+};
+
+// Check online status
+export const isOnline = (): boolean => {
+  return navigator.onLine;
+};
+
+// Listen for online/offline events
+export const setupNetworkListeners = (
+  onOnline: () => void,
+  onOffline: () => void
+): void => {
+  window.addEventListener('online', onOnline);
+  window.addEventListener('offline', onOffline);
+};
+
+// Initialize PWA features
+export const initPWA = async (): Promise<void> => {
+  // Register service worker
+  await registerServiceWorker();
+
+  // Request notification permission
+  const permission = await requestNotificationPermission();
+  if (permission === 'granted') {
+    console.log('Notification permission granted');
+  }
+
+  // Log PWA status
+  console.log('PWA Status:', {
+    installed: isPWAInstalled(),
+    online: isOnline(),
+    notifications: permission
+  });
+};
+</file>
+
+<file path="src/services/syncService.ts">
+import { supabase } from '../../services/supabaseClient';
+import {
+  db,
+  addToSyncQueue,
+  removeFromSyncQueue,
+  updateSyncQueueItem,
+  markAsSynced,
+  markSyncError,
+  getUnsyncedRecords,
+  getPendingSyncItems,
+  SyncStatus,
+  SyncQueueItem
+} from '../db/localDB';
+
+export class SyncService {
+  private isOnline: boolean = navigator.onLine;
+  private syncInProgress: boolean = false;
+  private syncInterval: NodeJS.Timeout | null = null;
+
+  constructor() {
+    this.setupNetworkListeners();
+    this.startPeriodicSync();
+  }
+
+  private setupNetworkListeners(): void {
+    window.addEventListener('online', () => {
+      console.log('🔄 Network connection restored - starting sync');
+      this.isOnline = true;
+      this.performBackgroundSync();
+    });
+
+    window.addEventListener('offline', () => {
+      console.log('📴 Network connection lost');
+      this.isOnline = false;
+    });
+  }
+
+  private startPeriodicSync(): void {
+    // Sync every 30 seconds when online
+    this.syncInterval = setInterval(() => {
+      if (this.isOnline && !this.syncInProgress) {
+        this.performBackgroundSync();
+      }
+    }, 30000);
+  }
+
+  // Main save function - saves to local DB first, then attempts sync
+  async saveItem(table: string, data: any): Promise<any> {
+    try {
+      console.log(`💾 Saving ${table} locally first...`, data);
+
+      // Save to local DB with pending status
+      const localRecord = await this.saveToLocal(table, data);
+      console.log(`✅ Saved ${table} locally with ID: ${localRecord.id}`);
+
+      // Try to sync immediately if online
+      if (this.isOnline) {
+        try {
+          console.log(`🔄 Attempting immediate sync for ${table}...`);
+          await this.syncItem(table, localRecord.id!, localRecord);
+          console.log(`✅ Successfully synced ${table} immediately`);
+        } catch (error) {
+          console.warn(`⚠️ Immediate sync failed for ${table}, will retry in background:`, error);
+          // Add to sync queue for later retry
+          await addToSyncQueue({
+            table,
+            operation: 'create',
+            localId: localRecord.id!,
+            payload: data,
+            retryCount: 0,
+            maxRetries: 3
+          });
+        }
+      } else {
+        console.log(`📴 Offline mode - ${table} queued for sync`);
+        // Add to sync queue
+        await addToSyncQueue({
+          table,
+          operation: 'create',
+          localId: localRecord.id!,
+          payload: data,
+          retryCount: 0,
+          maxRetries: 3
+        });
+      }
+
+      return localRecord;
+    } catch (error) {
+      console.error(`❌ Failed to save ${table}:`, error);
+      throw error;
+    }
+  }
+
+  // Update existing item
+  async updateItem(table: string, localId: number, data: any): Promise<void> {
+    try {
+      console.log(`📝 Updating ${table} locally...`, data);
+
+      // Update local DB with pending status
+      await this.updateLocal(table, localId, data);
+
+      // Try to sync immediately if online
+      if (this.isOnline) {
+        try {
+          console.log(`🔄 Attempting immediate sync for ${table} update...`);
+          const localRecord = await this.getLocalRecord(table, localId);
+          await this.syncItem(table, localId, localRecord);
+          console.log(`✅ Successfully synced ${table} update immediately`);
+        } catch (error) {
+          console.warn(`⚠️ Immediate sync failed for ${table} update, will retry in background:`, error);
+          // Add to sync queue for later retry
+          await addToSyncQueue({
+            table,
+            operation: 'update',
+            localId,
+            payload: data,
+            retryCount: 0,
+            maxRetries: 3
+          });
+        }
+      } else {
+        console.log(`📴 Offline mode - ${table} update queued for sync`);
+        // Add to sync queue
+        await addToSyncQueue({
+          table,
+          operation: 'update',
+          localId,
+          payload: data,
+          retryCount: 0,
+          maxRetries: 3
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Failed to update ${table}:`, error);
+      throw error;
+    }
+  }
+
+  // Delete item
+  async deleteItem(table: string, localId: number): Promise<void> {
+    try {
+      console.log(`🗑️ Marking ${table} for deletion...`);
+
+      // Mark as pending delete in local DB
+      await this.markLocalDeleted(table, localId);
+
+      // Try to sync immediately if online
+      if (this.isOnline) {
+        try {
+          console.log(`🔄 Attempting immediate sync for ${table} deletion...`);
+          const localRecord = await this.getLocalRecord(table, localId);
+          if (localRecord.remoteId) {
+            await this.syncDelete(table, localRecord.remoteId);
+            // Actually delete from local DB after successful server delete
+            await this.deleteFromLocal(table, localId);
+          }
+          console.log(`✅ Successfully synced ${table} deletion immediately`);
+        } catch (error) {
+          console.warn(`⚠️ Immediate sync failed for ${table} deletion, will retry in background:`, error);
+          // Add to sync queue for later retry
+          await addToSyncQueue({
+            table,
+            operation: 'delete',
+            localId,
+            retryCount: 0,
+            maxRetries: 3
+          });
+        }
+      } else {
+        console.log(`📴 Offline mode - ${table} deletion queued for sync`);
+        // Add to sync queue
+        await addToSyncQueue({
+          table,
+          operation: 'delete',
+          localId,
+          retryCount: 0,
+          maxRetries: 3
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Failed to delete ${table}:`, error);
+      throw error;
+    }
+  }
+
+  // Background sync function
+  private async performBackgroundSync(): Promise<void> {
+    if (this.syncInProgress || !this.isOnline) return;
+
+    this.syncInProgress = true;
+    console.log('🔄 Starting background sync...');
+
+    try {
+      // Process sync queue
+      await this.processSyncQueue();
+
+      // Pull latest data from server
+      await this.pullLatestData();
+
+      console.log('✅ Background sync completed');
+    } catch (error) {
+      console.error('❌ Background sync failed:', error);
+    } finally {
+      this.syncInProgress = false;
+    }
+  }
+
+  // Process items in sync queue
+  private async processSyncQueue(): Promise<void> {
+    const pendingItems = await getPendingSyncItems();
+
+    for (const item of pendingItems) {
+      if (item.retryCount >= item.maxRetries) {
+        console.warn(`🚫 Max retries exceeded for ${item.table} ${item.operation}, giving up`);
+        await removeFromSyncQueue(item.id!);
+        continue;
+      }
+
+      try {
+        console.log(`🔄 Retrying ${item.table} ${item.operation} (attempt ${item.retryCount + 1}/${item.maxRetries})`);
+
+        const localRecord = await this.getLocalRecord(item.table, item.localId);
+
+        switch (item.operation) {
+          case 'create':
+            await this.syncItem(item.table, item.localId, localRecord);
+            break;
+          case 'update':
+            await this.syncItem(item.table, item.localId, localRecord);
+            break;
+          case 'delete':
+            if (localRecord.remoteId) {
+              await this.syncDelete(item.table, localRecord.remoteId);
+              await this.deleteFromLocal(item.table, item.localId);
+            }
+            break;
+        }
+
+        await removeFromSyncQueue(item.id!);
+        console.log(`✅ Successfully synced ${item.table} ${item.operation}`);
+
+      } catch (error) {
+        console.warn(`⚠️ Sync retry failed for ${item.table} ${item.operation}:`, error);
+        await updateSyncQueueItem(item.id!, {
+          retryCount: item.retryCount + 1,
+          lastAttempt: new Date().toISOString(),
+          nextRetry: new Date(Date.now() + Math.pow(2, item.retryCount) * 60000).toISOString() // Exponential backoff
+        });
+      }
+    }
+  }
+
+  // Sync individual item to server
+  private async syncItem(table: string, localId: number, localRecord: any): Promise<void> {
+    try {
+      let result;
+
+      switch (table) {
+        case 'patients':
+          result = await supabase
+            .from('patients')
+            .insert([this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error'])])
+            .select()
+            .single();
+          break;
+
+        case 'visits':
+          result = await supabase
+            .from('antenatal_visits')
+            .insert([this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error'])])
+            .select()
+            .single();
+          break;
+
+        case 'ivf_cycles':
+          result = await supabase
+            .from('ivf_cycles')
+            .insert([this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error'])])
+            .select()
+            .single();
+          break;
+
+        case 'stimulation_logs':
+          result = await supabase
+            .from('stimulation_logs')
+            .insert([this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error'])])
+            .select()
+            .single();
+          break;
+
+        case 'pregnancies':
+          result = await supabase
+            .from('pregnancies')
+            .insert([this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error'])])
+            .select()
+            .single();
+          break;
+
+        case 'biometry_scans':
+          result = await supabase
+            .from('biometry_scans')
+            .insert([this.prepareForServer(localRecord, ['id', 'remoteId', 'sync_status', 'last_sync_attempt', 'sync_error'])])
+            .select()
+            .single();
+          break;
+
+        default:
+          throw new Error(`Unknown table: ${table}`);
+      }
+
+      if (result.error) throw result.error;
+
+      // Mark as synced with remote ID
+      await markAsSynced(table, localId, result.data.id);
+
+    } catch (error) {
+      await markSyncError(table, localId, error instanceof Error ? error.message : 'Unknown sync error');
+      throw error;
+    }
+  }
+
+  // Sync delete to server
+  private async syncDelete(table: string, remoteId: string): Promise<void> {
+    let result;
+
+    switch (table) {
+      case 'patients':
+        result = await supabase.from('patients').delete().eq('id', remoteId);
+        break;
+      case 'visits':
+        result = await supabase.from('antenatal_visits').delete().eq('id', remoteId);
+        break;
+      case 'ivf_cycles':
+        result = await supabase.from('ivf_cycles').delete().eq('id', remoteId);
+        break;
+      case 'stimulation_logs':
+        result = await supabase.from('stimulation_logs').delete().eq('id', remoteId);
+        break;
+      case 'pregnancies':
+        result = await supabase.from('pregnancies').delete().eq('id', remoteId);
+        break;
+      case 'biometry_scans':
+        result = await supabase.from('biometry_scans').delete().eq('id', remoteId);
+        break;
+      default:
+        throw new Error(`Unknown table: ${table}`);
+    }
+
+    if (result.error) throw result.error;
+  }
+
+  // Pull latest data from server and update local DB
+  private async pullLatestData(): Promise<void> {
+    try {
+      console.log('📥 Pulling latest data from server...');
+
+      // Pull patients
+      await this.pullTableData('patients');
+
+      // Pull visits
+      await this.pullTableData('antenatal_visits');
+
+      // Pull IVF cycles
+      await this.pullTableData('ivf_cycles');
+
+      // Pull stimulation logs
+      await this.pullTableData('stimulation_logs');
+
+      // Pull pregnancies
+      await this.pullTableData('pregnancies');
+
+      // Pull biometry scans
+      await this.pullTableData('biometry_scans');
+
+      console.log('✅ Data pull completed');
+    } catch (error) {
+      console.error('❌ Failed to pull latest data:', error);
+    }
+  }
+
+  // Pull data for a specific table
+  private async pullTableData(tableName: string): Promise<void> {
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(50); // Limit to prevent large data transfers
+
+    if (error) throw error;
+
+    // Update local database with server data
+    for (const record of data || []) {
+      await this.upsertLocalRecord(tableName, record);
+    }
+  }
+
+  // Local database operations
+  private async saveToLocal(table: string, data: any): Promise<any> {
+    const localData = {
+      ...data,
+      sync_status: SyncStatus.PENDING_CREATE,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    switch (table) {
+      case 'patients':
+        return await db.patients.add(localData);
+      case 'visits':
+        return await db.visits.add(localData);
+      case 'ivf_cycles':
+        return await db.ivf_cycles.add(localData);
+      case 'stimulation_logs':
+        return await db.stimulation_logs.add(localData);
+      case 'pregnancies':
+        return await db.pregnancies.add(localData);
+      case 'biometry_scans':
+        return await db.biometry_scans.add(localData);
+      default:
+        throw new Error(`Unknown table: ${table}`);
+    }
+  }
+
+  private async updateLocal(table: string, localId: number, data: any): Promise<void> {
+    const updateData = {
+      ...data,
+      sync_status: SyncStatus.PENDING_UPDATE,
+      updated_at: new Date().toISOString()
+    };
+
+    switch (table) {
+      case 'patients':
+        await db.patients.update(localId, updateData);
+        break;
+      case 'visits':
+        await db.visits.update(localId, updateData);
+        break;
+      case 'ivf_cycles':
+        await db.ivf_cycles.update(localId, updateData);
+        break;
+      case 'stimulation_logs':
+        await db.stimulation_logs.update(localId, updateData);
+        break;
+      case 'pregnancies':
+        await db.pregnancies.update(localId, updateData);
+        break;
+      case 'biometry_scans':
+        await db.biometry_scans.update(localId, updateData);
+        break;
+      default:
+        throw new Error(`Unknown table: ${table}`);
+    }
+  }
+
+  private async markLocalDeleted(table: string, localId: number): Promise<void> {
+    const updateData = {
+      sync_status: SyncStatus.PENDING_DELETE,
+      updated_at: new Date().toISOString()
+    };
+
+    switch (table) {
+      case 'patients':
+        await db.patients.update(localId, updateData);
+        break;
+      case 'visits':
+        await db.visits.update(localId, updateData);
+        break;
+      case 'ivf_cycles':
+        await db.ivf_cycles.update(localId, updateData);
+        break;
+      case 'stimulation_logs':
+        await db.stimulation_logs.update(localId, updateData);
+        break;
+      case 'pregnancies':
+        await db.pregnancies.update(localId, updateData);
+        break;
+      case 'biometry_scans':
+        await db.biometry_scans.update(localId, updateData);
+        break;
+      default:
+        throw new Error(`Unknown table: ${table}`);
+    }
+  }
+
+  private async deleteFromLocal(table: string, localId: number): Promise<void> {
+    switch (table) {
+      case 'patients':
+        await db.patients.delete(localId);
+        break;
+      case 'visits':
+        await db.visits.delete(localId);
+        break;
+      case 'ivf_cycles':
+        await db.ivf_cycles.delete(localId);
+        break;
+      case 'stimulation_logs':
+        await db.stimulation_logs.delete(localId);
+        break;
+      case 'pregnancies':
+        await db.pregnancies.delete(localId);
+        break;
+      case 'biometry_scans':
+        await db.biometry_scans.delete(localId);
+        break;
+      default:
+        throw new Error(`Unknown table: ${table}`);
+    }
+  }
+
+  private async getLocalRecord(table: string, localId: number): Promise<any> {
+    switch (table) {
+      case 'patients':
+        return await db.patients.get(localId);
+      case 'visits':
+        return await db.visits.get(localId);
+      case 'ivf_cycles':
+        return await db.ivf_cycles.get(localId);
+      case 'stimulation_logs':
+        return await db.stimulation_logs.get(localId);
+      case 'pregnancies':
+        return await db.pregnancies.get(localId);
+      case 'biometry_scans':
+        return await db.biometry_scans.get(localId);
+      default:
+        throw new Error(`Unknown table: ${table}`);
+    }
+  }
+
+  private async upsertLocalRecord(table: string, remoteData: any): Promise<void> {
+    // Check if record exists locally
+    let existingRecord;
+
+    switch (table) {
+      case 'patients':
+        existingRecord = await db.patients.where('remoteId').equals(remoteData.id).first();
+        break;
+      case 'antenatal_visits':
+        existingRecord = await db.visits.where('remoteId').equals(remoteData.id).first();
+        break;
+      case 'ivf_cycles':
+        existingRecord = await db.ivf_cycles.where('remoteId').equals(remoteData.id).first();
+        break;
+      case 'stimulation_logs':
+        existingRecord = await db.stimulation_logs.where('remoteId').equals(remoteData.id).first();
+        break;
+      case 'pregnancies':
+        existingRecord = await db.pregnancies.where('remoteId').equals(remoteData.id).first();
+        break;
+      case 'biometry_scans':
+        existingRecord = await db.biometry_scans.where('remoteId').equals(remoteData.id).first();
+        break;
+    }
+
+    if (existingRecord) {
+      // Update existing record
+      const updateData = {
+        ...remoteData,
+        remoteId: remoteData.id,
+        sync_status: SyncStatus.SYNCED,
+        updated_at: new Date().toISOString()
+      };
+      delete updateData.id; // Remove remote ID from update
+
+      switch (table) {
+        case 'patients':
+          await db.patients.update(existingRecord.id!, updateData);
+          break;
+        case 'antenatal_visits':
+          await db.visits.update(existingRecord.id!, updateData);
+          break;
+        case 'ivf_cycles':
+          await db.ivf_cycles.update(existingRecord.id!, updateData);
+          break;
+        case 'stimulation_logs':
+          await db.stimulation_logs.update(existingRecord.id!, updateData);
+          break;
+        case 'pregnancies':
+          await db.pregnancies.update(existingRecord.id!, updateData);
+          break;
+        case 'biometry_scans':
+          await db.biometry_scans.update(existingRecord.id!, updateData);
+          break;
+      }
+    } else {
+      // Insert new record
+      const localData = {
+        ...remoteData,
+        remoteId: remoteData.id,
+        sync_status: SyncStatus.SYNCED,
+        created_at: remoteData.created_at || new Date().toISOString(),
+        updated_at: remoteData.updated_at || new Date().toISOString()
+      };
+      delete localData.id; // Remove remote ID
+
+      switch (table) {
+        case 'patients':
+          await db.patients.add(localData);
+          break;
+        case 'antenatal_visits':
+          await db.visits.add(localData);
+          break;
+        case 'ivf_cycles':
+          await db.ivf_cycles.add(localData);
+          break;
+        case 'stimulation_logs':
+          await db.stimulation_logs.add(localData);
+          break;
+        case 'pregnancies':
+          await db.pregnancies.add(localData);
+          break;
+        case 'biometry_scans':
+          await db.biometry_scans.add(localData);
+          break;
+      }
+    }
+  }
+
+  // Prepare data for server (remove local fields)
+  private prepareForServer(data: any, fieldsToRemove: string[] = []): any {
+    const serverData = { ...data };
+    fieldsToRemove.forEach(field => delete serverData[field]);
+
+    // Convert camelCase to snake_case for Supabase
+    const converted: any = {};
+    for (const [key, value] of Object.entries(serverData)) {
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      converted[snakeKey] = value;
+    }
+
+    return converted;
+  }
+
+  // Get sync status
+  getSyncStatus(): { isOnline: boolean; syncInProgress: boolean } {
+    return {
+      isOnline: this.isOnline,
+      syncInProgress: this.syncInProgress
+    };
+  }
+
+  // Force sync
+  async forceSync(): Promise<void> {
+    await this.performBackgroundSync();
+  }
+
+  // Cleanup
+  destroy(): void {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = null;
+    }
+  }
+
+  // API compatibility methods for existing code
+  async save(table: string, data: any) {
+    return await this.saveItem(table, data);
+  }
+
+  async read(table: string) {
+    await this.forceSync();
+  }
+
+  async update(table: string, remoteId: string, data: any) {
+    const localRecord = await this.getLocalRecordByRemoteId(table, remoteId);
+    if (localRecord) {
+      await this.updateItem(table, localRecord.id, data);
+    } else {
+      throw new Error(`Record not found for update: ${table} ${remoteId}`);
+    }
+  }
+
+  async delete(table: string, remoteId: string) {
+    const localRecord = await this.getLocalRecordByRemoteId(table, remoteId);
+    if (localRecord) {
+      await this.deleteItem(table, localRecord.id);
+    } else {
+      throw new Error(`Record not found for delete: ${table} ${remoteId}`);
+    }
+  }
+
+  private async getLocalRecordByRemoteId(table: string, remoteId: string): Promise<any> {
+    switch (table) {
+      case 'patients':
+        return await db.patients.where('remoteId').equals(remoteId).first();
+      case 'visits':
+        return await db.visits.where('remoteId').equals(remoteId).first();
+      case 'ivf_cycles':
+        return await db.ivf_cycles.where('remoteId').equals(remoteId).first();
+      case 'stimulation_logs':
+        return await db.stimulation_logs.where('remoteId').equals(remoteId).first();
+      case 'pregnancies':
+        return await db.pregnancies.where('remoteId').equals(remoteId).first();
+      case 'biometry_scans':
+        return await db.biometry_scans.where('remoteId').equals(remoteId).first();
+      default:
+        throw new Error(`Unknown table: ${table}`);
+    }
+  }
+}
+
+// Create and export singleton instance
+export const syncService = new SyncService();
+export const syncManager = syncService;
 </file>
 
 <file path="SUPABASE_SETUP.sql">
@@ -5052,77 +5957,6 @@ body {
 }
 </file>
 
-<file path="vite.config.ts">
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
-
-export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
-      manifest: {
-        name: 'Nile IVF Center',
-        short_name: 'Nile IVF',
-        description: 'Comprehensive IVF and Obstetrics Management System',
-        theme_color: '#00838f',
-        background_color: '#ffffff',
-        display: 'standalone',
-        orientation: 'portrait',
-        scope: '/',
-        start_url: '/',
-        icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
-              },
-              cacheKeyWillBeUsed: async ({ request }) => {
-                return `${request.url}?${Date.now()}`;
-              }
-            }
-          }
-        ]
-      }
-    })
-  ],
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: undefined
-      }
-    }
-  }
-});
-</file>
-
 <file path="components/PrescriptionComponent.tsx">
 import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, Pill, Printer, ChevronDown } from 'lucide-react';
@@ -5905,41 +6739,6 @@ app.on('window-all-closed', () => {
 // هنا سنضيف لاحقاً (IPC Handlers) للتعامل مع قاعدة البيانات والطباعة
 // مثال:
 // ipcMain.handle('save-patient', async (event, data) => { ... })
-</file>
-
-<file path="package.json">
-{
-  "name": "dr-salah-ivf-center",
-  "private": true,
-  "version": "1.0.0",
-  "author": "Dr. Mohamed Salah Gabr",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "lucide-react": "^0.344.0",
-    "recharts": "^2.12.2",
-    "react-hot-toast": "^2.4.1",
-    "clsx": "^2.1.0",
-    "tailwind-merge": "^2.2.1",
-    "@supabase/supabase-js": "^2.39.7"
-  },
-  "devDependencies": {
-    "@types/react": "^18.2.64",
-    "@types/react-dom": "^18.2.21",
-    "@vitejs/plugin-react": "^4.2.1",
-    "autoprefixer": "^10.4.18",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5.2.2",
-    "vite": "^5.1.6"
-  }
-}
 </file>
 
 <file path="pages/AdminDashboard.tsx">
@@ -7140,252 +7939,6 @@ const RiskAssessment: React.FC<RiskAssessmentProps> = ({ pregnancy, onUpdate }) 
 export default RiskAssessment;
 </file>
 
-<file path="pages/Reception.tsx">
-import React, { useState, useEffect } from 'react';
-import { UserPlus, Search, Phone, User, History, Loader2 } from 'lucide-react';
-import { db } from '../services/ivfService';
-import { Patient } from '../types';
-import toast from 'react-hot-toast';
-
-const Reception: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'register' | 'directory'>('register');
-  const [formData, setFormData] = useState({
-    name: '',
-    age: '',
-    phone: '',
-    husbandName: '',
-    history: ''
-  });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  // Fetch patients when switching to directory or on mount
-  const fetchPatients = async () => {
-    setLoading(true);
-    const data = await db.getPatients();
-    setPatients(data);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    if (activeTab === 'directory') {
-      fetchPatients();
-    }
-  }, [activeTab]);
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.phone) {
-      toast.error("Please fill required fields");
-      return;
-    }
-
-    const toastId = toast.loading("Registering patient...");
-
-    try {
-      await db.savePatient({
-        name: formData.name,
-        age: parseInt(formData.age),
-        phone: formData.phone,
-        husbandName: formData.husbandName,
-        history: formData.history
-      });
-      
-      toast.success("Patient registered successfully!", { id: toastId });
-      setFormData({ name: '', age: '', phone: '', husbandName: '', history: '' });
-    } catch (error) {
-      // Provide more detailed error feedback for debugging
-      const msg = (error && (error as any).message) ? (error as any).message : JSON.stringify(error);
-      toast.error(`Failed to register patient: ${msg}`, { id: toastId });
-      console.error('Register patient error:', error);
-    }
-  };
-
-  const filteredPatients = patients.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.phone.includes(searchTerm)
-  );
-
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[600px]">
-      <div className="flex border-b border-gray-100">
-        <button
-          onClick={() => setActiveTab('register')}
-          className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'register' ? 'text-teal-700 border-b-2 border-teal-700 bg-teal-50' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          New Registration
-        </button>
-        <button
-          onClick={() => setActiveTab('directory')}
-          className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'directory' ? 'text-teal-700 border-b-2 border-teal-700 bg-teal-50' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          Patient Directory
-        </button>
-      </div>
-
-      <div className="p-4 md:p-8">
-        {activeTab === 'register' ? (
-          <form onSubmit={handleRegister} className="max-w-2xl mx-auto space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name (Wife)</label>
-                <div className="relative">
-                  <User className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    required
-                    className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                    placeholder="Full Name"
-                    value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Age</label>
-                <input
-                  type="number"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-                  placeholder="Years"
-                  value={formData.age}
-                  onChange={e => setFormData({...formData, age: e.target.value})}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                <div className="relative">
-                  <Phone className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
-                  <input
-                    type="tel"
-                    required
-                    className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-                    placeholder="01xxxxxxxxx"
-                    value={formData.phone}
-                    onChange={e => setFormData({...formData, phone: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Husband Name</label>
-                <input
-                  type="text"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-                  placeholder="Husband Name"
-                  value={formData.husbandName}
-                  onChange={e => setFormData({...formData, husbandName: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Medical History (Brief)</label>
-              <div className="relative">
-                <History className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
-                <textarea
-                  className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none h-32"
-                  placeholder="G P A, Previous Operations, Allergies..."
-                  value={formData.history}
-                  onChange={e => setFormData({...formData, history: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-teal-700 text-white py-3 rounded-xl font-bold hover:bg-teal-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-teal-700/20"
-            >
-              <UserPlus className="w-5 h-5" />
-              Register Patient
-            </button>
-          </form>
-        ) : (
-          <div className="space-y-6">
-            <div className="relative">
-              <Search className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                className="w-full pl-4 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none shadow-sm"
-                placeholder="Search by name or phone..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            {loading ? (
-              <div className="py-12 flex justify-center text-teal-600">
-                <Loader2 className="w-8 h-8 animate-spin" />
-              </div>
-            ) : (
-              <>
-                {/* Mobile: render cards */}
-                <div className="block md:hidden space-y-3">
-                  {filteredPatients.length > 0 ? filteredPatients.map(patient => (
-                    <div key={patient.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-bold text-gray-900">{patient.name}</div>
-                          <div className="text-xs text-gray-500 mt-1">{patient.phone} • Age {patient.age}</div>
-                        </div>
-                        <div className="text-right text-xs text-gray-400 font-mono">{patient.id.slice(0,6)}</div>
-                      </div>
-                      <div className="mt-3 text-xs text-gray-600 truncate">{patient.history}</div>
-                    </div>
-                  )) : (
-                    <div className="text-center text-gray-400 py-8">No patients found matching your search.</div>
-                  )}
-                </div>
-
-                {/* Desktop: table */}
-                <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200">
-                  <table className="w-full text-right">
-                    <thead className="bg-gray-50 text-gray-600 font-medium text-sm">
-                      <tr>
-                        <th className="px-6 py-4">ID</th>
-                        <th className="px-6 py-4">Patient Name</th>
-                        <th className="px-6 py-4">Age</th>
-                        <th className="px-6 py-4">Phone</th>
-                        <th className="px-6 py-4">Husband</th>
-                        <th className="px-6 py-4">History</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {filteredPatients.length > 0 ? (
-                        filteredPatients.map((patient) => (
-                          <tr key={patient.id} className="hover:bg-teal-50/30 transition-colors text-sm text-gray-700">
-                            <td className="px-6 py-4 font-mono text-xs text-gray-400">{patient.id.slice(0, 6)}</td>
-                            <td className="px-6 py-4 font-bold text-gray-900">{patient.name}</td>
-                            <td className="px-6 py-4">{patient.age}</td>
-                            <td className="px-6 py-4">{patient.phone}</td>
-                            <td className="px-6 py-4">{patient.husbandName}</td>
-                            <td className="px-6 py-4 truncate max-w-xs">{patient.history}</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
-                            No patients found matching your search.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default Reception;
-</file>
-
 <file path="README.md">
 <div align="center">
 <img width="1200" height="475" alt="Dr Salah IVF Center" src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" />
@@ -7443,112 +7996,72 @@ export default Reception;
 </div>
 </file>
 
-<file path="services/visitsService.ts">
-import { supabase } from './supabaseClient';
-import { Visit } from '../types';
+<file path="vite.config.ts">
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 
-export const visitsService = {
-  // Unified save visit function for all departments
-  saveVisit: async (params: {
-    patientId: string;
-    department: string;
-    clinicalData: any;
-    diagnosis?: string;
-    prescription?: any[];
-    notes?: string;
-  }) => {
-    try {
-      const visitData = {
-        patient_id: params.patientId, // snake_case for database
-        date: new Date().toISOString().split('T')[0],
-        department: params.department,
-        diagnosis: params.diagnosis || '',
-        prescription: params.prescription || [],
-        notes: params.notes || '',
-        clinical_data: params.clinicalData,
-      };
-
-      const { data, error } = await supabase
-        .from('visits')
-        .insert([visitData])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Supabase error inserting visit:', error);
-        throw new Error(`Failed to save visit: ${error.message}`);
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      manifest: {
+        name: 'Nile IVF Center',
+        short_name: 'Nile IVF',
+        description: 'Comprehensive IVF and Obstetrics Management System',
+        theme_color: '#00838f',
+        background_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'portrait',
+        scope: '/',
+        start_url: '/',
+        icons: [
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
+              }
+            }
+          }
+        ]
       }
-      return data;
-    } catch (err: any) {
-      console.error('Exception in saveVisit:', err);
-      throw err;
-    }
-  },
-
-  // Create a new visit with clinical data (legacy - kept for compatibility)
-  createVisit: async (visit: Omit<Visit, 'id'>) => {
-    try {
-      const { data, error } = await supabase
-        .from('visits')
-        .insert([visit])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Supabase error inserting visit:', error);
-        throw new Error(`Failed to create visit: ${error.message}`);
+    })
+  ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
       }
-      return data;
-    } catch (err: any) {
-      console.error('Exception in createVisit:', err);
-      throw err;
     }
-  },
-
-  // Get visits for a patient
-  getVisitsByPatient: async (patientId: string) => {
-    const { data, error } = await supabase
-      .from('visits')
-      .select('*')
-      .eq('patient_id', patientId) // snake_case for database
-      .order('date', { ascending: false });
-
-    if (error) throw error;
-    return data;
-  },
-
-  // Update a visit
-  updateVisit: async (visitId: string, updates: Partial<Visit>) => {
-    // Convert camelCase to snake_case for database
-    const dbUpdates: any = {};
-    if (updates.patientId) dbUpdates.patient_id = updates.patientId;
-    if (updates.department !== undefined) dbUpdates.department = updates.department;
-    if (updates.diagnosis !== undefined) dbUpdates.diagnosis = updates.diagnosis;
-    if (updates.prescription !== undefined) dbUpdates.prescription = updates.prescription;
-    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
-    if (updates.clinical_data !== undefined) dbUpdates.clinical_data = updates.clinical_data;
-
-    const { data, error } = await supabase
-      .from('visits')
-      .update(dbUpdates)
-      .eq('id', visitId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  // Delete a visit
-  deleteVisit: async (visitId: string) => {
-    const { error } = await supabase
-      .from('visits')
-      .delete()
-      .eq('id', visitId);
-
-    if (error) throw error;
-  },
-};
+  }
+});
 </file>
 
 <file path="CLINICAL_DATA_MIGRATION.sql">
@@ -7632,6 +8145,45 @@ COMMENT ON COLUMN visits.clinical_data IS 'Structured clinical data stored as JS
 COMMENT ON INDEX idx_visits_clinical_data IS 'GIN index for efficient JSONB queries on clinical_data';
 COMMENT ON INDEX idx_visits_department IS 'Index for filtering visits by department';
 COMMENT ON INDEX idx_visits_patient_clinical IS 'Index for patient clinical visits ordered by date';
+</file>
+
+<file path="package.json">
+{
+  "name": "dr-salah-ivf-center",
+  "private": true,
+  "version": "1.0.0",
+  "author": "Dr. Mohamed Salah Gabr",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npx vite build",
+    "typecheck": "npx tsc --noEmit",
+    "preview": "npx vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.7",
+    "clsx": "^2.1.0",
+    "dexie": "^4.2.1",
+    "dexie-react-hooks": "^4.2.0",
+    "lucide-react": "^0.344.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
+    "recharts": "^2.12.2",
+    "tailwind-merge": "^2.2.1",
+    "vite-plugin-pwa": "^1.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.64",
+    "@types/react-dom": "^18.2.21",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.18",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.1.6"
+  }
+}
 </file>
 
 <file path="pages/Dashboard.tsx">
@@ -7813,6 +8365,239 @@ const Dashboard: React.FC = () => {
 export default Dashboard;
 </file>
 
+<file path="pages/Reception.tsx">
+import React, { useState, useEffect } from 'react';
+import { UserPlus, Search, Phone, User, History, Loader2 } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../src/db/localDB';
+import { syncService } from '../src/services/syncService';
+import { Patient } from '../types';
+import toast from 'react-hot-toast';
+
+const Reception: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'register' | 'directory'>('register');
+  const [formData, setFormData] = useState({
+    name: '',
+    age: '',
+    phone: '',
+    husbandName: '',
+    history: ''
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Reactive patient data from local database
+  const patients = useLiveQuery(async () => {
+    return await db.patients.toArray();
+  }, []) || [];
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.phone) {
+      toast.error("Please fill required fields");
+      return;
+    }
+
+    const toastId = toast.loading("Registering patient...");
+
+    try {
+      await syncService.saveItem('patients', {
+        name: formData.name,
+        age: parseInt(formData.age) || 0,
+        phone: formData.phone,
+        husband_name: formData.husbandName,
+        history: formData.history
+      });
+
+      toast.success("Patient registered successfully!", { id: toastId });
+      setFormData({ name: '', age: '', phone: '', husbandName: '', history: '' });
+    } catch (error) {
+      // Provide more detailed error feedback for debugging
+      const msg = (error && (error as any).message) ? (error as any).message : JSON.stringify(error);
+      toast.error(`Failed to register patient: ${msg}`, { id: toastId });
+      console.error('Register patient error:', error);
+    }
+  };
+
+  const filteredPatients = patients.filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.phone.includes(searchTerm)
+  );
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[600px]">
+      <div className="flex border-b border-gray-100">
+        <button
+          onClick={() => setActiveTab('register')}
+          className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'register' ? 'text-teal-700 border-b-2 border-teal-700 bg-teal-50' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          New Registration
+        </button>
+        <button
+          onClick={() => setActiveTab('directory')}
+          className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'directory' ? 'text-teal-700 border-b-2 border-teal-700 bg-teal-50' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Patient Directory
+        </button>
+      </div>
+
+      <div className="p-4 md:p-8">
+        {activeTab === 'register' ? (
+          <form onSubmit={handleRegister} className="max-w-2xl mx-auto space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name (Wife)</label>
+                <div className="relative">
+                  <User className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    required
+                    className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                    placeholder="Full Name"
+                    value={formData.name}
+                    onChange={e => setFormData({...formData, name: e.target.value})}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Age</label>
+                <input
+                  type="number"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                  placeholder="Years"
+                  value={formData.age}
+                  onChange={e => setFormData({...formData, age: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                <div className="relative">
+                  <Phone className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
+                  <input
+                    type="tel"
+                    required
+                    className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                    placeholder="01xxxxxxxxx"
+                    value={formData.phone}
+                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Husband Name</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                  placeholder="Husband Name"
+                  value={formData.husbandName}
+                  onChange={e => setFormData({...formData, husbandName: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Medical History (Brief)</label>
+              <div className="relative">
+                <History className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
+                <textarea
+                  className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none h-32"
+                  placeholder="G P A, Previous Operations, Allergies..."
+                  value={formData.history}
+                  onChange={e => setFormData({...formData, history: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-teal-700 text-white py-3 rounded-xl font-bold hover:bg-teal-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-teal-700/20"
+            >
+              <UserPlus className="w-5 h-5" />
+              Register Patient
+            </button>
+          </form>
+        ) : (
+          <div className="space-y-6">
+            <div className="relative">
+              <Search className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                className="w-full pl-4 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none shadow-sm"
+                placeholder="Search by name or phone..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+                {/* Mobile: render cards */}
+                <div className="block md:hidden space-y-3">
+                  {filteredPatients.length > 0 ? filteredPatients.map(patient => (
+                    <div key={patient.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-bold text-gray-900">{patient.name}</div>
+                          <div className="text-xs text-gray-500 mt-1">{patient.phone} • Age {patient.age}</div>
+                        </div>
+                        <div className="text-right text-xs text-gray-400 font-mono">
+                          {patient.remoteId ? patient.remoteId.slice(0,6) : `#${patient.id}`}
+                        </div>
+                      </div>
+                      <div className="mt-3 text-xs text-gray-600 truncate">{patient.history}</div>
+                    </div>
+                  )) : (
+                    <div className="text-center text-gray-400 py-8">No patients found matching your search.</div>
+                  )}
+                </div>
+
+                {/* Desktop: table */}
+                <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200">
+                  <table className="w-full text-right">
+                    <thead className="bg-gray-50 text-gray-600 font-medium text-sm">
+                      <tr>
+                        <th className="px-6 py-4">ID</th>
+                        <th className="px-6 py-4">Patient Name</th>
+                        <th className="px-6 py-4">Age</th>
+                        <th className="px-6 py-4">Phone</th>
+                        <th className="px-6 py-4">Husband</th>
+                        <th className="px-6 py-4">History</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredPatients.length > 0 ? (
+                        filteredPatients.map((patient) => (
+                          <tr key={patient.id} className="hover:bg-teal-50/30 transition-colors text-sm text-gray-700">
+                            <td className="px-6 py-4 font-mono text-xs text-gray-400">
+                              {patient.remoteId ? patient.remoteId.slice(0, 6) : `#${patient.id}`}
+                            </td>
+                            <td className="px-6 py-4 font-bold text-gray-900">{patient.name}</td>
+                            <td className="px-6 py-4">{patient.age}</td>
+                            <td className="px-6 py-4">{patient.phone}</td>
+                            <td className="px-6 py-4">{patient.husbandName}</td>
+                            <td className="px-6 py-4 truncate max-w-xs">{patient.history}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                            No patients found matching your search.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Reception;
+</file>
+
 <file path="services/authService.ts">
 import { supabase } from './supabaseClient';
 
@@ -7973,6 +8758,102 @@ export const authService = {
 
     return newDoctor;
   }
+};
+</file>
+
+<file path="services/visitsService.ts">
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../src/db/localDB';
+import { syncService } from '../src/services/syncService';
+import { Visit } from '../types';
+
+// React hook for reactive visits data
+export const useVisitsByPatient = (patientId: string) => {
+  return useLiveQuery(async () => {
+    if (!patientId) return [];
+    return await db.visits.where('patient_id').equals(patientId).toArray();
+  }, [patientId]);
+};
+
+// React hook for all visits (reactive)
+export const useAllVisits = () => {
+  return useLiveQuery(async () => {
+    return await db.visits.toArray();
+  }, []);
+};
+
+export const visitsService = {
+  // READ: Get visits for a patient (from local DB - reactive via hooks)
+  getVisitsByPatient: async (patientId: string) => {
+    return await db.visits.where('patient_id').equals(patientId).toArray();
+  },
+
+  // READ: Get all visits (from local DB)
+  getAllVisits: async () => {
+    return await db.visits.toArray();
+  },
+
+  // WRITE: Save new visit (offline-first)
+  saveVisit: async (params: {
+    patientId: string;
+    department: string;
+    clinicalData: any;
+    diagnosis?: string;
+    prescription?: any[];
+    notes?: string;
+  }) => {
+    const visitData = {
+      patient_id: params.patientId,
+      date: new Date().toISOString().split('T')[0],
+      department: params.department,
+      diagnosis: params.diagnosis || '',
+      prescription: params.prescription || [],
+      notes: params.notes || '',
+      clinical_data: params.clinicalData,
+    };
+
+    return await syncService.saveItem('visits', visitData);
+  },
+
+  // WRITE: Update existing visit (offline-first)
+  updateVisit: async (localId: number, updates: Partial<{
+    patient_id: string;
+    department: string;
+    diagnosis: string;
+    prescription: any[];
+    notes: string;
+    clinical_data: any;
+  }>) => {
+    return await syncService.updateItem('visits', localId, updates);
+  },
+
+  // WRITE: Delete visit (offline-first)
+  deleteVisit: async (localId: number) => {
+    return await syncService.deleteItem('visits', localId);
+  },
+
+  // Utility: Find local visit by remote ID
+  findVisitByRemoteId: async (remoteId: string) => {
+    return await db.visits.where('remoteId').equals(remoteId).first();
+  },
+
+  // Utility: Get visit by local ID
+  getVisitById: async (localId: number) => {
+    return await db.visits.get(localId);
+  },
+
+  // Legacy compatibility: Create visit (maps to saveVisit)
+  createVisit: async (visit: Omit<Visit, 'id'>) => {
+    return await syncService.saveItem('visits', {
+      patient_id: visit.patientId,
+      date: visit.date,
+      department: visit.department,
+      diagnosis: visit.diagnosis || '',
+      prescription: visit.prescription || [],
+      notes: visit.notes || '',
+      clinical_data: visit.clinical_data || {}
+    });
+  },
 };
 </file>
 
@@ -8524,423 +9405,6 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 export default Settings;
 </file>
 
-<file path="services/obstetricsService.ts">
-import { supabase } from './supabaseClient';
-import { Pregnancy, AntenatalVisit, BiometryScan } from '../types';
-
-// ============================================================================
-// CALCULATION FUNCTIONS
-// ============================================================================
-
-export const calculateGestationalAge = (lmpDate: string | null | undefined): { weeks: number; days: number } => {
-  if (!lmpDate || typeof lmpDate !== 'string' || lmpDate.trim() === '') {
-    return { weeks: 0, days: 0 };
-  }
-
-  try {
-    const timestamp = new Date(lmpDate).getTime();
-    if (isNaN(timestamp)) {
-      return { weeks: 0, days: 0 };
-    }
-
-    const today = new Date();
-    const lmp = new Date(timestamp);
-    const diffTime = Math.abs(today.getTime() - lmp.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const weeks = Math.max(0, Math.floor(diffDays / 7));
-    const days = Math.max(0, diffDays % 7);
-    
-    if (isNaN(weeks) || isNaN(days)) {
-      return { weeks: 0, days: 0 };
-    }
-    
-    return { weeks, days };
-  } catch (error) {
-    console.warn('Invalid LMP date provided to calculateGestationalAge:', lmpDate);
-    return { weeks: 0, days: 0 };
-  }
-};
-
-export const calculateEDD = (lmpDate: string | null | undefined): string => {
-  if (!lmpDate || typeof lmpDate !== 'string' || lmpDate.trim() === '') {
-    return '';
-  }
-
-  try {
-    const timestamp = new Date(lmpDate).getTime();
-    if (isNaN(timestamp)) {
-      return '';
-    }
-
-    const lmp = new Date(timestamp);
-    if (!lmp || isNaN(lmp.getTime())) {
-      return '';
-    }
-
-    lmp.setDate(lmp.getDate() + 280);
-    const eddString = lmp.toISOString().split('T')[0];
-    
-    if (!eddString) {
-      return '';
-    }
-    
-    return eddString;
-  } catch (error) {
-    console.warn('Invalid LMP date provided to calculateEDD:', lmpDate);
-    return '';
-  }
-};
-
-export const calculateGAFromEDD = (eddDate: string): { weeks: number; days: number } => {
-  const today = new Date();
-  const edd = new Date(eddDate);
-  const diffTime = edd.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  const weeksRemaining = Math.floor(diffDays / 7);
-  const daysRemaining = diffDays % 7;
-  const gaWeeks = 40 - weeksRemaining;
-  const gaDays = 7 - daysRemaining;
-  return { weeks: Math.max(0, gaWeeks), days: Math.max(0, gaDays) };
-};
-
-// Hadlock formula for Estimated Fetal Weight (EFW)
-export const calculateEFW = (
-  bpdMm: number | null | undefined,
-  hcMm: number | null | undefined,
-  acMm: number | null | undefined,
-  flMm: number | null | undefined
-): number => {
-  const inputs = [bpdMm, hcMm, acMm, flMm];
-  
-  if (inputs.some(input => input === null || input === undefined || isNaN(Number(input)))) {
-    return 0;
-  }
-
-  const bpd = Number(bpdMm);
-  const hc = Number(hcMm);
-  const ac = Number(acMm);
-  const fl = Number(flMm);
-
-  if (bpd <= 0 || hc <= 0 || ac <= 0 || fl <= 0) {
-    return 0;
-  }
-
-  try {
-    const log10EFW =
-      1.3404 +
-      0.0438 * hc +
-      0.158 * ac +
-      0.0061 * bpd -
-      0.002322 * ac * bpd;
-
-    if (isNaN(log10EFW) || !isFinite(log10EFW)) {
-      return 0;
-    }
-
-    const efw = Math.pow(10, log10EFW);
-
-    if (isNaN(efw) || !isFinite(efw) || efw < 100 || efw > 5000) {
-      return 0;
-    }
-
-    return Math.round(efw);
-  } catch (error) {
-    console.warn('Error calculating EFW with inputs:', { bpdMm, hcMm, acMm, flMm });
-    return 0;
-  }
-};
-
-// Calculate percentile based on RCOG/NICE standards (simplified)
-export const calculatePercentile = (efwGrams: number, gaWeeks: number): number => {
-  const expectedWeights: { [key: number]: { p10: number; p50: number; p90: number } } = {
-    20: { p10: 300, p50: 330, p90: 370 },
-    22: { p10: 430, p50: 475, p90: 540 },
-    24: { p10: 600, p50: 660, p90: 750 },
-    26: { p10: 760, p50: 850, p90: 980 },
-    28: { p10: 1000, p50: 1100, p90: 1270 },
-    30: { p10: 1300, p50: 1440, p90: 1680 },
-    32: { p10: 1600, p50: 1840, p90: 2150 },
-    34: { p10: 2100, p50: 2450, p90: 2850 },
-    36: { p10: 2600, p50: 3000, p90: 3500 },
-    38: { p10: 3000, p50: 3400, p90: 3900 },
-    40: { p10: 3200, p50: 3500, p90: 3900 },
-  };
-
-  const weights = expectedWeights[gaWeeks];
-  if (!weights) return 50;
-
-  if (efwGrams <= weights.p10) return 10;
-  if (efwGrams >= weights.p90) return 90;
-  if (efwGrams <= weights.p50) {
-    return 10 + ((efwGrams - weights.p10) / (weights.p50 - weights.p10)) * 40;
-  }
-  return 50 + ((efwGrams - weights.p50) / (weights.p90 - weights.p50)) * 40;
-};
-
-// ============================================================================
-// RISK ASSESSMENT
-// ============================================================================
-
-export interface RiskFactors {
-  age_over_40: boolean;
-  bmi_over_30: boolean;
-  previous_preeclampsia: boolean;
-  twins: boolean;
-  autoimmune: boolean;
-  hypertension: boolean;
-  diabetes: boolean;
-  kidney_disease: boolean;
-}
-
-export const assessRiskLevel = (
-  riskFactors: RiskFactors | null | undefined
-): {
-  level: 'low' | 'moderate' | 'high';
-  riskFactorsList: string[];
-  aspirinNeeded: boolean;
-  thromboprophylaxisNeeded: boolean;
-} => {
-  // Provide safe defaults if riskFactors is null/undefined
-  const safeRiskFactors = riskFactors || {
-    age_over_40: false,
-    bmi_over_30: false,
-    previous_preeclampsia: false,
-    twins: false,
-    autoimmune: false,
-    hypertension: false,
-    diabetes: false,
-    kidney_disease: false,
-  };
-
-  const highRiskFactors = [
-    safeRiskFactors.previous_preeclampsia,
-    safeRiskFactors.hypertension,
-    safeRiskFactors.kidney_disease,
-    safeRiskFactors.diabetes,
-    safeRiskFactors.autoimmune,
-  ].filter(Boolean).length;
-
-  const moderateRiskFactors = [
-    safeRiskFactors.age_over_40,
-    safeRiskFactors.bmi_over_30,
-    safeRiskFactors.twins,
-  ].filter(Boolean).length;
-
-  let level: 'low' | 'moderate' | 'high' = 'low';
-  let aspirinNeeded = false;
-  let thromboprophylaxisNeeded = false;
-  const riskFactorsList: string[] = [];
-
-  if (highRiskFactors >= 1) {
-    level = 'high';
-    aspirinNeeded = true;
-  } else if (moderateRiskFactors >= 2) {
-    level = 'high';
-    aspirinNeeded = true;
-  } else if (moderateRiskFactors >= 1 || highRiskFactors === 0) {
-    level = 'moderate';
-  }
-
-  if (safeRiskFactors.twins) {
-    thromboprophylaxisNeeded = true;
-  }
-
-  if (safeRiskFactors.age_over_40) riskFactorsList.push('Age > 40');
-  if (safeRiskFactors.bmi_over_30) riskFactorsList.push('BMI > 30');
-  if (safeRiskFactors.previous_preeclampsia) riskFactorsList.push('Previous Pre-eclampsia');
-  if (safeRiskFactors.twins) riskFactorsList.push('Multiple Pregnancy');
-  if (safeRiskFactors.autoimmune) riskFactorsList.push('Autoimmune Disease');
-  if (safeRiskFactors.hypertension) riskFactorsList.push('Hypertension');
-  if (safeRiskFactors.diabetes) riskFactorsList.push('Diabetes');
-  if (safeRiskFactors.kidney_disease) riskFactorsList.push('Kidney Disease');
-
-  return { level, riskFactorsList, aspirinNeeded, thromboprophylaxisNeeded };
-};
-
-// ============================================================================
-// DUE ACTIONS / ALERTS
-// ============================================================================
-
-export const getDueActions = (gaWeeks: number): string[] => {
-  const actions: string[] = [];
-
-  // Early pregnancy actions
-  if (gaWeeks >= 11 && gaWeeks <= 13) {
-    actions.push('⚠️ Nuchal Translucency (NT) Scan Due');
-  }
-  if (gaWeeks >= 15 && gaWeeks <= 20) {
-    actions.push('⚠️ Quad Screen / NIPT Results Expected');
-  }
-  if (gaWeeks >= 20 && gaWeeks <= 22) {
-    actions.push('⚠️ Mid-Trimester Anomaly Scan Due');
-  }
-  if (gaWeeks === 28) {
-    actions.push('💉 Anti-D Prophylaxis Due (if Rh negative)');
-    actions.push('🧪 Glucose Tolerance Test (GTT) Due');
-    actions.push('💉 Tetanus Booster if needed');
-  }
-  if (gaWeeks >= 34 && gaWeeks <= 36) {
-    actions.push('⚠️ Growth Scan Recommended');
-    actions.push('🧪 Full Blood Count (FBC)');
-  }
-  if (gaWeeks >= 36 && gaWeeks < 40) {
-    actions.push('👶 Position Check (Cephalic/Breech)');
-    actions.push('📋 Discuss Birth Plan');
-  }
-
-  // CRITICAL: Post-term pregnancy alerts
-  if (gaWeeks >= 40 && gaWeeks < 42) {
-    actions.push('⚠️ Patient Overdue: Discuss Membrane Sweep / Induction - مناقشة تمزيق الأغشية / الحث على الولادة');
-  }
-  if (gaWeeks >= 41 && gaWeeks < 42) {
-    actions.push('🟠 Late Term: Schedule Induction of Labor - جدولة الحث على الولادة');
-  }
-  if (gaWeeks >= 42) {
-    actions.push('🔴 POST TERM: CRITICAL - Immediate Delivery/Admission Required - حمل متأخر عن الموعد - ولادة فورية مطلوبة');
-  }
-
-  return actions;
-};
-
-// ============================================================================
-// DATABASE OPERATIONS
-// ============================================================================
-
-export const obstetricsService = {
-  // PREGNANCIES
-  createPregnancy: async (pregnancy: Omit<Pregnancy, 'id' | 'created_at' | 'updated_at'>) => {
-    try {
-      const { data, error } = await supabase
-        .from('pregnancies')
-        .insert([pregnancy])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Supabase error inserting pregnancy:', error);
-        throw new Error(`Failed to create pregnancy: ${error.message}`);
-      }
-      return data;
-    } catch (err: any) {
-      console.error('Exception in createPregnancy:', err);
-      throw err;
-    }
-  },
-
-  getPregnancyByPatient: async (patientId: string) => {
-    const { data, error } = await supabase
-      .from('pregnancies')
-      .select('*')
-      .eq('patient_id', patientId)
-      .order('created_at', { ascending: false })
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw error;
-    return data;
-  },
-
-  updatePregnancy: async (pregnancyId: string, updates: Partial<Pregnancy>) => {
-    const { data, error } = await supabase
-      .from('pregnancies')
-      .update(updates)
-      .eq('id', pregnancyId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  // ANTENATAL VISITS
-  createANCVisit: async (visit: Omit<AntenatalVisit, 'id' | 'created_at'>) => {
-    const { data, error } = await supabase
-      .from('antenatal_visits')
-      .insert([visit])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  getANCVisits: async (pregnancyId: string) => {
-    const { data, error } = await supabase
-      .from('antenatal_visits')
-      .select('*')
-      .eq('pregnancy_id', pregnancyId)
-      .order('visit_date', { ascending: false });
-
-    if (error) throw error;
-    return data;
-  },
-
-  updateANCVisit: async (visitId: string, updates: Partial<AntenatalVisit>) => {
-    const { data, error } = await supabase
-      .from('antenatal_visits')
-      .update(updates)
-      .eq('id', visitId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  deleteANCVisit: async (visitId: string) => {
-    const { error } = await supabase
-      .from('antenatal_visits')
-      .delete()
-      .eq('id', visitId);
-
-    if (error) throw error;
-  },
-
-  // BIOMETRY SCANS
-  createBiometryScan: async (scan: Omit<BiometryScan, 'id' | 'created_at'>) => {
-    const { data, error } = await supabase
-      .from('biometry_scans')
-      .insert([scan])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  getBiometryScans: async (pregnancyId: string) => {
-    const { data, error } = await supabase
-      .from('biometry_scans')
-      .select('*')
-      .eq('pregnancy_id', pregnancyId)
-      .order('scan_date', { ascending: false });
-
-    if (error) throw error;
-    return data;
-  },
-
-  updateBiometryScan: async (scanId: string, updates: Partial<BiometryScan>) => {
-    const { data, error } = await supabase
-      .from('biometry_scans')
-      .update(updates)
-      .eq('id', scanId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  deleteBiometryScan: async (scanId: string) => {
-    const { error } = await supabase
-      .from('biometry_scans')
-      .delete()
-      .eq('id', scanId);
-
-    if (error) throw error;
-  },
-};
-</file>
-
 <file path="pages/PatientMasterRecord.tsx">
 import React, { useState, useEffect } from 'react';
 import {
@@ -9403,6 +9867,543 @@ const PatientMasterRecord: React.FC = () => {
 export default PatientMasterRecord;
 </file>
 
+<file path="services/obstetricsService.ts">
+import { supabase } from './supabaseClient';
+import { syncManager } from '../src/services/syncService';
+import { db as localDB } from '../src/lib/localDb';
+import { networkStatus } from '../src/lib/networkStatus';
+import { Pregnancy, AntenatalVisit, BiometryScan } from '../types';
+
+// ============================================================================
+// CALCULATION FUNCTIONS
+// ============================================================================
+
+export const calculateGestationalAge = (lmpDate: string | null | undefined): { weeks: number; days: number } => {
+  if (!lmpDate || typeof lmpDate !== 'string' || lmpDate.trim() === '') {
+    return { weeks: 0, days: 0 };
+  }
+
+  try {
+    const timestamp = new Date(lmpDate).getTime();
+    if (isNaN(timestamp)) {
+      return { weeks: 0, days: 0 };
+    }
+
+    const today = new Date();
+    const lmp = new Date(timestamp);
+    const diffTime = Math.abs(today.getTime() - lmp.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const weeks = Math.max(0, Math.floor(diffDays / 7));
+    const days = Math.max(0, diffDays % 7);
+    
+    if (isNaN(weeks) || isNaN(days)) {
+      return { weeks: 0, days: 0 };
+    }
+    
+    return { weeks, days };
+  } catch (error) {
+    console.warn('Invalid LMP date provided to calculateGestationalAge:', lmpDate);
+    return { weeks: 0, days: 0 };
+  }
+};
+
+export const calculateEDD = (lmpDate: string | null | undefined): string => {
+  if (!lmpDate || typeof lmpDate !== 'string' || lmpDate.trim() === '') {
+    return '';
+  }
+
+  try {
+    const timestamp = new Date(lmpDate).getTime();
+    if (isNaN(timestamp)) {
+      return '';
+    }
+
+    const lmp = new Date(timestamp);
+    if (!lmp || isNaN(lmp.getTime())) {
+      return '';
+    }
+
+    lmp.setDate(lmp.getDate() + 280);
+    const eddString = lmp.toISOString().split('T')[0];
+    
+    if (!eddString) {
+      return '';
+    }
+    
+    return eddString;
+  } catch (error) {
+    console.warn('Invalid LMP date provided to calculateEDD:', lmpDate);
+    return '';
+  }
+};
+
+export const calculateGAFromEDD = (eddDate: string): { weeks: number; days: number } => {
+  const today = new Date();
+  const edd = new Date(eddDate);
+  const diffTime = edd.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const totalDaysToEDD = Math.max(0, diffDays);
+  const totalGADays = 40 * 7 - totalDaysToEDD;
+  const gaWeeks = Math.floor(totalGADays / 7);
+  const gaDays = totalGADays % 7;
+  return { weeks: Math.max(0, gaWeeks), days: Math.max(0, gaDays) };
+};
+
+// Hadlock formula for Estimated Fetal Weight (EFW)
+export const calculateEFW = (
+  bpdMm: number | null | undefined,
+  hcMm: number | null | undefined,
+  acMm: number | null | undefined,
+  flMm: number | null | undefined
+): number => {
+  const inputs = [bpdMm, hcMm, acMm, flMm];
+  
+  if (inputs.some(input => input === null || input === undefined || isNaN(Number(input)))) {
+    return 0;
+  }
+
+  const bpd = Number(bpdMm);
+  const hc = Number(hcMm);
+  const ac = Number(acMm);
+  const fl = Number(flMm);
+
+  if (bpd <= 0 || hc <= 0 || ac <= 0 || fl <= 0) {
+    return 0;
+  }
+
+  try {
+    const log10EFW =
+      1.3404 +
+      0.0438 * hc +
+      0.158 * ac +
+      0.0061 * bpd -
+      0.002322 * ac * bpd;
+
+    if (isNaN(log10EFW) || !isFinite(log10EFW)) {
+      return 0;
+    }
+
+    const efw = Math.pow(10, log10EFW);
+
+    if (isNaN(efw) || !isFinite(efw) || efw < 100 || efw > 5000) {
+      return 0;
+    }
+
+    return Math.round(efw);
+  } catch (error) {
+    console.warn('Error calculating EFW with inputs:', { bpdMm, hcMm, acMm, flMm });
+    return 0;
+  }
+};
+
+// Calculate percentile based on RCOG/NICE standards (simplified)
+export const calculatePercentile = (efwGrams: number, gaWeeks: number): number => {
+  const expectedWeights: { [key: number]: { p10: number; p50: number; p90: number } } = {
+    20: { p10: 300, p50: 330, p90: 370 },
+    22: { p10: 430, p50: 475, p90: 540 },
+    24: { p10: 600, p50: 660, p90: 750 },
+    26: { p10: 760, p50: 850, p90: 980 },
+    28: { p10: 1000, p50: 1100, p90: 1270 },
+    30: { p10: 1300, p50: 1440, p90: 1680 },
+    32: { p10: 1600, p50: 1840, p90: 2150 },
+    34: { p10: 2100, p50: 2450, p90: 2850 },
+    36: { p10: 2600, p50: 3000, p90: 3500 },
+    38: { p10: 3000, p50: 3400, p90: 3900 },
+    40: { p10: 3200, p50: 3500, p90: 3900 },
+  };
+
+  const weights = expectedWeights[gaWeeks];
+  if (!weights) return 50;
+
+  if (efwGrams <= weights.p10) return 10;
+  if (efwGrams >= weights.p90) return 90;
+  if (efwGrams <= weights.p50) {
+    return 10 + ((efwGrams - weights.p10) / (weights.p50 - weights.p10)) * 40;
+  }
+  return 50 + ((efwGrams - weights.p50) / (weights.p90 - weights.p50)) * 40;
+};
+
+// ============================================================================
+// RISK ASSESSMENT
+// ============================================================================
+
+export interface RiskFactors {
+  age_over_40: boolean;
+  bmi_over_30: boolean;
+  previous_preeclampsia: boolean;
+  twins: boolean;
+  autoimmune: boolean;
+  hypertension: boolean;
+  diabetes: boolean;
+  kidney_disease: boolean;
+}
+
+export const assessRiskLevel = (
+  riskFactors: RiskFactors | null | undefined
+): {
+  level: 'low' | 'moderate' | 'high';
+  riskFactorsList: string[];
+  aspirinNeeded: boolean;
+  thromboprophylaxisNeeded: boolean;
+} => {
+  // Provide safe defaults if riskFactors is null/undefined
+  const safeRiskFactors = riskFactors || {
+    age_over_40: false,
+    bmi_over_30: false,
+    previous_preeclampsia: false,
+    twins: false,
+    autoimmune: false,
+    hypertension: false,
+    diabetes: false,
+    kidney_disease: false,
+  };
+
+  const highRiskFactors = [
+    safeRiskFactors.previous_preeclampsia,
+    safeRiskFactors.hypertension,
+    safeRiskFactors.kidney_disease,
+    safeRiskFactors.diabetes,
+    safeRiskFactors.autoimmune,
+  ].filter(Boolean).length;
+
+  const moderateRiskFactors = [
+    safeRiskFactors.age_over_40,
+    safeRiskFactors.bmi_over_30,
+    safeRiskFactors.twins,
+  ].filter(Boolean).length;
+
+  let level: 'low' | 'moderate' | 'high' = 'low';
+  let aspirinNeeded = false;
+  let thromboprophylaxisNeeded = false;
+  const riskFactorsList: string[] = [];
+
+  if (highRiskFactors >= 1) {
+    level = 'high';
+    aspirinNeeded = true;
+  } else if (moderateRiskFactors >= 2) {
+    level = 'high';
+    aspirinNeeded = true;
+  } else if (moderateRiskFactors >= 1 || highRiskFactors === 0) {
+    level = 'moderate';
+  }
+
+  if (safeRiskFactors.twins) {
+    thromboprophylaxisNeeded = true;
+  }
+
+  if (safeRiskFactors.age_over_40) riskFactorsList.push('Age > 40');
+  if (safeRiskFactors.bmi_over_30) riskFactorsList.push('BMI > 30');
+  if (safeRiskFactors.previous_preeclampsia) riskFactorsList.push('Previous Pre-eclampsia');
+  if (safeRiskFactors.twins) riskFactorsList.push('Multiple Pregnancy');
+  if (safeRiskFactors.autoimmune) riskFactorsList.push('Autoimmune Disease');
+  if (safeRiskFactors.hypertension) riskFactorsList.push('Hypertension');
+  if (safeRiskFactors.diabetes) riskFactorsList.push('Diabetes');
+  if (safeRiskFactors.kidney_disease) riskFactorsList.push('Kidney Disease');
+
+  return { level, riskFactorsList, aspirinNeeded, thromboprophylaxisNeeded };
+};
+
+// ============================================================================
+// DUE ACTIONS / ALERTS
+// ============================================================================
+
+export const getDueActions = (gaWeeks: number): string[] => {
+  const actions: string[] = [];
+
+  // Early pregnancy actions
+  if (gaWeeks >= 11 && gaWeeks <= 13) {
+    actions.push('⚠️ Nuchal Translucency (NT) Scan Due');
+  }
+  if (gaWeeks >= 15 && gaWeeks <= 20) {
+    actions.push('⚠️ Quad Screen / NIPT Results Expected');
+  }
+  if (gaWeeks >= 20 && gaWeeks <= 22) {
+    actions.push('⚠️ Mid-Trimester Anomaly Scan Due');
+  }
+  if (gaWeeks === 28) {
+    actions.push('💉 Anti-D Prophylaxis Due (if Rh negative)');
+    actions.push('🧪 Glucose Tolerance Test (GTT) Due');
+    actions.push('💉 Tetanus Booster if needed');
+  }
+  if (gaWeeks >= 34 && gaWeeks <= 36) {
+    actions.push('⚠️ Growth Scan Recommended');
+    actions.push('🧪 Full Blood Count (FBC)');
+  }
+  if (gaWeeks >= 36 && gaWeeks < 40) {
+    actions.push('👶 Position Check (Cephalic/Breech)');
+    actions.push('📋 Discuss Birth Plan');
+  }
+
+  // CRITICAL: Post-term pregnancy alerts
+  if (gaWeeks >= 40 && gaWeeks < 42) {
+    actions.push('⚠️ Patient Overdue: Discuss Membrane Sweep / Induction - مناقشة تمزيق الأغشية / الحث على الولادة');
+  }
+  if (gaWeeks >= 41 && gaWeeks < 42) {
+    actions.push('🟠 Late Term: Schedule Induction of Labor - جدولة الحث على الولادة');
+  }
+  if (gaWeeks >= 42) {
+    actions.push('🔴 POST TERM: CRITICAL - Immediate Delivery/Admission Required - حمل متأخر عن الموعد - ولادة فورية مطلوبة');
+  }
+
+  return actions;
+};
+
+// ============================================================================
+// DATABASE OPERATIONS
+// ============================================================================
+
+export const obstetricsService = {
+  // PREGNANCIES
+  createPregnancy: async (pregnancy: Omit<Pregnancy, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      try {
+        // Save using sync manager for offline-first support
+        return await syncManager.save('pregnancies', pregnancy);
+      } catch (error) {
+        console.error('Failed to save pregnancy via sync manager:', error);
+        // Fallback to direct Supabase if online
+        if (networkStatus.getStatus()) {
+          const { data, error: supabaseError } = await supabase
+            .from('pregnancies')
+            .insert([pregnancy])
+            .select()
+            .single();
+
+          if (supabaseError) {
+            console.error('Supabase error inserting pregnancy:', supabaseError);
+            throw new Error(`Failed to create pregnancy: ${supabaseError.message}`);
+          }
+          return data;
+        }
+        throw error;
+      }
+    } catch (err: any) {
+      console.error('Exception in createPregnancy:', err);
+      throw err;
+    }
+  },
+
+  getPregnancyByPatient: async (patientId: string) => {
+    try {
+      // Try local DB first
+      const localPregnancies = await localDB.pregnancies.where('patientId').equals(patientId).toArray();
+      
+      // Background sync if online
+      if (networkStatus.getStatus()) {
+        setTimeout(() => syncManager.read('pregnancies'), 0);
+      }
+
+      if (localPregnancies.length > 0 && localPregnancies[0].remoteId) {
+        return localPregnancies[0];
+      }
+    } catch (error) {
+      console.error('Error fetching local pregnancy, falling back to Supabase:', error);
+    }
+    
+    // Fallback to Supabase
+    const { data, error } = await supabase
+      .from('pregnancies')
+      .select('*')
+      .eq('patient_id', patientId)
+      .order('created_at', { ascending: false })
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
+
+  updatePregnancy: async (pregnancyId: string, updates: Partial<Pregnancy>) => {
+    const { data, error } = await supabase
+      .from('pregnancies')
+      .update(updates)
+      .eq('id', pregnancyId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // ANTENATAL VISITS
+  createANCVisit: async (visit: Omit<AntenatalVisit, 'id' | 'created_at'>) => {
+    try {
+      // Save using sync manager for offline-first support
+      return await syncManager.save('antenatal_visits', visit);
+    } catch (error) {
+      console.error('Failed to save ANC visit via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { data, error: supabaseError } = await supabase
+          .from('antenatal_visits')
+          .insert([visit])
+          .select()
+          .single();
+
+        if (supabaseError) throw supabaseError;
+        return data;
+      }
+      throw error;
+    }
+  },
+
+  getANCVisits: async (pregnancyId: string) => {
+    try {
+      // Try local DB first
+      const localVisits = await localDB.visits.where('patientId').equals(pregnancyId).toArray();
+      
+      // Background sync if online
+      if (networkStatus.getStatus()) {
+        setTimeout(() => syncManager.read('antenatal_visits'), 0);
+      }
+
+      return localVisits.filter((v: any) => v.remoteId);
+    } catch (error) {
+      console.error('Error fetching local ANC visits, falling back to Supabase:', error);
+      
+      // Fallback to Supabase
+      const { data, error: supabaseError } = await supabase
+        .from('antenatal_visits')
+        .select('*')
+        .eq('pregnancy_id', pregnancyId)
+        .order('visit_date', { ascending: false });
+
+      if (supabaseError) throw supabaseError;
+      return data;
+    }
+  },
+
+  updateANCVisit: async (visitId: string, updates: Partial<AntenatalVisit>) => {
+    try {
+      // Try sync manager for update
+      await syncManager.update('antenatal_visits', visitId, updates);
+      return updates;
+    } catch (error) {
+      console.error('Failed to update ANC visit via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { data, error: supabaseError } = await supabase
+          .from('antenatal_visits')
+          .update(updates)
+          .eq('id', visitId)
+          .select()
+          .single();
+
+        if (supabaseError) throw supabaseError;
+        return data;
+      }
+      throw error;
+    }
+  },
+
+  deleteANCVisit: async (visitId: string) => {
+    try {
+      // Try sync manager for delete
+      await syncManager.update('antenatal_visits', visitId, { deleted: true });
+    } catch (error) {
+      console.error('Failed to delete ANC visit via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { error: supabaseError } = await supabase
+          .from('antenatal_visits')
+          .delete()
+          .eq('id', visitId);
+
+        if (supabaseError) throw supabaseError;
+      } else {
+        throw error;
+      }
+    }
+  },
+
+  // BIOMETRY SCANS
+  createBiometryScan: async (scan: Omit<BiometryScan, 'id' | 'created_at'>) => {
+    try {
+      // Save using sync manager for offline-first support
+      return await syncManager.save('biometry_scans', scan);
+    } catch (error) {
+      console.error('Failed to save biometry scan via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { data, error: supabaseError } = await supabase
+          .from('biometry_scans')
+          .insert([scan])
+          .select()
+          .single();
+
+        if (supabaseError) throw supabaseError;
+        return data;
+      }
+      throw error;
+    }
+  },
+
+  getBiometryScans: async (pregnancyId: string) => {
+    try {
+      // Try local DB first (would need custom table for biometry scans)
+      // For now, fallback to Supabase
+      if (networkStatus.getStatus()) {
+        setTimeout(() => syncManager.read('biometry_scans'), 0);
+      }
+    } catch (error) {
+      console.error('Error fetching local biometry scans:', error);
+    }
+    
+    // Fallback to Supabase
+    const { data, error } = await supabase
+      .from('biometry_scans')
+      .select('*')
+      .eq('pregnancy_id', pregnancyId)
+      .order('scan_date', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  updateBiometryScan: async (scanId: string, updates: Partial<BiometryScan>) => {
+    try {
+      // Try sync manager for update
+      await syncManager.update('biometry_scans', scanId, updates);
+      return updates;
+    } catch (error) {
+      console.error('Failed to update biometry scan via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { data, error: supabaseError } = await supabase
+          .from('biometry_scans')
+          .update(updates)
+          .eq('id', scanId)
+          .select()
+          .single();
+
+        if (supabaseError) throw supabaseError;
+        return data;
+      }
+      throw error;
+    }
+  },
+
+  deleteBiometryScan: async (scanId: string) => {
+    try {
+      // Try sync manager for delete
+      await syncManager.update('biometry_scans', scanId, { deleted: true });
+    } catch (error) {
+      console.error('Failed to delete biometry scan via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { error: supabaseError } = await supabase
+          .from('biometry_scans')
+          .delete()
+          .eq('id', scanId);
+
+        if (supabaseError) throw supabaseError;
+      } else {
+        throw error;
+      }
+    }
+  },
+};
+</file>
+
 <file path="pages/ObstetricsDashboard.tsx">
 import React, { useState, useEffect } from 'react';
 import { Plus, Save } from 'lucide-react';
@@ -9842,280 +10843,6 @@ const ObstetricsDashboard: React.FC = () => {
 export default ObstetricsDashboard;
 </file>
 
-<file path="services/ivfService.ts">
-import { supabase } from './supabaseClient';
-// import { syncManager } from '../services/syncService'; // TODO: Enable when sync service is ready
-import { Patient, IvfCycle, Visit, StimulationLog } from '../types';
-
-// Utility Functions (Local logic)
-export const calculateBMI = (weightKg: number, heightCm: number): { bmi: number; alert: boolean } => {
-  if (!weightKg || !heightCm) return { bmi: 0, alert: false };
-  const heightM = heightCm / 100;
-  const bmi = parseFloat((weightKg / (heightM * heightM)).toFixed(1));
-  return { bmi, alert: bmi > 30 };
-};
-
-export const calculateTMSC = (volume: number, concentration: number, motility: number): number => {
-  if (!volume || !concentration || !motility) return 0;
-  return parseFloat(((volume * concentration * motility) / 100).toFixed(2));
-};
-
-export const analyzeSemenAnalysis = (vol: number, conc: number, motility: number, morph: number): string => {
-  const findings: string[] = [];
-  if (vol < 1.5) findings.push("Hypospermia");
-  if (conc < 15) findings.push("Oligozoospermia");
-  if (motility < 40) findings.push("Asthenozoospermia");
-  if (morph < 4) findings.push("Teratozoospermia");
-  
-  if (findings.length === 0) return "Normozoospermia (WHO 2021)";
-  return findings.join(" + ");
-};
-
-export const classifyOvarianReserve = (amh?: number, afc?: number): 'Poor Responder' | 'Normal' | 'High Responder' => {
-  if (!amh && !afc) return 'Normal';
-  
-  if ((amh && amh < 0.4) || (afc && afc < 5)) {
-    return 'Poor Responder';
-  }
-  if ((amh && amh > 4.5) || (afc && afc > 25)) {
-    return 'High Responder';
-  }
-  return 'Normal';
-};
-
-export const calculateMaturationRate = (totalOocytes: number, mii: number): number => {
-  if (!totalOocytes || totalOocytes === 0) return 0;
-  return parseFloat(((mii / totalOocytes) * 100).toFixed(1));
-};
-
-export const calculateFertilizationRate = (fertilized: number, mii: number): number => {
-  if (!mii || mii === 0) return 0;
-  return parseFloat(((fertilized / mii) * 100).toFixed(1));
-};
-
-// Database Service (Supabase Async)
-export const db = {
-  // --- Patients ---
-  getPatients: async (): Promise<Patient[]> => {
-    const { data, error } = await supabase
-      .from('patients')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching patients:', error);
-      return [];
-    }
-    
-    // Map snake_case DB columns to camelCase types if needed, 
-    // or ensure types match DB. Assuming strict match or mapping here:
-    return data.map((p: any) => ({
-      id: p.id,
-      name: p.name,
-      age: p.age,
-      phone: p.phone,
-      husbandName: p.husband_name,
-      history: p.history,
-      createdAt: p.created_at
-    }));
-  },
-
-  savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
-
-    const { data, error } = await supabase
-      .from('patients')
-      .insert([{
-        name: patient.name,
-        age: patient.age,
-        phone: patient.phone,
-        husband_name: patient.husbandName,
-        history: patient.history,
-        doctor_id: user.id
-      }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  // --- Visits ---
-  getVisits: async (): Promise<Visit[]> => {
-    const { data, error } = await supabase
-      .from('visits')
-      .select('*')
-      .order('date', { ascending: false });
-      
-    if (error) return [];
-    return data as any; // Simplified for brevity
-  },
-
-  // --- Cycles ---
-  getCycles: async (): Promise<IvfCycle[]> => {
-    const { data, error } = await supabase
-      .from('ivf_cycles')
-      .select(`
-        *,
-        stimulation_logs (*)
-      `)
-      .order('start_date', { ascending: false });
-
-    if (error) {
-      console.error(error);
-      return [];
-    }
-
-    return data.map((c: any) => ({
-      id: c.id,
-      patientId: c.patient_id,
-      protocol: c.protocol,
-      startDate: c.start_date,
-      status: c.status,
-      logs: c.stimulation_logs.map((l: any) => ({
-        id: l.id,
-        date: l.date,
-        cycleDay: l.cycle_day,
-        fsh: l.fsh,
-        hmg: l.hmg,
-        e2: l.e2,
-        lh: l.lh,
-        rtFollicles: l.rt_follicles,
-        ltFollicles: l.lt_follicles
-      })) || [],
-      lab: c.lab_data
-    }));
-  },
-
-  saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
-
-    const { data, error } = await supabase
-      .from('ivf_cycles')
-      .insert([{
-        patient_id: cycle.patientId,
-        protocol: cycle.protocol,
-        status: cycle.status,
-        start_date: cycle.startDate,
-        doctor_id: user.id
-      }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  // --- Logs ---
-  addLog: async (cycleId: string, log: Partial<StimulationLog>) => {
-    const { data, error } = await supabase
-      .from('stimulation_logs')
-      .insert([{
-        cycle_id: cycleId,
-        cycle_day: log.cycleDay,
-        date: log.date,
-        fsh: log.fsh || '',
-        hmg: log.hmg || '',
-        e2: log.e2 || '',
-        lh: log.lh || '',
-        rt_follicles: log.rtFollicles || '',
-        lt_follicles: log.ltFollicles || '',
-        endometrium_thickness: log.endometriumThickness || ''
-      }])
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data;
-  },
-
-  updateLog: async (logId: string, updates: Partial<StimulationLog>) => {
-    const dbUpdates: any = {};
-    if (updates.fsh !== undefined) dbUpdates.fsh = updates.fsh;
-    if (updates.hmg !== undefined) dbUpdates.hmg = updates.hmg;
-    if (updates.e2 !== undefined) dbUpdates.e2 = updates.e2;
-    if (updates.lh !== undefined) dbUpdates.lh = updates.lh;
-    if (updates.rtFollicles !== undefined) dbUpdates.rt_follicles = updates.rtFollicles;
-    if (updates.ltFollicles !== undefined) dbUpdates.lt_follicles = updates.ltFollicles;
-    if (updates.endometriumThickness !== undefined) dbUpdates.endometrium_thickness = updates.endometriumThickness;
-    
-    const { error } = await supabase
-      .from('stimulation_logs')
-      .update(dbUpdates)
-      .eq('id', logId);
-    if (error) throw error;
-  },
-
-  updateCycleAssessment: async (cycleId: string, assessment: any) => {
-    try {
-      const { error } = await supabase
-        .from('ivf_cycles')
-        .update({ assessment_data: assessment, updated_at: new Date().toISOString() })
-        .eq('id', cycleId);
-      if (error) {
-        console.error('Error updating assessment:', error);
-        throw new Error(`Failed to update assessment: ${error.message}`);
-      }
-    } catch (e) {
-      console.error('updateCycleAssessment error:', e);
-      throw e;
-    }
-  },
-
-  updateCycleLabData: async (cycleId: string, labData: any) => {
-    try {
-      const { error } = await supabase
-        .from('ivf_cycles')
-        .update({ lab_data: labData, updated_at: new Date().toISOString() })
-        .eq('id', cycleId);
-      if (error) {
-        console.error('Error updating lab data:', error);
-        throw new Error(`Failed to update lab data: ${error.message}`);
-      }
-    } catch (e) {
-      console.error('updateCycleLabData error:', e);
-      throw e;
-    }
-  },
-
-  updateCycleTransfer: async (cycleId: string, transferData: any) => {
-    try {
-      const { error } = await supabase
-        .from('ivf_cycles')
-        .update({ transfer_data: transferData, updated_at: new Date().toISOString() })
-        .eq('id', cycleId);
-      if (error) {
-        console.error('Error updating transfer:', error);
-        throw new Error(`Failed to update transfer: ${error.message}`);
-      }
-    } catch (e) {
-      console.error('updateCycleTransfer error:', e);
-      throw e;
-    }
-  },
-
-  updateCycleOutcome: async (cycleId: string, outcomeData: any) => {
-    try {
-      const { error } = await supabase
-        .from('ivf_cycles')
-        .update({ outcome_data: outcomeData, status: 'Completed', updated_at: new Date().toISOString() })
-        .eq('id', cycleId);
-      if (error) {
-        console.error('Error updating outcome:', error);
-        throw new Error(`Failed to update outcome: ${error.message}`);
-      }
-    } catch (e) {
-      console.error('updateCycleOutcome error:', e);
-      throw e;
-    }
-  }
-};
-</file>
-
 <file path="pages/Login.tsx">
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
@@ -10472,57 +11199,355 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 };
 </file>
 
-<file path="index.html">
-<!DOCTYPE html>
-<html lang="en" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>مركز د صلاح للخصوبة - نظام د. محمد صلاح جبر</title>
-    <meta name="author" content="Dr. Mohamed Salah Gabr">
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#00838f">
-    <meta name="description" content="Comprehensive IVF and Obstetrics Management System">
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/pwa-192x192.png">
-    <!-- سنستخدم Tailwind عبر التثبيت المحلي في package.json لكن سنبقي الـ CDN مؤقتاً للتأكد من التصميم -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              teal: {
-                50: '#e0f2f1', 100: '#b2dfdb', 500: '#009688', 600: '#00897b', 700: '#00838f', 800: '#006064', 900: '#004d40',
-              }
-            }
-          }
-        }
-      }
-    </script>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "react-hot-toast": "https://aistudiocdn.com/react-hot-toast@^2.6.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "vite": "https://aistudiocdn.com/vite@^7.2.6",
-    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.86.2"
+<file path="services/ivfService.ts">
+import { supabase } from './supabaseClient';
+import { syncManager } from '../src/services/syncService';
+import { db as localDB } from '../src/lib/localDb';
+import { networkStatus } from '../src/lib/networkStatus';
+import { Patient, IvfCycle, Visit, StimulationLog } from '../types';
+
+// Utility Functions (Local logic)
+export const calculateBMI = (weightKg: number, heightCm: number): { bmi: number; alert: boolean } => {
+  if (!weightKg || !heightCm) return { bmi: 0, alert: false };
+  const heightM = heightCm / 100;
+  const bmi = parseFloat((weightKg / (heightM * heightM)).toFixed(1));
+  return { bmi, alert: bmi > 30 };
+};
+
+export const calculateTMSC = (volume: number, concentration: number, motility: number): number => {
+  if (!volume || !concentration || !motility) return 0;
+  return parseFloat(((volume * concentration * motility) / 100).toFixed(2));
+};
+
+export const analyzeSemenAnalysis = (vol: number, conc: number, motility: number, morph: number): string => {
+  const findings: string[] = [];
+  if (vol < 1.5) findings.push("Hypospermia");
+  if (conc < 15) findings.push("Oligozoospermia");
+  if (motility < 40) findings.push("Asthenozoospermia");
+  if (morph < 4) findings.push("Teratozoospermia");
+  
+  if (findings.length === 0) return "Normozoospermia (WHO 2021)";
+  return findings.join(" + ");
+};
+
+export const classifyOvarianReserve = (amh?: number, afc?: number): 'Poor Responder' | 'Normal' | 'High Responder' => {
+  if (!amh && !afc) return 'Normal';
+  
+  if ((amh && amh < 0.4) || (afc && afc < 5)) {
+    return 'Poor Responder';
   }
-}
-</script>
-</head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
-</html>
+  if ((amh && amh > 4.5) || (afc && afc > 25)) {
+    return 'High Responder';
+  }
+  return 'Normal';
+};
+
+export const calculateMaturationRate = (totalOocytes: number, mii: number): number => {
+  if (!totalOocytes || totalOocytes === 0) return 0;
+  return parseFloat(((mii / totalOocytes) * 100).toFixed(1));
+};
+
+export const calculateFertilizationRate = (fertilized: number, mii: number): number => {
+  if (!mii || mii === 0) return 0;
+  return parseFloat(((fertilized / mii) * 100).toFixed(1));
+};
+
+// Database Service (Supabase Async)
+export const db = {
+  // --- Patients ---
+  getPatients: async (): Promise<Patient[]> => {
+    try {
+      // Try local DB first (instant response)
+      const localPatients = await localDB.patients.toArray();
+      
+      // Background sync if online
+      if (networkStatus.getStatus()) {
+        setTimeout(() => syncManager.read('patients'), 0);
+      }
+
+      return localPatients
+        .filter((p: any) => p.remoteId)
+        .map((p: any) => ({
+          id: p.remoteId,
+          name: p.name,
+          age: p.age || 0,
+          phone: p.phone,
+          husbandName: p.husband_name || '',
+          history: p.history || '',
+          createdAt: p.createdAt?.toString() || new Date().toISOString()
+        }));
+    } catch (error) {
+      console.error('Error fetching local patients, falling back to Supabase:', error);
+      
+      // Fallback to Supabase if local DB fails
+      const { data, error: supabaseError } = await supabase
+        .from('patients')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (supabaseError) {
+        console.error('Error fetching patients from Supabase:', supabaseError);
+        return [];
+      }
+      
+      return data.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        age: p.age,
+        phone: p.phone,
+        husbandName: p.husband_name,
+        history: p.history,
+        createdAt: p.created_at
+      }));
+    }
+  },
+
+  savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
+
+    const patientData = {
+      name: patient.name,
+      age: patient.age,
+      phone: patient.phone,
+      husband_name: patient.husbandName,
+      history: patient.history,
+      doctor_id: user.id
+    };
+
+    try {
+      // Save using sync manager for offline-first support
+      return await syncManager.save('patients', patientData);
+    } catch (error) {
+      console.error('Failed to save patient via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { data, error: supabaseError } = await supabase
+          .from('patients')
+          .insert([patientData])
+          .select()
+          .single();
+
+        if (supabaseError) throw supabaseError;
+        return data;
+      }
+      throw error;
+    }
+  },
+
+  // --- Visits ---
+  getVisits: async (): Promise<Visit[]> => {
+    const { data, error } = await supabase
+      .from('visits')
+      .select('*')
+      .order('date', { ascending: false });
+      
+    if (error) return [];
+    return data as any; // Simplified for brevity
+  },
+
+  // --- Cycles ---
+  getCycles: async (): Promise<IvfCycle[]> => {
+    try {
+      // Try local DB first (instant response)
+      const localCycles = await localDB.cycles.toArray();
+      
+      // Background sync if online
+      if (networkStatus.getStatus()) {
+        setTimeout(() => syncManager.read('ivf_cycles'), 0);
+      }
+
+      return localCycles
+        .filter((c: any) => c.remoteId)
+        .map((c: any) => ({
+          id: c.remoteId,
+          patientId: c.patientId,
+          protocol: c.protocol,
+          startDate: c.startDate,
+          status: c.status,
+          logs: c.logs || [],
+          lab: c.lab,
+          transfer: c.transfer,
+          outcome: c.outcome,
+          assessment: c.assessment
+        }));
+    } catch (error) {
+      console.error('Error fetching local cycles, falling back to Supabase:', error);
+      
+      // Fallback to Supabase if local DB fails
+      const { data, error: supabaseError } = await supabase
+        .from('ivf_cycles')
+        .select(`
+          *,
+          stimulation_logs (*)
+        `)
+        .order('start_date', { ascending: false });
+
+      if (supabaseError) {
+        console.error(supabaseError);
+        return [];
+      }
+
+      return data.map((c: any) => ({
+        id: c.id,
+        patientId: c.patient_id,
+        protocol: c.protocol,
+        startDate: c.start_date,
+        status: c.status,
+        logs: c.stimulation_logs?.map((l: any) => ({
+          id: l.id,
+          date: l.date,
+          cycleDay: l.cycle_day,
+          fsh: l.fsh,
+          hmg: l.hmg,
+          e2: l.e2,
+          lh: l.lh,
+          rtFollicles: l.rt_follicles,
+          ltFollicles: l.lt_follicles
+        })) || [],
+        lab: c.lab_data
+      }));
+    }
+  },
+
+  saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
+
+    const cycleData = {
+      patient_id: cycle.patientId,
+      protocol: cycle.protocol,
+      status: cycle.status,
+      start_date: cycle.startDate,
+      doctor_id: user.id
+    };
+
+    try {
+      // Save using sync manager for offline-first support
+      return await syncManager.save('ivf_cycles', cycleData);
+    } catch (error) {
+      console.error('Failed to save cycle via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { data, error: supabaseError } = await supabase
+          .from('ivf_cycles')
+          .insert([cycleData])
+          .select()
+          .single();
+
+        if (supabaseError) throw supabaseError;
+        return data;
+      }
+      throw error;
+    }
+  },
+
+  // --- Logs ---
+  addLog: async (cycleId: string, log: Partial<StimulationLog>) => {
+    const { data, error } = await supabase
+      .from('stimulation_logs')
+      .insert([{
+        cycle_id: cycleId,
+        cycle_day: log.cycleDay,
+        date: log.date,
+        fsh: log.fsh || '',
+        hmg: log.hmg || '',
+        e2: log.e2 || '',
+        lh: log.lh || '',
+        rt_follicles: log.rtFollicles || '',
+        lt_follicles: log.ltFollicles || '',
+        endometrium_thickness: log.endometriumThickness || ''
+      }])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  updateLog: async (logId: string, updates: Partial<StimulationLog>) => {
+    const dbUpdates: any = {};
+    if (updates.fsh !== undefined) dbUpdates.fsh = updates.fsh;
+    if (updates.hmg !== undefined) dbUpdates.hmg = updates.hmg;
+    if (updates.e2 !== undefined) dbUpdates.e2 = updates.e2;
+    if (updates.lh !== undefined) dbUpdates.lh = updates.lh;
+    if (updates.rtFollicles !== undefined) dbUpdates.rt_follicles = updates.rtFollicles;
+    if (updates.ltFollicles !== undefined) dbUpdates.lt_follicles = updates.ltFollicles;
+    if (updates.endometriumThickness !== undefined) dbUpdates.endometrium_thickness = updates.endometriumThickness;
+    
+    const { error } = await supabase
+      .from('stimulation_logs')
+      .update(dbUpdates)
+      .eq('id', logId);
+    if (error) throw error;
+  },
+
+  updateCycleAssessment: async (cycleId: string, assessment: any) => {
+    try {
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .update({ assessment_data: assessment, updated_at: new Date().toISOString() })
+        .eq('id', cycleId);
+      if (error) {
+        console.error('Error updating assessment:', error);
+        throw new Error(`Failed to update assessment: ${error.message}`);
+      }
+    } catch (e) {
+      console.error('updateCycleAssessment error:', e);
+      throw e;
+    }
+  },
+
+  updateCycleLabData: async (cycleId: string, labData: any) => {
+    try {
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .update({ lab_data: labData, updated_at: new Date().toISOString() })
+        .eq('id', cycleId);
+      if (error) {
+        console.error('Error updating lab data:', error);
+        throw new Error(`Failed to update lab data: ${error.message}`);
+      }
+    } catch (e) {
+      console.error('updateCycleLabData error:', e);
+      throw e;
+    }
+  },
+
+  updateCycleTransfer: async (cycleId: string, transferData: any) => {
+    try {
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .update({ transfer_data: transferData, updated_at: new Date().toISOString() })
+        .eq('id', cycleId);
+      if (error) {
+        console.error('Error updating transfer:', error);
+        throw new Error(`Failed to update transfer: ${error.message}`);
+      }
+    } catch (e) {
+      console.error('updateCycleTransfer error:', e);
+      throw e;
+    }
+  },
+
+  updateCycleOutcome: async (cycleId: string, outcomeData: any) => {
+    try {
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .update({ outcome_data: outcomeData, status: 'Completed', updated_at: new Date().toISOString() })
+        .eq('id', cycleId);
+      if (error) {
+        console.error('Error updating outcome:', error);
+        throw new Error(`Failed to update outcome: ${error.message}`);
+      }
+    } catch (e) {
+      console.error('updateCycleOutcome error:', e);
+      throw e;
+    }
+  }
+};
 </file>
 
 <file path="pages/Gynecology.tsx">
@@ -11282,6 +12307,59 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage, onLogout }) => {
 export default BottomNav;
 </file>
 
+<file path="index.html">
+<!DOCTYPE html>
+<html lang="en" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>مركز د صلاح للخصوبة - نظام د. محمد صلاح جبر</title>
+    <meta name="author" content="Dr. Mohamed Salah Gabr">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#00838f">
+    <meta name="description" content="Comprehensive IVF and Obstetrics Management System">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/pwa-192x192.png">
+    <!-- سنستخدم Tailwind عبر التثبيت المحلي في package.json لكن سنبقي الـ CDN مؤقتاً للتأكد من التصميم -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              teal: {
+                50: '#e0f2f1', 100: '#b2dfdb', 500: '#009688', 600: '#00897b', 700: '#00838f', 800: '#006064', 900: '#004d40',
+              }
+            }
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "react-hot-toast": "https://aistudiocdn.com/react-hot-toast@^2.6.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.86.2"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
+</file>
+
 <file path="App.tsx">
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
@@ -11301,8 +12379,8 @@ import { authService } from './services/authService';
 import { LogOut } from 'lucide-react';
 import { BrandingProvider } from './context/BrandingContext';
 import { initPWA } from './src/lib/pwa';
-import { initDatabase } from './src/lib/localDb';
-// import { syncManager } from './src/services/syncService'; // TODO: Enable when sync service is ready
+import { initLocalDB } from './src/db/localDB';
+import { syncService } from './src/services/syncService';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
@@ -11318,7 +12396,7 @@ const App: React.FC = () => {
         await initPWA();
 
         // Initialize local database
-        await initDatabase();
+        await initLocalDB();
 
         // Check user authentication
         const currentUser = await authService.getCurrentUser();
@@ -11450,6 +12528,7 @@ import React from 'react';
 import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText } from 'lucide-react';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
+import SyncStatus from '../src/components/SyncStatus';
 
 interface SidebarProps {
   activePage: Page;
@@ -11512,6 +12591,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
       </nav>
 
       <div className="p-4 border-t border-gray-100">
+        {/* Sync Status Indicator */}
+        <div className="mb-4">
+          <SyncStatus />
+        </div>
+
         <button
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors"

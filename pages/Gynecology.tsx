@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Stethoscope, ClipboardList, Pill } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import toast from 'react-hot-toast';
 import { Patient, PrescriptionItem } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { db } from '../src/db/localDB';
 import { visitsService } from '../services/visitsService';
 import { authService } from '../services/authService';
 import PrescriptionComponent from '../components/PrescriptionComponent';
@@ -57,12 +58,13 @@ interface GynecologyData {
 }
 
 const Gynecology: React.FC = () => {
-  const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'assessment' | 'diagnosis' | 'rx'>('assessment');
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
+
+  const patients = useLiveQuery(() => db.patients.toArray(), []) || [];
 
   const [gynecologyData, setGynecologyData] = useState<GynecologyData>({
     vitals: {
@@ -104,24 +106,8 @@ const Gynecology: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchPatients();
     fetchDoctorProfile();
   }, []);
-
-  const fetchPatients = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('patients')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPatients(data || []);
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-      toast.error('Failed to load patients');
-    }
-  };
 
   const fetchDoctorProfile = async () => {
     try {
@@ -136,7 +122,7 @@ const Gynecology: React.FC = () => {
     }
   };
 
-  const selectedPatient = patients.find(p => p.id === selectedPatientId);
+  const selectedPatient = patients.find(p => p.id.toString() === selectedPatientId);
 
   const handleSaveVisit = async () => {
     if (!selectedPatientId || !doctorId) {

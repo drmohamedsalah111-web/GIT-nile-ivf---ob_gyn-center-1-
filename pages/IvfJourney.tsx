@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { db, calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate } from '../services/ivfService';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db as dexieDB } from '../src/db/localDB';
+import { calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate, db } from '../services/ivfService';
 import { Patient, PrescriptionItem, CycleAssessment, OpuLabData, TransferData, OutcomeData } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer, Microscope, Activity, Stethoscope } from 'lucide-react';
@@ -118,25 +120,12 @@ const defaultImaging = {
 };
 
 const IvfJourney: React.FC = () => {
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const patients = useLiveQuery(() => dexieDB.patients.toArray(), []) || [];
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [cycleData, setCycleData] = useState<CycleData | null>(null);
   const [activeTab, setActiveTab] = useState<'assessment' | 'stimulation' | 'lab' | 'transfer'>('assessment');
   const [prescription, setPrescription] = useState<PrescriptionItem[]>([]);
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
-
-  // Load patients on mount
-  useEffect(() => {
-    const loadPatients = async () => {
-      try {
-        const pats = await db.getPatients();
-        setPatients(pats);
-      } catch (error) {
-        toast.error('Failed to load patients');
-      }
-    };
-    loadPatients();
-  }, []);
 
   // Load cycle data when patient changes
   useEffect(() => {
@@ -294,7 +283,7 @@ const IvfJourney: React.FC = () => {
     follicles: (log.folliclesRt.split(',').length + log.folliclesLt.split(',').length) || 0
   })) || [];
 
-  const selectedPatient = patients.find(p => p.id === selectedPatientId);
+  const selectedPatient = patients.find(p => String(p.id) === selectedPatientId);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6" style={{ fontFamily: 'Tajawal, sans-serif' }}>

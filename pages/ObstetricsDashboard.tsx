@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Save } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import toast from 'react-hot-toast';
 import { Pregnancy, Patient, PrescriptionItem } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { db } from '../src/db/localDB';
 import { obstetricsService, calculateEDD, calculateGestationalAge } from '../services/obstetricsService';
 import { authService } from '../services/authService';
 import { visitsService } from '../services/visitsService';
@@ -14,10 +15,9 @@ import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 
 const ObstetricsDashboard: React.FC = () => {
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const patients = useLiveQuery(() => db.patients.toArray(), []) || [];
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [pregnancy, setPregnancy] = useState<Pregnancy | null>(null);
-  const [isLoadingPatients, setIsLoadingPatients] = useState(true);
   const [isLoadingPregnancy, setIsLoadingPregnancy] = useState(false);
   const [showNewPregnancyForm, setShowNewPregnancyForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -31,8 +31,10 @@ const ObstetricsDashboard: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchPatients();
     fetchDoctorProfile();
+    if (patients.length > 0 && !selectedPatientId) {
+      setSelectedPatientId(patients[0].id.toString());
+    }
   }, []);
 
   useEffect(() => {
@@ -40,28 +42,6 @@ const ObstetricsDashboard: React.FC = () => {
       fetchPregnancy(selectedPatientId);
     }
   }, [selectedPatientId]);
-
-  const fetchPatients = async () => {
-    try {
-      setIsLoadingPatients(true);
-      const { data, error } = await supabase
-        .from('patients')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPatients(data || []);
-
-      if (data && data.length > 0) {
-        setSelectedPatientId(data[0].id);
-      }
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-      toast.error('فشل تحميل المرضى');
-    } finally {
-      setIsLoadingPatients(false);
-    }
-  };
 
   const fetchPregnancy = async (patientId: string) => {
     try {
@@ -261,7 +241,7 @@ const ObstetricsDashboard: React.FC = () => {
     }
   };
 
-  const currentPatient = patients.find(p => p.id === selectedPatientId);
+  const currentPatient = patients.find(p => p.id.toString() === selectedPatientId);
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -279,22 +259,18 @@ const ObstetricsDashboard: React.FC = () => {
           <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
             اختر المريضة
           </label>
-          {isLoadingPatients ? (
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-          ) : (
-            <select
-              value={selectedPatientId || ''}
-              onChange={(e) => setSelectedPatientId(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
-            >
-              <option value="">-- اختر مريضة --</option>
-              {patients.map(patient => (
-                <option key={patient.id} value={patient.id}>
-                  {patient.name} - {patient.phone}
-                </option>
-              ))}
-            </select>
-          )}
+          <select
+            value={selectedPatientId || ''}
+            onChange={(e) => setSelectedPatientId(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+          >
+            <option value="">-- اختر مريضة --</option>
+            {patients.map(patient => (
+              <option key={patient.id} value={patient.id.toString()}>
+                {patient.name} - {patient.phone}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
@@ -302,7 +278,7 @@ const ObstetricsDashboard: React.FC = () => {
             &nbsp;
           </label>
           <button
-            onClick={fetchPatients}
+            onClick={() => window.location.reload()}
             className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-[Tajawal] font-semibold transition-colors"
           >
             🔄 تحديث

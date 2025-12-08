@@ -1,11 +1,11 @@
 export interface Patient {
-  id: string;
+  id?: string | number;
   name: string;
-  age: number;
+  age?: number;
   phone: string;
-  husbandName: string;
-  history: string;
-  createdAt: string;
+  husbandName?: string;
+  history?: string;
+  createdAt?: string;
 }
 
 export interface Visit {

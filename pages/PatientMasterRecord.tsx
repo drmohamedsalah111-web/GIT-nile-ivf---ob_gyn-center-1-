@@ -254,7 +254,7 @@ const PatientMasterRecord: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold">{selectedPatient.name}</h2>
-                  <p className="text-teal-100">Age: {selectedPatient.age} | ID: {selectedPatient.id.slice(0, 8)}</p>
+                  <p className="text-teal-100">Age: {selectedPatient.age} | ID: {String(selectedPatient.id).slice(0, 8)}</p>
                 </div>
               </div>
               <button
