@@ -7,6 +7,8 @@ import { visitsService } from '../services/visitsService';
 import { authService } from '../services/authService';
 import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
+import SearchableSelect from '../components/ui/SearchableSelect';
+import { COMMON_COMPLAINTS, ICD10_DIAGNOSES, PROCEDURE_ORDERS } from '../data/medical_terms';
 
 interface GynecologyData {
   // Vitals
@@ -407,25 +409,19 @@ const Gynecology: React.FC = () => {
 
                   {/* Complaints */}
                   <div className="text-left">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Chief Complaints</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-2 gap-2">
-                    {[
-                      'Menorrhagia', 'Metrorrhagia', 'Dysmenorrhea', 'Amenorrhea', 'Infertility', 'Pelvic Pain', 'Vaginal Discharge'
-                    ].map(complaint => (
-                      <button
-                        key={complaint}
-                        onClick={() => toggleComplaint(complaint)}
-                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                          gynecologyData.complaints.includes(complaint)
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
-                        }`}
-                      >
-                        {complaint}
-                      </button>
-                    ))}
+                    <SearchableSelect
+                      label="Chief Complaints"
+                      options={COMMON_COMPLAINTS}
+                      value={gynecologyData.complaints}
+                      onChange={(value) => setGynecologyData(prev => ({
+                        ...prev,
+                        complaints: Array.isArray(value) ? value : [value]
+                      }))}
+                      placeholder="ابحث عن الشكوى أو أضف شكوى جديدة"
+                      multi={true}
+                      allowCustom={true}
+                    />
                   </div>
-                </div>
                 </div>
 
                 {/* RIGHT COLUMN: Investigations & Scans */}
@@ -588,71 +584,44 @@ const Gynecology: React.FC = () => {
               <div className="space-y-6" dir="ltr">
                 {/* Diagnosis */}
                 <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">ICD-10 Diagnosis (Multi-Select)</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {[
-                      'E28.2 - PCOS (Polycystic Ovary Syndrome)',
-                      'N93.9 - Abnormal Uterine Bleeding (AUB)',
-                      'N80 - Endometriosis',
-                      'D25 - Uterine Leiomyoma (Fibroid)',
-                      'N84 - Polyp of Female Genital Tract',
-                      'N85.0 - Endometrial Hyperplasia',
-                      'N70 - Salpingitis and Oophoritis (PID)',
-                      'N71 - Inflammatory Disease of Uterus',
-                      'N97 - Female Infertility'
-                    ].map(diagnosis => (
-                      <button
-                        key={diagnosis}
-                        onClick={() => toggleDiagnosis(diagnosis)}
-                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                          gynecologyData.diagnosis.includes(diagnosis)
-                            ? 'bg-amber-600 text-white border-amber-600'
-                            : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
-                        }`}
-                      >
-                        {diagnosis}
-                      </button>
-                    ))}
-                  </div>
+                  <SearchableSelect
+                    label="ICD-10 التشخيص (اختر متعدد)"
+                    options={ICD10_DIAGNOSES}
+                    value={gynecologyData.diagnosis}
+                    onChange={(value) => setGynecologyData(prev => ({
+                      ...prev,
+                      diagnosis: Array.isArray(value) ? value : [value]
+                    }))}
+                    placeholder="ابحث عن التشخيص أو أضف تشخيص جديد"
+                    multi={true}
+                    allowCustom={true}
+                  />
                   {gynecologyData.diagnosis.length > 0 && (
                     <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-sm text-amber-800 font-medium">Selected Diagnoses:</p>
-                      <p className="text-sm text-amber-700 mt-1">{gynecologyData.diagnosis.join('; ')}</p>
+                      <p className="text-sm text-amber-800 font-medium font-[Tajawal]">التشخيصات المحددة:</p>
+                      <p className="text-sm text-amber-700 mt-1 font-[Tajawal]">{gynecologyData.diagnosis.join('; ')}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Procedure Order */}
                 <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Procedure / Management Plan (Multi-Select)</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {[
-                      'Conservative Management',
-                      'Hysteroscopy + D&C',
-                      'Diagnostic Laparoscopy',
-                      'Pap Smear Screening',
-                      'Endometrial Biopsy',
-                      'Colposcopy',
-                      'Myomectomy',
-                      'IUD Insertion'
-                    ].map(procedure => (
-                      <button
-                        key={procedure}
-                        onClick={() => toggleProcedure(procedure)}
-                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                          gynecologyData.procedureOrder.includes(procedure)
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
-                        }`}
-                      >
-                        {procedure}
-                      </button>
-                    ))}
-                  </div>
+                  <SearchableSelect
+                    label="خطة العلاج / الإجراءات (اختر متعدد)"
+                    options={PROCEDURE_ORDERS}
+                    value={gynecologyData.procedureOrder}
+                    onChange={(value) => setGynecologyData(prev => ({
+                      ...prev,
+                      procedureOrder: Array.isArray(value) ? value : [value]
+                    }))}
+                    placeholder="ابحث عن إجراء أو أضف إجراء جديد"
+                    multi={true}
+                    allowCustom={true}
+                  />
                   {gynecologyData.procedureOrder.length > 0 && (
                     <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800 font-medium">Selected Procedures:</p>
-                      <p className="text-sm text-blue-700 mt-1">{gynecologyData.procedureOrder.join('; ')}</p>
+                      <p className="text-sm text-blue-800 font-medium font-[Tajawal]">الإجراءات المحددة:</p>
+                      <p className="text-sm text-blue-700 mt-1 font-[Tajawal]">{gynecologyData.procedureOrder.join('; ')}</p>
                     </div>
                   )}
                 </div>
