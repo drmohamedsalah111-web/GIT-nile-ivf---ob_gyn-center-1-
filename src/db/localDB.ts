@@ -175,7 +175,24 @@ export const initLocalDB = async (): Promise<void> => {
   try {
     await db.open();
     console.log('Local database initialized successfully');
+  } catch (error) {
+    console.error('Failed to open local database, attempting to recreate:', error);
+    try {
+      // If opening fails, delete and recreate the database
+      await db.delete();
+      console.log('Deleted corrupted database, recreating...');
+      // Recreate the database instance
+      const newDb = new ClinicLocalDB();
+      Object.assign(db, newDb); // Replace the db instance
+      await db.open();
+      console.log('Local database recreated successfully');
+    } catch (recreateError) {
+      console.error('Failed to recreate local database:', recreateError);
+      throw recreateError;
+    }
+  }
 
+  try {
     // Create indexes for better query performance
     await db.patients.hook('creating', (primKey, obj, trans) => {
       if (!obj.created_at) {
@@ -231,9 +248,9 @@ export const initLocalDB = async (): Promise<void> => {
       }
     });
 
-  } catch (error) {
-    console.error('Failed to initialize local database:', error);
-    throw error;
+  } catch (hookError) {
+    console.error('Failed to set up database hooks:', hookError);
+    // Don't throw for hook errors, as database is still usable
   }
 };
 
