@@ -100,8 +100,19 @@ export const db = {
 
   savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
+
+    // Ensure doctor record exists and get the correct public ID
+    const doctor = await supabase
+      .from('doctors')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (doctor.error || !doctor.data) {
+      throw new Error('Doctor profile missing. Please log out and sign in again.');
+    }
 
     const patientData = {
       name: patient.name,
@@ -109,7 +120,7 @@ export const db = {
       phone: patient.phone,
       husband_name: patient.husbandName,
       history: patient.history,
-      doctor_id: user.id
+      doctor_id: doctor.data.id
     };
 
     try {
@@ -206,15 +217,26 @@ export const db = {
 
   saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
+
+    // Ensure doctor record exists and get the correct public ID
+    const doctor = await supabase
+      .from('doctors')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (doctor.error || !doctor.data) {
+      throw new Error('Doctor profile missing. Please log out and sign in again.');
+    }
 
     const cycleData = {
       patient_id: cycle.patientId,
       protocol: cycle.protocol,
       status: cycle.status,
       start_date: cycle.startDate,
-      doctor_id: user.id
+      doctor_id: doctor.data.id
     };
 
     try {

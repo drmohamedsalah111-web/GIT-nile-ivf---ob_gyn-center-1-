@@ -286,16 +286,35 @@ export const obstetricsService = {
   // PREGNANCIES
   createPregnancy: async (pregnancy: Omit<Pregnancy, 'id' | 'created_at' | 'updated_at'>) => {
     try {
+      // Get current user and ensure doctor record exists
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Not authenticated');
+
+      const doctor = await supabase
+        .from('doctors')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (doctor.error || !doctor.data) {
+        throw new Error('Doctor profile missing. Please log out and sign in again.');
+      }
+
+      const pregnancyData = {
+        ...pregnancy,
+        doctor_id: doctor.data.id
+      };
+
       try {
         // Save using sync manager for offline-first support
-        return await syncManager.save('pregnancies', pregnancy);
+        return await syncManager.save('pregnancies', pregnancyData);
       } catch (error) {
         console.error('Failed to save pregnancy via sync manager:', error);
         // Fallback to direct Supabase if online
         if (networkStatus.getStatus()) {
           const { data, error: supabaseError } = await supabase
             .from('pregnancies')
-            .insert([pregnancy])
+            .insert([pregnancyData])
             .select()
             .single();
 

@@ -5,6 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../src/db/localDB';
 import { syncService } from '../src/services/syncService';
 import { Patient } from '../types';
+import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
 
 const Reception: React.FC = () => {
@@ -33,12 +34,20 @@ const Reception: React.FC = () => {
     const toastId = toast.loading("Registering patient...");
 
     try {
+      // Get current user and ensure doctor record exists
+      const user = await authService.getCurrentUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
+      if (!doctor) throw new Error("Doctor profile missing. Please log out and sign in again.");
+
       await syncService.saveItem('patients', {
         name: formData.name,
         age: parseInt(formData.age) || 0,
         phone: formData.phone,
         husband_name: formData.husbandName,
-        history: formData.history
+        history: formData.history,
+        doctor_id: doctor.id
       });
 
       toast.success("Patient registered successfully!", { id: toastId });

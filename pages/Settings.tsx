@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Palette, FileText, Lock, Upload, Save, AlertCircle, CheckCircle, Facebook, MessageCircle, Loader } from 'lucide-react';
+import { User, Palette, FileText, Lock, Upload, Save, AlertCircle, CheckCircle, Facebook, MessageCircle, Loader, Database, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
 import { Doctor } from '../types';
+import { db, getSyncStats, initLocalDB } from '../src/db/localDB';
+import { syncManager } from '../src/services/syncService';
 
 interface SettingsProps {
   user: any;
@@ -14,7 +16,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
-  const [activeTab, setActiveTab] = useState<'branding' | 'prescription' | 'profile' | 'password'>('branding');
+  const [activeTab, setActiveTab] = useState<'branding' | 'prescription' | 'profile' | 'password' | 'data'>('branding');
   
   const [brandingFormData, setBrandingFormData] = useState({
     clinic_name: '',
@@ -43,6 +45,8 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploadLoading, setLogoUploadLoading] = useState(false);
+  const [syncStats, setSyncStats] = useState<{ total: number; synced: number; pending: number; errors: number } | null>(null);
+  const [hardResetLoading, setHardResetLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -69,6 +73,19 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
     fetchData();
   }, [user]);
+
+  useEffect(() => {
+    const fetchSyncStats = async () => {
+      try {
+        const stats = await getSyncStats();
+        setSyncStats(stats);
+      } catch (error) {
+        console.error('Failed to fetch sync stats:', error);
+      }
+    };
+
+    fetchSyncStats();
+  }, []);
 
   useEffect(() => {
     if (branding) {
@@ -201,6 +218,42 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     }
   };
 
+  const handleHardReset = async () => {
+    const confirmed = window.confirm('⚠️ تحذير: سيتم حذف جميع البيانات المحلية وإعادة تحميلها من السيرفر. هل أنت متأكد؟');
+    if (!confirmed) return;
+
+    try {
+      setHardResetLoading(true);
+      toast.loading('جاري حذف قاعدة البيانات المحلية...', { id: 'hard-reset' });
+
+      // Delete local DB
+      await db.delete();
+
+      toast.loading('جاري إعادة إنشاء قاعدة البيانات...', { id: 'hard-reset' });
+
+      // Reinitialize DB
+      await initLocalDB();
+
+      toast.loading('جاري تحميل البيانات من السيرفر...', { id: 'hard-reset' });
+
+      // Pull latest data
+      await syncManager.forceSync();
+
+      toast.success('تم إعادة تحميل البيانات بنجاح! سيتم إعادة تحميل الصفحة...', { id: 'hard-reset' });
+
+      // Reload page
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+
+    } catch (error) {
+      console.error('Hard reset error:', error);
+      toast.error('فشل إعادة تحميل البيانات. تحقق من اتصال الإنترنت وحاول مرة أخرى.', { id: 'hard-reset' });
+    } finally {
+      setHardResetLoading(false);
+    }
+  };
+
   if (loading || brandingLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -260,6 +313,17 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
         >
           <Lock size={20} />
           كلمة المرور
+        </button>
+        <button
+          onClick={() => setActiveTab('data')}
+          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${
+            activeTab === 'data'
+              ? 'border-teal-600 text-teal-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Database size={20} />
+          إدارة البيانات
         </button>
       </div>
 
@@ -536,6 +600,67 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
             <Save size={18} />
             {saving ? 'جاري التحديث...' : 'تحديث كلمة المرور'}
           </button>
+        </div>
+      )}
+
+      {activeTab === 'data' && (
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">إدارة البيانات والمزامنة</h3>
+
+          <div className="grid md:grid-cols-2 gap-8 mb-8">
+            <div>
+              <h4 className="text-lg font-semibold text-gray-800 mb-4 font-[Tajawal]">إحصائيات قاعدة البيانات المحلية</h4>
+              {syncStats ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="font-[Tajawal]">إجمالي السجلات:</span>
+                    <span className="font-semibold">{syncStats.total}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-[Tajawal]">السجلات المتزامنة:</span>
+                    <span className="font-semibold text-green-600">{syncStats.synced}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-[Tajawal]">في انتظار المزامنة:</span>
+                    <span className="font-semibold text-yellow-600">{syncStats.pending}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-[Tajawal]">أخطاء المزامنة:</span>
+                    <span className="font-semibold text-red-600">{syncStats.errors}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-gray-500 font-[Tajawal]">جاري تحميل الإحصائيات...</div>
+              )}
+            </div>
+
+            <div>
+              <h4 className="text-lg font-semibold text-gray-800 mb-4 font-[Tajawal]">أدوات المطور</h4>
+              <p className="text-sm text-gray-600 mb-4 font-[Tajawal]">
+                استخدم هذه الأداة عندما تكون البيانات المحلية غير متزامنة مع السيرفر أو عند وجود مشاكل في العرض.
+              </p>
+              <button
+                onClick={handleHardReset}
+                disabled={hardResetLoading}
+                className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
+              >
+                {hardResetLoading ? (
+                  <>
+                    <Loader size={18} className="animate-spin" />
+                    جاري إعادة التحميل...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={18} />
+                    ⚠️ إعادة تحميل البيانات من السيرفر
+                  </>
+                )}
+              </button>
+              <p className="text-xs text-red-600 mt-2 font-[Tajawal]">
+                تحذير: سيتم حذف جميع البيانات المحلية وإعادة تحميلها من السيرفر
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
