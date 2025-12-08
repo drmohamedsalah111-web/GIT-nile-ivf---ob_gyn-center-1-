@@ -71,6 +71,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
           <LogOut className="w-4 h-4" />
           <span>Sign Out</span>
         </button>
+
+        {/* Developer Credits */}
+        <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+          <p className="text-xs text-gray-400 font-[Tajawal] leading-tight">
+            برمجة وتطوير<br />
+            د. محمد صلاح جبر
+          </p>
+        </div>
       </div>
     </div>
   );

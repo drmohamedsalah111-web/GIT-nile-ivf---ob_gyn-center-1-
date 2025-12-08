@@ -2,6 +2,7 @@
   "name": "nile-ivf-emr",
   "private": true,
   "version": "1.0.0",
+  "author": "Dr. Mohamed Salah Gabr",
   "type": "module",
   "scripts": {
     "dev": "vite",

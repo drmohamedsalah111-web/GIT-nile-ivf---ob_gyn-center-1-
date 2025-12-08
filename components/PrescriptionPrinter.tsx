@@ -235,6 +235,26 @@ const PrescriptionPrinter: React.FC<PrescriptionPrinterProps> = ({
               </div>
             </div>
 
+            {/* System Signature */}
+            <div style={{
+              marginTop: '30px',
+              paddingTop: '15px',
+              borderTop: '1px solid #ccc',
+              fontSize: '10px',
+              color: '#999',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                {branding?.clinic_address && <div>{branding.clinic_address}</div>}
+                {branding?.clinic_phone && <div>Tel: {branding.clinic_phone}</div>}
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                System developed by Dr. Mohamed Salah Gabr
+              </div>
+            </div>
+
             {/* Date Time */}
             <div className="date-time">
               تم الطباعة: {date} في {time}

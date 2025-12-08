@@ -224,6 +224,12 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </button>
         </div>
       </div>
+
+      {/* Footer with Copyright and Developer Credits */}
+      <div className="mt-8 text-center text-gray-500 text-sm font-[Tajawal]">
+        <p>Copyright © 2025 Nile IVF Center. All Rights Reserved.</p>
+        <p className="mt-1">تم التطوير بواسطة د. محمد صلاح جبر</p>
+      </div>
     </div>
   );
 };
