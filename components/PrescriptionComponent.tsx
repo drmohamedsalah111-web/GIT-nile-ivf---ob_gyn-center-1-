@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Search, Pill, Printer } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Plus, Trash2, Pill, Printer, ChevronDown } from 'lucide-react';
 import { PrescriptionItem } from '../types';
-import { EGYPTIAN_MARKET_DRUGS, DrugEntry, searchDrugs, getDrugsByCategory } from '../data/egyptian_drugs';
+import { EGYPTIAN_MARKET_DRUGS, DrugEntry, searchDrugs, getDrugsByCategory, getAllDrugs } from '../data/egyptian_drugs';
 
 interface PrescriptionComponentProps {
   prescriptions: PrescriptionItem[];
@@ -16,43 +16,97 @@ const PrescriptionComponent: React.FC<PrescriptionComponentProps> = ({
   onPrint,
   showPrintButton = false
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedDrug, setSelectedDrug] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const [customDose, setCustomDose] = useState<string>('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const categories = Object.keys(EGYPTIAN_MARKET_DRUGS);
-  const categoryDrugs = selectedCategory ? getDrugsByCategory(selectedCategory) : [];
-  const searchResults = searchQuery ? searchDrugs(searchQuery) : [];
-
-  const handleAddDrug = () => {
-    if (!selectedDrug) return;
-
-    let drugEntry: DrugEntry | undefined;
-
-    // Find the drug entry
-    if (searchQuery) {
-      drugEntry = searchResults.find(d => d.tradeName === selectedDrug);
-    } else {
-      drugEntry = categoryDrugs.find(d => d.tradeName === selectedDrug);
+  // Get suggestions based on search query
+  const getSuggestions = (): DrugEntry[] => {
+    if (!searchQuery.trim()) {
+      // Show common categories when no search query
+      const commonCategories = ['Antibiotics', 'Analgesics', 'Pregnancy Supplements', 'Luteal Support'];
+      return commonCategories.flatMap(category => getDrugsByCategory(category).slice(0, 3));
     }
+    return searchDrugs(searchQuery);
+  };
 
-    if (!drugEntry) return;
+  const suggestions = getSuggestions();
 
-    const dose = customDose || drugEntry.dose;
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isDropdownOpen) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setHighlightedIndex(prev =>
+            prev < suggestions.length - 1 ? prev + 1 : prev
+          );
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setHighlightedIndex(prev => prev > 0 ? prev - 1 : -1);
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
+            handleSelectDrug(suggestions[highlightedIndex]);
+          }
+          break;
+        case 'Escape':
+          setIsDropdownOpen(false);
+          setHighlightedIndex(-1);
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isDropdownOpen, highlightedIndex, suggestions]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+          inputRef.current && !inputRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+        setHighlightedIndex(-1);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectDrug = (drug: DrugEntry) => {
+    const dose = customDose || drug.dose;
 
     const newPrescription: PrescriptionItem = {
-      category: drugEntry.category,
-      drug: drugEntry.tradeName,
+      category: drug.category,
+      drug: drug.tradeName,
       dose: dose
     };
 
     onPrescriptionsChange([...prescriptions, newPrescription]);
 
     // Reset form
-    setSelectedDrug('');
-    setCustomDose('');
     setSearchQuery('');
+    setCustomDose('');
+    setIsDropdownOpen(false);
+    setHighlightedIndex(-1);
+  };
+
+  const highlightMatch = (text: string, query: string) => {
+    if (!query) return text;
+    const regex = new RegExp(`(${query})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, index) =>
+      regex.test(part) ? <mark key={index} className="bg-yellow-200">{part}</mark> : part
+    );
   };
 
   const handleRemoveDrug = (index: number) => {
@@ -85,86 +139,81 @@ const PrescriptionComponent: React.FC<PrescriptionComponentProps> = ({
         )}
       </div>
 
-      {/* Search Bar */}
+      {/* Smart Combobox */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-        <input
-          type="text"
-          placeholder="Search for medication..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setSelectedCategory('');
-            setSelectedDrug('');
-          }}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-        />
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search for medication... (e.g., Augmentin, Paracetamol)"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setIsDropdownOpen(true);
+              setHighlightedIndex(-1);
+            }}
+            onFocus={() => setIsDropdownOpen(true)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent pr-10"
+          />
+          <ChevronDown
+            className={`absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 transition-transform ${
+              isDropdownOpen ? 'rotate-180' : ''
+            }`}
+          />
+        </div>
+
+        {/* Dropdown */}
+        {isDropdownOpen && (
+          <div
+            ref={dropdownRef}
+            className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+          >
+            {suggestions.length > 0 ? (
+              suggestions.map((drug, index) => (
+                <div
+                  key={`${drug.tradeName}-${index}`}
+                  onClick={() => handleSelectDrug(drug)}
+                  className={`px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 hover:bg-purple-50 ${
+                    index === highlightedIndex ? 'bg-purple-100' : ''
+                  }`}
+                >
+                  <div className="font-medium text-gray-900">
+                    {highlightMatch(drug.tradeName, searchQuery)}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {highlightMatch(drug.active, searchQuery)} ({drug.category})
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {drug.dose}
+                  </div>
+                </div>
+              ))
+            ) : searchQuery ? (
+              <div className="px-4 py-3 text-gray-500 text-center">
+                No medications found for "{searchQuery}"
+              </div>
+            ) : (
+              <div className="px-4 py-3 text-gray-500 text-center">
+                Start typing to search medications...
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Category Selection (only show if not searching) */}
-      {!searchQuery && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {categories.map(category => (
-            <button
-              key={category}
-              onClick={() => {
-                setSelectedCategory(category);
-                setSelectedDrug('');
-              }}
-              className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                selectedCategory === category
-                  ? 'bg-purple-600 text-white border-purple-600'
-                  : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Drug Selection */}
-      {(selectedCategory || searchQuery) && (
-        <div className="space-y-3">
-          <select
-            value={selectedDrug}
-            onChange={(e) => setSelectedDrug(e.target.value)}
+      {/* Custom Dose Input (shown when there's a search query) */}
+      {searchQuery && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Custom Dose (optional - leave empty for standard dose)
+          </label>
+          <input
+            type="text"
+            value={customDose}
+            onChange={(e) => setCustomDose(e.target.value)}
+            placeholder="e.g., 1 tablet twice daily after meals"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="">
-              {searchQuery ? 'Select from search results...' : 'Select medication...'}
-            </option>
-            {(searchQuery ? searchResults : categoryDrugs).map(drug => (
-              <option key={drug.tradeName} value={drug.tradeName}>
-                {drug.tradeName} ({drug.active})
-              </option>
-            ))}
-          </select>
-
-          {/* Custom Dose Input */}
-          {selectedDrug && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Dose (leave empty for standard dose)
-              </label>
-              <input
-                type="text"
-                value={customDose}
-                onChange={(e) => setCustomDose(e.target.value)}
-                placeholder="Custom dose instructions..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-          )}
-
-          <button
-            onClick={handleAddDrug}
-            disabled={!selectedDrug}
-            className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Add to Prescription
-          </button>
+          />
         </div>
       )}
 
