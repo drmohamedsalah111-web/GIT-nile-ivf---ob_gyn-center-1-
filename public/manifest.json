@@ -1,0 +1,28 @@
+{
+  "name": "Nile IVF Center",
+  "short_name": "Nile IVF",
+  "description": "Comprehensive IVF and Obstetrics Management System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#00838f",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["medical", "health", "productivity"],
+  "lang": "ar-EG",
+  "dir": "ltr"
+}

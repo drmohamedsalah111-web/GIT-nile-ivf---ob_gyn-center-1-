@@ -15,6 +15,9 @@ import { Toaster } from 'react-hot-toast';
 import { authService } from './services/authService';
 import { LogOut } from 'lucide-react';
 import { BrandingProvider } from './context/BrandingContext';
+import { initPWA } from './src/lib/pwa';
+import { initLocalDB } from './src/db/localDB';
+import { syncService } from './src/services/syncService';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
@@ -23,20 +26,38 @@ const App: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    
-    const checkUser = async () => {
+
+    const initializeApp = async () => {
       try {
+        // Initialize PWA features
+        await initPWA();
+
+        // Initialize local database
+        await initLocalDB();
+
+        // Check user authentication
         const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
+
+        // TODO: Initialize sync manager when ready
+        // syncManager would start background sync here
+
       } catch (error) {
-        console.log('No user logged in');
-        setUser(null);
+        console.error('App initialization error:', error);
+        // Continue with app even if PWA features fail
+        try {
+          const currentUser = await authService.getCurrentUser();
+          setUser(currentUser);
+        } catch (authError) {
+          console.log('No user logged in');
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    checkUser();
+    initializeApp();
 
     const subscription = authService.onAuthStateChange((user) => {
       setUser(user);

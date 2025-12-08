@@ -1,5 +1,8 @@
 
 import { supabase } from './supabaseClient';
+import { syncManager } from '../src/services/syncService';
+import { db as localDB } from '../src/lib/localDb';
+import { networkStatus } from '../src/lib/networkStatus';
 import { Patient, IvfCycle, Visit, StimulationLog } from '../types';
 
 // Utility Functions (Local logic)
@@ -52,27 +55,50 @@ export const calculateFertilizationRate = (fertilized: number, mii: number): num
 export const db = {
   // --- Patients ---
   getPatients: async (): Promise<Patient[]> => {
-    const { data, error } = await supabase
-      .from('patients')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching patients:', error);
-      return [];
+    try {
+      // Try local DB first (instant response)
+      const localPatients = await localDB.patients.toArray();
+      
+      // Background sync if online
+      if (networkStatus.getStatus()) {
+        setTimeout(() => syncManager.read('patients'), 0);
+      }
+
+      return localPatients
+        .filter((p: any) => p.remoteId)
+        .map((p: any) => ({
+          id: p.remoteId,
+          name: p.name,
+          age: p.age || 0,
+          phone: p.phone,
+          husbandName: p.husband_name || '',
+          history: p.history || '',
+          createdAt: p.createdAt?.toString() || new Date().toISOString()
+        }));
+    } catch (error) {
+      console.error('Error fetching local patients, falling back to Supabase:', error);
+      
+      // Fallback to Supabase if local DB fails
+      const { data, error: supabaseError } = await supabase
+        .from('patients')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (supabaseError) {
+        console.error('Error fetching patients from Supabase:', supabaseError);
+        return [];
+      }
+      
+      return data.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        age: p.age,
+        phone: p.phone,
+        husbandName: p.husband_name,
+        history: p.history,
+        createdAt: p.created_at
+      }));
     }
-    
-    // Map snake_case DB columns to camelCase types if needed, 
-    // or ensure types match DB. Assuming strict match or mapping here:
-    return data.map((p: any) => ({
-      id: p.id,
-      name: p.name,
-      age: p.age,
-      phone: p.phone,
-      husbandName: p.husband_name,
-      history: p.history,
-      createdAt: p.created_at
-    }));
   },
 
   savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
@@ -80,21 +106,33 @@ export const db = {
     
     if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
 
-    const { data, error } = await supabase
-      .from('patients')
-      .insert([{
-        name: patient.name,
-        age: patient.age,
-        phone: patient.phone,
-        husband_name: patient.husbandName,
-        history: patient.history,
-        doctor_id: user.id
-      }])
-      .select()
-      .single();
+    const patientData = {
+      name: patient.name,
+      age: patient.age,
+      phone: patient.phone,
+      husband_name: patient.husbandName,
+      history: patient.history,
+      doctor_id: user.id
+    };
 
-    if (error) throw error;
-    return data;
+    try {
+      // Save using sync manager for offline-first support
+      return await syncManager.save('patients', patientData);
+    } catch (error) {
+      console.error('Failed to save patient via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { data, error: supabaseError } = await supabase
+          .from('patients')
+          .insert([patientData])
+          .select()
+          .single();
+
+        if (supabaseError) throw supabaseError;
+        return data;
+      }
+      throw error;
+    }
   },
 
   // --- Visits ---
@@ -110,38 +148,66 @@ export const db = {
 
   // --- Cycles ---
   getCycles: async (): Promise<IvfCycle[]> => {
-    const { data, error } = await supabase
-      .from('ivf_cycles')
-      .select(`
-        *,
-        stimulation_logs (*)
-      `)
-      .order('start_date', { ascending: false });
+    try {
+      // Try local DB first (instant response)
+      const localCycles = await localDB.cycles.toArray();
+      
+      // Background sync if online
+      if (networkStatus.getStatus()) {
+        setTimeout(() => syncManager.read('ivf_cycles'), 0);
+      }
 
-    if (error) {
-      console.error(error);
-      return [];
+      return localCycles
+        .filter((c: any) => c.remoteId)
+        .map((c: any) => ({
+          id: c.remoteId,
+          patientId: c.patientId,
+          protocol: c.protocol,
+          startDate: c.startDate,
+          status: c.status,
+          logs: c.logs || [],
+          lab: c.lab,
+          transfer: c.transfer,
+          outcome: c.outcome,
+          assessment: c.assessment
+        }));
+    } catch (error) {
+      console.error('Error fetching local cycles, falling back to Supabase:', error);
+      
+      // Fallback to Supabase if local DB fails
+      const { data, error: supabaseError } = await supabase
+        .from('ivf_cycles')
+        .select(`
+          *,
+          stimulation_logs (*)
+        `)
+        .order('start_date', { ascending: false });
+
+      if (supabaseError) {
+        console.error(supabaseError);
+        return [];
+      }
+
+      return data.map((c: any) => ({
+        id: c.id,
+        patientId: c.patient_id,
+        protocol: c.protocol,
+        startDate: c.start_date,
+        status: c.status,
+        logs: c.stimulation_logs?.map((l: any) => ({
+          id: l.id,
+          date: l.date,
+          cycleDay: l.cycle_day,
+          fsh: l.fsh,
+          hmg: l.hmg,
+          e2: l.e2,
+          lh: l.lh,
+          rtFollicles: l.rt_follicles,
+          ltFollicles: l.lt_follicles
+        })) || [],
+        lab: c.lab_data
+      }));
     }
-
-    return data.map((c: any) => ({
-      id: c.id,
-      patientId: c.patient_id,
-      protocol: c.protocol,
-      startDate: c.start_date,
-      status: c.status,
-      logs: c.stimulation_logs.map((l: any) => ({
-        id: l.id,
-        date: l.date,
-        cycleDay: l.cycle_day,
-        fsh: l.fsh,
-        hmg: l.hmg,
-        e2: l.e2,
-        lh: l.lh,
-        rtFollicles: l.rt_follicles,
-        ltFollicles: l.lt_follicles
-      })) || [],
-      lab: c.lab_data
-    }));
   },
 
   saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
@@ -149,20 +215,32 @@ export const db = {
     
     if (userError || !user) throw new Error('يجب تسجيل الدخول أولاً');
 
-    const { data, error } = await supabase
-      .from('ivf_cycles')
-      .insert([{
-        patient_id: cycle.patientId,
-        protocol: cycle.protocol,
-        status: cycle.status,
-        start_date: cycle.startDate,
-        doctor_id: user.id
-      }])
-      .select()
-      .single();
+    const cycleData = {
+      patient_id: cycle.patientId,
+      protocol: cycle.protocol,
+      status: cycle.status,
+      start_date: cycle.startDate,
+      doctor_id: user.id
+    };
 
-    if (error) throw error;
-    return data;
+    try {
+      // Save using sync manager for offline-first support
+      return await syncManager.save('ivf_cycles', cycleData);
+    } catch (error) {
+      console.error('Failed to save cycle via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { data, error: supabaseError } = await supabase
+          .from('ivf_cycles')
+          .insert([cycleData])
+          .select()
+          .single();
+
+        if (supabaseError) throw supabaseError;
+        return data;
+      }
+      throw error;
+    }
   },
 
   // --- Logs ---

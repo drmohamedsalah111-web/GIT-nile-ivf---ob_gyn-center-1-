@@ -1,4 +1,7 @@
 import { supabase } from './supabaseClient';
+import { syncManager } from '../src/services/syncService';
+import { db as localDB } from '../src/lib/localDb';
+import { networkStatus } from '../src/lib/networkStatus';
 import { Pregnancy, AntenatalVisit, BiometryScan } from '../types';
 
 // ============================================================================
@@ -69,10 +72,10 @@ export const calculateGAFromEDD = (eddDate: string): { weeks: number; days: numb
   const edd = new Date(eddDate);
   const diffTime = edd.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  const weeksRemaining = Math.floor(diffDays / 7);
-  const daysRemaining = diffDays % 7;
-  const gaWeeks = 40 - weeksRemaining;
-  const gaDays = 7 - daysRemaining;
+  const totalDaysToEDD = Math.max(0, diffDays);
+  const totalGADays = 40 * 7 - totalDaysToEDD;
+  const gaWeeks = Math.floor(totalGADays / 7);
+  const gaDays = totalGADays % 7;
   return { weeks: Math.max(0, gaWeeks), days: Math.max(0, gaDays) };
 };
 
@@ -283,17 +286,27 @@ export const obstetricsService = {
   // PREGNANCIES
   createPregnancy: async (pregnancy: Omit<Pregnancy, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { data, error } = await supabase
-        .from('pregnancies')
-        .insert([pregnancy])
-        .select()
-        .single();
+      try {
+        // Save using sync manager for offline-first support
+        return await syncManager.save('pregnancies', pregnancy);
+      } catch (error) {
+        console.error('Failed to save pregnancy via sync manager:', error);
+        // Fallback to direct Supabase if online
+        if (networkStatus.getStatus()) {
+          const { data, error: supabaseError } = await supabase
+            .from('pregnancies')
+            .insert([pregnancy])
+            .select()
+            .single();
 
-      if (error) {
-        console.error('Supabase error inserting pregnancy:', error);
-        throw new Error(`Failed to create pregnancy: ${error.message}`);
+          if (supabaseError) {
+            console.error('Supabase error inserting pregnancy:', supabaseError);
+            throw new Error(`Failed to create pregnancy: ${supabaseError.message}`);
+          }
+          return data;
+        }
+        throw error;
       }
-      return data;
     } catch (err: any) {
       console.error('Exception in createPregnancy:', err);
       throw err;
@@ -301,6 +314,23 @@ export const obstetricsService = {
   },
 
   getPregnancyByPatient: async (patientId: string) => {
+    try {
+      // Try local DB first
+      const localPregnancies = await localDB.pregnancies.where('patientId').equals(patientId).toArray();
+      
+      // Background sync if online
+      if (networkStatus.getStatus()) {
+        setTimeout(() => syncManager.read('pregnancies'), 0);
+      }
+
+      if (localPregnancies.length > 0 && localPregnancies[0].remoteId) {
+        return localPregnancies[0];
+      }
+    } catch (error) {
+      console.error('Error fetching local pregnancy, falling back to Supabase:', error);
+    }
+    
+    // Fallback to Supabase
     const { data, error } = await supabase
       .from('pregnancies')
       .select('*')
@@ -326,61 +356,129 @@ export const obstetricsService = {
 
   // ANTENATAL VISITS
   createANCVisit: async (visit: Omit<AntenatalVisit, 'id' | 'created_at'>) => {
-    const { data, error } = await supabase
-      .from('antenatal_visits')
-      .insert([visit])
-      .select()
-      .single();
+    try {
+      // Save using sync manager for offline-first support
+      return await syncManager.save('antenatal_visits', visit);
+    } catch (error) {
+      console.error('Failed to save ANC visit via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { data, error: supabaseError } = await supabase
+          .from('antenatal_visits')
+          .insert([visit])
+          .select()
+          .single();
 
-    if (error) throw error;
-    return data;
+        if (supabaseError) throw supabaseError;
+        return data;
+      }
+      throw error;
+    }
   },
 
   getANCVisits: async (pregnancyId: string) => {
-    const { data, error } = await supabase
-      .from('antenatal_visits')
-      .select('*')
-      .eq('pregnancy_id', pregnancyId)
-      .order('visit_date', { ascending: false });
+    try {
+      // Try local DB first
+      const localVisits = await localDB.visits.where('patientId').equals(pregnancyId).toArray();
+      
+      // Background sync if online
+      if (networkStatus.getStatus()) {
+        setTimeout(() => syncManager.read('antenatal_visits'), 0);
+      }
 
-    if (error) throw error;
-    return data;
+      return localVisits.filter((v: any) => v.remoteId);
+    } catch (error) {
+      console.error('Error fetching local ANC visits, falling back to Supabase:', error);
+      
+      // Fallback to Supabase
+      const { data, error: supabaseError } = await supabase
+        .from('antenatal_visits')
+        .select('*')
+        .eq('pregnancy_id', pregnancyId)
+        .order('visit_date', { ascending: false });
+
+      if (supabaseError) throw supabaseError;
+      return data;
+    }
   },
 
   updateANCVisit: async (visitId: string, updates: Partial<AntenatalVisit>) => {
-    const { data, error } = await supabase
-      .from('antenatal_visits')
-      .update(updates)
-      .eq('id', visitId)
-      .select()
-      .single();
+    try {
+      // Try sync manager for update
+      await syncManager.update('antenatal_visits', visitId, updates);
+      return updates;
+    } catch (error) {
+      console.error('Failed to update ANC visit via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { data, error: supabaseError } = await supabase
+          .from('antenatal_visits')
+          .update(updates)
+          .eq('id', visitId)
+          .select()
+          .single();
 
-    if (error) throw error;
-    return data;
+        if (supabaseError) throw supabaseError;
+        return data;
+      }
+      throw error;
+    }
   },
 
   deleteANCVisit: async (visitId: string) => {
-    const { error } = await supabase
-      .from('antenatal_visits')
-      .delete()
-      .eq('id', visitId);
+    try {
+      // Try sync manager for delete
+      await syncManager.update('antenatal_visits', visitId, { deleted: true });
+    } catch (error) {
+      console.error('Failed to delete ANC visit via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { error: supabaseError } = await supabase
+          .from('antenatal_visits')
+          .delete()
+          .eq('id', visitId);
 
-    if (error) throw error;
+        if (supabaseError) throw supabaseError;
+      } else {
+        throw error;
+      }
+    }
   },
 
   // BIOMETRY SCANS
   createBiometryScan: async (scan: Omit<BiometryScan, 'id' | 'created_at'>) => {
-    const { data, error } = await supabase
-      .from('biometry_scans')
-      .insert([scan])
-      .select()
-      .single();
+    try {
+      // Save using sync manager for offline-first support
+      return await syncManager.save('biometry_scans', scan);
+    } catch (error) {
+      console.error('Failed to save biometry scan via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { data, error: supabaseError } = await supabase
+          .from('biometry_scans')
+          .insert([scan])
+          .select()
+          .single();
 
-    if (error) throw error;
-    return data;
+        if (supabaseError) throw supabaseError;
+        return data;
+      }
+      throw error;
+    }
   },
 
   getBiometryScans: async (pregnancyId: string) => {
+    try {
+      // Try local DB first (would need custom table for biometry scans)
+      // For now, fallback to Supabase
+      if (networkStatus.getStatus()) {
+        setTimeout(() => syncManager.read('biometry_scans'), 0);
+      }
+    } catch (error) {
+      console.error('Error fetching local biometry scans:', error);
+    }
+    
+    // Fallback to Supabase
     const { data, error } = await supabase
       .from('biometry_scans')
       .select('*')
@@ -392,23 +490,45 @@ export const obstetricsService = {
   },
 
   updateBiometryScan: async (scanId: string, updates: Partial<BiometryScan>) => {
-    const { data, error } = await supabase
-      .from('biometry_scans')
-      .update(updates)
-      .eq('id', scanId)
-      .select()
-      .single();
+    try {
+      // Try sync manager for update
+      await syncManager.update('biometry_scans', scanId, updates);
+      return updates;
+    } catch (error) {
+      console.error('Failed to update biometry scan via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { data, error: supabaseError } = await supabase
+          .from('biometry_scans')
+          .update(updates)
+          .eq('id', scanId)
+          .select()
+          .single();
 
-    if (error) throw error;
-    return data;
+        if (supabaseError) throw supabaseError;
+        return data;
+      }
+      throw error;
+    }
   },
 
   deleteBiometryScan: async (scanId: string) => {
-    const { error } = await supabase
-      .from('biometry_scans')
-      .delete()
-      .eq('id', scanId);
+    try {
+      // Try sync manager for delete
+      await syncManager.update('biometry_scans', scanId, { deleted: true });
+    } catch (error) {
+      console.error('Failed to delete biometry scan via sync manager:', error);
+      // Fallback to direct Supabase if online
+      if (networkStatus.getStatus()) {
+        const { error: supabaseError } = await supabase
+          .from('biometry_scans')
+          .delete()
+          .eq('id', scanId);
 
-    if (error) throw error;
+        if (supabaseError) throw supabaseError;
+      } else {
+        throw error;
+      }
+    }
   },
 };

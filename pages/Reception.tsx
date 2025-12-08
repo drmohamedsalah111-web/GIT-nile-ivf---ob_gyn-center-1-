@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Search, Phone, User, History, Loader2 } from 'lucide-react';
-import { db } from '../services/ivfService';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../src/db/localDB';
+import { syncService } from '../src/services/syncService';
 import { Patient } from '../types';
 import toast from 'react-hot-toast';
 
@@ -15,22 +17,11 @@ const Reception: React.FC = () => {
     history: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  // Fetch patients when switching to directory or on mount
-  const fetchPatients = async () => {
-    setLoading(true);
-    const data = await db.getPatients();
-    setPatients(data);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    if (activeTab === 'directory') {
-      fetchPatients();
-    }
-  }, [activeTab]);
+  // Reactive patient data from local database
+  const patients = useLiveQuery(async () => {
+    return await db.patients.toArray();
+  }, []) || [];
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,14 +33,14 @@ const Reception: React.FC = () => {
     const toastId = toast.loading("Registering patient...");
 
     try {
-      await db.savePatient({
+      await syncService.saveItem('patients', {
         name: formData.name,
-        age: parseInt(formData.age),
+        age: parseInt(formData.age) || 0,
         phone: formData.phone,
-        husbandName: formData.husbandName,
+        husband_name: formData.husbandName,
         history: formData.history
       });
-      
+
       toast.success("Patient registered successfully!", { id: toastId });
       setFormData({ name: '', age: '', phone: '', husbandName: '', history: '' });
     } catch (error) {
@@ -173,12 +164,6 @@ const Reception: React.FC = () => {
               />
             </div>
 
-            {loading ? (
-              <div className="py-12 flex justify-center text-teal-600">
-                <Loader2 className="w-8 h-8 animate-spin" />
-              </div>
-            ) : (
-              <>
                 {/* Mobile: render cards */}
                 <div className="block md:hidden space-y-3">
                   {filteredPatients.length > 0 ? filteredPatients.map(patient => (
@@ -188,7 +173,9 @@ const Reception: React.FC = () => {
                           <div className="text-sm font-bold text-gray-900">{patient.name}</div>
                           <div className="text-xs text-gray-500 mt-1">{patient.phone} • Age {patient.age}</div>
                         </div>
-                        <div className="text-right text-xs text-gray-400 font-mono">{patient.id.slice(0,6)}</div>
+                        <div className="text-right text-xs text-gray-400 font-mono">
+                          {patient.remoteId ? patient.remoteId.slice(0,6) : `#${patient.id}`}
+                        </div>
                       </div>
                       <div className="mt-3 text-xs text-gray-600 truncate">{patient.history}</div>
                     </div>
@@ -214,7 +201,9 @@ const Reception: React.FC = () => {
                       {filteredPatients.length > 0 ? (
                         filteredPatients.map((patient) => (
                           <tr key={patient.id} className="hover:bg-teal-50/30 transition-colors text-sm text-gray-700">
-                            <td className="px-6 py-4 font-mono text-xs text-gray-400">{patient.id.slice(0, 6)}</td>
+                            <td className="px-6 py-4 font-mono text-xs text-gray-400">
+                              {patient.remoteId ? patient.remoteId.slice(0, 6) : `#${patient.id}`}
+                            </td>
                             <td className="px-6 py-4 font-bold text-gray-900">{patient.name}</td>
                             <td className="px-6 py-4">{patient.age}</td>
                             <td className="px-6 py-4">{patient.phone}</td>
@@ -232,8 +221,6 @@ const Reception: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
-              </>
-            )}
           </div>
         )}
       </div>

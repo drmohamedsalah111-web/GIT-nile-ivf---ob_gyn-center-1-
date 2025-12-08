@@ -1,8 +1,35 @@
-import { supabase } from './supabaseClient';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../src/db/localDB';
+import { syncService } from '../src/services/syncService';
 import { Visit } from '../types';
 
+// React hook for reactive visits data
+export const useVisitsByPatient = (patientId: string) => {
+  return useLiveQuery(async () => {
+    if (!patientId) return [];
+    return await db.visits.where('patient_id').equals(patientId).toArray();
+  }, [patientId]);
+};
+
+// React hook for all visits (reactive)
+export const useAllVisits = () => {
+  return useLiveQuery(async () => {
+    return await db.visits.toArray();
+  }, []);
+};
+
 export const visitsService = {
-  // Unified save visit function for all departments
+  // READ: Get visits for a patient (from local DB - reactive via hooks)
+  getVisitsByPatient: async (patientId: string) => {
+    return await db.visits.where('patient_id').equals(patientId).toArray();
+  },
+
+  // READ: Get all visits (from local DB)
+  getAllVisits: async () => {
+    return await db.visits.toArray();
+  },
+
+  // WRITE: Save new visit (offline-first)
   saveVisit: async (params: {
     patientId: string;
     department: string;
@@ -11,95 +38,56 @@ export const visitsService = {
     prescription?: any[];
     notes?: string;
   }) => {
-    try {
-      const visitData = {
-        patient_id: params.patientId, // snake_case for database
-        date: new Date().toISOString().split('T')[0],
-        department: params.department,
-        diagnosis: params.diagnosis || '',
-        prescription: params.prescription || [],
-        notes: params.notes || '',
-        clinical_data: params.clinicalData,
-      };
+    const visitData = {
+      patient_id: params.patientId,
+      date: new Date().toISOString().split('T')[0],
+      department: params.department,
+      diagnosis: params.diagnosis || '',
+      prescription: params.prescription || [],
+      notes: params.notes || '',
+      clinical_data: params.clinicalData,
+    };
 
-      const { data, error } = await supabase
-        .from('visits')
-        .insert([visitData])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Supabase error inserting visit:', error);
-        throw new Error(`Failed to save visit: ${error.message}`);
-      }
-      return data;
-    } catch (err: any) {
-      console.error('Exception in saveVisit:', err);
-      throw err;
-    }
+    return await syncService.saveItem('visits', visitData);
   },
 
-  // Create a new visit with clinical data (legacy - kept for compatibility)
+  // WRITE: Update existing visit (offline-first)
+  updateVisit: async (localId: number, updates: Partial<{
+    patient_id: string;
+    department: string;
+    diagnosis: string;
+    prescription: any[];
+    notes: string;
+    clinical_data: any;
+  }>) => {
+    return await syncService.updateItem('visits', localId, updates);
+  },
+
+  // WRITE: Delete visit (offline-first)
+  deleteVisit: async (localId: number) => {
+    return await syncService.deleteItem('visits', localId);
+  },
+
+  // Utility: Find local visit by remote ID
+  findVisitByRemoteId: async (remoteId: string) => {
+    return await db.visits.where('remoteId').equals(remoteId).first();
+  },
+
+  // Utility: Get visit by local ID
+  getVisitById: async (localId: number) => {
+    return await db.visits.get(localId);
+  },
+
+  // Legacy compatibility: Create visit (maps to saveVisit)
   createVisit: async (visit: Omit<Visit, 'id'>) => {
-    try {
-      const { data, error } = await supabase
-        .from('visits')
-        .insert([visit])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Supabase error inserting visit:', error);
-        throw new Error(`Failed to create visit: ${error.message}`);
-      }
-      return data;
-    } catch (err: any) {
-      console.error('Exception in createVisit:', err);
-      throw err;
-    }
-  },
-
-  // Get visits for a patient
-  getVisitsByPatient: async (patientId: string) => {
-    const { data, error } = await supabase
-      .from('visits')
-      .select('*')
-      .eq('patient_id', patientId) // snake_case for database
-      .order('date', { ascending: false });
-
-    if (error) throw error;
-    return data;
-  },
-
-  // Update a visit
-  updateVisit: async (visitId: string, updates: Partial<Visit>) => {
-    // Convert camelCase to snake_case for database
-    const dbUpdates: any = {};
-    if (updates.patientId) dbUpdates.patient_id = updates.patientId;
-    if (updates.department !== undefined) dbUpdates.department = updates.department;
-    if (updates.diagnosis !== undefined) dbUpdates.diagnosis = updates.diagnosis;
-    if (updates.prescription !== undefined) dbUpdates.prescription = updates.prescription;
-    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
-    if (updates.clinical_data !== undefined) dbUpdates.clinical_data = updates.clinical_data;
-
-    const { data, error } = await supabase
-      .from('visits')
-      .update(dbUpdates)
-      .eq('id', visitId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  // Delete a visit
-  deleteVisit: async (visitId: string) => {
-    const { error } = await supabase
-      .from('visits')
-      .delete()
-      .eq('id', visitId);
-
-    if (error) throw error;
+    return await syncService.saveItem('visits', {
+      patient_id: visit.patientId,
+      date: visit.date,
+      department: visit.department,
+      diagnosis: visit.diagnosis || '',
+      prescription: visit.prescription || [],
+      notes: visit.notes || '',
+      clinical_data: visit.clinical_data || {}
+    });
   },
 };
