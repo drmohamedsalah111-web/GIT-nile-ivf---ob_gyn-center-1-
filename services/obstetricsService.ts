@@ -237,6 +237,7 @@ export const assessRiskLevel = (
 export const getDueActions = (gaWeeks: number): string[] => {
   const actions: string[] = [];
 
+  // Early pregnancy actions
   if (gaWeeks >= 11 && gaWeeks <= 13) {
     actions.push('⚠️ Nuchal Translucency (NT) Scan Due');
   }
@@ -255,9 +256,20 @@ export const getDueActions = (gaWeeks: number): string[] => {
     actions.push('⚠️ Growth Scan Recommended');
     actions.push('🧪 Full Blood Count (FBC)');
   }
-  if (gaWeeks >= 36) {
+  if (gaWeeks >= 36 && gaWeeks < 40) {
     actions.push('👶 Position Check (Cephalic/Breech)');
     actions.push('📋 Discuss Birth Plan');
+  }
+
+  // CRITICAL: Post-term pregnancy alerts
+  if (gaWeeks >= 40 && gaWeeks < 42) {
+    actions.push('⚠️ Patient Overdue: Discuss Membrane Sweep / Induction - مناقشة تمزيق الأغشية / الحث على الولادة');
+  }
+  if (gaWeeks >= 41 && gaWeeks < 42) {
+    actions.push('🟠 Late Term: Schedule Induction of Labor - جدولة الحث على الولادة');
+  }
+  if (gaWeeks >= 42) {
+    actions.push('🔴 POST TERM: CRITICAL - Immediate Delivery/Admission Required - حمل متأخر عن الموعد - ولادة فورية مطلوبة');
   }
 
   return actions;
