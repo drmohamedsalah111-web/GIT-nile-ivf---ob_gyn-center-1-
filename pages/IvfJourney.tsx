@@ -2,1232 +2,541 @@ import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db as dexieDB } from '../src/db/localDB';
 import { calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate, db } from '../services/ivfService';
-import { Patient, PrescriptionItem, CycleAssessment, OpuLabData, TransferData, OutcomeData } from '../types';
+import { Patient } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer, Microscope, Activity, Stethoscope } from 'lucide-react';
+import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer, Microscope, Activity, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
-import { supabase } from '../services/supabaseClient';
 
-// Comprehensive Cycle Data Interface using existing types
-interface CycleData {
-  id: string;
-  protocol: string;
-  status: 'Assessment' | 'Active' | 'PickUp' | 'Transfer' | 'Frozen' | 'Done';
-  assessment: CycleAssessment & {
-    plan?: {
-      recommendedProtocol: string;
-      startingDose: string;
-      trigger: string;
-      hint: string;
-      suggestedMeds: string[];
-    };
-  };
-  stimulation: {
-    logs: Array<{ date: string, cd: number, fsh: number, hmg: number, e2: number, lh: number, folliclesRt: string, folliclesLt: string }>;
-    trigger: { date: string, type: string, hours: number };
-    prescription: Array<string>;
-  };
-  lab: OpuLabData;
-  transfer: TransferData;
-  outcome: OutcomeData;
+const PROTOCOL_OPTIONS = ['Long', 'Antagonist', 'Flare-up', 'Mini-IVF'];
+
+const LOCAL_IVF_DRUGS = {
+  'Induction (Stimulation)': ['Gonal-F 75 IU', 'Merional 75 IU', 'Menogon 75 IU', 'Clomid 50mg', 'Femara 2.5mg'],
+  'Trigger Shots': ['Ovitrelle 250mcg', 'Choriomon 5000 IU', 'Pregnyl 5000 IU', 'Decapeptyl 0.1mg (Trigger)'],
+  'Down-Regulation': ['Cetrotide 0.25mg', 'Orgalutran 0.25mg', 'Decapeptyl 0.1mg Daily', 'Zoladex 3.6mg'],
+  'Luteal Support': ['Cyclogest 400mg', 'Cyclogest 200mg', 'Prontogest 100mg', 'Duphaston 10mg', 'Utrogestan 200mg', 'Crinone 8% Gel']
+};
+
+const PROTOCOL_INFO: any = {
+  'Long': {
+    name: 'Long Agonist Protocol',
+    arabicName: 'بروتوكول الناهضات الطويلة',
+    bestFor: ['Normal responders', 'Regular cycles', 'PCO patients'],
+    duration: '35-42 days',
+    stimDays: '10-12 days',
+    stimDrugs: ['Gonal-F 75 IU', 'Merional 75 IU', 'Fostimon 75 IU'],
+    trigger: ['Ovitrelle 250mcg', 'Choriomon 5000 IU'],
+    luteal: ['Cyclogest 400mg', 'Utrogestan 200mg']
+  },
+  'Antagonist': {
+    name: 'Antagonist Protocol',
+    arabicName: 'بروتوكول المضادات',
+    bestFor: ['Poor responders', 'Previous low response'],
+    duration: '14-16 days',
+    stimDays: '8-10 days',
+    stimDrugs: ['Gonal-F 75-150 IU', 'Merional 75 IU', 'Menopur 75 IU'],
+    trigger: ['Ovitrelle 250mcg', 'Decapeptyl 0.1mg (Trigger)'],
+    luteal: ['Cyclogest 400mg', 'Progynova 2mg']
+  },
+  'Flare-up': {
+    name: 'Flare-up Protocol',
+    arabicName: 'بروتوكول التنشيط الحاد',
+    bestFor: ['Poor responders', 'Diminished ovarian reserve'],
+    duration: '10-12 days',
+    stimDays: '8-9 days',
+    stimDrugs: ['Gonal-F 150-300 IU', 'Merional 150 IU'],
+    trigger: ['Ovitrelle 250mcg', 'Choriomon 5000 IU'],
+    luteal: ['Cyclogest 400mg', 'Duphaston 10mg']
+  },
+  'Mini-IVF': {
+    name: 'Mini-IVF Protocol',
+    arabicName: 'بروتوكول الحقن المجهري الخفيف',
+    bestFor: ['Poor responders', 'Previous OHSS'],
+    duration: '10-14 days',
+    stimDays: '7-8 days',
+    stimDrugs: ['Clomid 50mg', 'Femara 2.5mg', 'Gonal-F 75 IU'],
+    trigger: ['Ovitrelle 250mcg'],
+    luteal: ['Cyclogest 200mg', 'Utrogestan 200mg']
+  }
+};
+
+interface StimulationLog {
+  id?: string;
+  date: string;
+  cycleDay: number;
+  fsh: string;
+  hmg: string;
+  e2: string;
+  lh: string;
+  rtFollicles: string;
+  ltFollicles: string;
+  endometriumThickness?: string;
 }
 
-// Smart Protocol Recommender Engine
-const recommendProtocol = (age: number, bmi: number, amh: number, afc: number, pcosHistory: boolean) => {
-  // High Responder Criteria (PCOS or AMH > 3.5 or AFC > 20)
-  if (pcosHistory || amh > 3.5 || afc > 20) {
-    return {
-      recommendedProtocol: 'GnRH Antagonist',
-      trigger: 'Agonist Trigger (Decapeptyl) or Dual Trigger',
-      startingDose: '150 IU',
-      hint: 'High risk of OHSS. Avoid hCG trigger alone. Freeze-all strategy preferred.',
-      suggestedMeds: ['Gonal-F 75 IU', 'Merional 75 IU', 'Cetrotide 0.25mg', 'Decapeptyl 0.1mg (Trigger)']
-    };
-  }
+interface CycleDataState {
+  id: string;
+  patientId: string;
+  protocol: string;
+  status: 'Assessment' | 'Active' | 'PickUp' | 'Transfer' | 'Done';
+  startDate: string;
+  
+  // Assessment Tab
+  coupleAge?: number;
+  coupleBMI?: number;
+  amh?: number;
+  afc?: number;
+  pcosHistory?: boolean;
+  maleFactorAnalysis?: string;
+  maleFactorDiagnosis?: string;
+  recommendedProtocol?: string;
+  
+  // Stimulation Tab
+  stimulationLogs: StimulationLog[];
+  triggerDate?: string;
+  
+  // Lab Tab
+  opuDate?: string;
+  totalOocytes?: number;
+  mii?: number;
+  mi?: number;
+  gv?: number;
+  atretic?: number;
+  maturationRate?: number;
+  fertilizedTwoPN?: number;
+  fertilizationRate?: number;
+  
+  // Transfer Tab
+  transferDate?: string;
+  numberTransferred?: number;
+  embryoQuality?: string;
+  betaHcg?: number;
+  clinicalPregnancy?: boolean;
+  gestationalSac?: boolean;
+  fHR?: boolean;
+}
 
-  // Poor Responder Criteria (AMH < 1.1)
-  if (amh < 1.1) {
-    return {
-      recommendedProtocol: 'GnRH Antagonist or Short Flare',
-      trigger: 'Ovitrelle 250mcg',
-      startingDose: '300 - 450 IU',
-      hint: 'Expect low oocyte yield. Consider accumulation cycles. Adjuvants: DHEA/Growth Hormone priming.',
-      suggestedMeds: ['Gonal-F 300 IU', 'Merional 150 IU', 'Cetrotide 0.25mg', 'Ovitrelle 250mcg']
-    };
-  }
-
-  // Normal Responder (AMH 1.2 - 3.5)
-  return {
-    recommendedProtocol: 'GnRH Antagonist',
-    trigger: 'Ovitrelle 250mcg',
-    startingDose: '225 IU',
-    hint: 'Standard response expected.',
-    suggestedMeds: ['Gonal-F 75 IU', 'Merional 75 IU', 'Cetrotide 0.25mg', 'Ovitrelle 250mcg']
-  };
-};
-
-// Utility function for safe nested state updates
-const updateNestedState = <T extends Record<string, any>>(
-  obj: T,
-  path: string[],
-  value: any
-): T => {
-  if (path.length === 0) return obj;
-
-  const [head, ...tail] = path;
-  if (tail.length === 0) {
-    return { ...obj, [head]: value };
-  }
-
-  const nested = obj[head] || {};
-  return {
-    ...obj,
-    [head]: updateNestedState(nested, tail, value)
-  };
-};
-
-// Input validation utilities
-const validateNumericInput = (value: string, min: number = 0, max?: number): number => {
-  const num = parseFloat(value);
-  if (isNaN(num) || num < min || (max !== undefined && num > max)) {
-    throw new Error(`Invalid input: must be a number between ${min} and ${max || 'unlimited'}`);
-  }
-  return num;
-};
-
-const safeParseInt = (value: string, defaultValue: number = 0): number => {
-  const parsed = parseInt(value, 10);
-  return isNaN(parsed) ? defaultValue : parsed;
-};
-
-const defaultImaging = {
-  baselineUltrasound: {
-    uterus: { dimensions: '', myometrium: '', cavity: '' },
-    endometrium: { thickness: 0, pattern: '' },
-    ovaries: {
-      afcRight: 0,
-      afcLeft: 0,
-      pathology: { cyst: false, endometrioma: false, dermoid: false }
-    },
-    adnexa: { hydrosalpinx: false }
-  },
-  hysteroscopyHSG: {
-    status: [],
-    actionTaken: ''
-  }
+const defaultCycleData: CycleDataState = {
+  id: '',
+  patientId: '',
+  protocol: 'Antagonist',
+  status: 'Assessment',
+  startDate: new Date().toISOString().split('T')[0],
+  stimulationLogs: [],
+  coupleAge: undefined,
+  coupleBMI: undefined,
+  amh: undefined,
+  afc: undefined,
+  pcosHistory: false,
+  maleFactorAnalysis: '',
+  maleFactorDiagnosis: '',
+  recommendedProtocol: 'GnRH Antagonist',
+  triggerDate: undefined,
+  opuDate: undefined,
+  totalOocytes: undefined,
+  mii: undefined,
+  mi: undefined,
+  gv: undefined,
+  atretic: undefined,
+  maturationRate: undefined,
+  fertilizedTwoPN: undefined,
+  fertilizationRate: undefined,
+  transferDate: undefined,
+  numberTransferred: undefined,
+  embryoQuality: '',
+  betaHcg: undefined,
+  clinicalPregnancy: false,
+  gestationalSac: false,
+  fHR: false
 };
 
 const IvfJourney: React.FC = () => {
   const patients = useLiveQuery(() => dexieDB.patients.toArray(), []) || [];
   const [selectedPatientId, setSelectedPatientId] = useState('');
-  const [cycleData, setCycleData] = useState<CycleData | null>(null);
+  const [cycleData, setCycleData] = useState<CycleDataState>(defaultCycleData);
   const [activeTab, setActiveTab] = useState<'assessment' | 'stimulation' | 'lab' | 'transfer'>('assessment');
-  const [prescription, setPrescription] = useState<PrescriptionItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
-
-  // Load cycle data when patient changes
-  useEffect(() => {
-    const loadCycle = async () => {
-      if (selectedPatientId) {
-        try {
-          const cycles = await db.getCycles();
-          const activeCycle = cycles.find(c => c.patientId === selectedPatientId && c.status === 'Active');
-
-          if (activeCycle) {
-            // Load existing cycle data
-            setCycleData({
-              id: activeCycle.id,
-              protocol: activeCycle.protocol,
-              status: activeCycle.status as any,
-              assessment: {
-                ...(activeCycle.assessment || {
-                  coupleProfile: {},
-                  maleFactor: {},
-                  femaleFactor: {},
-                  tubalUterine: {}
-                }),
-                imaging: activeCycle.assessment?.imaging || defaultImaging
-              },
-              stimulation: {
-                logs: activeCycle.logs.map(log => ({
-                  date: log.date,
-                  cd: log.cycleDay,
-                  fsh: parseFloat(log.fsh) || 0,
-                  hmg: parseFloat(log.hmg) || 0,
-                  e2: parseFloat(log.e2) || 0,
-                  lh: parseFloat(log.lh) || 0,
-                  folliclesRt: log.rtFollicles,
-                  folliclesLt: log.ltFollicles
-                })),
-                trigger: { date: '', type: '', hours: 0 },
-                prescription: []
-              },
-              lab: activeCycle.lab || {},
-              transfer: activeCycle.transfer || { lutealSupport: [] },
-              outcome: activeCycle.outcome || {}
-            });
-          } else {
-            // Initialize new cycle
-            setCycleData(null);
-          }
-        } catch (error) {
-          toast.error('Failed to load cycle data');
-        }
-      }
-    };
-    loadCycle();
-  }, [selectedPatientId]);
-
-  // Start new cycle
-  const startNewCycle = async (protocol: string) => {
-    if (!selectedPatientId) {
-      toast.error('Select a patient first');
-      return;
-    }
-
-    const toastId = toast.loading('Starting new cycle...');
-    try {
-      const newCycle = await db.saveCycle({
-        patientId: selectedPatientId,
-        protocol: protocol as any,
-        startDate: new Date().toISOString().split('T')[0],
-        status: 'Active'
-      });
-
-      setCycleData({
-        id: newCycle.id,
-        protocol: protocol,
-        status: 'Active',
-        assessment: {
-          coupleProfile: {},
-          maleFactor: {},
-          femaleFactor: {},
-          tubalUterine: {},
-          imaging: defaultImaging
-        },
-        stimulation: {
-          logs: [],
-          trigger: { date: '', type: '', hours: 0 },
-          prescription: []
-        },
-        lab: {},
-        transfer: { lutealSupport: [] },
-        outcome: {}
-      });
-
-      setActiveTab('assessment');
-      toast.success('New IVF Cycle Started', { id: toastId });
-    } catch (error) {
-      toast.error('Error starting cycle', { id: toastId });
-    }
-  };
-
-  // Save cycle data to Supabase
-  const saveCycleData = async (section: keyof CycleData, data: any) => {
-    if (!cycleData) return;
-
-    try {
-      const updateData: any = {};
-      updateData[`${section}_data`] = data;
-      updateData.updated_at = new Date().toISOString();
-
-      const { error } = await supabase
-        .from('ivf_cycles')
-        .update(updateData)
-        .eq('id', cycleData.id);
-
-      if (error) throw error;
-
-      setCycleData({ ...cycleData, [section]: data });
-      toast.success(`${section.charAt(0).toUpperCase() + section.slice(1)} saved successfully`);
-    } catch (error) {
-      toast.error(`Failed to save ${section} data`);
-    }
-  };
-
-  // Auto-calculations
-  const maleTMSC = calculateTMSC(
-    cycleData?.assessment.maleFactor?.volume || 0,
-    cycleData?.assessment.maleFactor?.concentration || 0,
-    cycleData?.assessment.maleFactor?.motility || 0
-  );
-
-  const maleDiagnosis = analyzeSemenAnalysis(
-    cycleData?.assessment.maleFactor?.volume || 0,
-    cycleData?.assessment.maleFactor?.concentration || 0,
-    cycleData?.assessment.maleFactor?.motility || 0,
-    cycleData?.assessment.maleFactor?.morphology || 0
-  );
-
-  const ovarianReserve = classifyOvarianReserve(
-    cycleData?.assessment.femaleFactor?.amh,
-    cycleData?.assessment.femaleFactor?.afcRight
-  );
-
-  const maturationRate = calculateMaturationRate(
-    cycleData?.lab.totalOocytes || 0,
-    cycleData?.lab.mii || 0
-  );
-
-  const fertilizationRate = calculateFertilizationRate(
-    cycleData?.lab.fertilizedTwoPN || 0,
-    cycleData?.lab.mii || 0
-  );
-
-  // Chart data for stimulation
-  const chartData = cycleData?.stimulation.logs.map(log => ({
-    day: `D${log.cd}`,
-    e2: log.e2,
-    follicles: (log.folliclesRt.split(',').length + log.folliclesLt.split(',').length) || 0
-  })) || [];
 
   const selectedPatient = patients.find(p => String(p.id) === selectedPatientId);
 
+  useEffect(() => {
+    if (selectedPatientId) {
+      setCycleData({ ...defaultCycleData, patientId: selectedPatientId });
+    }
+  }, [selectedPatientId]);
+
+  const handleStartCycle = async () => {
+    if (!selectedPatientId) {
+      toast.error('Please select a patient');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const newCycleId = `cycle_${Date.now()}`;
+      setCycleData(prev => ({
+        ...prev,
+        id: newCycleId,
+        patientId: selectedPatientId,
+        status: 'Active',
+        startDate: new Date().toISOString().split('T')[0]
+      }));
+      toast.success('New IVF cycle started');
+    } catch (error) {
+      console.error('Error starting cycle:', error);
+      toast.error('Failed to start cycle');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddStimulationLog = () => {
+    const newLog: StimulationLog = {
+      date: new Date().toISOString().split('T')[0],
+      cycleDay: cycleData.stimulationLogs.length + 1,
+      fsh: '',
+      hmg: '',
+      e2: '',
+      lh: '',
+      rtFollicles: '',
+      ltFollicles: '',
+      endometriumThickness: ''
+    };
+    setCycleData(prev => ({
+      ...prev,
+      stimulationLogs: [...prev.stimulationLogs, newLog]
+    }));
+  };
+
+  const handleUpdateLog = (index: number, field: string, value: any) => {
+    setCycleData(prev => {
+      const newLogs = [...prev.stimulationLogs];
+      newLogs[index] = { ...newLogs[index], [field]: value };
+      return { ...prev, stimulationLogs: newLogs };
+    });
+  };
+
+  const handleRemoveLog = (index: number) => {
+    setCycleData(prev => ({
+      ...prev,
+      stimulationLogs: prev.stimulationLogs.filter((_, i) => i !== index)
+    }));
+  };
+
+  const calculateMaturation = () => {
+    if (!cycleData.totalOocytes || cycleData.totalOocytes === 0) return 0;
+    if (!cycleData.mii) return 0;
+    return ((cycleData.mii / cycleData.totalOocytes) * 100).toFixed(1);
+  };
+
+  const calculateFertilization = () => {
+    if (!cycleData.mii || cycleData.mii === 0) return 0;
+    if (!cycleData.fertilizedTwoPN) return 0;
+    return ((cycleData.fertilizedTwoPN / cycleData.mii) * 100).toFixed(1);
+  };
+
+  const stimulationChartData = cycleData.stimulationLogs.map(log => ({
+    day: `D${log.cycleDay}`,
+    e2: parseFloat(log.e2) || 0,
+    lh: parseFloat(log.lh) || 0,
+    date: log.date
+  }));
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+    <div className="max-w-7xl mx-auto space-y-6" style={{ fontFamily: 'Tajawal, sans-serif' }} dir="ltr">
       {/* Header */}
-      <div className="bg-gradient-to-r from-teal-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg" dir="ltr">
+      <div className="bg-gradient-to-r from-teal-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold mb-2">🔬 رحلة التلقيح الاصطناعي - IVF Journey</h1>
-            <p className="text-teal-100">
-              Patient: <span className="font-semibold">{selectedPatient?.name || 'Not selected'}</span>
-              {cycleData && (
-                <>
-                  {' • '}Protocol: <span className="font-semibold">{cycleData.protocol}</span>
-                  {' • '}Status: <span className="font-semibold">{cycleData.status}</span>
-                </>
-              )}
-            </p>
+            <h1 className="text-3xl font-bold mb-2">🔬 IVF Journey</h1>
+            <p className="text-teal-100">Comprehensive IVF Cycle Management & Tracking</p>
           </div>
-          <Baby className="w-16 h-16 text-teal-200" />
+          <TestTube className="w-16 h-16 opacity-20" />
         </div>
       </div>
 
-      {/* Patient Selection & Cycle Start */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100" dir="ltr">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Select Patient</label>
-            <select
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:border-teal-500"
-              value={selectedPatientId}
-              onChange={(e) => setSelectedPatientId(e.target.value)}
-            >
-              <option value="">-- Select Patient --</option>
-              {patients.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {selectedPatientId && !cycleData && (
-            <>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Protocol</label>
-                <select
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:border-teal-500"
-                  id="protocol-select"
-                >
-                  <option value="Long">Long Protocol</option>
-                  <option value="Antagonist">Antagonist Protocol</option>
-                  <option value="Flare-up">Flare-up Protocol</option>
-                </select>
-              </div>
-              <button
-                onClick={() => {
-                  const protocol = (document.getElementById('protocol-select') as HTMLSelectElement).value;
-                  startNewCycle(protocol);
-                }}
-                className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors"
-              >
-                Start New Cycle
-              </button>
-            </>
-          )}
-        </div>
+      {/* Patient Selector */}
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Select Patient</label>
+        <select
+          value={selectedPatientId}
+          onChange={(e) => setSelectedPatientId(e.target.value)}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+        >
+          <option value="">-- Select Patient --</option>
+          {patients.map(patient => (
+            <option key={patient.id} value={String(patient.id)}>
+              {patient.name} - {patient.phone}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {cycleData ? (
-        <>
-          {/* Top Tab Navigation */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="flex border-b border-gray-100 bg-gray-50 overflow-x-auto">
-              {[
-                { id: 'assessment', label: '📊 التقييم الشامل', arLabel: 'Assessment', icon: Microscope },
-                { id: 'stimulation', label: '💉 المتابعة والتنشيط', arLabel: 'Stimulation', icon: Activity },
-                { id: 'lab', label: '🔬 السحب والمعمل', arLabel: 'Lab', icon: TestTube },
-                { id: 'transfer', label: '👶 النقل والنتيجة', arLabel: 'Transfer', icon: Heart }
-              ].map((tab) => (
+      {selectedPatient && cycleData.id && (
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          {/* Cycle Header */}
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 border-b border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900">{selectedPatient.name}'s Cycle</h2>
+            <p className="text-sm text-gray-600 mt-1">Status: <span className="font-semibold text-teal-600">{cycleData.status}</span></p>
+          </div>
+
+          {/* Tabs */}
+          <div className="border-b border-gray-200">
+            <nav className="flex">
+              {['assessment', 'stimulation', 'lab', 'transfer'].map((tab) => (
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`px-3 md:px-6 py-3 md:py-4 font-bold text-xs md:text-base whitespace-nowrap transition-all duration-200 flex-1 md:flex-none flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 min-w-0 ${
-                    activeTab === tab.id
-                      ? 'border-b-4 md:border-b-4 border-teal-600 text-teal-700 bg-teal-50'
-                      : 'text-gray-600 hover:bg-gray-100'
+                  key={tab}
+                  onClick={() => setActiveTab(tab as any)}
+                  className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+                    activeTab === tab
+                      ? 'border-b-2 border-teal-500 text-teal-600 bg-teal-50'
+                      : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  <tab.icon className="w-4 h-4 md:w-5 md:h-5" />
-                  <span className="text-center leading-tight">{tab.arLabel}</span>
-                  <span className="hidden lg:inline text-sm">{tab.label.split(' ').slice(1).join(' ')}</span>
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
               ))}
-            </div>
+            </nav>
+          </div>
 
-            <div className="p-6">
-              {/* Tab 1: Assessment */}
-              {activeTab === 'assessment' && (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-3 mb-6">
-                    <Microscope className="w-8 h-8 text-teal-600" />
-                    <h3 className="text-2xl font-bold text-gray-800">📊 التقييم الشامل - Comprehensive Assessment</h3>
-                  </div>
-
-                  {/* Couple Profile */}
-                  <div className="bg-slate-50 p-6 rounded-lg border border-slate-200">
-                    <h4 className="text-lg font-semibold text-slate-800 mb-4">👫 ملف الزوجين - Couple Profile</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Age</label>
-                        <input
-                          type="number"
-                          value={cycleData.assessment.coupleProfile?.age || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            assessment: {
-                              ...cycleData.assessment,
-                              coupleProfile: { ...cycleData.assessment.coupleProfile, age: parseInt(e.target.value) || 0 }
-                            }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">BMI</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={cycleData.assessment.coupleProfile?.bmi || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            assessment: {
-                              ...cycleData.assessment,
-                              coupleProfile: { ...cycleData.assessment.coupleProfile, bmi: parseFloat(e.target.value) || 0 }
-                            }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Infertility Duration (years)</label>
-                        <input
-                          type="number"
-                          value={cycleData.assessment.coupleProfile?.infertilityDuration || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            assessment: {
-                              ...cycleData.assessment,
-                              coupleProfile: { ...cycleData.assessment.coupleProfile, infertilityDuration: parseInt(e.target.value) || 0 }
-                            }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Type</label>
-                        <select
-                          value={cycleData.assessment.coupleProfile?.infertilityType || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            assessment: {
-                              ...cycleData.assessment,
-                              coupleProfile: { ...cycleData.assessment.coupleProfile, infertilityType: e.target.value as 'Primary' | 'Secondary' }
-                            }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                        >
-                          <option value="">Select</option>
-                          <option value="Primary">Primary</option>
-                          <option value="Secondary">Secondary</option>
-                        </select>
-                      </div>
+          {/* Tab Content */}
+          <div className="p-6">
+            {/* Assessment Tab */}
+            {activeTab === 'assessment' && (
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Couple Profile */}
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Heart className="w-5 h-5 text-blue-600" /> Couple Profile
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Age (Wife)</label>
+                      <input
+                        type="number"
+                        value={cycleData.coupleAge || ''}
+                        onChange={(e) => setCycleData(prev => ({ ...prev, coupleAge: parseInt(e.target.value) || undefined }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Years"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">BMI</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={cycleData.coupleBMI || ''}
+                        onChange={(e) => setCycleData(prev => ({ ...prev, coupleBMI: parseFloat(e.target.value) || undefined }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="kg/m²"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="pcosCheckbox"
+                        checked={cycleData.pcosHistory || false}
+                        onChange={(e) => setCycleData(prev => ({ ...prev, pcosHistory: e.target.checked }))}
+                        className="w-4 h-4"
+                      />
+                      <label htmlFor="pcosCheckbox" className="text-sm font-medium text-gray-700">PCOS History</label>
                     </div>
                   </div>
+                </div>
 
-                  {/* Male Factor */}
-                  <div className="bg-blue-50 p-3 md:p-6 rounded-lg border border-blue-200">
-                    <h4 className="text-lg font-semibold text-blue-800 mb-4 text-sm md:text-base">العامل الذكري - Male Factor (WHO 2021)</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Volume (mL)</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={cycleData.assessment.maleFactor?.volume || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            assessment: {
-                              ...cycleData.assessment,
-                              maleFactor: { ...cycleData.assessment.maleFactor, volume: parseFloat(e.target.value) || 0 }
-                            }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Concentration (M/mL)</label>
-                        <input
-                          type="number"
-                          value={cycleData.assessment.maleFactor?.concentration || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            assessment: {
-                              ...cycleData.assessment,
-                              maleFactor: { ...cycleData.assessment.maleFactor, concentration: parseFloat(e.target.value) || 0 }
-                            }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Motility (%)</label>
-                        <input
-                          type="number"
-                          value={cycleData.assessment.maleFactor?.motility || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            assessment: {
-                              ...cycleData.assessment,
-                              maleFactor: { ...cycleData.assessment.maleFactor, motility: parseFloat(e.target.value) || 0 }
-                            }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Morphology (%)</label>
-                        <input
-                          type="number"
-                          value={cycleData.assessment.maleFactor?.morphology || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            assessment: {
-                              ...cycleData.assessment,
-                              maleFactor: { ...cycleData.assessment.maleFactor, morphology: parseFloat(e.target.value) || 0 }
-                            }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
+                {/* Ovarian Reserve */}
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Microscope className="w-5 h-5 text-green-600" /> Ovarian Reserve
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">AMH (ng/mL)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={cycleData.amh || ''}
+                        onChange={(e) => setCycleData(prev => ({ ...prev, amh: parseFloat(e.target.value) || undefined }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        placeholder="0.0"
+                      />
                     </div>
-
-                    <div className="mt-4 p-4 bg-blue-100 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="w-5 h-5 text-blue-600" />
-                        <span className="font-semibold text-blue-800">TMSC: {maleTMSC}M</span>
-                      </div>
-                      <div className="text-sm text-blue-700">Diagnosis: {maleDiagnosis}</div>
-                      {maleTMSC < 5 && (
-                        <div className="flex items-center gap-2 mt-2 text-red-600">
-                          <AlertCircle className="w-4 h-4" />
-                          <span className="font-semibold">🔴 Severe Male Factor (ICSI Required)</span>
-                        </div>
-                      )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">AFC</label>
+                      <input
+                        type="number"
+                        value={cycleData.afc || ''}
+                        onChange={(e) => setCycleData(prev => ({ ...prev, afc: parseInt(e.target.value) || undefined }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        placeholder="Count"
+                      />
                     </div>
-                  </div>
-
-                  {/* Female Factor */}
-                  <div className="bg-pink-50 p-3 md:p-6 rounded-lg border border-pink-200">
-                    <h4 className="text-lg font-semibold text-pink-800 mb-4 text-sm md:text-base">العامل الأنثوي - Female Factor (Ovarian Reserve)</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">AMH (ng/mL)</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={cycleData.assessment.femaleFactor?.amh || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            assessment: {
-                              ...cycleData.assessment,
-                              femaleFactor: { ...cycleData.assessment.femaleFactor, amh: parseFloat(e.target.value) || 0 }
-                            }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">FSH (IU/L)</label>
-                        <input
-                          type="number"
-                          value={cycleData.assessment.femaleFactor?.fsh || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            assessment: {
-                              ...cycleData.assessment,
-                              femaleFactor: { ...cycleData.assessment.femaleFactor, fsh: parseFloat(e.target.value) || 0 }
-                            }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">AFC</label>
-                        <input
-                          type="number"
-                          value={cycleData.assessment.femaleFactor?.afcRight || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            assessment: {
-                              ...cycleData.assessment,
-                              femaleFactor: { ...cycleData.assessment.femaleFactor, afcRight: parseFloat(e.target.value) || 0 }
-                            }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 p-4 bg-pink-100 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle className="w-5 h-5 text-pink-600" />
-                        <span className="font-semibold text-pink-800">Ovarian Classification: {ovarianReserve}</span>
-                      </div>
-                      {ovarianReserve === 'High Responder' && (
-                        <div className="flex items-center gap-2 mt-2 text-purple-600">
-                          <AlertCircle className="w-4 h-4" />
-                          <span className="font-semibold">⚠️ High Responder (PCOS Risk - OHSS Prevention)</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Advanced Imaging Section */}
-                  <div className="bg-indigo-50 p-3 md:p-6 rounded-lg border border-indigo-200">
-                    <h4 className="text-lg font-semibold text-indigo-800 mb-4 flex items-center gap-2 text-sm md:text-base">
-                      📺 التصوير المتقدم - Advanced Imaging
-                    </h4>
-
-                    {/* Baseline Ultrasound */}
-                    <div className="mb-6">
-                      <h5 className="text-md font-semibold text-indigo-700 mb-3 text-sm md:text-base">Baseline Ultrasound (TVS)</h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
-                        {/* Uterus */}
-                        <div className="space-y-3">
-                          <h6 className="font-medium text-gray-700">Uterus</h6>
-                          <div>
-                            <label className="block text-sm text-gray-600">Dimensions</label>
-                            <input
-                              value={cycleData.assessment.imaging?.baselineUltrasound.uterus.dimensions || ''}
-                              onChange={(e) => setCycleData({
-                                ...cycleData,
-                                assessment: {
-                                  ...cycleData.assessment,
-                                  imaging: {
-                                    ...cycleData.assessment.imaging,
-                                    baselineUltrasound: {
-                                      ...cycleData.assessment.imaging?.baselineUltrasound,
-                                      uterus: { ...cycleData.assessment.imaging?.baselineUltrasound?.uterus, dimensions: e.target.value }
-                                    }
-                                  }
-                                }
-                              })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                              placeholder="e.g., 7.2 x 4.1 x 5.8 cm"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-600">Myometrium</label>
-                            <select
-                              value={cycleData.assessment.imaging?.baselineUltrasound.uterus.myometrium || ''}
-                              onChange={(e) => setCycleData({
-                                ...cycleData,
-                                assessment: {
-                                  ...cycleData.assessment,
-                                  imaging: {
-                                    ...cycleData.assessment.imaging,
-                                    baselineUltrasound: {
-                                      ...cycleData.assessment.imaging?.baselineUltrasound,
-                                      uterus: { ...cycleData.assessment.imaging?.baselineUltrasound?.uterus, myometrium: e.target.value }
-                                    }
-                                  }
-                                }
-                              })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                            >
-                              <option value="">Select</option>
-                              <option value="Normal">Normal</option>
-                              <option value="Adenomyosis">Adenomyosis</option>
-                              <option value="Fibroids">Fibroids</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-600">Cavity</label>
-                            <select
-                              value={cycleData.assessment.imaging?.baselineUltrasound.uterus.cavity || ''}
-                              onChange={(e) => setCycleData({
-                                ...cycleData,
-                                assessment: {
-                                  ...cycleData.assessment,
-                                  imaging: {
-                                    ...cycleData.assessment.imaging,
-                                    baselineUltrasound: {
-                                      ...cycleData.assessment.imaging?.baselineUltrasound,
-                                      uterus: { ...cycleData.assessment.imaging?.baselineUltrasound?.uterus, cavity: e.target.value }
-                                    }
-                                  }
-                                }
-                              })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                            >
-                              <option value="">Select</option>
-                              <option value="Normal">Normal</option>
-                              <option value="Polyp">Polyp</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Endometrium */}
-                        <div className="space-y-3">
-                          <h6 className="font-medium text-gray-700">Endometrium</h6>
-                          <div>
-                            <label className="block text-sm text-gray-600">Thickness (mm)</label>
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={cycleData.assessment.imaging?.baselineUltrasound.endometrium.thickness || ''}
-                              onChange={(e) => setCycleData({
-                                ...cycleData,
-                                assessment: {
-                                  ...cycleData.assessment,
-                                  imaging: {
-                                    ...cycleData.assessment.imaging,
-                                    baselineUltrasound: {
-                                      ...cycleData.assessment.imaging?.baselineUltrasound,
-                                      endometrium: { ...cycleData.assessment.imaging?.baselineUltrasound?.endometrium, thickness: parseFloat(e.target.value) || 0 }
-                                    }
-                                  }
-                                }
-                              })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-600">Pattern</label>
-                            <select
-                              value={cycleData.assessment.imaging?.baselineUltrasound.endometrium.pattern || ''}
-                              onChange={(e) => setCycleData({
-                                ...cycleData,
-                                assessment: {
-                                  ...cycleData.assessment,
-                                  imaging: {
-                                    ...cycleData.assessment.imaging,
-                                    baselineUltrasound: {
-                                      ...cycleData.assessment.imaging?.baselineUltrasound,
-                                      endometrium: { ...cycleData.assessment.imaging?.baselineUltrasound?.endometrium, pattern: e.target.value }
-                                    }
-                                  }
-                                }
-                              })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                            >
-                              <option value="">Select</option>
-                              <option value="Triple Line">Triple Line</option>
-                              <option value="Homogeneous">Homogeneous</option>
-                              <option value="Echogenic">Echogenic</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Ovaries */}
-                      <div className="mt-4">
-                        <h6 className="font-medium text-gray-700 mb-3">Ovaries</h6>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-sm text-gray-600">AFC Right</label>
-                            <input
-                              type="number"
-                              value={cycleData.assessment.imaging?.baselineUltrasound.ovaries.afcRight || ''}
-                              onChange={(e) => setCycleData({
-                                ...cycleData,
-                                assessment: {
-                                  ...cycleData.assessment,
-                                  imaging: {
-                                    ...cycleData.assessment.imaging,
-                                    baselineUltrasound: {
-                                      ...cycleData.assessment.imaging?.baselineUltrasound,
-                                      ovaries: { ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries, afcRight: parseInt(e.target.value) || 0 }
-                                    }
-                                  }
-                                }
-                              })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-600">AFC Left</label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="50"
-                              value={cycleData?.assessment?.imaging?.baselineUltrasound?.ovaries?.afcLeft || ''}
-                              onChange={(e) => {
-                                try {
-                                  const value = safeParseInt(e.target.value, 0);
-                                  if (cycleData) {
-                                    setCycleData(updateNestedState(
-                                      cycleData,
-                                      ['assessment', 'imaging', 'baselineUltrasound', 'ovaries', 'afcLeft'],
-                                      value
-                                    ));
-                                  }
-                                } catch (error) {
-                                  toast.error('Invalid AFC value');
-                                }
-                              }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-600">Total AFC</label>
-                            <input
-                              type="number"
-                              value={(cycleData.assessment.imaging?.baselineUltrasound.ovaries.afcRight || 0) + (cycleData.assessment.imaging?.baselineUltrasound.ovaries.afcLeft || 0)}
-                              readOnly
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Pathology Checkboxes */}
-                        <div className="mt-3">
-                          <label className="block text-sm text-gray-600 mb-2">Pathology</label>
-                          <div className="flex gap-4">
-                            <label className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={cycleData.assessment.imaging?.baselineUltrasound.ovaries.pathology.cyst || false}
-                                onChange={(e) => setCycleData({
-                                  ...cycleData,
-                                  assessment: {
-                                    ...cycleData.assessment,
-                                    imaging: {
-                                      ...cycleData.assessment.imaging,
-                                      baselineUltrasound: {
-                                        ...cycleData.assessment.imaging?.baselineUltrasound,
-                                        ovaries: {
-                                          ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries,
-                                          pathology: { ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries.pathology, cyst: e.target.checked }
-                                        }
-                                      }
-                                    }
-                                  }
-                                })}
-                                className="rounded"
-                              />
-                              <span className="text-sm">Cyst</span>
-                            </label>
-                            <label className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={cycleData.assessment.imaging?.baselineUltrasound.ovaries.pathology.endometrioma || false}
-                                onChange={(e) => setCycleData({
-                                  ...cycleData,
-                                  assessment: {
-                                    ...cycleData.assessment,
-                                    imaging: {
-                                      ...cycleData.assessment.imaging,
-                                      baselineUltrasound: {
-                                        ...cycleData.assessment.imaging?.baselineUltrasound,
-                                        ovaries: {
-                                          ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries,
-                                          pathology: { ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries.pathology, endometrioma: e.target.checked }
-                                        }
-                                      }
-                                    }
-                                  }
-                                })}
-                                className="rounded"
-                              />
-                              <span className="text-sm">Endometrioma</span>
-                            </label>
-                            <label className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={cycleData.assessment.imaging?.baselineUltrasound.ovaries.pathology.dermoid || false}
-                                onChange={(e) => setCycleData({
-                                  ...cycleData,
-                                  assessment: {
-                                    ...cycleData.assessment,
-                                    imaging: {
-                                      ...cycleData.assessment.imaging,
-                                      baselineUltrasound: {
-                                        ...cycleData.assessment.imaging?.baselineUltrasound,
-                                        ovaries: {
-                                          ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries,
-                                          pathology: { ...cycleData.assessment.imaging?.baselineUltrasound?.ovaries.pathology, dermoid: e.target.checked }
-                                        }
-                                      }
-                                    }
-                                  }
-                                })}
-                                className="rounded"
-                              />
-                              <span className="text-sm">Dermoid</span>
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Adnexa */}
-                      <div className="mt-4">
-                        <h6 className="font-medium text-gray-700 mb-3">Adnexa</h6>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={cycleData.assessment.imaging?.baselineUltrasound.adnexa.hydrosalpinx || false}
-                            onChange={(e) => setCycleData({
-                              ...cycleData,
-                              assessment: {
-                                ...cycleData.assessment,
-                                imaging: {
-                                  ...cycleData.assessment.imaging,
-                                  baselineUltrasound: {
-                                    ...cycleData.assessment.imaging?.baselineUltrasound,
-                                    adnexa: { hydrosalpinx: e.target.checked }
-                                  }
-                                }
-                              }
-                            })}
-                            className="rounded"
-                          />
-                          <span className="text-sm font-medium text-red-600">Hydrosalpinx (Critical - Requires Surgery)</span>
-                        </label>
-                        {cycleData.assessment.imaging?.baselineUltrasound.adnexa.hydrosalpinx && (
-                          <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <div className="flex items-center gap-2 text-red-700">
-                              <AlertCircle className="w-5 h-5" />
-                              <span className="font-semibold">⚠️ Critical Finding: Hydrosalpinx detected</span>
-                            </div>
-                            <p className="text-sm text-red-600 mt-1">
-                              Surgical intervention required before IVF. Hydrosalpinx significantly reduces pregnancy rates.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Hysteroscopy / HSG Findings */}
-                    <div className="border-t pt-4">
-                      <h5 className="text-md font-semibold text-indigo-700 mb-3">Hysteroscopy / HSG Findings</h5>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-2">Status</label>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {['Patent Tubes', 'Blocked', 'Septum', 'Adhesions', 'Cavity Normal'].map(status => (
-                              <label key={status} className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={cycleData.assessment.imaging?.hysteroscopyHSG.status?.includes(status) || false}
-                                  onChange={(e) => {
-                                    const currentStatus = cycleData.assessment.imaging?.hysteroscopyHSG.status || [];
-                                    const newStatus = e.target.checked
-                                      ? [...currentStatus, status]
-                                      : currentStatus.filter(s => s !== status);
-                                    setCycleData({
-                                      ...cycleData,
-                                      assessment: {
-                                        ...cycleData.assessment,
-                                        imaging: {
-                                          ...cycleData.assessment.imaging,
-                                          hysteroscopyHSG: {
-                                            ...cycleData.assessment.imaging?.hysteroscopyHSG,
-                                            status: newStatus
-                                          }
-                                        }
-                                      }
-                                    });
-                                  }}
-                                  className="rounded"
-                                />
-                                <span className="text-sm">{status}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600">Action Taken</label>
-                          <textarea
-                            value={cycleData.assessment.imaging?.hysteroscopyHSG.actionTaken || ''}
-                            onChange={(e) => setCycleData({
-                              ...cycleData,
-                              assessment: {
-                                ...cycleData.assessment,
-                                imaging: {
-                                  ...cycleData.assessment.imaging,
-                                  hysteroscopyHSG: {
-                                    ...cycleData.assessment.imaging?.hysteroscopyHSG,
-                                    actionTaken: e.target.value
-                                  }
-                                }
-                              }
-                            })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                            rows={2}
-                            placeholder="e.g., Septum resected on [date], Tubes patent after intervention"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Smart Protocol Recommender */}
-                  <div className="bg-green-50 p-3 md:p-6 rounded-lg border border-green-200">
-                    <h4 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2 text-sm md:text-base">
-                      🤖 محرك التوصية الذكي - Smart Protocol Recommender
-                    </h4>
-
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4">
-                      <button
-                        onClick={() => {
-                          const age = selectedPatient?.age || 0;
-                          const bmi = cycleData.assessment.coupleProfile?.weight && cycleData.assessment.coupleProfile?.height
-                            ? (cycleData.assessment.coupleProfile.weight / Math.pow(cycleData.assessment.coupleProfile.height / 100, 2))
-                            : 0;
-                          const amh = cycleData.assessment.femaleFactor?.amh || 0;
-                          const afc = (cycleData.assessment.imaging?.baselineUltrasound.ovaries.afcRight || 0) +
-                                     (cycleData.assessment.imaging?.baselineUltrasound.ovaries.afcLeft || 0);
-                          const pcosHistory = false; // This would come from patient history
-
-                          const recommendation = recommendProtocol(age, bmi, amh, afc, pcosHistory);
-
-                          setCycleData({
-                            ...cycleData,
-                            assessment: {
-                              ...cycleData.assessment,
-                              plan: recommendation
-                            }
-                          });
-
-                          toast.success('Protocol recommendation generated!');
-                        }}
-                        className="bg-green-600 text-white px-4 md:px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
-                      >
-                        <Pill className="w-5 h-5" />
-                        <span>Suggest Protocol</span>
-                      </button>
-                    </div>
-
-                    {cycleData.assessment.plan && (
-                      <div className="bg-white p-3 md:p-4 rounded-lg border border-green-200">
-                        <h5 className="font-semibold text-green-800 mb-3 text-sm md:text-base">📋 Recommended Protocol</h5>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mb-4 text-sm md:text-base">
-                          <div>
-                            <span className="font-medium text-gray-700">Protocol:</span>
-                            <span className="ml-2 font-bold text-green-700">{cycleData.assessment.plan.recommendedProtocol}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">Starting Dose:</span>
-                            <span className="ml-2 font-bold text-blue-700">{cycleData.assessment.plan.startingDose}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">Trigger:</span>
-                            <span className="ml-2 text-gray-700">{cycleData.assessment.plan.trigger}</span>
-                          </div>
-                        </div>
-
-                        <div className="mb-4">
-                          <span className="font-medium text-gray-700">Clinical Hint:</span>
-                          <p className="mt-1 text-sm text-gray-600 bg-yellow-50 p-3 rounded border border-yellow-200">
-                            💡 {cycleData.assessment.plan.hint}
-                          </p>
-                        </div>
-
-                        <div className="mb-4">
-                          <span className="font-medium text-gray-700 mb-2 block">Suggested Medications:</span>
-                          <div className="flex flex-wrap gap-2">
-                            {cycleData.assessment.plan.suggestedMeds.map((med, index) => (
-                              <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                                {med}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            setCycleData({
-                              ...cycleData,
-                              protocol: cycleData.assessment.plan!.recommendedProtocol
-                            });
-                            toast.success('Protocol applied to cycle!');
-                          }}
-                          className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors text-sm"
-                        >
-                          Apply to Plan
-                        </button>
+                    {cycleData.amh !== undefined && cycleData.afc !== undefined && (
+                      <div className="p-3 bg-white rounded border border-green-200 text-sm">
+                        <p className="font-medium text-gray-900">
+                          Classification: <span className="text-green-600 font-bold">{classifyOvarianReserve(cycleData.amh, cycleData.afc)}</span>
+                        </p>
                       </div>
                     )}
                   </div>
-
-                  <button
-                    onClick={() => saveCycleData('assessment', cycleData.assessment)}
-                    className="w-full bg-teal-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-teal-700 transition-colors"
-                  >
-                    <Save className="w-5 h-5 inline mr-2" />
-                    حفظ التقييم - Save Assessment
-                  </button>
                 </div>
-              )}
 
-              {/* Tab 2: Stimulation & Monitoring */}
-              {activeTab === 'stimulation' && (
-                <div className="space-y-6">
-                  <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                    <h3 className="text-xl font-bold text-gray-800">💉 التحفيز والمراقبة - Stimulation & Monitoring</h3>
-                    <div className="text-xs md:text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                      <div>Protocol: {cycleData.protocol}</div>
-                      <div>Start: {cycleData.stimulation.logs[0]?.date || 'Not started'}</div>
-                    </div>
-                  </div>
+                {/* Male Factor */}
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Male Factor Analysis</h3>
+                  <textarea
+                    value={cycleData.maleFactorAnalysis || ''}
+                    onChange={(e) => setCycleData(prev => ({ ...prev, maleFactorAnalysis: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    placeholder="WHO 2021 parameters, TMSC, Morphology..."
+                    rows={3}
+                  />
+                </div>
 
-                  {/* Charts */}
-                  {chartData.length > 0 && (
-                    <div className="bg-gray-50 p-3 md:p-4 rounded-lg border border-gray-200">
-                      <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-sm md:text-base">
-                        <TrendingUp className="w-5 h-5 text-teal-600" />
-                        E2 Levels & Follicle Growth
-                      </h4>
-                      <div className="h-48 md:h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                            <XAxis dataKey="day" axisLine={false} tickLine={false} />
-                            <YAxis yAxisId="left" axisLine={false} tickLine={false} />
-                            <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} />
-                            <Tooltip />
-                            <Legend />
-                            <Line yAxisId="left" type="monotone" dataKey="e2" stroke="#00838f" strokeWidth={2} dot={{r: 3}} name="E2 (pg/mL)" />
-                            <Line yAxisId="right" type="monotone" dataKey="follicles" stroke="#ff6b6b" strokeWidth={2} dot={{r: 3}} name="Follicles >14mm" />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
+                {/* Protocol Selection */}
+                <div className="bg-amber-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Protocol Selection</h3>
+                  <select
+                    value={cycleData.protocol}
+                    onChange={(e) => setCycleData(prev => ({ ...prev, protocol: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 mb-3"
+                  >
+                    {PROTOCOL_OPTIONS.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                  {PROTOCOL_INFO[cycleData.protocol] && (
+                    <div className="p-3 bg-white rounded border border-amber-200 text-sm">
+                      <p className="font-medium text-gray-900">{PROTOCOL_INFO[cycleData.protocol].name}</p>
+                      <p className="text-gray-600 mt-1">Duration: {PROTOCOL_INFO[cycleData.protocol].duration}</p>
+                      <p className="text-gray-600">Stimulation: {PROTOCOL_INFO[cycleData.protocol].stimDays}</p>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
 
-                  {/* Stimulation Table */}
-                  <div className="overflow-x-auto rounded-lg border border-gray-200">
-                    <table className="w-full text-xs md:text-sm bg-white">
-                      <thead className="bg-gray-100 sticky top-0">
+            {/* Stimulation Tab */}
+            {activeTab === 'stimulation' && (
+              <div className="space-y-6">
+                {/* Hormone Trends Chart */}
+                {stimulationChartData.length > 0 && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Hormone Trends</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={stimulationChartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="day" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="e2" stroke="#ef4444" name="E2 (pg/mL)" />
+                        <Line type="monotone" dataKey="lh" stroke="#3b82f6" name="LH (mIU/mL)" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Daily Stimulation Logs */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Daily Stimulation Logs</h3>
+                    <button
+                      onClick={handleAddStimulationLog}
+                      className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition"
+                    >
+                      <Plus className="w-4 h-4" /> Add Day
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-white border-b">
                         <tr>
-                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">CD</th>
-                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">Date</th>
-                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">FSH</th>
-                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">HMG</th>
-                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">E2</th>
-                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">LH</th>
-                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">Rt F</th>
-                          <th className="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-700">Lt F</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700">Date</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700">Day</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700">FSH</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700">HMG</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700">E2</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700">LH</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700">Rt Follicles</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700">Lt Follicles</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700">Action</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        {cycleData.stimulation.logs.map((log, index) => (
-                          <tr key={index} className="border-t border-gray-200 hover:bg-gray-50">
-                            <td className="px-2 md:px-4 py-2 md:py-3 font-bold text-xs md:text-sm">D{log.cd}</td>
-                            <td className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm whitespace-nowrap">{log.date}</td>
-                            <td className="px-2 md:px-4 py-2 md:py-3">
+                      <tbody className="divide-y">
+                        {cycleData.stimulationLogs.map((log, idx) => (
+                          <tr key={idx} className="bg-white hover:bg-gray-50">
+                            <td className="px-3 py-2">
+                              <input
+                                type="date"
+                                value={log.date}
+                                onChange={(e) => handleUpdateLog(idx, 'date', e.target.value)}
+                                className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-gray-600">{log.cycleDay}</td>
+                            <td className="px-3 py-2">
                               <input
                                 type="number"
-                                value={log.fsh || ''}
-                                onChange={(e) => {
-                                  const newLogs = [...cycleData.stimulation.logs];
-                                  newLogs[index].fsh = parseFloat(e.target.value) || 0;
-                                  setCycleData({
-                                    ...cycleData,
-                                    stimulation: { ...cycleData.stimulation, logs: newLogs }
-                                  });
-                                }}
-                                className="w-12 md:w-16 px-1 md:px-2 py-1 border rounded text-center text-xs"
+                                value={log.fsh}
+                                onChange={(e) => handleUpdateLog(idx, 'fsh', e.target.value)}
+                                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                                placeholder="IU"
                               />
                             </td>
-                            <td className="px-2 md:px-4 py-2 md:py-3">
+                            <td className="px-3 py-2">
                               <input
                                 type="number"
-                                value={log.hmg || ''}
-                                onChange={(e) => {
-                                  const newLogs = [...cycleData.stimulation.logs];
-                                  newLogs[index].hmg = parseFloat(e.target.value) || 0;
-                                  setCycleData({
-                                    ...cycleData,
-                                    stimulation: { ...cycleData.stimulation, logs: newLogs }
-                                  });
-                                }}
-                                className="w-12 md:w-16 px-1 md:px-2 py-1 border rounded text-center text-xs"
+                                value={log.hmg}
+                                onChange={(e) => handleUpdateLog(idx, 'hmg', e.target.value)}
+                                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                                placeholder="IU"
                               />
                             </td>
-                            <td className="px-2 md:px-4 py-2 md:py-3">
+                            <td className="px-3 py-2">
                               <input
                                 type="number"
-                                value={log.e2 || ''}
-                                onChange={(e) => {
-                                  const newLogs = [...cycleData.stimulation.logs];
-                                  newLogs[index].e2 = parseFloat(e.target.value) || 0;
-                                  setCycleData({
-                                    ...cycleData,
-                                    stimulation: { ...cycleData.stimulation, logs: newLogs }
-                                  });
-                                }}
-                                className="w-12 md:w-16 px-1 md:px-2 py-1 border rounded text-center text-xs"
+                                value={log.e2}
+                                onChange={(e) => handleUpdateLog(idx, 'e2', e.target.value)}
+                                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                                placeholder="pg/mL"
                               />
                             </td>
-                            <td className="px-2 md:px-4 py-2 md:py-3">
+                            <td className="px-3 py-2">
                               <input
                                 type="number"
-                                value={log.lh || ''}
-                                onChange={(e) => {
-                                  const newLogs = [...cycleData.stimulation.logs];
-                                  newLogs[index].lh = parseFloat(e.target.value) || 0;
-                                  setCycleData({
-                                    ...cycleData,
-                                    stimulation: { ...cycleData.stimulation, logs: newLogs }
-                                  });
-                                }}
-                                className="w-12 md:w-16 px-1 md:px-2 py-1 border rounded text-center text-xs"
+                                value={log.lh}
+                                onChange={(e) => handleUpdateLog(idx, 'lh', e.target.value)}
+                                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                                placeholder="mIU/mL"
                               />
                             </td>
-                            <td className="px-2 md:px-4 py-2 md:py-3">
+                            <td className="px-3 py-2">
                               <input
-                                value={log.folliclesRt}
-                                onChange={(e) => {
-                                  const newLogs = [...cycleData.stimulation.logs];
-                                  newLogs[index].folliclesRt = e.target.value;
-                                  setCycleData({
-                                    ...cycleData,
-                                    stimulation: { ...cycleData.stimulation, logs: newLogs }
-                                  });
-                                }}
-                                className="w-14 md:w-24 px-1 md:px-2 py-1 border rounded text-center text-xs"
-                                placeholder="18,20"
+                                type="text"
+                                value={log.rtFollicles}
+                                onChange={(e) => handleUpdateLog(idx, 'rtFollicles', e.target.value)}
+                                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                                placeholder="e.g., 12,10,8"
                               />
                             </td>
-                            <td className="px-2 md:px-4 py-2 md:py-3">
+                            <td className="px-3 py-2">
                               <input
-                                value={log.folliclesLt}
-                                onChange={(e) => {
-                                  const newLogs = [...cycleData.stimulation.logs];
-                                  newLogs[index].folliclesLt = e.target.value;
-                                  setCycleData({
-                                    ...cycleData,
-                                    stimulation: { ...cycleData.stimulation, logs: newLogs }
-                                  });
-                                }}
-                                className="w-14 md:w-24 px-1 md:px-2 py-1 border rounded text-center text-xs"
-                                placeholder="18,20"
+                                type="text"
+                                value={log.ltFollicles}
+                                onChange={(e) => handleUpdateLog(idx, 'ltFollicles', e.target.value)}
+                                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                                placeholder="e.g., 11,9,7"
                               />
+                            </td>
+                            <td className="px-3 py-2">
+                              <button
+                                onClick={() => handleRemoveLog(idx)}
+                                className="p-1 hover:bg-red-100 text-red-600 rounded transition"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -1235,381 +544,276 @@ const IvfJourney: React.FC = () => {
                     </table>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      const lastDay = cycleData.stimulation.logs.length > 0
-                        ? cycleData.stimulation.logs[cycleData.stimulation.logs.length - 1].cd
-                        : 0;
-                      const newLog = {
-                        date: new Date().toISOString().split('T')[0],
-                        cd: lastDay + 1,
-                        fsh: 0,
-                        hmg: 0,
-                        e2: 0,
-                        lh: 0,
-                        folliclesRt: '',
-                        folliclesLt: ''
-                      };
-                      setCycleData({
-                        ...cycleData,
-                        stimulation: {
-                          ...cycleData.stimulation,
-                          logs: [...cycleData.stimulation.logs, newLog]
-                        }
-                      });
-                    }}
-                    className="flex items-center gap-2 text-green-700 font-bold hover:bg-green-100 px-4 py-2 rounded-lg transition-colors"
-                  >
-                    <PlusCircle className="w-5 h-5" />
-                    إضافة يوم - Add Day
-                  </button>
-
-                  {/* Prescription Integration */}
-                  <div className="bg-white p-6 rounded-lg border border-gray-200">
-                    <PrescriptionComponent
-                      prescriptions={prescription}
-                      onPrescriptionsChange={setPrescription}
-                      onPrint={() => setIsPrinterOpen(true)}
-                      showPrintButton={true}
-                    />
-                  </div>
-
-                  <button
-                    onClick={() => saveCycleData('stimulation', cycleData.stimulation)}
-                    className="w-full bg-teal-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-teal-700 transition-colors"
-                  >
-                    <Save className="w-5 h-5 inline mr-2" />
-                    حفظ بيانات التحفيز - Save Stimulation Data
-                  </button>
+                  {cycleData.stimulationLogs.length === 0 && (
+                    <p className="text-gray-500 text-center py-6">No stimulation logs yet. Click "Add Day" to start recording.</p>
+                  )}
                 </div>
-              )}
 
-              {/* Tab 3: OPU & Embryology */}
-              {activeTab === 'lab' && (
-                <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-gray-800">🔬 المعمل والأجنة - OPU & Embryology</h3>
-
-                  {/* OPU Procedure */}
-                  <div className="bg-green-50 p-6 rounded-lg border border-green-200">
-                    <h4 className="text-lg font-semibold text-green-800 mb-4">إجراء السحب - OPU Procedure</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">OPU Date</label>
-                        <input
-                          type="date"
-                          value={cycleData.lab.opuDate}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            lab: { ...cycleData.lab, opuDate: e.target.value }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Oocyte Data */}
-                  <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
-                    <h4 className="text-lg font-semibold text-blue-800 mb-4">بيانات البويضات - Oocyte Data</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Total Oocytes</label>
-                        <input
-                          type="number"
-                          value={cycleData.lab.totalOocytes || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            lab: { ...cycleData.lab, totalOocytes: parseInt(e.target.value) || 0 }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">MII</label>
-                        <input
-                          type="number"
-                          value={cycleData.lab.mii || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            lab: { ...cycleData.lab, mii: parseInt(e.target.value) || 0 }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">MI</label>
-                        <input
-                          type="number"
-                          value={cycleData.lab.mi || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            lab: { ...cycleData.lab, mi: parseInt(e.target.value) || 0 }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">GV</label>
-                        <input
-                          type="number"
-                          value={cycleData.lab.gv || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            lab: { ...cycleData.lab, gv: parseInt(e.target.value) || 0 }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 p-4 bg-blue-100 rounded-lg">
-                      <div className="text-lg font-semibold text-blue-800">
-                        Maturation Rate: {maturationRate}%
-                      </div>
-                      <div className="text-sm text-blue-600">
-                        ({cycleData.lab.mii || 0} / {cycleData.lab.totalOocytes || 0} oocytes)
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Fertilization */}
-                  <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
-                    <h4 className="text-lg font-semibold text-purple-800 mb-4">الإخصاب - Fertilization (Day 1)</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">2PN Count</label>
-                        <input
-                          type="number"
-                          value={cycleData.lab.fertilizedTwoPN || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            lab: { ...cycleData.lab, fertilizedTwoPN: parseInt(e.target.value) || 0 }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                        />
-                      </div>
-                      <div className="p-4 bg-purple-100 rounded-lg">
-                        <div className="text-lg font-semibold text-purple-800">
-                          Fertilization Rate: {fertilizationRate}%
-                        </div>
-                        <div className="text-sm text-purple-600">
-                          ({cycleData.lab.fertilizedTwoPN || 0} / {cycleData.lab.mii || 0} MII oocytes)
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Embryo Grading */}
-                  <div className="bg-yellow-50 p-6 rounded-lg border border-yellow-200">
-                    <h4 className="text-lg font-semibold text-yellow-800 mb-4">تصنيف الأجنة - Embryo Grading</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Day 3 Embryos</label>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="block text-xs text-gray-600">Grade A</label>
-                            <input
-                              type="number"
-                              value={cycleData.lab.embryoDay3A || ''}
-                              onChange={(e) => setCycleData({
-                                ...cycleData,
-                                lab: { ...cycleData.lab, embryoDay3A: parseInt(e.target.value) || 0 }
-                              })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-center"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600">Grade B</label>
-                            <input
-                              type="number"
-                              value={cycleData.lab.embryoDay3B || ''}
-                              onChange={(e) => setCycleData({
-                                ...cycleData,
-                                lab: { ...cycleData.lab, embryoDay3B: parseInt(e.target.value) || 0 }
-                              })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-center"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600">Grade C</label>
-                            <input
-                              type="number"
-                              value={cycleData.lab.embryoDay3C || ''}
-                              onChange={(e) => setCycleData({
-                                ...cycleData,
-                                lab: { ...cycleData.lab, embryoDay3C: parseInt(e.target.value) || 0 }
-                              })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-center"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Day 5 Blastocysts</label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-xs text-gray-600">Expanded</label>
-                            <input
-                              type="number"
-                              value={cycleData.lab.blastocystsExpanded || ''}
-                              onChange={(e) => setCycleData({
-                                ...cycleData,
-                                lab: { ...cycleData.lab, blastocystsExpanded: parseInt(e.target.value) || 0 }
-                              })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-center"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600">Hatching</label>
-                            <input
-                              type="number"
-                              value={cycleData.lab.blastocystsHatching || ''}
-                              onChange={(e) => setCycleData({
-                                ...cycleData,
-                                lab: { ...cycleData.lab, blastocystsHatching: parseInt(e.target.value) || 0 }
-                              })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-center"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => saveCycleData('lab', cycleData.lab)}
-                    className="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 transition-colors"
-                  >
-                    <Save className="w-5 h-5 inline mr-2" />
-                    حفظ بيانات المعمل - Save Lab Data
-                  </button>
+                {/* Trigger */}
+                <div className="bg-red-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Trigger Shot</h3>
+                  <input
+                    type="date"
+                    value={cycleData.triggerDate || ''}
+                    onChange={(e) => setCycleData(prev => ({ ...prev, triggerDate: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                  />
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Tab 4: Transfer & Outcome */}
-              {activeTab === 'transfer' && (
-                <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-gray-800">👶 النقل والنتيجة - Transfer & Outcome</h3>
-
-                  {/* Transfer Details */}
-                  <div className="bg-red-50 p-6 rounded-lg border border-red-200">
-                    <h4 className="text-lg font-semibold text-red-800 mb-4">تفاصيل النقل - Transfer Details</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Lab Tab */}
+            {activeTab === 'lab' && (
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* OPU Data */}
+                <div className="bg-pink-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <PipetteIcon className="w-5 h-5 text-pink-600" /> OPU Data
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">OPU Date</label>
+                      <input
+                        type="date"
+                        value={cycleData.opuDate || ''}
+                        onChange={(e) => setCycleData(prev => ({ ...prev, opuDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Total Oocytes</label>
+                      <input
+                        type="number"
+                        value={cycleData.totalOocytes || ''}
+                        onChange={(e) => setCycleData(prev => ({ ...prev, totalOocytes: parseInt(e.target.value) || undefined }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Transfer Date</label>
-                        <input
-                          type="date"
-                          value={cycleData.transfer.transferDate || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            transfer: { ...cycleData.transfer, transferDate: e.target.value }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Embryos Transferred</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">MII</label>
                         <input
                           type="number"
-                          value={cycleData.transfer.numberTransferred || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            transfer: { ...cycleData.transfer, numberTransferred: parseInt(e.target.value) || 0 }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                          value={cycleData.mii || ''}
+                          onChange={(e) => setCycleData(prev => ({ ...prev, mii: parseInt(e.target.value) || undefined }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Embryo Quality</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">MI</label>
                         <input
-                          value={cycleData.transfer.embryoQuality || ''}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            transfer: { ...cycleData.transfer, embryoQuality: e.target.value }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                          placeholder="e.g., Day 5 expanded blastocyst"
+                          type="number"
+                          value={cycleData.mi || ''}
+                          onChange={(e) => setCycleData(prev => ({ ...prev, mi: parseInt(e.target.value) || undefined }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
                         />
                       </div>
                     </div>
-                  </div>
-
-                  {/* Outcome */}
-                  <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
-                    <h4 className="text-lg font-semibold text-purple-800 mb-4">النتيجة - Outcome</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Beta-HCG Result</label>
-                        <select
-                          value={cycleData.outcome.betaHcgPositive ? 'Positive' : cycleData.outcome.betaHcgPositive === false ? 'Negative' : 'Pending'}
-                          onChange={(e) => setCycleData({
-                            ...cycleData,
-                            outcome: {
-                              ...cycleData.outcome,
-                              betaHcgPositive: e.target.value === 'Positive' ? true : e.target.value === 'Negative' ? false : undefined
-                            }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                        >
-                          <option value="Pending">Pending</option>
-                          <option value="Positive">Positive</option>
-                          <option value="Negative">Negative</option>
-                        </select>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">GV</label>
+                        <input
+                          type="number"
+                          value={cycleData.gv || ''}
+                          onChange={(e) => setCycleData(prev => ({ ...prev, gv: parseInt(e.target.value) || undefined }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
+                        />
                       </div>
-                      <div className="flex items-center justify-center">
-                        <div className={`text-2xl font-bold ${
-                          cycleData.outcome.betaHcgPositive === true ? 'text-green-600' :
-                          cycleData.outcome.betaHcgPositive === false ? 'text-red-600' : 'text-gray-600'
-                        }`}>
-                          {cycleData.outcome.betaHcgPositive === true ? '✅ Pregnancy!' :
-                           cycleData.outcome.betaHcgPositive === false ? '❌ No Pregnancy' : '⏳ Pending'}
-                        </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Atretic</label>
+                        <input
+                          type="number"
+                          value={cycleData.atretic || ''}
+                          onChange={(e) => setCycleData(prev => ({ ...prev, atretic: parseInt(e.target.value) || undefined }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
+                        />
                       </div>
                     </div>
-                  </div>
-
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => saveCycleData('transfer', cycleData.transfer)}
-                      className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-700 transition-colors"
-                    >
-                      <Save className="w-5 h-5 inline mr-2" />
-                      حفظ بيانات النقل - Save Transfer Data
-                    </button>
-
-                    <button
-                      onClick={async () => {
-                        try {
-                          await saveCycleData('transfer', cycleData.transfer);
-                          setCycleData({ ...cycleData, status: 'Done' });
-                          toast.success('Cycle archived successfully!');
-                        } catch (error) {
-                          toast.error('Failed to archive cycle');
-                        }
-                      }}
-                      className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors"
-                    >
-                      📁 إغلاق الدورة - Archive Cycle
-                    </button>
+                    {cycleData.totalOocytes && cycleData.mii && (
+                      <div className="p-3 bg-white rounded border border-pink-200">
+                        <p className="text-sm text-gray-700">
+                          Maturation Rate: <span className="font-bold text-pink-600">{calculateMaturation()}%</span>
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
+
+                {/* Fertilization */}
+                <div className="bg-cyan-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Microscope className="w-5 h-5 text-cyan-600" /> Fertilization
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">2PN Count</label>
+                      <input
+                        type="number"
+                        value={cycleData.fertilizedTwoPN || ''}
+                        onChange={(e) => setCycleData(prev => ({ ...prev, fertilizedTwoPN: parseInt(e.target.value) || undefined }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    {cycleData.mii && cycleData.fertilizedTwoPN && (
+                      <div className="p-3 bg-white rounded border border-cyan-200">
+                        <p className="text-sm text-gray-700">
+                          Fertilization Rate: <span className="font-bold text-cyan-600">{calculateFertilization()}%</span>
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Embryo Quality</label>
+                      <select
+                        value={cycleData.embryoQuality || ''}
+                        onChange={(e) => setCycleData(prev => ({ ...prev, embryoQuality: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
+                      >
+                        <option value="">Select Quality</option>
+                        <option value="A">Excellent (A)</option>
+                        <option value="B">Good (B)</option>
+                        <option value="C">Fair (C)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Transfer Tab */}
+            {activeTab === 'transfer' && (
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Transfer Details */}
+                <div className="bg-indigo-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Baby className="w-5 h-5 text-indigo-600" /> Transfer Details
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Transfer Date</label>
+                      <input
+                        type="date"
+                        value={cycleData.transferDate || ''}
+                        onChange={(e) => setCycleData(prev => ({ ...prev, transferDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Number Transferred</label>
+                      <input
+                        type="number"
+                        value={cycleData.numberTransferred || ''}
+                        onChange={(e) => setCycleData(prev => ({ ...prev, numberTransferred: parseInt(e.target.value) || undefined }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Outcome */}
+                <div className="bg-emerald-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Heart className="w-5 h-5 text-emerald-600" /> Outcome
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Beta-HCG (mIU/mL)</label>
+                      <input
+                        type="number"
+                        value={cycleData.betaHcg || ''}
+                        onChange={(e) => setCycleData(prev => ({ ...prev, betaHcg: parseInt(e.target.value) || undefined }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="clinicalPregnancy"
+                          checked={cycleData.clinicalPregnancy || false}
+                          onChange={(e) => setCycleData(prev => ({ ...prev, clinicalPregnancy: e.target.checked }))}
+                          className="w-4 h-4"
+                        />
+                        <label htmlFor="clinicalPregnancy" className="text-sm font-medium text-gray-700">Clinical Pregnancy</label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="gestationalSac"
+                          checked={cycleData.gestationalSac || false}
+                          onChange={(e) => setCycleData(prev => ({ ...prev, gestationalSac: e.target.checked }))}
+                          className="w-4 h-4"
+                        />
+                        <label htmlFor="gestationalSac" className="text-sm font-medium text-gray-700">Gestational Sac Seen</label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="fhr"
+                          checked={cycleData.fHR || false}
+                          onChange={(e) => setCycleData(prev => ({ ...prev, fHR: e.target.checked }))}
+                          className="w-4 h-4"
+                        />
+                        <label htmlFor="fhr" className="text-sm font-medium text-gray-700">Fetal Heart Rate Detected</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </>
-      ) : (
-        <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-2xl shadow-sm border border-gray-100 text-gray-400">
-          <Baby className="w-16 h-16 mb-4 opacity-20" />
-          <p className="text-gray-600">Select a patient and start a new IVF cycle to begin tracking.</p>
+
+          {/* Action Buttons */}
+          <div className="bg-gray-50 p-6 border-t border-gray-200 flex gap-4">
+            <button
+              onClick={() => {
+                toast.success('Cycle data saved (Demo)');
+                setCycleData(prev => ({ ...prev, status: 'Done' }));
+              }}
+              className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-medium py-3 px-4 rounded-lg transition"
+            >
+              <Save className="w-5 h-5" /> Save Cycle
+            </button>
+            <button
+              onClick={() => setIsPrinterOpen(true)}
+              className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition"
+            >
+              <Printer className="w-5 h-5" /> Print Report
+            </button>
+            <button
+              onClick={() => {
+                setCycleData(defaultCycleData);
+                setActiveTab('assessment');
+              }}
+              className="flex-1 flex items-center justify-center gap-2 bg-gray-400 hover:bg-gray-500 text-white font-medium py-3 px-4 rounded-lg transition"
+            >
+              <X className="w-5 h-5" /> Reset
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!cycleData.id && selectedPatient && (
+        <div className="bg-white p-12 rounded-lg shadow-md text-center">
+          <TestTube className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">No Active Cycle</h2>
+          <p className="text-gray-600 mb-6">Start a new IVF cycle for {selectedPatient.name}</p>
+          <button
+            onClick={handleStartCycle}
+            disabled={isLoading}
+            className="bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-medium py-3 px-8 rounded-lg transition flex items-center justify-center gap-2 mx-auto"
+          >
+            <PlusCircle className="w-5 h-5" />
+            {isLoading ? 'Starting...' : 'Start New Cycle'}
+          </button>
         </div>
       )}
 
       {/* Prescription Printer */}
       <PrescriptionPrinter
         patient={selectedPatient || null}
-        prescriptions={prescription}
-        diagnosis={`IVF Cycle - ${cycleData?.protocol || 'Unknown Protocol'}`}
-        notes={`Cycle ID: ${cycleData?.id || 'N/A'}`}
+        prescriptions={[]}
+        diagnosis="IVF Cycle"
+        notes="Comprehensive IVF Cycle Documentation"
         isOpen={isPrinterOpen}
         onClose={() => setIsPrinterOpen(false)}
       />

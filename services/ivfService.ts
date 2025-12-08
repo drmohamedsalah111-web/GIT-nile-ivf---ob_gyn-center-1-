@@ -65,9 +65,8 @@ export const db = {
       }
 
       return localPatients
-        .filter((p: any) => p.remoteId)
         .map((p: any) => ({
-          id: p.remoteId,
+          id: p.remoteId || `local_${p.id}`,
           name: p.name,
           age: p.age || 0,
           phone: p.phone,
@@ -158,9 +157,8 @@ export const db = {
       }
 
       return localCycles
-        .filter((c: any) => c.remoteId)
         .map((c: any) => ({
-          id: c.remoteId,
+          id: c.remoteId || `local_${c.id}`,
           patientId: c.patientId,
           protocol: c.protocol,
           startDate: c.startDate,

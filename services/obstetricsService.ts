@@ -386,7 +386,19 @@ export const obstetricsService = {
         setTimeout(() => syncManager.read('antenatal_visits'), 0);
       }
 
-      return localVisits.filter((v: any) => v.remoteId);
+      return localVisits.map((v: any) => ({
+        id: v.remoteId || `local_${v.id}`,
+        patient_id: v.patient_id,
+        department: v.department,
+        visit_date: v.visit_date,
+        clinical_data: v.clinical_data,
+        diagnosis: v.diagnosis,
+        prescription: v.prescription,
+        notes: v.notes,
+        doctor_id: v.doctor_id,
+        created_at: v.created_at,
+        updated_at: v.updated_at
+      }));
     } catch (error) {
       console.error('Error fetching local ANC visits, falling back to Supabase:', error);
       
