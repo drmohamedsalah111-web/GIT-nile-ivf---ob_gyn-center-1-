@@ -285,7 +285,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
           {/* Footer with Copyright and Developer Credits */}
           <div className="pt-8 border-t border-gray-200 text-center text-gray-500 text-sm">
-            <p>Copyright © 2025 Nile IVF Center. All Rights Reserved.</p>
+            <p>Copyright © 2025 مركز د صلاح للخصوبة. All Rights Reserved.</p>
             <p className="mt-1">تم التطوير بواسطة د. محمد صلاح جبر</p>
           </div>
         </div>
@@ -315,7 +315,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             </p>
             <div className="flex items-center justify-center gap-2 text-lg">
               <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              <span>مركز نيل للخصوبة والتوليد</span>
+              <span>مركز د صلاح للخصوبة</span>
               <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
             </div>
           </div>
