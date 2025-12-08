@@ -381,10 +381,8 @@ export const obstetricsService = {
       // Try local DB first
       const localVisits = await localDB.visits.where('patientId').equals(pregnancyId).toArray();
       
-      // Background sync if online
-      if (networkStatus.getStatus()) {
-        setTimeout(() => syncManager.read('antenatal_visits'), 0);
-      }
+      // Background sync
+      setTimeout(() => syncManager.read('antenatal_visits'), 0);
 
       return localVisits.map((v: any) => ({
         id: v.remoteId || `local_${v.id}`,

@@ -185,7 +185,7 @@ export class SyncService {
 
   // Background sync function
   private async performBackgroundSync(): Promise<void> {
-    if (this.syncInProgress || !this.isOnline) return;
+    if (this.syncInProgress) return;
 
     this.syncInProgress = true;
     console.log('🔄 Starting background sync...');
@@ -688,13 +688,9 @@ export class SyncService {
   async initializeSync(): Promise<void> {
     console.log('🚀 Initializing sync on app load...');
     try {
-      if (this.isOnline) {
-        // Process any pending items immediately on app load
-        await this.processSyncQueue();
-        console.log('✅ Sync initialization completed');
-      } else {
-        console.log('📴 App is offline, sync will resume when connection is restored');
-      }
+      // Process any pending items immediately on app load
+      await this.processSyncQueue();
+      console.log('✅ Sync initialization completed');
     } catch (error) {
       console.error('⚠️ Error during sync initialization:', error);
       // Don't throw - let app continue even if sync fails

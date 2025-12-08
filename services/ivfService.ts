@@ -59,10 +59,8 @@ export const db = {
       // Try local DB first (instant response)
       const localPatients = await localDB.patients.toArray();
       
-      // Background sync if online
-      if (networkStatus.getStatus()) {
-        setTimeout(() => syncManager.read('patients'), 0);
-      }
+      // Background sync
+      setTimeout(() => syncManager.read('patients'), 0);
 
       return localPatients
         .map((p: any) => ({
@@ -151,10 +149,8 @@ export const db = {
       // Try local DB first (instant response)
       const localCycles = await localDB.cycles.toArray();
       
-      // Background sync if online
-      if (networkStatus.getStatus()) {
-        setTimeout(() => syncManager.read('ivf_cycles'), 0);
-      }
+      // Background sync
+      setTimeout(() => syncManager.read('ivf_cycles'), 0);
 
       return localCycles
         .map((c: any) => ({
