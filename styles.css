@@ -21,6 +21,18 @@ body {
   background: #94a3b8;
 }
 
+/* Bottom Navigation Scrollbar Styles */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
 .print-only {
   display: none;
 }
