@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
 import { LogIn, AlertCircle, Mail, Lock, User, Phone, Stethoscope } from 'lucide-react';
-import { useBranding } from '../context/BrandingContext';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -67,7 +66,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const { branding } = useBranding();
+  // Fallback branding for login page
+  const branding = {
+    clinic_name: 'Nile IVF Center',
+    logo_url: null
+  };
 
   return (
     <div className="min-h-screen flex font-[Tajawal]" dir="rtl">
