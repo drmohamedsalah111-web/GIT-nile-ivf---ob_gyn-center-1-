@@ -160,7 +160,7 @@ const Gynecology: React.FC = () => {
         patientId: selectedPatientId,
         department: 'GYNA',
         clinicalData: clinicalData,
-        diagnosis: gynecologyData.diagnosis,
+        diagnosis: gynecologyData.diagnosis.join('; '),
         prescription: gynecologyData.prescription,
         notes: gynecologyData.clinicalNotes,
       });
