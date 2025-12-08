@@ -93,9 +93,12 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               )}
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {branding?.clinic_name || 'Nile IVF Center'}
+              مركز د صلاح للخصوبة
             </h1>
-            <p className="text-gray-600 text-lg">
+            <p className="text-gray-600 text-lg mb-2">
+              معاكم خطوة بخطوة
+            </p>
+            <p className="text-gray-500 text-base">
               {showSignup ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}
             </p>
           </div>
