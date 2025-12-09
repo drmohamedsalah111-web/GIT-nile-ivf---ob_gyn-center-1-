@@ -530,11 +530,24 @@ export const obstetricsService = {
 
   getBiometryScans: async (pregnancyId: string) => {
     try {
+      // FIX: Resolve ID Mismatch if needed
+      let targetId = pregnancyId;
+
+      // If pregnancyId looks like local_X, try to resolve
+      if (pregnancyId.startsWith('local_')) {
+        const localId = pregnancyId.split('_')[1];
+        if (!isNaN(Number(localId))) {
+          const pregnancy = await localDB.pregnancies.get(Number(localId));
+          if (pregnancy && pregnancy.remoteId) {
+            targetId = pregnancy.remoteId;
+          }
+        }
+      }
+
       const localScans = await localDB.biometry_scans
-        .where('pregnancy_id')
-        .equals(pregnancyId)
+        .filter(s => s.pregnancy_id === targetId || s.pregnancy_id === pregnancyId)
         .toArray();
-      
+
       if (networkStatus.getStatus()) {
         setTimeout(() => syncManager.read('biometry_scans'), 0);
       }
@@ -560,7 +573,7 @@ export const obstetricsService = {
     } catch (error) {
       console.error('Error fetching local biometry scans, falling back to Supabase:', error);
     }
-    
+
     const { data, error } = await supabase
       .from('biometry_scans')
       .select('*')
