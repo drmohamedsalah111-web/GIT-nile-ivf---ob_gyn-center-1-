@@ -56,47 +56,23 @@ export const calculateFertilizationRate = (fertilized: number, mii: number): num
 export const db = {
   // --- Patients ---
   getPatients: async (): Promise<Patient[]> => {
-    try {
-      // Try local DB first (instant response)
-      const localPatients = await localDB.patients.toArray();
-      
-      // Background sync
-      setTimeout(() => syncManager.read('patients'), 0);
-
-      return localPatients
-        .map((p: any) => ({
-          id: p.remoteId || `local_${p.id}`,
-          name: p.name,
-          age: p.age || 0,
-          phone: p.phone,
-          husbandName: p.husband_name || '',
-          history: p.history || '',
-          createdAt: p.createdAt?.toString() || new Date().toISOString()
-        }));
-    } catch (error) {
-      console.error('Error fetching local patients, falling back to Supabase:', error);
-      
-      // Fallback to Supabase if local DB fails
-      const { data, error: supabaseError } = await supabase
+    // Network-First strategy: Supabase primary, local fallback
+    const patients = await syncManager.fetch('patients', async (sb) => {
+      return sb
         .from('patients')
         .select('*')
         .order('created_at', { ascending: false });
-      
-      if (supabaseError) {
-        console.error('Error fetching patients from Supabase:', supabaseError);
-        return [];
-      }
-      
-      return data.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        age: p.age,
-        phone: p.phone,
-        husbandName: p.husband_name,
-        history: p.history,
-        createdAt: p.created_at
-      }));
-    }
+    });
+
+    return patients.map((p: any) => ({
+      id: p.id || p.remoteId,
+      name: p.name,
+      age: p.age || 0,
+      phone: p.phone,
+      husbandName: p.husband_name || p.husbandName || '',
+      history: p.history || '',
+      createdAt: p.created_at || p.createdAt || new Date().toISOString()
+    }));
   },
 
   savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
@@ -142,80 +118,47 @@ export const db = {
 
   // --- Visits ---
   getVisits: async (): Promise<Visit[]> => {
-    const { data, error } = await supabase
-      .from('visits')
-      .select('*')
-      .order('date', { ascending: false });
-      
-    if (error) return [];
-    return data as any; // Simplified for brevity
+    // Network-First strategy: Supabase primary, local fallback
+    const visits = await syncManager.fetch('antenatal_visits', async (sb) => {
+      return sb
+        .from('antenatal_visits')
+        .select('*')
+        .order('visit_date', { ascending: false });
+    });
+
+    return visits.map((v: any) => ({
+      id: v.id || v.remoteId,
+      patientId: v.patient_id,
+      date: v.visit_date || v.date,
+      diagnosis: v.diagnosis || '',
+      prescription: v.prescription || [],
+      notes: v.notes || '',
+      clinical_data: v.clinical_data
+    }));
   },
 
   // --- Cycles ---
   getCycles: async (): Promise<IvfCycle[]> => {
-    try {
-      // Try local DB first (instant response)
-      const localCycles = await localDB.ivf_cycles.toArray();
-      const localLogs = await localDB.stimulation_logs.toArray();
-
-      // Background sync
-      setTimeout(() => syncManager.read('ivf_cycles'), 0);
-
-      return localCycles
-        .map((c: any) => {
-          const cycleLogs = localLogs
-            .filter(log => log.cycle_id === c.remoteId)
-            .map((l: any) => ({
-              id: l.remoteId || `local_${l.id}`,
-              date: l.date,
-              cycleDay: l.cycle_day,
-              fsh: l.fsh,
-              hmg: l.hmg,
-              e2: l.e2,
-              lh: l.lh,
-              rtFollicles: l.rt_follicles,
-              ltFollicles: l.lt_follicles,
-              endometriumThickness: l.endometrium_thickness
-            }));
-
-          return {
-            id: c.remoteId || `local_${c.id}`,
-            patientId: c.patient_id,
-            protocol: c.protocol,
-            startDate: c.start_date,
-            status: c.status,
-            logs: cycleLogs,
-            lab: c.lab_data,
-            transfer: c.transfer_data,
-            outcome: c.outcome_data,
-            assessment: c.assessment_data
-          };
-        });
-    } catch (error) {
-      console.error('Error fetching local cycles, falling back to Supabase:', error);
-      
-      // Fallback to Supabase if local DB fails
-      const { data, error: supabaseError } = await supabase
+    // Network-First strategy: Supabase primary, local fallback
+    const cycles = await syncManager.fetch('ivf_cycles', async (sb) => {
+      return sb
         .from('ivf_cycles')
-        .select(`
-          *,
-          stimulation_logs (*)
-        `)
+        .select('*')
         .order('start_date', { ascending: false });
+    });
 
-      if (supabaseError) {
-        console.error(supabaseError);
-        return [];
-      }
+    // Also fetch logs
+    const logs = await syncManager.fetch('stimulation_logs', async (sb) => {
+      return sb
+        .from('stimulation_logs')
+        .select('*');
+    });
 
-      return data.map((c: any) => ({
-        id: c.id,
-        patientId: c.patient_id,
-        protocol: c.protocol,
-        startDate: c.start_date,
-        status: c.status,
-        logs: c.stimulation_logs?.map((l: any) => ({
-          id: l.id,
+    return cycles.map((c: any) => {
+      const cycleLogs = logs
+        .filter((log: any) => log.cycle_id === c.id || log.cycle_id === c.remoteId)
+        .map((l: any) => ({
+          id: l.id || l.remoteId,
           date: l.date,
           cycleDay: l.cycle_day,
           fsh: l.fsh,
@@ -223,11 +166,23 @@ export const db = {
           e2: l.e2,
           lh: l.lh,
           rtFollicles: l.rt_follicles,
-          ltFollicles: l.lt_follicles
-        })) || [],
-        lab: c.lab_data
-      }));
-    }
+          ltFollicles: l.lt_follicles,
+          endometriumThickness: l.endometrium_thickness
+        }));
+
+      return {
+        id: c.id || c.remoteId,
+        patientId: c.patient_id,
+        protocol: c.protocol,
+        startDate: c.start_date,
+        status: c.status,
+        logs: cycleLogs,
+        lab: c.lab_data,
+        transfer: c.transfer_data,
+        outcome: c.outcome_data,
+        assessment: c.assessment_data
+      };
+    });
   },
 
   saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
