@@ -65,13 +65,24 @@ const PatientMasterRecord: React.FC = () => {
 
   const fetchPatientFiles = async (patientId: string) => {
     try {
+      let targetUuid = patientId;
+      if (!isNaN(Number(patientId))) {
+        const patient = await db.patients.get(Number(patientId));
+        if (patient && patient.remoteId) {
+          targetUuid = patient.remoteId;
+        } else {
+          console.log('Skipping file fetch for local-only patient');
+          setPatientFiles([]);
+          return;
+        }
+      }
       const { data, error } = await supabase
         .from('patient_files')
         .select('*')
-        .eq('patient_id', patientId)
+        .eq('patient_id', targetUuid)
         .order('created_at', { ascending: false });
-
       if (error) {
+        console.error('Error fetching patient files:', error);
         setPatientFiles([]);
       } else {
         setPatientFiles(data || []);
