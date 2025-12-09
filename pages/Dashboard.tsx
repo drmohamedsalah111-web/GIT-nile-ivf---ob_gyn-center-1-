@@ -98,14 +98,6 @@ const Dashboard: React.FC = () => {
   ];
 
   useEffect(() => {
-    const initializeData = async () => {
-      setLoading(true);
-      // Data is loaded via live queries
-      setLoading(false);
-    };
-
-    initializeData();
-
     // Update sync status periodically
     const interval = setInterval(() => {
       setSyncStatus(syncService.getSyncStatus());
@@ -113,6 +105,13 @@ const Dashboard: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Set loading to false once we have data
+  useEffect(() => {
+    if (patients !== undefined && cycles !== undefined && pregnancies !== undefined) {
+      setLoading(false);
+    }
+  }, [patients, cycles, pregnancies]);
 
   const handleRefresh = async () => {
     try {
@@ -133,7 +132,7 @@ const Dashboard: React.FC = () => {
     return { status: 'General Care', color: 'bg-gray-100 text-gray-800' };
   };
 
-  if (loading || !stats) {
+  if (loading || patients === undefined || cycles === undefined || pregnancies === undefined) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <div className="text-center">
