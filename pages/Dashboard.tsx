@@ -1,42 +1,67 @@
 
 import React, { useEffect, useState } from 'react';
-import { Users, Activity, CalendarCheck, TrendingUp, Loader2 } from 'lucide-react';
+import { Users, Activity, CalendarCheck, TrendingUp, Loader2, RefreshCw } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { db } from '../services/ivfService';
 import { Patient } from '../types';
 import { useBranding } from '../context/BrandingContext';
+import { syncManager } from '../src/services/syncService';
+import toast from 'react-hot-toast';
 
 const Dashboard: React.FC = () => {
   const { branding } = useBranding();
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [stats, setStats] = useState({
     totalPatients: 0,
     activeCycles: 0,
     todayVisits: 0
   });
 
+  const fetchData = async () => {
+    try {
+      const patients = await db.getPatients();
+      const cycles = await db.getCycles();
+      // In a real app, we'd query visits by date via Supabase directly for performance
+      // const visits = await db.getVisits(); 
+      
+      setStats({
+        totalPatients: patients.length,
+        activeCycles: cycles.filter(c => c.status === 'Active').length,
+        todayVisits: 5 // Mock for now until visits table is fully populated
+      });
+    } catch (error) {
+      console.error("Failed to load dashboard data");
+      toast.error('Failed to load dashboard data');
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const patients = await db.getPatients();
-        const cycles = await db.getCycles();
-        // In a real app, we'd query visits by date via Supabase directly for performance
-        // const visits = await db.getVisits(); 
-        
-        setStats({
-          totalPatients: patients.length,
-          activeCycles: cycles.filter(c => c.status === 'Active').length,
-          todayVisits: 5 // Mock for now until visits table is fully populated
-        });
-      } catch (error) {
-        console.error("Failed to load dashboard data");
-      } finally {
-        setLoading(false);
-      }
+    const initializeData = async () => {
+      setLoading(true);
+      await fetchData();
+      setLoading(false);
     };
 
-    fetchData();
+    initializeData();
   }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Force sync with server
+      await syncManager.forceSync();
+      toast.success('Data refreshed successfully');
+      
+      // Reload dashboard data
+      await fetchData();
+    } catch (error) {
+      console.error("Failed to refresh data:", error);
+      toast.error('Failed to refresh data');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Mock Data for Charts (Keep static for UI demo)
   const growthData = [
@@ -67,9 +92,20 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <header className="mb-6 md:mb-8">
-        <h2 className="text-3xl font-bold text-gray-800">{branding?.clinic_name || 'Dashboard Overview'}</h2>
-        <p className="text-gray-500">Welcome back to your clinic management system</p>
+      <header className="mb-6 md:mb-8 flex items-start justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-800">{branding?.clinic_name || 'Dashboard Overview'}</h2>
+          <p className="text-gray-500">Welcome back to your clinic management system</p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          title="Refresh data from server"
+        >
+          <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+        </button>
       </header>
 
       {/* KPI Cards */}
