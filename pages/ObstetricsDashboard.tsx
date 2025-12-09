@@ -41,8 +41,29 @@ const ObstetricsDashboard: React.FC = () => {
   useEffect(() => {
     if (selectedPatientId) {
       fetchPregnancy(selectedPatientId);
+      fetchLastPrescription(selectedPatientId);
     }
   }, [selectedPatientId]);
+
+  const fetchLastPrescription = async (patientId: string) => {
+    try {
+      // Get the pregnancy first
+      const pregnancy = await obstetricsService.getPregnancyByPatient(patientId);
+      if (pregnancy && pregnancy.id) {
+        // Get the most recent antenatal visit for this pregnancy to load prescription
+        const visits = await obstetricsService.getANCVisits(pregnancy.id);
+        if (visits.length > 0) {
+          const lastVisit = visits[visits.length - 1];
+          // Check if prescription exists in the visit data
+          if (lastVisit.prescription && Array.isArray(lastVisit.prescription)) {
+            setPrescription(lastVisit.prescription);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching last prescription:', error);
+    }
+  };
 
   const fetchPregnancy = async (patientId: string) => {
     try {
@@ -201,35 +222,32 @@ const ObstetricsDashboard: React.FC = () => {
       }
 
       const gestationalAge = calculateGestationalAge(pregnancy.lmp_date);
-      
+
       if (!gestationalAge || typeof gestationalAge.weeks !== 'number' || typeof gestationalAge.days !== 'number') {
         throw new Error('Invalid gestational age calculation');
       }
 
-      const clinicalData = {
-        pregnancyId: pregnancy.id,
-        gestationalAge: gestationalAge,
-        riskAssessment: {
-          level: pregnancy.risk_level || 'low',
-          factors: Array.isArray(pregnancy.risk_factors) ? pregnancy.risk_factors : [],
-          aspirin: Boolean(pregnancy.aspirin_prescribed),
-          thromboprophylaxis: Boolean(pregnancy.thromboprophylaxis_needed),
-        },
-        currentStatus: 'Active Pregnancy Monitoring',
+      // Save as antenatal visit with prescription data
+      const visitData = {
+        pregnancy_id: pregnancy.id,
+        visit_date: new Date().toISOString().split('T')[0],
+        gestational_age_weeks: gestationalAge.weeks,
+        gestational_age_days: gestationalAge.days,
+        systolic_bp: null, // Will be filled in ANCFlowSheet
+        diastolic_bp: null,
+        weight_kg: null,
+        urine_albuminuria: 'negative',
+        urine_glycosuria: 'negative',
+        fetal_heart_sound: true,
+        fundal_height_cm: null,
+        edema: false,
+        edema_grade: 'none',
+        notes: `Pregnancy monitoring visit - GA: ${gestationalAge.weeks}w+${gestationalAge.days}d, Risk: ${pregnancy.risk_level || 'low'}`,
+        next_visit_date: null,
+        prescription: Array.isArray(prescription) ? prescription : [], // Include prescription
       };
 
-      const notesText = gestationalAge.weeks > 0
-        ? `Gestational age: ${gestationalAge.weeks} weeks ${gestationalAge.days} days`
-        : 'Gestational age: Not available';
-
-      await visitsService.saveVisit({
-        patientId: selectedPatientId,
-        department: 'OBS',
-        clinicalData: clinicalData,
-        diagnosis: `Pregnancy - ${pregnancy.risk_level || 'low'} risk`,
-        prescription: Array.isArray(prescription) ? prescription : [],
-        notes: notesText,
-      });
+      await obstetricsService.createANCVisit(visitData);
 
       toast.success('Obstetrics visit saved successfully');
       setPrescription([]);

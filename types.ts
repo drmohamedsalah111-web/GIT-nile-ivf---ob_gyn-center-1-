@@ -203,6 +203,7 @@ export interface AntenatalVisit {
   edema_grade?: string;
   notes?: string;
   next_visit_date?: string;
+  prescription?: PrescriptionItem[];
   created_at?: string;
 }
 
