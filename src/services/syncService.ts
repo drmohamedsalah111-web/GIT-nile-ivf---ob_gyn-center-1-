@@ -123,6 +123,11 @@ export class SyncService {
             const existing = await db.table(localTable).where('remoteId').equals(remoteRow.id).first();
             const cleanRow = { ...remoteRow, remoteId: remoteRow.id, sync_status: SyncStatus.SYNCED };
             delete cleanRow.id;
+            // For visits table, ensure pregnancy_id is used instead of patient_id
+            if (localTable === 'visits' && cleanRow.patient_id) {
+                cleanRow.pregnancy_id = cleanRow.patient_id;
+                delete cleanRow.patient_id;
+            }
             if (existing) { await db.table(localTable).update(existing.id, cleanRow); }
             else { await db.table(localTable).add(cleanRow); }
         }

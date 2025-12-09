@@ -398,14 +398,14 @@ export const obstetricsService = {
   getANCVisits: async (pregnancyId: string) => {
     try {
       // Try local DB first
-      const localVisits = await localDB.visits.where('patient_id').equals(pregnancyId).toArray();
+      const localVisits = await localDB.visits.where('pregnancy_id').equals(pregnancyId).toArray();
       
       // Background sync
       setTimeout(() => syncManager.read('antenatal_visits'), 0);
 
       return localVisits.map((v: any) => ({
         id: v.remoteId || `local_${v.id}`,
-        patient_id: v.patient_id,
+        pregnancy_id: v.pregnancy_id,
         department: v.department,
         visit_date: v.visit_date,
         clinical_data: v.clinical_data,
