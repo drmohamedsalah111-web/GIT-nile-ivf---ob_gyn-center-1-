@@ -156,23 +156,41 @@ export const db = {
     try {
       // Try local DB first (instant response)
       const localCycles = await localDB.ivf_cycles.toArray();
+      const localLogs = await localDB.stimulation_logs.toArray();
 
       // Background sync
       setTimeout(() => syncManager.read('ivf_cycles'), 0);
 
       return localCycles
-        .map((c: any) => ({
-          id: c.remoteId || `local_${c.id}`,
-          patientId: c.patient_id,
-          protocol: c.protocol,
-          startDate: c.start_date,
-          status: c.status,
-          logs: [], // Logs are stored separately in stimulation_logs table
-          lab: c.lab_data,
-          transfer: c.transfer_data,
-          outcome: c.outcome_data,
-          assessment: c.assessment_data
-        }));
+        .map((c: any) => {
+          const cycleLogs = localLogs
+            .filter(log => log.cycle_id === c.remoteId)
+            .map((l: any) => ({
+              id: l.remoteId || `local_${l.id}`,
+              date: l.date,
+              cycleDay: l.cycle_day,
+              fsh: l.fsh,
+              hmg: l.hmg,
+              e2: l.e2,
+              lh: l.lh,
+              rtFollicles: l.rt_follicles,
+              ltFollicles: l.lt_follicles,
+              endometriumThickness: l.endometrium_thickness
+            }));
+
+          return {
+            id: c.remoteId || `local_${c.id}`,
+            patientId: c.patient_id,
+            protocol: c.protocol,
+            startDate: c.start_date,
+            status: c.status,
+            logs: cycleLogs,
+            lab: c.lab_data,
+            transfer: c.transfer_data,
+            outcome: c.outcome_data,
+            assessment: c.assessment_data
+          };
+        });
     } catch (error) {
       console.error('Error fetching local cycles, falling back to Supabase:', error);
       
