@@ -7,7 +7,23 @@ import { Visit } from '../types';
 export const useVisitsByPatient = (patientId: string) => {
   return useLiveQuery(async () => {
     if (!patientId) return [];
-    return await db.visits.where('patient_id').equals(patientId).toArray();
+
+    // FIX: Resolve ID Mismatch
+    let targetIds = [patientId];
+
+    if (!isNaN(Number(patientId))) {
+      const patient = await db.patients.get(Number(patientId));
+      if (patient && patient.remoteId) {
+        targetIds.push(patient.remoteId);
+      }
+    }
+
+    // Query for both Local ID and Remote UUID to be safe
+    const visits = await db.visits
+      .filter(v => targetIds.includes(String(v.patient_id)))
+      .toArray();
+
+    return visits.sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime());
   }, [patientId]);
 };
 
@@ -21,7 +37,22 @@ export const useAllVisits = () => {
 export const visitsService = {
   // READ: Get visits for a patient (from local DB - reactive via hooks)
   getVisitsByPatient: async (patientId: string) => {
-    return await db.visits.where('patient_id').equals(patientId).toArray();
+    // FIX: Resolve ID Mismatch
+    let targetIds = [patientId];
+
+    if (!isNaN(Number(patientId))) {
+      const patient = await db.patients.get(Number(patientId));
+      if (patient && patient.remoteId) {
+        targetIds.push(patient.remoteId);
+      }
+    }
+
+    // Query for both Local ID and Remote UUID to be safe
+    const visits = await db.visits
+      .filter(v => targetIds.includes(String(v.patient_id)))
+      .toArray();
+
+    return visits.sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime());
   },
 
   // READ: Get all visits (from local DB)

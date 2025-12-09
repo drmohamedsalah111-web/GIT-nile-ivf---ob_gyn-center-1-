@@ -334,21 +334,36 @@ export const obstetricsService = {
 
   getPregnancyByPatient: async (patientId: string) => {
     try {
-      // Try local DB first
-      const localPregnancies = await localDB.pregnancies.where('patient_id').equals(patientId).toArray();
-      
+      // FIX: Resolve ID Mismatch (Local ID vs Remote UUID)
+      let targetId = patientId;
+
+      // If patientId is a number (local ID), find the corresponding remoteId
+      if (!isNaN(Number(patientId))) {
+        const patient = await localDB.patients.get(Number(patientId));
+        if (patient && patient.remoteId) {
+          targetId = patient.remoteId;
+        }
+      }
+
+      // Try local DB first using the resolved targetId
+      const localPregnancies = await localDB.pregnancies
+        .where('patient_id').equals(targetId)
+        .or('patient_id').equals(patientId) // Try both just in case
+        .toArray();
+
       // Background sync if online
       if (networkStatus.getStatus()) {
         setTimeout(() => syncManager.read('pregnancies'), 0);
       }
 
-      if (localPregnancies.length > 0 && localPregnancies[0].remoteId) {
-        return localPregnancies[0];
+      // Return the most recent pregnancy
+      if (localPregnancies.length > 0) {
+        return localPregnancies.sort((a,b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0];
       }
     } catch (error) {
-      console.error('Error fetching local pregnancy, falling back to Supabase:', error);
+      console.error('Error fetching local pregnancy:', error);
     }
-    
+
     // Fallback to Supabase
     const { data, error } = await supabase
       .from('pregnancies')
@@ -397,9 +412,26 @@ export const obstetricsService = {
 
   getANCVisits: async (pregnancyId: string) => {
     try {
+      // FIX: Resolve ID Mismatch if needed
+      let targetId = pregnancyId;
+
+      // If pregnancyId looks like local_X, try to resolve
+      if (pregnancyId.startsWith('local_')) {
+        const localId = pregnancyId.split('_')[1];
+        if (!isNaN(Number(localId))) {
+          const pregnancy = await localDB.pregnancies.get(Number(localId));
+          if (pregnancy && pregnancy.remoteId) {
+            targetId = pregnancy.remoteId;
+          }
+        }
+      }
+
       // Try local DB first
-      const localVisits = await localDB.visits.where('pregnancy_id').equals(pregnancyId).toArray();
-      
+      const localVisits = await localDB.visits
+        .where('pregnancy_id').equals(targetId)
+        .or('pregnancy_id').equals(pregnancyId)
+        .toArray();
+
       // Background sync
       setTimeout(() => syncManager.read('antenatal_visits'), 0);
 
@@ -418,7 +450,7 @@ export const obstetricsService = {
       }));
     } catch (error) {
       console.error('Error fetching local ANC visits, falling back to Supabase:', error);
-      
+
       // Fallback to Supabase
       const { data, error: supabaseError } = await supabase
         .from('antenatal_visits')

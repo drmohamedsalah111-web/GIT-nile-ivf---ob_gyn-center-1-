@@ -82,6 +82,9 @@ export class SyncService {
             else if (item.operation === 'delete' && rec?.remoteId) { await this.syncDelete(item.table, rec.remoteId); await db.table(item.table).delete(item.localId); }
             await removeFromSyncQueue(item.id!);
         } catch { await updateSyncQueueItem(item.id!, { retryCount: item.retryCount + 1 }); }
+
+        // Add delay between requests to reduce overload
+        await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
 
@@ -108,15 +111,12 @@ export class SyncService {
       // 1. Pull Patients first (Parent table)
       await this.pullTableData('patients');
 
-      // 2. Pull all related tables in parallel
-      await Promise.all([
-        this.pullTableData('visits'),           // General & Gyna Visits
-        this.pullTableData('ivf_cycles'),       // IVF Cycles
-        this.pullTableData('stimulation_logs'), // IVF Logs
-        this.pullTableData('pregnancies'),      // Obstetrics Pregnancies
-        this.pullTableData('antenatal_visits'), // OBS Visits
-        this.pullTableData('biometry_scans')    // Fetal Growth
-      ]);
+      // 2. Pull all related tables sequentially to reduce load
+      const tables = ['visits', 'ivf_cycles', 'stimulation_logs', 'pregnancies', 'antenatal_visits', 'biometry_scans'];
+      for (const table of tables) {
+        await this.pullTableData(table);
+        await new Promise(resolve => setTimeout(resolve, 200)); // Small delay between tables
+      }
 
       console.log('✅ Data pull completed');
     } catch (error) {
@@ -139,27 +139,27 @@ export class SyncService {
     }
 
     if (data && data.length > 0) {
-      // Use array notation for transaction to avoid arguments error
-      await db.transaction('rw', [db.table(localTableName)], async () => {
-        for (const record of data) {
-           // Logic to merge remote data into local DB
-           const localTable = db.table(localTableName);
-           const existing = await localTable.where('remoteId').equals(record.id).first();
+      // Process records sequentially to reduce load
+      for (const record of data) {
+        const localTable = db.table(localTableName);
+        const existing = await localTable.where('remoteId').equals(record.id).first();
 
-           const cleanRecord = {
-             ...record,
-             remoteId: record.id,
-             sync_status: SyncStatus.SYNCED
-           };
-           delete cleanRecord.id; // Don't overwrite local auto-increment ID
+        const cleanRecord = {
+          ...record,
+          remoteId: record.id,
+          sync_status: SyncStatus.SYNCED
+        };
+        delete cleanRecord.id; // Don't overwrite local auto-increment ID
 
-           if (existing) {
-             await localTable.update(existing.id, cleanRecord);
-           } else {
-             await localTable.add(cleanRecord);
-           }
+        if (existing) {
+          await localTable.update(existing.id, cleanRecord);
+        } else {
+          await localTable.add(cleanRecord);
         }
-      });
+
+        // Small delay between records to reduce concurrent DB operations
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
     }
   }
 
