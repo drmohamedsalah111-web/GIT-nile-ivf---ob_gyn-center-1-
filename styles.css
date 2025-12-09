@@ -1,3 +1,8 @@
+/* tailwindcss */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 body {
   font-family: 'Tajawal', sans-serif;
   background-color: #f3f4f6;

@@ -23,9 +23,7 @@ export class ClinicLocalDB extends Dexie {
   constructor() {
     super('ClinicLocalDB');
 
-    // Unified Schema Definition (Version 3)
-    // Removed dangerous upgrade logic
-    this.version(3).stores({
+    this.version(4).stores({
       patients: '++id, remoteId, name, phone, created_at, [sync_status]',
       visits: '++id, remoteId, patient_id, pregnancy_id, date, [sync_status]',
       ivf_cycles: '++id, remoteId, patient_id, status, [sync_status]',
@@ -45,9 +43,18 @@ export const initLocalDB = async (): Promise<void> => {
        await db.open();
        console.log('✅ Local database initialized successfully');
     }
-  } catch (error) {
-    console.error('⚠️ Local DB Error:', error);
-    // Do NOT automatically delete the DB on error
+  } catch (error: any) {
+    console.error('⚠️ Local DB Error:', error?.message || error);
+    if (error?.name === 'QuotaExceededError' || error?.name === 'NotFoundError') {
+      console.warn('🔄 Attempting to recover from IndexedDB error...');
+      try {
+        await db.delete();
+        await db.open();
+        console.log('✅ Local database recovered');
+      } catch (recoveryError) {
+        console.error('❌ Recovery failed:', recoveryError);
+      }
+    }
   }
 };
 

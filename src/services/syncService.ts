@@ -118,13 +118,16 @@ export class SyncService {
         }
     }
 
-    // 2. Fix Pregnancy ID (for Visits & Scans)
     if (updatedRecord.pregnancy_id && !isNaN(Number(updatedRecord.pregnancy_id))) {
-        const pregnancy = await db.pregnancies.get(Number(updatedRecord.pregnancy_id));
-        if (pregnancy && pregnancy.remoteId) {
-            console.log(`🔗 Linking orphan ${table} to Pregnancy UUID: ${pregnancy.remoteId}`);
-            updatedRecord.pregnancy_id = pregnancy.remoteId;
-            hasChanges = true;
+        try {
+            const pregnancy = await db.pregnancies.get(Number(updatedRecord.pregnancy_id));
+            if (pregnancy && pregnancy.remoteId) {
+                console.log(`🔗 Linking orphan ${table} to Pregnancy UUID: ${pregnancy.remoteId}`);
+                updatedRecord.pregnancy_id = pregnancy.remoteId;
+                hasChanges = true;
+            }
+        } catch (e) {
+            console.warn(`⚠️ Failed to resolve pregnancy for foreign key:`, e);
         }
     }
 
@@ -289,52 +292,66 @@ export class SyncService {
 
       console.log(`📥 Pulling ${remoteTable}: ${data.length} records`);
 
-      // Safe transaction with error handling
       const localTableRef = db.table(localTable);
       
       for (const remoteRow of data) {
-          const existing = await localTableRef.where('remoteId').equals(remoteRow.id).first();
-          const cleanRow = { ...remoteRow, remoteId: remoteRow.id, sync_status: SyncStatus.SYNCED };
-          delete cleanRow.id; 
-        
-          // CRITICAL: Ensure foreign keys are properly resolved (convert any local IDs to remote UUIDs)
-          if (cleanRow.patient_id) {
-              if (!isNaN(Number(cleanRow.patient_id))) {
-                  const patient = await db.patients.get(Number(cleanRow.patient_id));
-                  if (patient?.remoteId) {
-                      cleanRow.patient_id = patient.remoteId;
-                  }
-              }
-          }
+          try {
+            const existing = await localTableRef.where('remoteId').equals(remoteRow.id).first();
+            const cleanRow = { ...remoteRow, remoteId: remoteRow.id, sync_status: SyncStatus.SYNCED };
+            delete cleanRow.id; 
           
-          if (cleanRow.pregnancy_id) {
-              if (!isNaN(Number(cleanRow.pregnancy_id))) {
-                  const pregnancy = await db.pregnancies.get(Number(cleanRow.pregnancy_id));
-                  if (pregnancy?.remoteId) {
-                      cleanRow.pregnancy_id = pregnancy.remoteId;
+            if (cleanRow.patient_id) {
+                if (!isNaN(Number(cleanRow.patient_id))) {
+                  try {
+                    const patient = await db.patients.get(Number(cleanRow.patient_id));
+                    if (patient?.remoteId) {
+                        cleanRow.patient_id = patient.remoteId;
+                    }
+                  } catch (e) {
+                    console.warn(`⚠️ Failed to resolve patient for ${localTable}:`, e);
                   }
-              }
-          }
-
-          if (cleanRow.cycle_id) {
-              if (!isNaN(Number(cleanRow.cycle_id))) {
-                  const cycle = await db.ivf_cycles.get(Number(cleanRow.cycle_id));
-                  if (cycle?.remoteId) {
-                      cleanRow.cycle_id = cycle.remoteId;
+                }
+            }
+            
+            if (cleanRow.pregnancy_id) {
+                if (!isNaN(Number(cleanRow.pregnancy_id))) {
+                  try {
+                    const pregnancy = await db.pregnancies.get(Number(cleanRow.pregnancy_id));
+                    if (pregnancy?.remoteId) {
+                        cleanRow.pregnancy_id = pregnancy.remoteId;
+                    }
+                  } catch (e) {
+                    console.warn(`⚠️ Failed to resolve pregnancy for ${localTable}:`, e);
                   }
-              }
-          }
+                }
+            }
 
-          if (existing) {
-              await localTableRef.update(existing.id, cleanRow);
-          } else {
-              await localTableRef.add(cleanRow);
+            if (cleanRow.cycle_id) {
+                if (!isNaN(Number(cleanRow.cycle_id))) {
+                  try {
+                    const cycle = await db.ivf_cycles.get(Number(cleanRow.cycle_id));
+                    if (cycle?.remoteId) {
+                        cleanRow.cycle_id = cycle.remoteId;
+                    }
+                  } catch (e) {
+                    console.warn(`⚠️ Failed to resolve cycle for ${localTable}:`, e);
+                  }
+                }
+            }
+
+            if (existing) {
+                await localTableRef.update(existing.id, cleanRow);
+            } else {
+                await localTableRef.add(cleanRow);
+            }
+          } catch (rowError: any) {
+            console.error(`⚠️ Failed to process row in ${remoteTable}:`, rowError?.message);
           }
       }
       
       console.log(`✅ Finished pulling ${remoteTable}`);
-    } catch (error) {
-      console.error(`❌ Error in pullTable(${remoteTable}):`, error);
+    } catch (error: any) {
+      console.error(`❌ Error in pullTable(${remoteTable}):`, error?.message || error);
       throw error;
     }
   }
