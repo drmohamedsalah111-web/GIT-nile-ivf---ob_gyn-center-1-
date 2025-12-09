@@ -3,64 +3,60 @@ import { db } from '../src/db/localDB';
 import { syncService } from '../src/services/syncService';
 import { Visit } from '../types';
 
-// React hook for reactive visits data
-export const useVisitsByPatient = (patientId: string) => {
-  return useLiveQuery(async () => {
-    if (!patientId) return [];
-
-    // FIX: Resolve ID Mismatch
-    let targetIds = [patientId];
-
-    if (!isNaN(Number(patientId))) {
-      const patient = await db.patients.get(Number(patientId));
-      if (patient && patient.remoteId) {
-        targetIds.push(patient.remoteId);
-      }
-    }
-
-    // Query for both Local ID and Remote UUID to be safe
-    const visits = await db.visits
-      .filter(v => targetIds.includes(String(v.patient_id)))
-      .toArray();
-
-    return visits.sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime());
-  }, [patientId]);
-};
-
-// React hook for all visits (reactive)
-export const useAllVisits = () => {
-  return useLiveQuery(async () => {
-    return await db.visits.toArray();
-  }, []);
-};
+// Helper to map DB format (snake_case) to App format (camelCase)
+const mapToAppFormat = (v: any): Visit => ({
+  id: v.remoteId || v.id?.toString() || '',
+  patientId: v.patient_id || v.patientId, // Handle both cases
+  date: v.visit_date || v.date || new Date().toISOString(),
+  department: v.department || 'General',
+  diagnosis: v.diagnosis || '',
+  prescription: v.prescription || [],
+  notes: v.notes || '',
+  clinical_data: v.clinical_data || {},
+  vitals: v.clinical_data?.vitals // Extract vitals if nested
+});
 
 export const visitsService = {
-  // READ: Get visits for a patient (from local DB - reactive via hooks)
+  // 1. SMART GET: Resolves Local ID <-> Remote UUID to find ALL visits
   getVisitsByPatient: async (patientId: string) => {
-    // FIX: Resolve ID Mismatch
-    let targetIds = [patientId];
+    try {
+      let targetIds: string[] = [patientId];
 
-    if (!isNaN(Number(patientId))) {
-      const patient = await db.patients.get(Number(patientId));
-      if (patient && patient.remoteId) {
-        targetIds.push(patient.remoteId);
+      // If it's a local numeric ID, find the remote UUID
+      if (!isNaN(Number(patientId))) {
+        const patient = await db.patients.get(Number(patientId));
+        if (patient?.remoteId) targetIds.push(patient.remoteId);
       }
+      // If it's a UUID, try to find the local numeric ID (optional but safe)
+      else {
+        const patient = await db.patients.where('remoteId').equals(patientId).first();
+        if (patient?.id) targetIds.push(patient.id.toString());
+      }
+
+      console.log(`🔍 Searching visits for Patient IDs: ${targetIds.join(', ')}`);
+
+      // Query Local DB for ANY match
+      const localVisits = await db.visits
+        .filter(v => {
+           const pId = String(v.patient_id);
+           return targetIds.includes(pId);
+        })
+        .toArray();
+
+      // Trigger background sync to ensure we have latest data
+      setTimeout(() => syncService.read('visits'), 0);
+
+      return localVisits
+        .map(mapToAppFormat)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    } catch (error) {
+      console.error('Error fetching visits:', error);
+      return [];
     }
-
-    // Query for both Local ID and Remote UUID to be safe
-    const visits = await db.visits
-      .filter(v => targetIds.includes(String(v.patient_id)))
-      .toArray();
-
-    return visits.sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime());
   },
 
-  // READ: Get all visits (from local DB)
-  getAllVisits: async () => {
-    return await db.visits.toArray();
-  },
-
-  // WRITE: Save new visit (offline-first)
+  // 2. ROBUST SAVE: Ensures correct mapping before saving
   saveVisit: async (params: {
     patientId: string;
     department: string;
@@ -69,56 +65,33 @@ export const visitsService = {
     prescription?: any[];
     notes?: string;
   }) => {
+    console.log('💾 Saving Visit...', params);
+
+    // Prepare data for DB (snake_case is preferred for Supabase/Dexie consistency)
     const visitData = {
-      patient_id: params.patientId,
-      date: new Date().toISOString().split('T')[0],
+      patient_id: params.patientId, // Save as patient_id for consistency
+      visit_date: new Date().toISOString().split('T')[0], // Standardize date format
       department: params.department,
       diagnosis: params.diagnosis || '',
       prescription: params.prescription || [],
       notes: params.notes || '',
       clinical_data: params.clinicalData,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
+    // Save to 'visits' table (which SyncService maps to 'antenatal_visits' or 'visits' depending on context)
+    // Note: Ensure your SyncService handles the table mapping if needed, or save to specific tables.
+    // For now, assuming 'visits' is the general table.
     return await syncService.saveItem('visits', visitData);
   },
 
-  // WRITE: Update existing visit (offline-first)
-  updateVisit: async (localId: number, updates: Partial<{
-    patient_id: string;
-    department: string;
-    diagnosis: string;
-    prescription: any[];
-    notes: string;
-    clinical_data: any;
-  }>) => {
-    return await syncService.updateItem('visits', localId, updates);
+  getAllVisits: async () => {
+    const visits = await db.visits.toArray();
+    return visits.map(mapToAppFormat);
   },
 
-  // WRITE: Delete visit (offline-first)
   deleteVisit: async (localId: number) => {
     return await syncService.deleteItem('visits', localId);
-  },
-
-  // Utility: Find local visit by remote ID
-  findVisitByRemoteId: async (remoteId: string) => {
-    return await db.visits.where('remoteId').equals(remoteId).first();
-  },
-
-  // Utility: Get visit by local ID
-  getVisitById: async (localId: number) => {
-    return await db.visits.get(localId);
-  },
-
-  // Legacy compatibility: Create visit (maps to saveVisit)
-  createVisit: async (visit: Omit<Visit, 'id'>) => {
-    return await syncService.saveItem('visits', {
-      patient_id: visit.patientId,
-      date: visit.date,
-      department: visit.department,
-      diagnosis: visit.diagnosis || '',
-      prescription: visit.prescription || [],
-      notes: visit.notes || '',
-      clinical_data: visit.clinical_data || {}
-    });
-  },
+  }
 };

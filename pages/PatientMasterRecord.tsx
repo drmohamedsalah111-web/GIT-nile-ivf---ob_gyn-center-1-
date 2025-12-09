@@ -48,24 +48,13 @@ const PatientMasterRecord: React.FC = () => {
     }
   }, [selectedPatientId]);
 
-  const fetchPatientVisits = async (patientId: string) => {
+  const fetchPatientVisits = async (pId: string) => {
     setIsLoading(true);
     try {
-      // Use the visits service which handles ID resolution
-      const visitsData = await visitsService.getVisitsByPatient(patientId);
-
-      const mappedData = visitsData.map((visit: any) => ({
-        id: String(visit.id || visit.remoteId || ''),
-        patientId: visit.patient_id || visit.patientId,
-        date: visit.visit_date || visit.date || new Date().toISOString(),
-        department: visit.department || 'General',
-        diagnosis: visit.diagnosis || '',
-        prescription: visit.prescription || [],
-        notes: visit.notes || '',
-        clinical_data: visit.clinical_data
-      }));
-
-      setVisits(mappedData);
+      console.log('Fetching visits for patient:', pId);
+      // Use the service which now handles ID resolution (Local vs Remote)
+      const data = await visitsService.getVisitsByPatient(pId);
+      setVisits(data);
     } catch (error) {
       console.error('Error fetching visits:', error);
       toast.error('Failed to load patient visits');
