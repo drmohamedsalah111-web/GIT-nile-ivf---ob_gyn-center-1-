@@ -14,7 +14,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import { Login } from './pages/Login';
 import { Toaster } from 'react-hot-toast';
 import { authService } from './services/authService';
-import { LogOut } from 'lucide-react';
+import { LogOut, WifiOff } from 'lucide-react';
 import { BrandingProvider } from './context/BrandingContext';
 import { initPWA } from './src/lib/pwa';
 import { initLocalDB } from './src/db/localDB';
@@ -24,37 +24,61 @@ const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
-    setLoading(true);
+    const handleStatusChange = () => setIsOffline(!navigator.onLine);
+    window.addEventListener('online', handleStatusChange);
+    window.addEventListener('offline', handleStatusChange);
+    return () => {
+      window.removeEventListener('online', handleStatusChange);
+      window.removeEventListener('offline', handleStatusChange);
+    };
+  }, []);
 
+  useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Initialize PWA features
-        await initPWA();
+        setLoading(true);
 
-        // Initialize local database
+        // 1. Initialize Local DB (Critical for Offline)
         await initLocalDB();
+        initPWA().catch(console.warn); // Non-blocking PWA init
 
-        // Check user authentication
-        const currentUser = await authService.getCurrentUser();
-        setUser(currentUser);
+        // 2. Check Local Storage for cached session (FAST CHECK)
+        // Supabase stores session in localStorage by default with key 'sb-[project-ref]-auth-token'
+        // We will try standard auth check first, but handle offline error gracefully
 
-        // Initialize sync - process any pending items
-        if (currentUser) {
-          await syncService.initializeSync();
-        }
-
-      } catch (error) {
-        console.error('App initialization error:', error);
-        // Continue with app even if PWA features fail
         try {
           const currentUser = await authService.getCurrentUser();
           setUser(currentUser);
+
+          // Only trigger sync if we have a user and are online
+          if (currentUser && navigator.onLine) {
+            syncService.initializeSync().catch(console.error);
+          }
         } catch (authError) {
-          console.log('No user logged in');
-          setUser(null);
+          console.warn('Auth check failed (likely offline):', authError);
+
+          // If offline, check if we have a "persistence" fallback or trust the last state
+          // For now, if getSession fails completely, we might need to rely on localStorage manually
+          // or just accept that the SDK might throw when offline.
+
+          // Fallback: If we are offline, try to see if a session exists in storage
+          const session = localStorage.getItem(`sb-${import.meta.env.VITE_SUPABASE_URL?.split('.')[0]?.split('//')[1]}-auth-token`);
+          if (session) {
+             console.log('Offline mode: Found cached session, allowing access.');
+             // Mock a user object based on cached session or just allow entry
+             // ideally parse the JWT, but for now we assume valid if present
+             const parsed = JSON.parse(session);
+             if (parsed.user) {
+               setUser(parsed.user);
+             }
+          }
         }
+
+      } catch (error) {
+        console.error('Critical App Initialization Error:', error);
       } finally {
         setLoading(false);
       }
@@ -64,11 +88,10 @@ const App: React.FC = () => {
 
     const subscription = authService.onAuthStateChange((user) => {
       setUser(user);
-      setLoading(false);
     });
 
     return () => {
-      if (subscription) {
+      if (subscription && typeof subscription.unsubscribe === 'function') {
         subscription.unsubscribe();
       }
     };
@@ -81,6 +104,9 @@ const App: React.FC = () => {
       setActivePage(Page.HOME);
     } catch (error) {
       console.error('Logout error:', error);
+      // Force logout locally even if server fails
+      setUser(null);
+      localStorage.clear();
     }
   };
 
@@ -89,7 +115,9 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-[Tajawal]">جاري التحميل...</p>
+          <p className="text-gray-600 font-[Tajawal]">
+            {isOffline ? 'جاري التحميل في وضع عدم الاتصال...' : 'جاري التحميل...'}
+          </p>
         </div>
       </div>
     );
@@ -127,11 +155,19 @@ const App: React.FC = () => {
 
         <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">
           <div className="max-w-7xl mx-auto">
-            {/* Desktop Header with Logout */}
+            {/* Desktop Header */}
             <div className="hidden md:flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">
-                مرحباً، {user?.email}
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  مرحباً، {user?.email}
+                </h1>
+                {isOffline && (
+                  <span className="flex items-center gap-1 px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-bold">
+                    <WifiOff size={14} />
+                    وضع أوفلاين
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-4">
                 <SyncStatus />
                 <button
@@ -144,12 +180,15 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Mobile Header - Simplified */}
+            {/* Mobile Header */}
             <div className="md:hidden mb-4 flex justify-between items-center">
               <SyncStatus />
-              <h1 className="text-xl font-bold text-gray-900 text-center flex-1">
-                مرحباً، {user?.email?.split('@')[0]}
-              </h1>
+              <div className="text-center flex-1">
+                 <h1 className="text-xl font-bold text-gray-900">
+                  مرحباً، {user?.email?.split('@')[0]}
+                </h1>
+                {isOffline && <p className="text-xs text-gray-500 flex justify-center items-center gap-1"><WifiOff size={10}/> وضع أوفلاين</p>}
+              </div>
               <div className="w-5"></div>
             </div>
 
