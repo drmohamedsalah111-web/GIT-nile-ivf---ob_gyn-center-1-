@@ -3,12 +3,12 @@ import Dexie, { Table } from 'dexie';
 export enum SyncStatus { SYNCED = 0, PENDING_CREATE = 1, PENDING_UPDATE = 2, PENDING_DELETE = 3, ERROR = 4 }
 
 // Interfaces
-export interface LocalPatient { id?: number; remoteId?: string; name: string; age?: number; phone: string; husbandName?: string; history?: string; doctor_id?: string; created_at?: string; updated_at?: string; sync_status: SyncStatus; last_sync_attempt?: string; sync_error?: string; }
-export interface LocalVisit { id?: number; remoteId?: string; pregnancy_id: string; department: string; visit_date: string; clinical_data?: any; diagnosis?: string; prescription?: any[]; notes?: string; doctor_id?: string; created_at?: string; updated_at?: string; sync_status: SyncStatus; last_sync_attempt?: string; sync_error?: string; }
-export interface LocalIVFCycle { id?: number; remoteId?: string; patient_id: string; protocol: string; start_date: string; status: string; assessment_data?: any; lab_data?: any; transfer_data?: any; outcome_data?: any; doctor_id?: string; created_at?: string; updated_at?: string; sync_status: SyncStatus; last_sync_attempt?: string; sync_error?: string; }
-export interface LocalStimulationLog { id?: number; remoteId?: string; cycle_id: string; cycle_day: number; date: string; fsh?: string; hmg?: string; e2?: string; lh?: string; rt_follicles?: string; lt_follicles?: string; endometrium_thickness?: string; created_at?: string; updated_at?: string; sync_status: SyncStatus; last_sync_attempt?: string; sync_error?: string; }
-export interface LocalPregnancy { id?: number; remoteId?: string; patient_id: string; lmp_date?: string; edd_date?: string; risk_level?: string; aspirin_prescribed?: boolean; current_status?: string; clinical_data?: any; doctor_id?: string; created_at?: string; updated_at?: string; sync_status: SyncStatus; last_sync_attempt?: string; sync_error?: string; }
-export interface LocalBiometryScan { id?: number; remoteId?: string; pregnancy_id: string; scan_date: string; gestational_age_weeks: number; gestational_age_days: number; bpd_mm?: number; hc_mm?: number; ac_mm?: number; fl_mm?: number; efw_grams?: number; percentile?: number; notes?: string; created_at?: string; updated_at?: string; sync_status: SyncStatus; last_sync_attempt?: string; sync_error?: string; }
+export interface LocalPatient { id?: number; remoteId?: string; name: string; age?: number; phone: string; husbandName?: string; history?: string; doctor_id?: string; created_at?: string; updated_at?: string; sync_status: SyncStatus; }
+export interface LocalVisit { id?: number; remoteId?: string; patient_id: string; pregnancy_id?: string; department: string; visit_date: string; clinical_data?: any; diagnosis?: string; prescription?: any[]; notes?: string; doctor_id?: string; created_at?: string; updated_at?: string; sync_status: SyncStatus; }
+export interface LocalIVFCycle { id?: number; remoteId?: string; patient_id: string; protocol: string; start_date: string; status: string; assessment_data?: any; lab_data?: any; transfer_data?: any; outcome_data?: any; doctor_id?: string; created_at?: string; updated_at?: string; sync_status: SyncStatus; }
+export interface LocalStimulationLog { id?: number; remoteId?: string; cycle_id: string; cycle_day: number; date: string; fsh?: string; hmg?: string; e2?: string; lh?: string; rt_follicles?: string; lt_follicles?: string; endometrium_thickness?: string; created_at?: string; updated_at?: string; sync_status: SyncStatus; }
+export interface LocalPregnancy { id?: number; remoteId?: string; patient_id: string; lmp_date?: string; edd_date?: string; risk_level?: string; aspirin_prescribed?: boolean; current_status?: string; clinical_data?: any; doctor_id?: string; created_at?: string; updated_at?: string; sync_status: SyncStatus; }
+export interface LocalBiometryScan { id?: number; remoteId?: string; pregnancy_id: string; scan_date: string; gestational_age_weeks: number; gestational_age_days: number; bpd_mm?: number; hc_mm?: number; ac_mm?: number; fl_mm?: number; efw_grams?: number; percentile?: number; notes?: string; created_at?: string; updated_at?: string; sync_status: SyncStatus; }
 export interface SyncQueueItem { id?: number; table: string; operation: 'create' | 'update' | 'delete'; localId: number; remoteId?: string; payload?: any; retryCount: number; maxRetries: number; lastAttempt?: string; nextRetry?: string; created_at: string; }
 
 export class ClinicLocalDB extends Dexie {
@@ -23,32 +23,16 @@ export class ClinicLocalDB extends Dexie {
   constructor() {
     super('ClinicLocalDB');
 
-    // Version 1: Initial schema
-    this.version(1).stores({
+    // Unified Schema Definition (Version 3)
+    // Removed dangerous upgrade logic
+    this.version(3).stores({
       patients: '++id, remoteId, name, phone, created_at, [sync_status]',
-      visits: '++id, remoteId, patient_id, date, [sync_status]', // Old schema with patient_id
+      visits: '++id, remoteId, patient_id, pregnancy_id, date, [sync_status]',
       ivf_cycles: '++id, remoteId, patient_id, status, [sync_status]',
       stimulation_logs: '++id, remoteId, cycle_id, [sync_status]',
       pregnancies: '++id, remoteId, patient_id, [sync_status]',
       biometry_scans: '++id, remoteId, pregnancy_id, [sync_status]',
       syncQueue: '++id, table, operation, retryCount, created_at'
-    });
-
-    // Version 2: Updated visits to use pregnancy_id
-    this.version(2).stores({
-      patients: '++id, remoteId, name, phone, created_at, [sync_status]',
-      visits: '++id, remoteId, pregnancy_id, date, [sync_status]', // Updated to pregnancy_id
-      ivf_cycles: '++id, remoteId, patient_id, status, [sync_status]',
-      stimulation_logs: '++id, remoteId, cycle_id, [sync_status]',
-      pregnancies: '++id, remoteId, patient_id, [sync_status]',
-      biometry_scans: '++id, remoteId, pregnancy_id, [sync_status]',
-      syncQueue: '++id, table, operation, retryCount, created_at'
-    }).upgrade(async (tx) => {
-      // Migrate visits data from patient_id to pregnancy_id
-      // Note: This is a complex migration that requires knowing which visits belong to which pregnancies
-      // For now, we'll clear visits and let them sync again
-      console.log('Migrating visits table to use pregnancy_id...');
-      await tx.table('visits').clear();
     });
   }
 }
@@ -62,28 +46,9 @@ export const initLocalDB = async (): Promise<void> => {
        console.log('✅ Local database initialized successfully');
     }
   } catch (error) {
-    console.error('⚠️ Local DB open error:', error);
-
-    // If it's a schema version error, try to delete and recreate
-    if (error.name === 'VersionError' || error.message?.includes('version')) {
-      console.warn('Schema version mismatch detected, recreating database...');
-      try {
-        await db.delete();
-        const newDb = new ClinicLocalDB();
-        Object.assign(db, newDb);
-        await db.open();
-        console.log('✅ Database recreated successfully');
-      } catch (recreateError) {
-        console.error('❌ Failed to recreate database:', recreateError);
-        throw recreateError;
-      }
-    } else {
-      // For other errors, don't delete data
-      console.warn('Database error (data preserved):', error.message);
-    }
+    console.error('⚠️ Local DB Error:', error);
+    // Do NOT automatically delete the DB on error
   }
-
-  // Hooks omitted for brevity but should be preserved if needed
 };
 
 // Exports helper functions
@@ -92,9 +57,7 @@ export const addToSyncQueue = async (item: Omit<SyncQueueItem, 'id' | 'created_a
 export const removeFromSyncQueue = async (id: number): Promise<void> => { await db.syncQueue.delete(id); };
 export const updateSyncQueueItem = async (id: number, updates: Partial<SyncQueueItem>): Promise<void> => { await db.syncQueue.update(id, updates); };
 export const markAsSynced = async (table: string, localId: number, remoteId?: string): Promise<void> => { const targetTable = db.table(table); if (targetTable) { const updateData: any = { sync_status: SyncStatus.SYNCED, last_sync_attempt: new Date().toISOString(), sync_error: undefined }; if (remoteId) { updateData.remoteId = remoteId; } await targetTable.update(localId, updateData); } };
-export const markSyncError = async (table: string, localId: number, error: string): Promise<void> => { const targetTable = db.table(table); if (targetTable) { await targetTable.update(localId, { sync_status: SyncStatus.ERROR, last_sync_attempt: new Date().toISOString(), sync_error: error }); } };
-export const getUnsyncedRecords = async (table: string): Promise<any[]> => { const targetTable = db.table(table); if (targetTable) { return await targetTable.where('sync_status').above(SyncStatus.SYNCED).toArray(); } return []; };
-export const getSyncStats = async (): Promise<{ total: number; synced: number; pending: number; errors: number; }> => { 
+export const getSyncStats = async (): Promise<{ total: number; synced: number; pending: number; errors: number; }> => {
     let total = 0, synced = 0, pending = 0, errors = 0;
     const tables = ['patients', 'visits', 'ivf_cycles', 'stimulation_logs', 'pregnancies', 'biometry_scans'];
     for (const tbl of tables) {
@@ -104,5 +67,5 @@ export const getSyncStats = async (): Promise<{ total: number; synced: number; p
         pending += records.filter((r:any) => r.sync_status > SyncStatus.SYNCED && r.sync_status < SyncStatus.ERROR).length;
         errors += records.filter((r:any) => r.sync_status === SyncStatus.ERROR).length;
     }
-    return { total, synced, pending, errors }; 
+    return { total, synced, pending, errors };
 };

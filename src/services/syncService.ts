@@ -100,38 +100,67 @@ export class SyncService {
     if (error) throw error;
   }
 
+  // UPDATED PULL LOGIC
   private async pullLatestData(): Promise<void> {
     try {
-        console.log('📥 Pulling data...');
-        await this.pullTable('patients');
-        await this.pullTable('antenatal_visits', 'visits');
-        await this.pullTable('ivf_cycles');
-        await this.pullTable('stimulation_logs');
-        await this.pullTable('pregnancies');
-        await this.pullTable('biometry_scans');
-    } catch (e) { console.error('Pull error:', e); }
+      console.log('📥 Pulling latest data from server...');
+
+      // 1. Pull Patients first (Parent table)
+      await this.pullTableData('patients');
+
+      // 2. Pull all related tables in parallel
+      await Promise.all([
+        this.pullTableData('visits'),           // General & Gyna Visits
+        this.pullTableData('ivf_cycles'),       // IVF Cycles
+        this.pullTableData('stimulation_logs'), // IVF Logs
+        this.pullTableData('pregnancies'),      // Obstetrics Pregnancies
+        this.pullTableData('antenatal_visits'), // OBS Visits
+        this.pullTableData('biometry_scans')    // Fetal Growth
+      ]);
+
+      console.log('✅ Data pull completed');
+    } catch (error) {
+      console.error('❌ Failed to pull latest data:', error);
+    }
   }
 
-  private async pullTable(remoteTable: string, localTableAlias?: string): Promise<void> {
-    const localTable = localTableAlias || remoteTable;
-    const { data, error } = await supabase.from(remoteTable).select('*').limit(1000);
-    if (error || !data) return;
+  private async pullTableData(tableName: string): Promise<void> {
+    // Map remote table names to local Dexie table names if they differ
+    const localTableName = tableName === 'antenatal_visits' ? 'visits' : tableName;
 
-    // FIX: Using array for transaction
-    await db.transaction('rw', [db.table(localTable)], async () => {
-        for (const remoteRow of data) {
-            const existing = await db.table(localTable).where('remoteId').equals(remoteRow.id).first();
-            const cleanRow = { ...remoteRow, remoteId: remoteRow.id, sync_status: SyncStatus.SYNCED };
-            delete cleanRow.id;
-            // For visits table, ensure pregnancy_id is used instead of patient_id
-            if (localTable === 'visits' && cleanRow.patient_id) {
-                cleanRow.pregnancy_id = cleanRow.patient_id;
-                delete cleanRow.patient_id;
-            }
-            if (existing) { await db.table(localTable).update(existing.id, cleanRow); }
-            else { await db.table(localTable).add(cleanRow); }
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('*')
+      .limit(1000);
+
+    if (error) {
+        console.error(`Error pulling ${tableName}:`, error);
+        return;
+    }
+
+    if (data && data.length > 0) {
+      // Use array notation for transaction to avoid arguments error
+      await db.transaction('rw', [db.table(localTableName)], async () => {
+        for (const record of data) {
+           // Logic to merge remote data into local DB
+           const localTable = db.table(localTableName);
+           const existing = await localTable.where('remoteId').equals(record.id).first();
+
+           const cleanRecord = {
+             ...record,
+             remoteId: record.id,
+             sync_status: SyncStatus.SYNCED
+           };
+           delete cleanRecord.id; // Don't overwrite local auto-increment ID
+
+           if (existing) {
+             await localTable.update(existing.id, cleanRecord);
+           } else {
+             await localTable.add(cleanRecord);
+           }
         }
-    });
+      });
+    }
   }
 
   getSyncStatus() { return { isOnline: this.isOnline, syncInProgress: this.syncInProgress }; }
