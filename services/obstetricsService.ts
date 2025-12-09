@@ -335,7 +335,7 @@ export const obstetricsService = {
   getPregnancyByPatient: async (patientId: string) => {
     try {
       // Try local DB first
-      const localPregnancies = await localDB.pregnancies.where('patientId').equals(patientId).toArray();
+      const localPregnancies = await localDB.pregnancies.where('patient_id').equals(patientId).toArray();
       
       // Background sync if online
       if (networkStatus.getStatus()) {
@@ -398,7 +398,7 @@ export const obstetricsService = {
   getANCVisits: async (pregnancyId: string) => {
     try {
       // Try local DB first
-      const localVisits = await localDB.visits.where('patientId').equals(pregnancyId).toArray();
+      const localVisits = await localDB.visits.where('patient_id').equals(pregnancyId).toArray();
       
       // Background sync
       setTimeout(() => syncManager.read('antenatal_visits'), 0);
