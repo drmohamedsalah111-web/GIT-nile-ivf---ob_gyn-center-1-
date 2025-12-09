@@ -20,28 +20,42 @@ export const visitsService = {
   // 1. SMART GET: Resolves Local ID <-> Remote UUID to find ALL visits
   getVisitsByPatient: async (patientId: string) => {
     try {
-      let targetIds: string[] = [patientId];
-
-      // If it's a local numeric ID, find the remote UUID
+      // Get the patient to access both ID and remoteId
+      let patient: any = null;
+      
       if (!isNaN(Number(patientId))) {
-        const patient = await db.patients.get(Number(patientId));
-        if (patient?.remoteId) targetIds.push(patient.remoteId);
-      }
-      // If it's a UUID, try to find the local numeric ID (optional but safe)
-      else {
-        const patient = await db.patients.where('remoteId').equals(patientId).first();
-        if (patient?.id) targetIds.push(patient.id.toString());
+        // patientId is numeric - get from local DB
+        patient = await db.patients.get(Number(patientId));
+      } else {
+        // patientId is UUID - find by remoteId
+        patient = await db.patients.where('remoteId').equals(patientId).first();
       }
 
-      console.log(`🔍 Searching visits for Patient IDs: ${targetIds.join(', ')}`);
+      if (!patient) {
+        console.warn(`❌ Patient not found: ${patientId}`);
+        return [];
+      }
 
-      // Query Local DB for ANY match
+      // Build all possible IDs that could link to this patient
+      const possibleIds = [
+        String(patient.id),           // numeric ID as string
+        String(patient.remoteId),     // UUID as string
+        patient.id,                   // numeric ID as number
+        patient.remoteId              // UUID as is
+      ].filter(Boolean);
+
+      console.log(`🔍 Searching visits for Patient: ${patient.name} (IDs: ${possibleIds.join(', ')})`);
+
+      // Query Local DB - check all possible ID formats
       const localVisits = await db.visits
         .filter(v => {
-           const pId = String(v.patient_id);
-           return targetIds.includes(pId);
+           const pId = v.patient_id;
+           // Check if visit's patient_id matches ANY of the possible IDs
+           return possibleIds.some(id => String(pId) === String(id));
         })
         .toArray();
+
+      console.log(`✅ Found ${localVisits.length} visits for this patient`);
 
       // Trigger background sync to ensure we have latest data
       setTimeout(() => syncService.read('visits'), 0);

@@ -179,21 +179,83 @@ export class SyncService {
   private async pullLatestData(): Promise<void> {
     try {
         console.log('📥 Pulling data...');
+        // Pull parents first
         await this.pullTable('patients');
-        await this.pullTable('ivf_cycles');
         await this.pullTable('pregnancies');
+        await this.pullTable('ivf_cycles');
+        
+        // Pull children - they can now resolve parent references
         await Promise.all([
             this.pullTable('antenatal_visits', 'visits'),
             this.pullTable('stimulation_logs'),
             this.pullTable('biometry_scans')
         ]);
+        
+        // Clean up orphaned records (visits/cycles with wrong patient_id format)
+        await this.cleanupOrphanedRecords();
     } catch (e) { console.error('Pull error:', e); }
+  }
+
+  private async cleanupOrphanedRecords(): Promise<void> {
+    try {
+      console.log('🧹 Cleaning up orphaned records...');
+      
+      // Get all patients with both ID formats
+      const patients = await db.patients.toArray();
+      const idMap = new Map<number | string, { numeric: number; uuid: string }>();
+      
+      for (const p of patients) {
+        if (p.id && p.remoteId) {
+          idMap.set(p.id, { numeric: p.id, uuid: p.remoteId });
+          idMap.set(p.remoteId, { numeric: p.id, uuid: p.remoteId });
+        }
+      }
+
+      // Update visits with numeric patient_id to use UUID
+      const visits = await db.visits.toArray();
+      let updatedCount = 0;
+      
+      for (const visit of visits) {
+        if (visit.patient_id && !isNaN(Number(visit.patient_id))) {
+          const mapping = idMap.get(Number(visit.patient_id));
+          if (mapping && mapping.uuid !== visit.patient_id) {
+            console.log(`🔗 Updating visit ${visit.id}: patient_id ${visit.patient_id} -> ${mapping.uuid}`);
+            await db.visits.update(visit.id!, { patient_id: mapping.uuid });
+            updatedCount++;
+          }
+        }
+      }
+
+      // Update cycles with numeric patient_id to use UUID
+      const cycles = await db.ivf_cycles.toArray();
+      for (const cycle of cycles) {
+        if (cycle.patient_id && !isNaN(Number(cycle.patient_id))) {
+          const mapping = idMap.get(Number(cycle.patient_id));
+          if (mapping && mapping.uuid !== cycle.patient_id) {
+            console.log(`🔗 Updating cycle ${cycle.id}: patient_id ${cycle.patient_id} -> ${mapping.uuid}`);
+            await db.ivf_cycles.update(cycle.id!, { patient_id: mapping.uuid });
+            updatedCount++;
+          }
+        }
+      }
+
+      if (updatedCount > 0) {
+        console.log(`✅ Cleaned up ${updatedCount} orphaned records`);
+      }
+    } catch (e) {
+      console.error('Cleanup error:', e);
+    }
   }
 
   private async pullTable(remoteTable: string, localTableAlias?: string): Promise<void> {
     const localTable = localTableAlias || remoteTable;
     const { data, error } = await supabase.from(remoteTable).select('*').limit(1000);
-    if (error || !data) return;
+    if (error || !data) {
+      console.warn(`⚠️ Error pulling ${remoteTable}:`, error?.message);
+      return;
+    }
+
+    console.log(`📥 Pulling ${remoteTable}: ${data.length} records`);
 
     await db.transaction('rw', [db.table(localTable)], async () => {
         for (const remoteRow of data) {
@@ -201,24 +263,60 @@ export class SyncService {
             const cleanRow = { ...remoteRow, remoteId: remoteRow.id, sync_status: SyncStatus.SYNCED };
             delete cleanRow.id; 
             
-            // Ensure foreign keys are properly resolved (convert any local IDs to remote UUIDs)
-            if (cleanRow.patient_id && !isNaN(Number(cleanRow.patient_id))) {
-                const patient = await db.patients.get(Number(cleanRow.patient_id));
-                if (patient?.remoteId) {
-                    cleanRow.patient_id = patient.remoteId;
+            // CRITICAL: Ensure foreign keys are properly resolved (convert any local IDs to remote UUIDs)
+            // This ensures consistency when visits/cycles reference patients
+            
+            if (cleanRow.patient_id) {
+                // If patient_id is numeric, convert to UUID
+                if (!isNaN(Number(cleanRow.patient_id))) {
+                    const patient = await db.patients.get(Number(cleanRow.patient_id));
+                    if (patient?.remoteId) {
+                        console.log(`🔗 Converting patient_id ${cleanRow.patient_id} -> ${patient.remoteId}`);
+                        cleanRow.patient_id = patient.remoteId;
+                    }
+                }
+                // If it's already a UUID, verify it exists
+                else {
+                    const patient = await db.patients.where('remoteId').equals(cleanRow.patient_id).first();
+                    if (!patient) {
+                        console.warn(`⚠️ Record references unknown patient: ${cleanRow.patient_id}`);
+                    }
                 }
             }
-            if (cleanRow.pregnancy_id && !isNaN(Number(cleanRow.pregnancy_id))) {
-                const pregnancy = await db.pregnancies.get(Number(cleanRow.pregnancy_id));
-                if (pregnancy?.remoteId) {
-                    cleanRow.pregnancy_id = pregnancy.remoteId;
+            
+            if (cleanRow.pregnancy_id) {
+                if (!isNaN(Number(cleanRow.pregnancy_id))) {
+                    const pregnancy = await db.pregnancies.get(Number(cleanRow.pregnancy_id));
+                    if (pregnancy?.remoteId) {
+                        cleanRow.pregnancy_id = pregnancy.remoteId;
+                    }
+                } else {
+                    const pregnancy = await db.pregnancies.where('remoteId').equals(cleanRow.pregnancy_id).first();
+                    if (!pregnancy) {
+                        console.warn(`⚠️ Record references unknown pregnancy: ${cleanRow.pregnancy_id}`);
+                    }
                 }
             }
 
-            if (existing) { await db.table(localTable).update(existing.id, cleanRow); } 
-            else { await db.table(localTable).add(cleanRow); }
+            if (cleanRow.cycle_id) {
+                if (!isNaN(Number(cleanRow.cycle_id))) {
+                    const cycle = await db.ivf_cycles.get(Number(cleanRow.cycle_id));
+                    if (cycle?.remoteId) {
+                        cleanRow.cycle_id = cycle.remoteId;
+                    }
+                }
+            }
+
+            if (existing) {
+                await db.table(localTable).update(existing.id, cleanRow);
+                console.log(`♻️ Updated existing record: ${localTable}/${existing.id}`);
+            } else {
+                await db.table(localTable).add(cleanRow);
+                console.log(`✅ Added new record: ${localTable}`);
+            }
         }
     });
+    console.log(`✅ Finished pulling ${remoteTable}`);
   }
 
   // Compat & Additional Methods
@@ -235,6 +333,82 @@ export class SyncService {
     } else {
       return await db.table(table).toArray();
     }
+  }
+
+  // Diagnostic & Manual Repair
+  async diagnoseOrphanedData(): Promise<{
+    patients: number;
+    orphanedVisits: any[];
+    orphanedCycles: any[];
+    orphanedPregnancies: any[];
+  }> {
+    console.log('🔍 Diagnosing data integrity...');
+    
+    const patients = await db.patients.toArray();
+    const visits = await db.visits.toArray();
+    const cycles = await db.ivf_cycles.toArray();
+    const pregnancies = await db.pregnancies.toArray();
+
+    // Find orphaned records
+    const patientIds = new Set<string | number>();
+    patients.forEach(p => {
+      if (p.id) patientIds.add(p.id);
+      if (p.remoteId) patientIds.add(p.remoteId);
+    });
+
+    const orphanedVisits = visits.filter(v => v.patient_id && !patientIds.has(v.patient_id));
+    const orphanedCycles = cycles.filter(c => c.patient_id && !patientIds.has(c.patient_id));
+
+    const pregnancyIds = new Set<string | number>();
+    pregnancies.forEach(p => {
+      if (p.id) pregnancyIds.add(p.id);
+      if (p.remoteId) pregnancyIds.add(p.remoteId);
+    });
+
+    const orphanedPregnancies = pregnancies.filter(p => p.patient_id && !patientIds.has(p.patient_id));
+
+    const report = {
+      patients: patients.length,
+      orphanedVisits: orphanedVisits.length,
+      orphanedCycles: orphanedCycles.length,
+      orphanedPregnancies: orphanedPregnancies.length,
+      orphanedVisitsData: orphanedVisits,
+      orphanedCyclesData: orphanedCycles,
+      orphanedPregnanciesData: orphanedPregnancies
+    };
+
+    console.table(report);
+    return {
+      patients: patients.length,
+      orphanedVisits: orphanedVisits,
+      orphanedCycles: orphanedCycles,
+      orphanedPregnancies: orphanedPregnancies
+    };
+  }
+
+  async repairAllData(): Promise<void> {
+    console.log('🔧 Starting comprehensive data repair...');
+    
+    // Step 1: Force pull latest from Supabase
+    console.log('Step 1/3: Pulling latest data from Supabase...');
+    await this.pullLatestData();
+    
+    // Step 2: Run cleanup
+    console.log('Step 2/3: Cleaning up orphaned records...');
+    await this.cleanupOrphanedRecords();
+    
+    // Step 3: Force sync any pending items
+    console.log('Step 3/3: Syncing pending changes...');
+    await this.processSyncQueue();
+    
+    console.log('✅ Data repair completed!');
+    
+    // Show final diagnosis
+    const diagnosis = await this.diagnoseOrphanedData();
+    console.log('📊 Final Data Status:');
+    console.log(`   Patients: ${diagnosis.patients}`);
+    console.log(`   Orphaned Visits: ${diagnosis.orphanedVisits.length}`);
+    console.log(`   Orphaned Cycles: ${diagnosis.orphanedCycles.length}`);
   }
 
   async forceSync() { await this.performBackgroundSync(); }
