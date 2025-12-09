@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db as dexieDB } from '../src/db/localDB';
 import { calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate, db } from '../services/ivfService';
+import { syncService } from '../src/services/syncService';
 import { Patient } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer, Microscope, Activity, Plus, X } from 'lucide-react';
@@ -162,9 +163,80 @@ const IvfJourney: React.FC = () => {
 
   useEffect(() => {
     if (selectedPatientId) {
-      setCycleData({ ...defaultCycleData, patientId: selectedPatientId });
+      loadExistingCycle(selectedPatientId);
     }
   }, [selectedPatientId]);
+
+  const loadExistingCycle = async (patientId: string) => {
+    try {
+      const cycles = await db.getCycles();
+      const patientCycles = cycles.filter(c => c.patientId === patientId);
+
+      if (patientCycles.length > 0) {
+        // Load the most recent cycle
+        const activeCycle = patientCycles[0]; // Get the first (most recent) cycle
+
+        // Load stimulation logs for this cycle from local DB
+        const cycleLogs = await dexieDB.stimulation_logs.where('cycle_id').equals(activeCycle.id).toArray();
+
+        // Map status to component status
+        let componentStatus: CycleDataState['status'] = 'Assessment';
+        if (activeCycle.status === 'Active') componentStatus = 'Active';
+        else if (activeCycle.status === 'Completed') componentStatus = 'Done';
+
+        setCycleData({
+          id: activeCycle.id,
+          patientId: activeCycle.patientId,
+          protocol: activeCycle.protocol,
+          status: componentStatus,
+          startDate: activeCycle.startDate,
+          stimulationLogs: cycleLogs.map(log => ({
+            id: log.remoteId || `local_${log.id}`,
+            date: log.date,
+            cycleDay: log.cycle_day,
+            fsh: log.fsh || '',
+            hmg: log.hmg || '',
+            e2: log.e2 || '',
+            lh: log.lh || '',
+            rtFollicles: log.rt_follicles || '',
+            ltFollicles: log.lt_follicles || '',
+            endometriumThickness: log.endometrium_thickness || ''
+          })),
+          // Load assessment data from cycle data
+          coupleAge: activeCycle.assessment?.coupleProfile?.age,
+          coupleBMI: activeCycle.assessment?.coupleProfile?.bmi,
+          amh: activeCycle.assessment?.femaleFactor?.amh,
+          afc: activeCycle.assessment?.femaleFactor?.afcRight,
+          pcosHistory: activeCycle.assessment?.coupleProfile?.infertilityType === 'Secondary',
+          maleFactorAnalysis: activeCycle.assessment?.maleFactor?.diagnosis,
+          recommendedProtocol: activeCycle.protocol,
+          // Load lab data
+          opuDate: activeCycle.lab?.opuDate,
+          totalOocytes: activeCycle.lab?.totalOocytes,
+          mii: activeCycle.lab?.mii,
+          mi: activeCycle.lab?.mi,
+          gv: activeCycle.lab?.gv,
+          atretic: activeCycle.lab?.atretic,
+          fertilizedTwoPN: activeCycle.lab?.fertilizedTwoPN,
+          // Load transfer data
+          transferDate: activeCycle.transfer?.transferDate,
+          numberTransferred: activeCycle.transfer?.numberTransferred,
+          embryoQuality: activeCycle.transfer?.embryoQuality,
+          // Load outcome data
+          betaHcg: activeCycle.outcome?.betaHcg,
+          clinicalPregnancy: activeCycle.outcome?.clinicalPregnancy,
+          gestationalSac: activeCycle.outcome?.gestationalSac,
+          fHR: activeCycle.outcome?.fHR
+        });
+      } else {
+        // No existing cycle, reset to default
+        setCycleData({ ...defaultCycleData, patientId: selectedPatientId });
+      }
+    } catch (error) {
+      console.error('Error loading existing cycle:', error);
+      setCycleData({ ...defaultCycleData, patientId: selectedPatientId });
+    }
+  };
 
   const handleStartCycle = async () => {
     if (!selectedPatientId) {
@@ -174,15 +246,40 @@ const IvfJourney: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const newCycleId = `cycle_${Date.now()}`;
+      // Create new cycle in database
+      const cycleDataToSave = {
+        patientId: selectedPatientId,
+        protocol: cycleData.protocol as 'Long' | 'Antagonist' | 'Flare-up' | 'Mini-IVF',
+        startDate: new Date().toISOString().split('T')[0],
+        status: 'Active' as const,
+        assessment: {
+          coupleProfile: {
+            age: cycleData.coupleAge,
+            bmi: cycleData.coupleBMI,
+            infertilityType: cycleData.pcosHistory ? 'Secondary' as const : 'Primary' as const
+          },
+          femaleFactor: {
+            amh: cycleData.amh,
+            afcRight: cycleData.afc
+          },
+          maleFactor: {
+            diagnosis: cycleData.maleFactorAnalysis
+          }
+        }
+      };
+
+      const savedCycle = await db.saveCycle(cycleDataToSave);
+
+      // Update local state with the saved cycle ID
       setCycleData(prev => ({
         ...prev,
-        id: newCycleId,
+        id: savedCycle.id,
         patientId: selectedPatientId,
         status: 'Active',
         startDate: new Date().toISOString().split('T')[0]
       }));
-      toast.success('New IVF cycle started');
+
+      toast.success('New IVF cycle started and saved');
     } catch (error) {
       console.error('Error starting cycle:', error);
       toast.error('Failed to start cycle');
@@ -234,6 +331,104 @@ const IvfJourney: React.FC = () => {
     if (!cycleData.mii || cycleData.mii === 0) return 0;
     if (!cycleData.fertilizedTwoPN) return 0;
     return ((cycleData.fertilizedTwoPN / cycleData.mii) * 100).toFixed(1);
+  };
+
+  const handleSaveCycle = async () => {
+    if (!cycleData.id) {
+      toast.error('No cycle to save');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Update cycle with all current data
+      const cycleUpdate = {
+        status: cycleData.status === 'Done' ? 'Completed' as const : 'Active' as const,
+        assessment_data: {
+          coupleProfile: {
+            age: cycleData.coupleAge,
+            bmi: cycleData.coupleBMI,
+            infertilityType: cycleData.pcosHistory ? 'Secondary' as const : 'Primary' as const
+          },
+          femaleFactor: {
+            amh: cycleData.amh,
+            afcRight: cycleData.afc
+          },
+          maleFactor: {
+            diagnosis: cycleData.maleFactorAnalysis
+          }
+        },
+        lab_data: {
+          opuDate: cycleData.opuDate,
+          totalOocytes: cycleData.totalOocytes,
+          mii: cycleData.mii,
+          mi: cycleData.mi,
+          gv: cycleData.gv,
+          atretic: cycleData.atretic,
+          fertilizedTwoPN: cycleData.fertilizedTwoPN,
+          maturationRate: cycleData.totalOocytes && cycleData.mii ? ((cycleData.mii / cycleData.totalOocytes) * 100) : undefined,
+          fertilizationRate: cycleData.mii && cycleData.fertilizedTwoPN ? ((cycleData.fertilizedTwoPN / cycleData.mii) * 100) : undefined
+        },
+        transfer_data: {
+          transferDate: cycleData.transferDate,
+          numberTransferred: cycleData.numberTransferred,
+          embryoQuality: cycleData.embryoQuality
+        },
+        outcome_data: {
+          betaHcg: cycleData.betaHcg,
+          clinicalPregnancy: cycleData.clinicalPregnancy,
+          gestationalSac: cycleData.gestationalSac,
+          fHR: cycleData.fHR
+        }
+      };
+
+      // Update cycle assessment data
+      await db.updateCycleAssessment(cycleData.id, cycleUpdate.assessment_data);
+
+      // Update cycle lab data
+      await db.updateCycleLabData(cycleData.id, cycleUpdate.lab_data);
+
+      // Update cycle transfer data
+      await db.updateCycleTransfer(cycleData.id, cycleUpdate.transfer_data);
+
+      // Update cycle outcome data
+      await db.updateCycleOutcome(cycleData.id, cycleUpdate.outcome_data);
+
+      // Save stimulation logs
+      for (const log of cycleData.stimulationLogs) {
+        const logData = {
+          cycle_id: cycleData.id,
+          cycle_day: log.cycleDay,
+          date: log.date,
+          fsh: log.fsh || '',
+          hmg: log.hmg || '',
+          e2: log.e2 || '',
+          lh: log.lh || '',
+          rt_follicles: log.rtFollicles || '',
+          lt_follicles: log.ltFollicles || '',
+          endometrium_thickness: log.endometriumThickness || ''
+        };
+
+        if (log.id && log.id.startsWith('local_')) {
+          // This is a local log, update it via syncService
+          const localId = parseInt(log.id.replace('local_', ''));
+          await syncService.updateItem('stimulation_logs', localId, logData);
+        } else if (log.id && !log.id.startsWith('local_')) {
+          // This is a remote log, update via syncService using remote ID
+          await syncService.update('stimulation_logs', log.id, logData);
+        } else {
+          // Add new log
+          await syncService.saveItem('stimulation_logs', logData);
+        }
+      }
+
+      toast.success('IVF cycle data saved successfully');
+    } catch (error) {
+      console.error('Error saving cycle:', error);
+      toast.error('Failed to save cycle data');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const stimulationChartData = cycleData.stimulationLogs.map(log => ({
@@ -769,13 +964,12 @@ const IvfJourney: React.FC = () => {
           {/* Action Buttons */}
           <div className="bg-gray-50 p-6 border-t border-gray-200 flex gap-4">
             <button
-              onClick={() => {
-                toast.success('Cycle data saved (Demo)');
-                setCycleData(prev => ({ ...prev, status: 'Done' }));
-              }}
-              className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-medium py-3 px-4 rounded-lg transition"
+              onClick={handleSaveCycle}
+              disabled={isLoading}
+              className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition"
             >
-              <Save className="w-5 h-5" /> Save Cycle
+              <Save className="w-5 h-5" />
+              {isLoading ? 'Saving...' : 'Save Cycle'}
             </button>
             <button
               onClick={() => setIsPrinterOpen(true)}
