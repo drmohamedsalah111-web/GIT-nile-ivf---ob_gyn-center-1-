@@ -257,7 +257,7 @@ export class SyncService {
       // FIX: Pass tables as an ARRAY [] to avoid "Expected 3-6 arguments" error
       await db.transaction('rw', [db.patients, db.visits, db.ivf_cycles, db.stimulation_logs, db.pregnancies, db.biometry_scans], async () => {
         for (const record of data) {
-          await this.upsertLocalRecord(tableName, record);
+            await this.upsertLocalRecord(tableName, record);
         }
       });
     }
@@ -300,12 +300,31 @@ export class SyncService {
         created_at: remoteData.created_at || new Date().toISOString(),
         updated_at: remoteData.updated_at || new Date().toISOString()
     };
-    delete localData.id; // Preserve local ID
+    delete localData.id;
 
     if (existingRecord) {
-        await dexieTable.update(existingRecord.id, localData);
+      console.log(`🔍 Found existing local record for ${table} (remoteId: ${remoteData.id}), checking conflict resolution...`);
+      
+      // Conflict resolution: Don't overwrite if local has pending changes
+      if (existingRecord.sync_status !== SyncStatus.SYNCED) {
+        console.log(`⚠️ Local record has pending changes (status: ${existingRecord.sync_status}), preserving local data`);
+        return;
+      }
+
+      // If both are synced, use timestamp-based conflict resolution
+      const localUpdatedAt = new Date(existingRecord.updated_at || 0).getTime();
+      const remoteUpdatedAt = new Date(remoteData.updated_at || 0).getTime();
+      
+      if (remoteUpdatedAt < localUpdatedAt) {
+        console.log(`⚠️ Local data is newer than remote, preserving local version`);
+        return;
+      }
+
+      console.log(`✅ Updating with remote data (remote is newer or same)`);
+      await dexieTable.update(existingRecord.id, localData);
     } else {
-        await dexieTable.add(localData);
+      console.log(`✅ New record from server for ${table}, adding to local DB`);
+      await dexieTable.add(localData);
     }
   }
 
