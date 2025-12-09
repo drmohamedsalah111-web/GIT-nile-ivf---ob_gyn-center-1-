@@ -50,11 +50,26 @@ const PatientMasterRecord: React.FC = () => {
   const fetchPatientVisits = async (patientId: string) => {
     setIsLoading(true);
     try {
-      const data = await visitsService.getVisitsByPatient(patientId);
-      const mappedData = (data || []).map((visit: any) => ({
-        ...visit,
-        patientId: visit.patient_id,
+      // Get all visits from local DB and filter by patient (supports both local and remote IDs)
+      const allVisits = await db.visits.toArray();
+      const patientIdStr = String(patientId);
+      
+      const filteredVisits = allVisits.filter((v: any) => {
+        return String(v.patient_id) === patientIdStr || 
+               String(v.patientId) === patientIdStr;
+      });
+
+      const mappedData = (filteredVisits || []).map((visit: any) => ({
+        id: String(visit.id || visit.remoteId || ''),
+        patientId: visit.patient_id || visit.patientId,
+        date: visit.date || visit.visit_date || new Date().toISOString(),
+        department: visit.department || 'General',
+        diagnosis: visit.diagnosis || '',
+        prescription: visit.prescription || [],
+        notes: visit.notes || '',
+        clinical_data: visit.clinical_data
       }));
+      
       setVisits(mappedData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     } catch (error) {
       console.error('Error fetching visits:', error);
@@ -83,7 +98,7 @@ const PatientMasterRecord: React.FC = () => {
     }
   };
 
-  const selectedPatient = patients.find(p => p.id === selectedPatientId);
+  const selectedPatient = patients.find(p => String(p.id) === selectedPatientId);
 
   const getDepartmentIcon = (department?: string) => {
     switch (department) {
