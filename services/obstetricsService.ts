@@ -498,16 +498,37 @@ export const obstetricsService = {
 
   getBiometryScans: async (pregnancyId: string) => {
     try {
-      // Try local DB first (would need custom table for biometry scans)
-      // For now, fallback to Supabase
+      const localScans = await localDB.biometry_scans
+        .where('pregnancy_id')
+        .equals(pregnancyId)
+        .toArray();
+      
       if (networkStatus.getStatus()) {
         setTimeout(() => syncManager.read('biometry_scans'), 0);
       }
+
+      if (localScans.length > 0) {
+        return localScans.map((scan: any) => ({
+          id: scan.remoteId || `local_${scan.id}`,
+          pregnancy_id: scan.pregnancy_id,
+          scan_date: scan.scan_date,
+          gestational_age_weeks: scan.gestational_age_weeks,
+          gestational_age_days: scan.gestational_age_days,
+          bpd_mm: scan.bpd_mm,
+          hc_mm: scan.hc_mm,
+          ac_mm: scan.ac_mm,
+          fl_mm: scan.fl_mm,
+          efw_grams: scan.efw_grams,
+          percentile: scan.percentile,
+          notes: scan.notes,
+          created_at: scan.created_at,
+          updated_at: scan.updated_at
+        }));
+      }
     } catch (error) {
-      console.error('Error fetching local biometry scans:', error);
+      console.error('Error fetching local biometry scans, falling back to Supabase:', error);
     }
     
-    // Fallback to Supabase
     const { data, error } = await supabase
       .from('biometry_scans')
       .select('*')

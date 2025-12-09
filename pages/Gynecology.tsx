@@ -9,6 +9,7 @@ import { authService } from '../services/authService';
 import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 import SearchableSelect from '../components/ui/SearchableSelect';
+import RefreshButton from '../components/RefreshButton';
 import { COMMON_COMPLAINTS, ICD10_DIAGNOSES, PROCEDURE_ORDERS } from '../data/medical_terms';
 
 interface GynecologyData {
@@ -252,13 +253,16 @@ const Gynecology: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">
-          عيادة النساء
-        </h1>
-        <p className="text-gray-600 font-[Tajawal]">
-          Gynecology Station - Diagnosis & Medical Management of Benign Conditions
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">
+            عيادة النساء
+          </h1>
+          <p className="text-gray-600 font-[Tajawal]">
+            Gynecology Station - Diagnosis & Medical Management of Benign Conditions
+          </p>
+        </div>
+        <RefreshButton />
       </div>
 
       {/* Patient Selector */}

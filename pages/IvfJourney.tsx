@@ -7,6 +7,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer, Microscope, Activity, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
+import RefreshButton from '../components/RefreshButton';
 
 const PROTOCOL_OPTIONS = ['Long', 'Antagonist', 'Flare-up', 'Mini-IVF'];
 
@@ -251,7 +252,10 @@ const IvfJourney: React.FC = () => {
             <h1 className="text-3xl font-bold mb-2">🔬 IVF Journey</h1>
             <p className="text-teal-100">Comprehensive IVF Cycle Management & Tracking</p>
           </div>
-          <TestTube className="w-16 h-16 opacity-20" />
+          <div className="flex items-center gap-4">
+            <RefreshButton variant="secondary" showLabel={false} />
+            <TestTube className="w-16 h-16 opacity-20" />
+          </div>
         </div>
       </div>
 

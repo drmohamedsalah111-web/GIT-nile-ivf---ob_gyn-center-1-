@@ -13,6 +13,7 @@ import ANCFlowSheet from './components/obstetrics/ANCFlowSheet';
 import FetalGrowthChart from './components/obstetrics/FetalGrowthChart';
 import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
+import RefreshButton from '../components/RefreshButton';
 
 const ObstetricsDashboard: React.FC = () => {
   const patients = useLiveQuery(() => db.patients.toArray(), []) || [];
@@ -245,13 +246,20 @@ const ObstetricsDashboard: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">
-          🤰 وحدة طب التوليد والنسائية
-        </h1>
-        <p className="text-gray-600 font-[Tajawal]">
-          متابعة شاملة للحمل والولادة مع تقييم المخاطر والمسح البيوميتري
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">
+            🤰 وحدة طب التوليد والنسائية
+          </h1>
+          <p className="text-gray-600 font-[Tajawal]">
+            متابعة شاملة للحمل والولادة مع تقييم المخاطر والمسح البيوميتري
+          </p>
+        </div>
+        <RefreshButton onRefreshComplete={() => {
+          if (selectedPatientId) {
+            fetchPregnancy(selectedPatientId);
+          }
+        }} />
       </div>
 
       <div className="grid md:grid-cols-4 gap-4 mb-6">

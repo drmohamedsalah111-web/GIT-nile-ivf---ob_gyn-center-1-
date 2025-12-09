@@ -6,6 +6,7 @@ import { useBranding } from '../context/BrandingContext';
 import { Doctor } from '../types';
 import { db, getSyncStats, initLocalDB } from '../src/db/localDB';
 import { syncManager } from '../src/services/syncService';
+import RefreshButton from '../components/RefreshButton';
 
 interface SettingsProps {
   user: any;
@@ -264,9 +265,12 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">لوحة التحكم الإدارية</h1>
-        <p className="text-gray-600 font-[Tajawal]">تحكم في إعدادات التطبيق والهوية البصرية والروشتات الطبية</p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">لوحة التحكم الإدارية</h1>
+          <p className="text-gray-600 font-[Tajawal]">تحكم في إعدادات التطبيق والهوية البصرية والروشتات الطبية</p>
+        </div>
+        <RefreshButton />
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-8 border-b border-gray-200">

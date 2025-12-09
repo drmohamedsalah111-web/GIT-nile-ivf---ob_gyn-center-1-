@@ -7,6 +7,7 @@ import { syncService } from '../src/services/syncService';
 import { Patient } from '../types';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
+import RefreshButton from '../components/RefreshButton';
 
 const Reception: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'register' | 'directory'>('register');
@@ -66,8 +67,14 @@ const Reception: React.FC = () => {
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[600px]">
-      <div className="flex border-b border-gray-100">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-4xl font-bold text-gray-900">Reception & Patient Directory</h1>
+        <RefreshButton />
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[600px]">
+        <div className="flex border-b border-gray-100">
         <button
           onClick={() => setActiveTab('register')}
           className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'register' ? 'text-teal-700 border-b-2 border-teal-700 bg-teal-50' : 'text-gray-500 hover:text-gray-700'}`}
@@ -232,6 +239,7 @@ const Reception: React.FC = () => {
                 </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
