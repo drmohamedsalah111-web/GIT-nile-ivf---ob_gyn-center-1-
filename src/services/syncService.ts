@@ -179,21 +179,44 @@ export class SyncService {
   private async pullLatestData(): Promise<void> {
     try {
         console.log('📥 Pulling data...');
-        // Pull parents first
-        await this.pullTable('patients');
-        await this.pullTable('pregnancies');
-        await this.pullTable('ivf_cycles');
         
-        // Pull children - they can now resolve parent references
-        await Promise.all([
-            this.pullTable('antenatal_visits', 'visits'),
-            this.pullTable('stimulation_logs'),
-            this.pullTable('biometry_scans')
-        ]);
+        // Pull patients first (parent table)
+        try {
+            await this.pullTable('patients');
+        } catch (e) {
+            console.error('❌ Failed to pull patients:', e);
+        }
         
-        // Clean up orphaned records (visits/cycles with wrong patient_id format)
-        await this.cleanupOrphanedRecords();
-    } catch (e) { console.error('Pull error:', e); }
+        // Try to pull each table independently - don't let one failure stop others
+        const tables = [
+            { remote: 'pregnancies', local: 'pregnancies' },
+            { remote: 'ivf_cycles', local: 'ivf_cycles' },
+            { remote: 'antenatal_visits', local: 'visits' },
+            { remote: 'stimulation_logs', local: 'stimulation_logs' },
+            { remote: 'biometry_scans', local: 'biometry_scans' }
+        ];
+        
+        for (const table of tables) {
+            try {
+                console.log(`🔄 Attempting to pull ${table.remote}...`);
+                await this.pullTable(table.remote, table.local);
+            } catch (e) {
+                console.warn(`⚠️ Failed to pull ${table.remote}:`, e);
+                // Continue to next table instead of stopping
+            }
+        }
+        
+        // Clean up orphaned records
+        try {
+            await this.cleanupOrphanedRecords();
+        } catch (e) {
+            console.warn('⚠️ Cleanup failed:', e);
+        }
+        
+        console.log('✅ Pull phase completed');
+    } catch (e) { 
+        console.error('Critical pull error:', e); 
+    }
   }
 
   private async cleanupOrphanedRecords(): Promise<void> {
@@ -249,74 +272,71 @@ export class SyncService {
 
   private async pullTable(remoteTable: string, localTableAlias?: string): Promise<void> {
     const localTable = localTableAlias || remoteTable;
-    const { data, error } = await supabase.from(remoteTable).select('*').limit(1000);
-    if (error || !data) {
-      console.warn(`⚠️ Error pulling ${remoteTable}:`, error?.message);
-      return;
+    
+    try {
+      // Check if local table exists first
+      const allTables = db.tables.map(t => t.name);
+      if (!allTables.includes(localTable)) {
+        console.warn(`⚠️ Local table "${localTable}" doesn't exist in database schema`);
+        return;
+      }
+
+      const { data, error } = await supabase.from(remoteTable).select('*').limit(1000);
+      if (error || !data) {
+        console.warn(`⚠️ Error pulling ${remoteTable}:`, error?.message);
+        return;
+      }
+
+      console.log(`📥 Pulling ${remoteTable}: ${data.length} records`);
+
+      // Safe transaction with error handling
+      const localTableRef = db.table(localTable);
+      
+      for (const remoteRow of data) {
+          const existing = await localTableRef.where('remoteId').equals(remoteRow.id).first();
+          const cleanRow = { ...remoteRow, remoteId: remoteRow.id, sync_status: SyncStatus.SYNCED };
+          delete cleanRow.id; 
+        
+          // CRITICAL: Ensure foreign keys are properly resolved (convert any local IDs to remote UUIDs)
+          if (cleanRow.patient_id) {
+              if (!isNaN(Number(cleanRow.patient_id))) {
+                  const patient = await db.patients.get(Number(cleanRow.patient_id));
+                  if (patient?.remoteId) {
+                      cleanRow.patient_id = patient.remoteId;
+                  }
+              }
+          }
+          
+          if (cleanRow.pregnancy_id) {
+              if (!isNaN(Number(cleanRow.pregnancy_id))) {
+                  const pregnancy = await db.pregnancies.get(Number(cleanRow.pregnancy_id));
+                  if (pregnancy?.remoteId) {
+                      cleanRow.pregnancy_id = pregnancy.remoteId;
+                  }
+              }
+          }
+
+          if (cleanRow.cycle_id) {
+              if (!isNaN(Number(cleanRow.cycle_id))) {
+                  const cycle = await db.ivf_cycles.get(Number(cleanRow.cycle_id));
+                  if (cycle?.remoteId) {
+                      cleanRow.cycle_id = cycle.remoteId;
+                  }
+              }
+          }
+
+          if (existing) {
+              await localTableRef.update(existing.id, cleanRow);
+          } else {
+              await localTableRef.add(cleanRow);
+          }
+      }
+      
+      console.log(`✅ Finished pulling ${remoteTable}`);
+    } catch (error) {
+      console.error(`❌ Error in pullTable(${remoteTable}):`, error);
+      throw error;
     }
-
-    console.log(`📥 Pulling ${remoteTable}: ${data.length} records`);
-
-    await db.transaction('rw', [db.table(localTable)], async () => {
-        for (const remoteRow of data) {
-            const existing = await db.table(localTable).where('remoteId').equals(remoteRow.id).first();
-            const cleanRow = { ...remoteRow, remoteId: remoteRow.id, sync_status: SyncStatus.SYNCED };
-            delete cleanRow.id; 
-            
-            // CRITICAL: Ensure foreign keys are properly resolved (convert any local IDs to remote UUIDs)
-            // This ensures consistency when visits/cycles reference patients
-            
-            if (cleanRow.patient_id) {
-                // If patient_id is numeric, convert to UUID
-                if (!isNaN(Number(cleanRow.patient_id))) {
-                    const patient = await db.patients.get(Number(cleanRow.patient_id));
-                    if (patient?.remoteId) {
-                        console.log(`🔗 Converting patient_id ${cleanRow.patient_id} -> ${patient.remoteId}`);
-                        cleanRow.patient_id = patient.remoteId;
-                    }
-                }
-                // If it's already a UUID, verify it exists
-                else {
-                    const patient = await db.patients.where('remoteId').equals(cleanRow.patient_id).first();
-                    if (!patient) {
-                        console.warn(`⚠️ Record references unknown patient: ${cleanRow.patient_id}`);
-                    }
-                }
-            }
-            
-            if (cleanRow.pregnancy_id) {
-                if (!isNaN(Number(cleanRow.pregnancy_id))) {
-                    const pregnancy = await db.pregnancies.get(Number(cleanRow.pregnancy_id));
-                    if (pregnancy?.remoteId) {
-                        cleanRow.pregnancy_id = pregnancy.remoteId;
-                    }
-                } else {
-                    const pregnancy = await db.pregnancies.where('remoteId').equals(cleanRow.pregnancy_id).first();
-                    if (!pregnancy) {
-                        console.warn(`⚠️ Record references unknown pregnancy: ${cleanRow.pregnancy_id}`);
-                    }
-                }
-            }
-
-            if (cleanRow.cycle_id) {
-                if (!isNaN(Number(cleanRow.cycle_id))) {
-                    const cycle = await db.ivf_cycles.get(Number(cleanRow.cycle_id));
-                    if (cycle?.remoteId) {
-                        cleanRow.cycle_id = cycle.remoteId;
-                    }
-                }
-            }
-
-            if (existing) {
-                await db.table(localTable).update(existing.id, cleanRow);
-                console.log(`♻️ Updated existing record: ${localTable}/${existing.id}`);
-            } else {
-                await db.table(localTable).add(cleanRow);
-                console.log(`✅ Added new record: ${localTable}`);
-            }
-        }
-    });
-    console.log(`✅ Finished pulling ${remoteTable}`);
   }
 
   // Compat & Additional Methods
