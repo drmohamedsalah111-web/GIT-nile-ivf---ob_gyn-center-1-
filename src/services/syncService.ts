@@ -201,9 +201,18 @@ export class SyncService {
             const cleanRow = { ...remoteRow, remoteId: remoteRow.id, sync_status: SyncStatus.SYNCED };
             delete cleanRow.id; 
             
-            // Map legacy fields if needed
-            if (localTable === 'visits' && cleanRow.pregnancy_id) {
-                // Ensure visits are linked correctly
+            // Ensure foreign keys are properly resolved (convert any local IDs to remote UUIDs)
+            if (cleanRow.patient_id && !isNaN(Number(cleanRow.patient_id))) {
+                const patient = await db.patients.get(Number(cleanRow.patient_id));
+                if (patient?.remoteId) {
+                    cleanRow.patient_id = patient.remoteId;
+                }
+            }
+            if (cleanRow.pregnancy_id && !isNaN(Number(cleanRow.pregnancy_id))) {
+                const pregnancy = await db.pregnancies.get(Number(cleanRow.pregnancy_id));
+                if (pregnancy?.remoteId) {
+                    cleanRow.pregnancy_id = pregnancy.remoteId;
+                }
             }
 
             if (existing) { await db.table(localTable).update(existing.id, cleanRow); } 
