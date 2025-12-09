@@ -1,6 +1,12 @@
 import Dexie, { Table } from 'dexie';
 
-export enum SyncStatus { SYNCED = 0, PENDING_CREATE = 1, PENDING_UPDATE = 2, PENDING_DELETE = 3, ERROR = 4 }
+export enum SyncStatus {
+  SYNCED = 0,        
+  PENDING_CREATE = 1, 
+  PENDING_UPDATE = 2, 
+  PENDING_DELETE = 3, 
+  ERROR = 4          
+}
 
 export class ClinicLocalDB extends Dexie {
   patients!: Table<any>;
@@ -9,15 +15,15 @@ export class ClinicLocalDB extends Dexie {
   stimulation_logs!: Table<any>;
   pregnancies!: Table<any>;
   biometry_scans!: Table<any>;
-  antenatal_visits!: Table<any>; // هذا الجدول كان غالباً ناقصاً
-  patient_files!: Table<any>;    // وهذا أيضاً ظهر له خطأ 404
+  antenatal_visits!: Table<any>;
+  patient_files!: Table<any>;
   syncQueue!: Table<any>;
 
   constructor() {
     super('ClinicLocalDB');
 
-    // قمنا برفع الإصدار إلى 4 لإجبار المتصفح على التحديث
-    this.version(4).stores({
+    // تعريف قاعدة البيانات (الإصدار 5 لضمان التحديث)
+    this.version(5).stores({
       patients: '++id, remoteId, name, phone, created_at, [sync_status]',
       visits: '++id, remoteId, patient_id, pregnancy_id, date, [sync_status]',
       ivf_cycles: '++id, remoteId, patient_id, status, [sync_status]',
@@ -33,6 +39,7 @@ export class ClinicLocalDB extends Dexie {
 
 export const db = new ClinicLocalDB();
 
+// دالة التهيئة الآمنة - لا تحذف البيانات أبداً
 export const initLocalDB = async (): Promise<void> => {
   try {
     if (!db.isOpen()) {
@@ -40,20 +47,15 @@ export const initLocalDB = async (): Promise<void> => {
        console.log('✅ Local database initialized successfully');
     }
   } catch (error) {
-    console.error('⚠️ Local DB Error:', error);
-    // إذا حدث خطأ في الإصدار، احذف القاعدة وأعد إنشاءها
-    if ((error as any).name === 'VersionError' || (error as any).name === 'NotFoundError') {
-        console.warn('Old database version detected. Recreating...');
-        await db.delete();
-        await db.open();
-    }
+    console.error('⚠️ Local DB Warning:', error);
+    // تم إزالة كود الحذف التلقائي db.delete() لحماية البيانات
   }
 };
 
-// ... (ابقِ على باقي الدوال المساعدة كما هي: addToSyncQueue, markAsSynced, etc.)
+// دوال مساعدة
 export const getPendingSyncItems = async (table?: string) => { if (table) { return await db.syncQueue.where('table').equals(table).toArray(); } return await db.syncQueue.toArray(); };
 export const addToSyncQueue = async (item: any) => { return await db.syncQueue.add({ ...item, created_at: new Date().toISOString() }); };
 export const removeFromSyncQueue = async (id: number) => { await db.syncQueue.delete(id); };
 export const updateSyncQueueItem = async (id: number, updates: any) => { await db.syncQueue.update(id, updates); };
 export const markAsSynced = async (table: string, localId: number, remoteId?: string) => { const targetTable = db.table(table); if (targetTable) { const updateData: any = { sync_status: SyncStatus.SYNCED }; if (remoteId) { updateData.remoteId = remoteId; } await targetTable.update(localId, updateData); } };
-export const getSyncStats = async () => { return { total: 0, synced: 0, pending: 0, errors: 0 }; }; // Simplified for now
+export const getSyncStats = async () => { return { total: 0, synced: 0, pending: 0, errors: 0 }; };
