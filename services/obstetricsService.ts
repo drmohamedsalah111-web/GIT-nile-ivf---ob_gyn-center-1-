@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 import { syncManager } from '../src/services/syncService';
-import { db as localDB } from '../src/lib/localDb';
+import { db as localDB } from '../src/db/localDB';
 import { networkStatus } from '../src/lib/networkStatus';
 import { Pregnancy, AntenatalVisit, BiometryScan } from '../types';
 

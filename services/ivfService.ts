@@ -2,7 +2,7 @@
 import { supabase } from './supabaseClient';
 import { authService } from './authService';
 import { syncManager } from '../src/services/syncService';
-import { db as localDB } from '../src/lib/localDb';
+import { db as localDB } from '../src/db/localDB';
 import { networkStatus } from '../src/lib/networkStatus';
 import { Patient, IvfCycle, Visit, StimulationLog } from '../types';
 
@@ -155,23 +155,23 @@ export const db = {
   getCycles: async (): Promise<IvfCycle[]> => {
     try {
       // Try local DB first (instant response)
-      const localCycles = await localDB.cycles.toArray();
-      
+      const localCycles = await localDB.ivf_cycles.toArray();
+
       // Background sync
       setTimeout(() => syncManager.read('ivf_cycles'), 0);
 
       return localCycles
         .map((c: any) => ({
           id: c.remoteId || `local_${c.id}`,
-          patientId: c.patientId,
+          patientId: c.patient_id,
           protocol: c.protocol,
-          startDate: c.startDate,
+          startDate: c.start_date,
           status: c.status,
-          logs: c.logs || [],
-          lab: c.lab,
-          transfer: c.transfer,
-          outcome: c.outcome,
-          assessment: c.assessment
+          logs: [], // Logs are stored separately in stimulation_logs table
+          lab: c.lab_data,
+          transfer: c.transfer_data,
+          outcome: c.outcome_data,
+          assessment: c.assessment_data
         }));
     } catch (error) {
       console.error('Error fetching local cycles, falling back to Supabase:', error);
