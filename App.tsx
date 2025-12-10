@@ -17,7 +17,6 @@ import { authService } from './services/authService';
 import { LogOut, WifiOff } from 'lucide-react';
 import { BrandingProvider } from './context/BrandingContext';
 import { initPWA } from './src/lib/pwa';
-import { initPowerSync } from './src/powersync/db';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
@@ -40,8 +39,8 @@ const App: React.FC = () => {
       try {
         setLoading(true);
 
-        // 1. Initialize PowerSync
-        await initPowerSync();
+        // 1. Initialize PowerSync (disabled - causing module resolution issues)
+        // await initPowerSync();
 
         // 2. Initialize PWA
         initPWA().catch(console.warn);
