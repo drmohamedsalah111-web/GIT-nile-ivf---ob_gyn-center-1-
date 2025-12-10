@@ -465,16 +465,21 @@ export const obstetricsService = {
     } catch (error) {
       console.error('❌ Error fetching local ANC visits, falling back to Supabase:', error);
 
-      // Fallback to Supabase
-      const { data, error: supabaseError } = await supabase
-        .from('antenatal_visits')
-        .select('*')
-        .eq('pregnancy_id', pregnancyId)
-        .order('visit_date', { ascending: false });
+      try {
+        // Fallback to Supabase
+        const { data, error: supabaseError } = await supabase
+          .from('antenatal_visits')
+          .select('*')
+          .eq('pregnancy_id', pregnancyId)
+          .order('visit_date', { ascending: false });
 
-      if (supabaseError) throw supabaseError;
-      console.log('🌐 Fallback to Supabase returned:', data?.length || 0, 'visits');
-      return data;
+        if (supabaseError) throw supabaseError;
+        console.log('🌐 Fallback to Supabase returned:', data?.length || 0, 'visits');
+        return data;
+      } catch (supabaseError) {
+        console.error('❌ Supabase fallback also failed:', supabaseError);
+        return []; // Return empty array to prevent UI crash
+      }
     }
   },
 
@@ -595,15 +600,20 @@ export const obstetricsService = {
       console.error('❌ Error fetching local biometry scans, falling back to Supabase:', error);
     }
 
-    const { data, error } = await supabase
-      .from('biometry_scans')
-      .select('*')
-      .eq('pregnancy_id', pregnancyId)
-      .order('scan_date', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('biometry_scans')
+        .select('*')
+        .eq('pregnancy_id', pregnancyId)
+        .order('scan_date', { ascending: false });
 
-    if (error) throw error;
-    console.log('🌐 Fallback to Supabase returned:', data?.length || 0, 'scans');
-    return data;
+      if (error) throw error;
+      console.log('🌐 Fallback to Supabase returned:', data?.length || 0, 'scans');
+      return data;
+    } catch (supabaseError) {
+      console.error('❌ Supabase fallback also failed:', supabaseError);
+      return []; // Return empty array to prevent UI crash
+    }
   },
 
   updateBiometryScan: async (scanId: string, updates: Partial<BiometryScan>) => {

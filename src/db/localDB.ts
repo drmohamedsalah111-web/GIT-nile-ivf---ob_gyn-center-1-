@@ -22,8 +22,8 @@ export class ClinicLocalDB extends Dexie {
   constructor() {
     super('ClinicLocalDB');
 
-    // تعريف قاعدة البيانات (الإصدار 5 لضمان التحديث)
-    this.version(5).stores({
+    // تعريف قاعدة البيانات (الإصدار 6 لضمان التحديث)
+    this.version(6).stores({
       patients: '++id, remoteId, name, phone, created_at, [sync_status]',
       visits: '++id, remoteId, patient_id, pregnancy_id, date, [sync_status]',
       ivf_cycles: '++id, remoteId, patient_id, status, [sync_status]',

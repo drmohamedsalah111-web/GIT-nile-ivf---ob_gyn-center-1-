@@ -151,8 +151,7 @@ export class SyncService {
   }
 
   private async syncItem(table: string, localId: number, record: any): Promise<void> {
-    // توحيد أسماء الجداول (محلياً اسمها visits وعالمياً antenatal_visits أحياناً)
-    const supabaseTable = table === 'visits' ? 'antenatal_visits' : table;
+    const supabaseTable = table;
     
     const payload = { ...record };
     // تنظيف البيانات قبل الإرسال
@@ -174,8 +173,7 @@ export class SyncService {
   }
 
   private async syncDelete(table: string, remoteId: string): Promise<void> {
-    const supabaseTable = table === 'visits' ? 'antenatal_visits' : table;
-    const { error } = await supabase.from(supabaseTable).delete().eq('id', remoteId);
+    const { error } = await supabase.from(table).delete().eq('id', remoteId);
     if (error) throw error;
   }
 
@@ -189,7 +187,7 @@ export class SyncService {
         await this.pullTable('ivf_cycles');
         await this.pullTable('pregnancies');
         await Promise.all([
-            this.pullTable('antenatal_visits', 'visits'),
+            this.pullTable('antenatal_visits'),
             this.pullTable('stimulation_logs'),
             this.pullTable('biometry_scans'),
             this.pullTable('patient_files') // تمت إضافة جدول الملفات
