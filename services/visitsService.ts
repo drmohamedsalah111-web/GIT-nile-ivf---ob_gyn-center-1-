@@ -17,12 +17,12 @@ const mapToAppFormat = (v: any): Visit => ({
 });
 
 export const visitsService = {
-  // 1. SMART GET: Resolves Local ID <-> Remote UUID to find ALL visits
+  // 1. SMART GET: Resolves Local ID <-> Remote UUID to find ALL visits from multiple sources
   getVisitsByPatient: async (patientId: string) => {
     try {
       // Get the patient to access both ID and remoteId
       let patient: any = null;
-      
+
       if (!isNaN(Number(patientId))) {
         // patientId is numeric - get from local DB
         patient = await db.patients.get(Number(patientId));
@@ -44,28 +44,121 @@ export const visitsService = {
         patient.remoteId              // UUID as is
       ].filter(Boolean);
 
-      console.log(`🔍 Searching visits for Patient: ${patient.name} (IDs: ${possibleIds.join(', ')})`);
+      console.log(`🔍 Searching all history for Patient: ${patient.name} (IDs: ${possibleIds.join(', ')})`);
 
-      // Query Local DB - check all possible ID formats
-      const localVisits = await db.visits
-        .filter(v => {
-           const pId = v.patient_id;
-           // Check if visit's patient_id matches ANY of the possible IDs
-           return possibleIds.some(id => String(pId) === String(id));
-        })
-        .toArray();
+      // Parallel queries for all data sources
+      const [generalVisits, pregnancies, ivfCycles] = await Promise.all([
+        // 1. General/Gynecology Visits
+        db.visits
+          .filter(v => {
+             const pId = v.patient_id;
+             return possibleIds.some(id => String(pId) === String(id));
+          })
+          .toArray(),
 
-      console.log(`✅ Found ${localVisits.length} visits for this patient`);
+        // 2. Pregnancies (for ANC visits)
+        db.pregnancies
+          .filter(p => {
+             const pId = p.patient_id;
+             return possibleIds.some(id => String(pId) === String(id));
+          })
+          .toArray(),
 
-      // Trigger background sync to ensure we have latest data
-      setTimeout(() => syncService.read('visits'), 0);
+        // 3. IVF Cycles
+        db.ivf_cycles
+          .filter(c => {
+             const pId = c.patient_id;
+             return possibleIds.some(id => String(pId) === String(id));
+          })
+          .toArray()
+      ]);
 
-      return localVisits
-        .map(mapToAppFormat)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      console.log(`📊 Found: ${generalVisits.length} general visits, ${pregnancies.length} pregnancies, ${ivfCycles.length} IVF cycles`);
+
+      // Process ANC visits from pregnancies
+      const ancVisitsPromises = pregnancies.map(async (pregnancy) => {
+        const pregnancyId = pregnancy.remoteId || `local_${pregnancy.id}`;
+        const ancVisits = await db.antenatal_visits
+          .where('pregnancy_id').equals(pregnancyId)
+          .or('pregnancy_id').equals(String(pregnancy.id))
+          .toArray();
+
+        return ancVisits.map((visit: any) => ({
+          id: visit.remoteId || `local_${visit.id}`,
+          patientId: patientId,
+          date: visit.visit_date,
+          department: 'OBS',
+          diagnosis: `ANC Visit - GA ${visit.gestational_age_weeks}w+${visit.gestational_age_days}d`,
+          prescription: visit.prescription || [],
+          notes: visit.notes || '',
+          clinical_data: {
+            systolic_bp: visit.systolic_bp,
+            diastolic_bp: visit.diastolic_bp,
+            weight_kg: visit.weight_kg,
+            urine_albuminuria: visit.urine_albuminuria,
+            urine_glycosuria: visit.urine_glycosuria,
+            fetal_heart_sound: visit.fetal_heart_sound,
+            fundal_height_cm: visit.fundal_height_cm,
+            edema: visit.edema,
+            edema_grade: visit.edema_grade,
+            next_visit_date: visit.next_visit_date
+          }
+        }));
+      });
+
+      const ancVisitsArrays = await Promise.all(ancVisitsPromises);
+      const allAncVisits = ancVisitsArrays.flat();
+
+      // Create pregnancy start visits
+      const pregnancyStartVisits = pregnancies.map((pregnancy) => ({
+        id: `pregnancy_${pregnancy.id}`,
+        patientId: patientId,
+        date: pregnancy.lmp_date || pregnancy.created_at,
+        department: 'OBS',
+        diagnosis: 'Pregnancy Started',
+        prescription: [],
+        notes: `EDD: ${pregnancy.edd_date || 'Unknown'}`,
+        clinical_data: {
+          risk_level: pregnancy.risk_level,
+          risk_factors: pregnancy.risk_factors
+        }
+      }));
+
+      // Map IVF cycles to visits
+      const ivfVisits = ivfCycles.map((cycle) => ({
+        id: cycle.remoteId || `local_${cycle.id}`,
+        patientId: patientId,
+        date: cycle.start_date,
+        department: 'IVF_STIM',
+        diagnosis: `IVF Cycle - Protocol: ${cycle.protocol}`,
+        prescription: [],
+        notes: `Status: ${cycle.status}`,
+        clinical_data: cycle.cycleData || {}
+      }));
+
+      // Combine all visits
+      const allVisits = [
+        ...generalVisits.map(mapToAppFormat),
+        ...allAncVisits,
+        ...pregnancyStartVisits,
+        ...ivfVisits
+      ];
+
+      console.log(`✅ Total combined history: ${allVisits.length} items`);
+
+      // Trigger background sync for all tables
+      setTimeout(() => {
+        syncService.read('visits');
+        syncService.read('pregnancies');
+        syncService.read('antenatal_visits');
+        syncService.read('ivf_cycles');
+      }, 0);
+
+      // Sort by date descending (newest first)
+      return allVisits.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     } catch (error) {
-      console.error('Error fetching visits:', error);
+      console.error('Error fetching patient history:', error);
       return [];
     }
   },
