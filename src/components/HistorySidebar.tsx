@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Copy, ChevronDown, ChevronUp, Activity, Scale, Baby } from 'lucide-react';
 import { visitsService } from '../../services/visitsService';
-import { Visit } from '../../types';
+import { Visit, PrescriptionItem } from '../../types';
 
 interface HistorySidebarProps {
   patientId: string;
@@ -9,6 +9,7 @@ interface HistorySidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onCopyData?: (visit: Visit) => void;
+  onCopyRx?: (prescription: PrescriptionItem[]) => void;
 }
 
 const HistorySidebar: React.FC<HistorySidebarProps> = ({
@@ -16,7 +17,8 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
   category,
   isOpen,
   onClose,
-  onCopyData
+  onCopyData,
+  onCopyRx
 }) => {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,19 +70,76 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
     return `منذ ${Math.floor(diffDays / 365)} سنوات`;
   };
 
-  const getKeyDataSummary = (visit: Visit) => {
-    if (visit.department === 'OBS' && visit.clinical_data) {
-      const data = visit.clinical_data;
-      const parts = [];
-      if (data.systolic_bp && data.diastolic_bp) parts.push(`BP: ${data.systolic_bp}/${data.diastolic_bp}`);
-      if (data.weight_kg) parts.push(`وزن: ${data.weight_kg}kg`);
-      if (data.fundal_height_cm) parts.push(`ارتفاع الرحم: ${data.fundal_height_cm}cm`);
-      return parts.join(' • ');
+  const renderVisitSummary = (visit: Visit) => {
+    const { department, clinical_data, diagnosis } = visit;
+
+    if (department === 'OBS' && clinical_data) {
+      const ga = clinical_data.gestational_age_weeks && clinical_data.gestational_age_days
+        ? `${clinical_data.gestational_age_weeks}w+${clinical_data.gestational_age_days}d`
+        : '-';
+      const bp = clinical_data.systolic_bp && clinical_data.diastolic_bp
+        ? `${clinical_data.systolic_bp}/${clinical_data.diastolic_bp}`
+        : '-';
+      const weight = clinical_data.weight_kg ? `${clinical_data.weight_kg}kg` : '-';
+
+      const isBpAlert = clinical_data.systolic_bp && clinical_data.diastolic_bp &&
+        (clinical_data.systolic_bp >= 140 || clinical_data.diastolic_bp >= 90);
+
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            <Baby size={14} className="text-blue-500" />
+            <span className="font-medium">{ga}</span>
+          </div>
+          <div className="flex items-center gap-4 text-xs">
+            <div className={`flex items-center gap-1 ${isBpAlert ? 'text-red-600' : 'text-gray-700'}`}>
+              <Activity size={12} />
+              <span>{bp}</span>
+            </div>
+            <div className="flex items-center gap-1 text-gray-700">
+              <Scale size={12} />
+              <span>{weight}</span>
+            </div>
+          </div>
+        </div>
+      );
     }
-    if (visit.department === 'IVF') {
-      return visit.diagnosis;
+
+    if (department === 'GYNA') {
+      return (
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded">
+            {diagnosis || 'Diagnosis'}
+          </div>
+          <div className="text-xs text-gray-600">
+            {clinical_data?.complaint || 'Complaint'}
+          </div>
+        </div>
+      );
     }
-    return visit.diagnosis || 'زيارة طبية';
+
+    if (department === 'IVF') {
+      const protocol = clinical_data?.protocol || 'Protocol';
+      const e2 = clinical_data?.e2 ? `${clinical_data.e2} pg/mL` : null;
+      const follicleCount = clinical_data?.follicle_count ? `${clinical_data.follicle_count} follicles` : null;
+
+      return (
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-green-600">
+            {protocol}
+          </div>
+          <div className="text-xs text-gray-600">
+            {e2 || follicleCount || 'IVF Data'}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="text-sm text-gray-600">
+        {diagnosis || 'Medical Visit'}
+      </div>
+    );
   };
 
   if (!isOpen) return null;
@@ -125,36 +184,40 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                   <div key={visit.id} className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
                     {/* Header */}
                     <div className="p-3 border-b border-gray-200">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="text-sm text-gray-600 mb-1">
-                            {getRelativeTime(visit.date)}
-                          </div>
-                          <div className="text-sm font-medium text-gray-900 mb-2">
-                            {getKeyDataSummary(visit)}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {new Date(visit.date).toLocaleDateString('ar-EG')}
-                          </div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-bold text-gray-900">
+                          {new Date(visit.date).toLocaleDateString('ar-EG')}
                         </div>
-                        <div className="flex items-center gap-2">
-                          {onCopyData && (
-                            <button
-                              onClick={() => onCopyData(visit)}
-                              className="p-1 text-teal-600 hover:bg-teal-100 rounded transition-colors"
-                              title="نسخ البيانات"
-                            >
-                              <Copy size={14} />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => toggleExpanded(visit.id)}
-                            className="p-1 text-gray-600 hover:bg-gray-200 rounded transition-colors"
-                          >
-                            {expandedItems.has(visit.id) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                          </button>
+                        <div className="text-xs text-gray-500">
+                          {getRelativeTime(visit.date)}
                         </div>
                       </div>
+                    </div>
+
+                    {/* Always Visible Summary Body */}
+                    <div className="p-3 bg-gray-100 border-b border-gray-200">
+                      {renderVisitSummary(visit)}
+                    </div>
+
+                    {/* Expand/Collapse Button */}
+                    <div className="p-3 flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        {onCopyData && (
+                          <button
+                            onClick={() => onCopyData(visit)}
+                            className="p-1 text-teal-600 hover:bg-teal-100 rounded transition-colors"
+                            title="نسخ البيانات"
+                          >
+                            <Copy size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => toggleExpanded(visit.id)}
+                        className="p-1 text-gray-600 hover:bg-gray-200 rounded transition-colors"
+                      >
+                        {expandedItems.has(visit.id) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </button>
                     </div>
 
                     {/* Expanded Content */}
