@@ -1,8 +1,7 @@
-/// <reference types="vite/client" />
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import BottomNav from './components/BottomNav';
-import SyncStatus from './components/SyncStatus';
+// import SyncStatus from './components/SyncStatus';
 import { Page } from './types';
 import Dashboard from './pages/Dashboard';
 import Reception from './pages/Reception';
@@ -143,7 +142,7 @@ const App: React.FC = () => {
                 )}
               </div>
               <div className="flex items-center gap-4">
-                <SyncStatus />
+                {/* <SyncStatus /> */}
                 <button
                   onClick={handleLogout}
                   className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200 font-[Tajawal]"
@@ -156,7 +155,7 @@ const App: React.FC = () => {
 
             {/* Mobile Header */}
             <div className="md:hidden mb-4 flex justify-between items-center">
-              <SyncStatus />
+              {/* <SyncStatus /> */}
               <div className="text-center flex-1">
                  <h1 className="text-xl font-bold text-gray-900">
                   مرحباً، {user?.email?.split('@')[0]}

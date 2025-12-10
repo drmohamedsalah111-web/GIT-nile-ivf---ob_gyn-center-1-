@@ -11,6 +11,7 @@
     "preview": "npx vite preview"
   },
   "dependencies": {
+    "@journeyapps/wa-sqlite": "^1.4.1",
     "@powersync/react": "^1.8.2",
     "@powersync/web": "^1.29.1",
     "@supabase/supabase-js": "^2.39.7",
@@ -32,7 +33,7 @@
     "autoprefixer": "^10.4.18",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.2.2",
+    "typescript": "^5.9.3",
     "vite": "^7.2.7"
   }
 }
