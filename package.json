@@ -11,9 +11,10 @@
     "preview": "npx vite preview"
   },
   "dependencies": {
+    "@powersync/react": "^1.8.2",
+    "@powersync/web": "^1.29.1",
     "@supabase/supabase-js": "^2.39.7",
     "clsx": "^2.1.0",
-    "dexie": "^4.2.1",
     "dexie-react-hooks": "^4.2.0",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
@@ -21,7 +22,8 @@
     "react-hot-toast": "^2.4.1",
     "recharts": "^2.12.2",
     "tailwind-merge": "^2.2.1",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite-plugin-pwa": "^1.2.0",
+    "wa-sqlite": "^1.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.64",
