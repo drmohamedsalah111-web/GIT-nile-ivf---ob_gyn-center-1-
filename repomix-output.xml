@@ -105,6 +105,9 @@ src/hooks/useSyncStatus.ts
 src/lib/localDb.ts
 src/lib/networkStatus.ts
 src/lib/pwa.ts
+src/powersync/AppSchema.ts
+src/powersync/db.ts
+src/powersync/SupabaseConnector.ts
 src/services/syncService.ts
 styles.css
 SUPABASE_SETUP.sql
@@ -4902,6 +4905,195 @@ export const initPWA = async (): Promise<void> => {
 };
 </file>
 
+<file path="src/powersync/AppSchema.ts">
+import { ColumnType, Schema } from '@powersync/web';
+
+export const AppSchema = new Schema({
+  patients: {
+    name: ColumnType.TEXT,
+    age: ColumnType.INTEGER,
+    phone: ColumnType.TEXT,
+    husband_name: ColumnType.TEXT,
+    history: ColumnType.TEXT,
+    doctor_id: ColumnType.TEXT,
+    created_at: ColumnType.TEXT
+  },
+  visits: {
+    patient_id: ColumnType.TEXT,
+    date: ColumnType.TEXT,
+    department: ColumnType.TEXT,
+    diagnosis: ColumnType.TEXT,
+    prescription: ColumnType.TEXT,
+    notes: ColumnType.TEXT,
+    clinical_data: ColumnType.TEXT,
+    created_at: ColumnType.TEXT
+  },
+  ivf_cycles: {
+    patient_id: ColumnType.TEXT,
+    doctor_id: ColumnType.TEXT,
+    protocol: ColumnType.TEXT,
+    status: ColumnType.TEXT,
+    start_date: ColumnType.TEXT,
+    assessment_data: ColumnType.TEXT,
+    lab_data: ColumnType.TEXT,
+    transfer_data: ColumnType.TEXT,
+    outcome_data: ColumnType.TEXT,
+    created_at: ColumnType.TEXT
+  },
+  stimulation_logs: {
+    cycle_id: ColumnType.TEXT,
+    cycle_day: ColumnType.INTEGER,
+    date: ColumnType.TEXT,
+    fsh: ColumnType.TEXT,
+    hmg: ColumnType.TEXT,
+    e2: ColumnType.TEXT,
+    lh: ColumnType.TEXT,
+    rt_follicles: ColumnType.TEXT,
+    lt_follicles: ColumnType.TEXT,
+    endometrium_thickness: ColumnType.TEXT,
+    created_at: ColumnType.TEXT
+  },
+  pregnancies: {
+    patient_id: ColumnType.TEXT,
+    doctor_id: ColumnType.TEXT,
+    lmp_date: ColumnType.TEXT,
+    edd_date: ColumnType.TEXT,
+    edd_by_scan: ColumnType.TEXT,
+    risk_level: ColumnType.TEXT,
+    risk_factors: ColumnType.TEXT,
+    aspirin_prescribed: ColumnType.INTEGER,
+    thromboprophylaxis_needed: ColumnType.INTEGER,
+    created_at: ColumnType.TEXT
+  },
+  antenatal_visits: {
+    pregnancy_id: ColumnType.TEXT,
+    visit_date: ColumnType.TEXT,
+    gestational_age_weeks: ColumnType.INTEGER,
+    gestational_age_days: ColumnType.INTEGER,
+    weight_kg: ColumnType.REAL,
+    systolic_bp: ColumnType.INTEGER,
+    diastolic_bp: ColumnType.INTEGER,
+    notes: ColumnType.TEXT,
+    created_at: ColumnType.TEXT
+  },
+  biometry_scans: {
+    pregnancy_id: ColumnType.TEXT,
+    scan_date: ColumnType.TEXT,
+    efw_grams: ColumnType.INTEGER,
+    percentile: ColumnType.INTEGER,
+    bpd_mm: ColumnType.REAL,
+    hc_mm: ColumnType.REAL,
+    ac_mm: ColumnType.REAL,
+    fl_mm: ColumnType.REAL,
+    notes: ColumnType.TEXT,
+    created_at: ColumnType.TEXT
+  },
+  patient_files: {
+    patient_id: ColumnType.TEXT,
+    file_url: ColumnType.TEXT,
+    file_type: ColumnType.TEXT,
+    file_name: ColumnType.TEXT,
+    created_at: ColumnType.TEXT
+  },
+  profiles: {
+    email: ColumnType.TEXT,
+    name: ColumnType.TEXT,
+    role: ColumnType.TEXT,
+    created_at: ColumnType.TEXT
+  },
+  app_settings: {
+    clinic_name: ColumnType.TEXT,
+    logo_url: ColumnType.TEXT,
+    primary_color: ColumnType.TEXT,
+    secondary_color: ColumnType.TEXT
+  }
+} as any);
+</file>
+
+<file path="src/powersync/db.ts">
+import { PowerSyncDatabase, WASQLiteDBAdapter } from '@powersync/web';
+import { AppSchema } from './AppSchema';
+import { SupabaseConnector } from './SupabaseConnector';
+
+let db: PowerSyncDatabase;
+let connector: SupabaseConnector;
+
+export const getDB = () => db;
+export const getConnector = () => connector;
+
+export const initPowerSync = async () => {
+  console.log('🔌 Initializing PowerSync...');
+  
+  const dbAdapter = new WASQLiteDBAdapter({
+    dbFilename: 'clinic_powersync_v1.db',
+  });
+  
+  db = new PowerSyncDatabase({
+    schema: AppSchema,
+    database: dbAdapter,
+  });
+  
+  connector = new SupabaseConnector();
+  
+  await db.init();
+  await db.connect(connector);
+  console.log('✅ PowerSync Connected!');
+};
+</file>
+
+<file path="src/powersync/SupabaseConnector.ts">
+import { AbstractPowerSyncDatabase, PowerSyncBackendConnector, UpdateType } from '@powersync/web';
+import { supabase } from '../../services/supabaseClient';
+
+export const POWERSYNC_URL = 'https://6938cb407e2a07e6df7b34de.powersync.journeyapps.com';
+
+export class SupabaseConnector implements PowerSyncBackendConnector {
+  
+  async fetchCredentials() {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      throw new Error('No Supabase session found');
+    }
+
+    return {
+      endpoint: POWERSYNC_URL,
+      token: session.access_token,
+      expiresAt: session.expires_at ? new Date(session.expires_at * 1000) : undefined,
+    };
+  }
+
+  async uploadData(database: AbstractPowerSyncDatabase) {
+    const transaction = await database.getNextCrudTransaction();
+
+    if (!transaction) return;
+
+    try {
+      for (const op of transaction.crud) {
+        const table = op.table;
+        const data = op.opData;
+
+        if (!data) continue;
+
+        if (op.op === UpdateType.PUT) {
+          const { error } = await supabase.from(table).upsert(data);
+          if (error) throw error;
+        } else if (op.op === UpdateType.PATCH) {
+          const { error } = await supabase.from(table).update(data).eq('id', op.id);
+          if (error) throw error;
+        } else if (op.op === UpdateType.DELETE) {
+          const { error } = await supabase.from(table).delete().eq('id', op.id);
+          if (error) throw error;
+        }
+      }
+      await transaction.complete();
+    } catch (ex) {
+      console.error('Upload failed:', ex);
+    }
+  }
+}
+</file>
+
 <file path="tailwind.config.js">
 export default {
   content: [
@@ -6733,45 +6925,6 @@ export const useBranding = (): BrandingContextType => {
 };
 </file>
 
-<file path="package.json">
-{
-  "name": "dr-salah-ivf-center",
-  "private": true,
-  "version": "1.0.0",
-  "author": "Dr. Mohamed Salah Gabr",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "npx vite build",
-    "typecheck": "npx tsc --noEmit",
-    "preview": "npx vite preview"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.39.7",
-    "clsx": "^2.1.0",
-    "dexie": "^4.2.1",
-    "dexie-react-hooks": "^4.2.0",
-    "lucide-react": "^0.344.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-hot-toast": "^2.4.1",
-    "recharts": "^2.12.2",
-    "tailwind-merge": "^2.2.1",
-    "vite-plugin-pwa": "^1.2.0"
-  },
-  "devDependencies": {
-    "@types/react": "^18.2.64",
-    "@types/react-dom": "^18.2.21",
-    "@vitejs/plugin-react": "^4.7.0",
-    "autoprefixer": "^10.4.18",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5.2.2",
-    "vite": "^5.1.6"
-  }
-}
-</file>
-
 <file path="pages/Reception.tsx">
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Search, Phone, User, History, Loader2 } from 'lucide-react';
@@ -7260,6 +7413,47 @@ COMMENT ON COLUMN visits.clinical_data IS 'Structured clinical data stored as JS
 COMMENT ON INDEX idx_visits_clinical_data IS 'GIN index for efficient JSONB queries on clinical_data';
 COMMENT ON INDEX idx_visits_department IS 'Index for filtering visits by department';
 COMMENT ON INDEX idx_visits_patient_clinical IS 'Index for patient clinical visits ordered by date';
+</file>
+
+<file path="package.json">
+{
+  "name": "dr-salah-ivf-center",
+  "private": true,
+  "version": "1.0.0",
+  "author": "Dr. Mohamed Salah Gabr",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npx vite build",
+    "typecheck": "npx tsc --noEmit",
+    "preview": "npx vite preview"
+  },
+  "dependencies": {
+    "@powersync/react": "^1.8.2",
+    "@powersync/web": "^1.29.1",
+    "@supabase/supabase-js": "^2.39.7",
+    "clsx": "^2.1.0",
+    "dexie-react-hooks": "^4.2.0",
+    "lucide-react": "^0.344.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
+    "recharts": "^2.12.2",
+    "tailwind-merge": "^2.2.1",
+    "vite-plugin-pwa": "^1.2.0",
+    "wa-sqlite": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.64",
+    "@types/react-dom": "^18.2.21",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.18",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.1.6"
+  }
+}
 </file>
 
 <file path="pages/AdminDashboard.tsx">
@@ -9912,68 +10106,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 };
 </file>
 
-<file path="src/db/localDB.ts">
-import Dexie, { Table } from 'dexie';
-
-export enum SyncStatus { SYNCED = 0, PENDING_CREATE = 1, PENDING_UPDATE = 2, PENDING_DELETE = 3, ERROR = 4 }
-
-export class ClinicLocalDB extends Dexie {
-  patients!: Table<any>;
-  visits!: Table<any>;
-  ivf_cycles!: Table<any>;
-  stimulation_logs!: Table<any>;
-  pregnancies!: Table<any>;
-  biometry_scans!: Table<any>;
-  antenatal_visits!: Table<any>; // هذا الجدول كان غالباً ناقصاً
-  patient_files!: Table<any>;    // وهذا أيضاً ظهر له خطأ 404
-  syncQueue!: Table<any>;
-
-  constructor() {
-    super('ClinicLocalDB');
-
-    // قمنا برفع الإصدار إلى 4 لإجبار المتصفح على التحديث
-    this.version(4).stores({
-      patients: '++id, remoteId, name, phone, created_at, [sync_status]',
-      visits: '++id, remoteId, patient_id, pregnancy_id, date, [sync_status]',
-      ivf_cycles: '++id, remoteId, patient_id, status, [sync_status]',
-      stimulation_logs: '++id, remoteId, cycle_id, [sync_status]',
-      pregnancies: '++id, remoteId, patient_id, [sync_status]',
-      biometry_scans: '++id, remoteId, pregnancy_id, [sync_status]',
-      antenatal_visits: '++id, remoteId, pregnancy_id, visit_date, [sync_status]',
-      patient_files: '++id, remoteId, patient_id, [sync_status]',
-      syncQueue: '++id, table, operation, retryCount, created_at'
-    });
-  }
-}
-
-export const db = new ClinicLocalDB();
-
-export const initLocalDB = async (): Promise<void> => {
-  try {
-    if (!db.isOpen()) {
-       await db.open();
-       console.log('✅ Local database initialized successfully');
-    }
-  } catch (error) {
-    console.error('⚠️ Local DB Error:', error);
-    // إذا حدث خطأ في الإصدار، احذف القاعدة وأعد إنشاءها
-    if ((error as any).name === 'VersionError' || (error as any).name === 'NotFoundError') {
-        console.warn('Old database version detected. Recreating...');
-        await db.delete();
-        await db.open();
-    }
-  }
-};
-
-// ... (ابقِ على باقي الدوال المساعدة كما هي: addToSyncQueue, markAsSynced, etc.)
-export const getPendingSyncItems = async (table?: string) => { if (table) { return await db.syncQueue.where('table').equals(table).toArray(); } return await db.syncQueue.toArray(); };
-export const addToSyncQueue = async (item: any) => { return await db.syncQueue.add({ ...item, created_at: new Date().toISOString() }); };
-export const removeFromSyncQueue = async (id: number) => { await db.syncQueue.delete(id); };
-export const updateSyncQueueItem = async (id: number, updates: any) => { await db.syncQueue.update(id, updates); };
-export const markAsSynced = async (table: string, localId: number, remoteId?: string) => { const targetTable = db.table(table); if (targetTable) { const updateData: any = { sync_status: SyncStatus.SYNCED }; if (remoteId) { updateData.remoteId = remoteId; } await targetTable.update(localId, updateData); } };
-export const getSyncStats = async () => { return { total: 0, synced: 0, pending: 0, errors: 0 }; }; // Simplified for now
-</file>
-
 <file path="components/BottomNav.tsx">
 import React from 'react';
 import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, FileText, LogOut } from 'lucide-react';
@@ -10082,100 +10214,6 @@ export default BottomNav;
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
-</file>
-
-<file path="components/Sidebar.tsx">
-import React from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText } from 'lucide-react';
-import { Page } from '../types';
-import { useBranding } from '../context/BrandingContext';
-import SyncStatus from '../src/components/SyncStatus';
-
-interface SidebarProps {
-  activePage: Page;
-  setPage: (page: Page) => void;
-  onLogout: () => void;
-}
-
-export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout }) => {
-  const { branding } = useBranding();
-
-  const menuItems = [
-    { id: Page.HOME, label: 'Dashboard', arLabel: 'الرئيسية', icon: LayoutDashboard },
-    { id: Page.RECEPTION, label: 'Reception', arLabel: 'الاستقبال', icon: Users },
-    { id: Page.GYNECOLOGY, label: 'Gynecology', arLabel: 'عيادة النساء', icon: Activity },
-    { id: Page.OBSTETRICS, label: 'Obstetrics', arLabel: 'متابعة الحمل', icon: Heart },
-    { id: Page.IVF, label: 'IVF Center', arLabel: 'مركز الخصوبة', icon: Baby },
-    { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: FileText },
-    { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
-  ];
-
-  return (
-    // Hidden on mobile, visible from md and up
-    <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 no-print">
-      <div className="p-6 border-b border-gray-100 flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          {branding?.logo_url ? (
-            <img src={branding.logo_url} alt="Logo" className="w-12 h-12 rounded-full mb-2 object-cover" />
-          ) : (
-            <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mb-2">
-              <Baby className="text-teal-700 w-8 h-8" />
-            </div>
-          )}
-          <h1 className="text-sm font-bold text-gray-800 text-center">{branding?.clinic_name || 'Nile IVF Center'}</h1>
-          <p className="text-xs text-gray-400 uppercase tracking-wider">EMR System</p>
-        </div>
-      </div>
-      
-      <nav className="flex-1 overflow-y-auto py-4">
-        <ul className="space-y-2 px-4">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activePage === item.id;
-            return (
-              <li key={item.id}>
-                <button
-                  onClick={() => setPage(item.id)}
-                  className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${
-                    isActive 
-                      ? 'bg-teal-50 text-teal-700 font-bold shadow-sm' 
-                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-teal-700' : 'text-gray-400'}`} />
-                  <span>{item.arLabel || item.label}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      <div className="p-4 border-t border-gray-100">
-        {/* Sync Status Indicator */}
-        <div className="mb-4">
-          <SyncStatus />
-        </div>
-
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Sign Out</span>
-        </button>
-
-        {/* Developer Credits */}
-        <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-          <p className="text-xs text-gray-400 font-[Tajawal] leading-tight">
-            برمجة وتطوير<br />
-            د. محمد صلاح جبر
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
 </file>
 
 <file path="pages/ClinicalStation.tsx">
@@ -10721,6 +10759,164 @@ const ClinicalStation: React.FC = () => {
 };
 
 export default ClinicalStation;
+</file>
+
+<file path="src/db/localDB.ts">
+import Dexie, { Table } from 'dexie';
+
+export enum SyncStatus {
+  SYNCED = 0,        
+  PENDING_CREATE = 1, 
+  PENDING_UPDATE = 2, 
+  PENDING_DELETE = 3, 
+  ERROR = 4          
+}
+
+export class ClinicLocalDB extends Dexie {
+  patients!: Table<any>;
+  visits!: Table<any>;
+  ivf_cycles!: Table<any>;
+  stimulation_logs!: Table<any>;
+  pregnancies!: Table<any>;
+  biometry_scans!: Table<any>;
+  antenatal_visits!: Table<any>;
+  patient_files!: Table<any>;
+  syncQueue!: Table<any>;
+
+  constructor() {
+    super('ClinicLocalDB');
+
+    // تعريف قاعدة البيانات (الإصدار 5 لضمان التحديث)
+    this.version(5).stores({
+      patients: '++id, remoteId, name, phone, created_at, [sync_status]',
+      visits: '++id, remoteId, patient_id, pregnancy_id, date, [sync_status]',
+      ivf_cycles: '++id, remoteId, patient_id, status, [sync_status]',
+      stimulation_logs: '++id, remoteId, cycle_id, [sync_status]',
+      pregnancies: '++id, remoteId, patient_id, [sync_status]',
+      biometry_scans: '++id, remoteId, pregnancy_id, [sync_status]',
+      antenatal_visits: '++id, remoteId, pregnancy_id, visit_date, [sync_status]',
+      patient_files: '++id, remoteId, patient_id, [sync_status]',
+      syncQueue: '++id, table, operation, retryCount, created_at'
+    });
+  }
+}
+
+export const db = new ClinicLocalDB();
+
+// دالة التهيئة الآمنة - لا تحذف البيانات أبداً
+export const initLocalDB = async (): Promise<void> => {
+  try {
+    if (!db.isOpen()) {
+       await db.open();
+       console.log('✅ Local database initialized successfully');
+    }
+  } catch (error) {
+    console.error('⚠️ Local DB Warning:', error);
+    // تم إزالة كود الحذف التلقائي db.delete() لحماية البيانات
+  }
+};
+
+// دوال مساعدة
+export const getPendingSyncItems = async (table?: string) => { if (table) { return await db.syncQueue.where('table').equals(table).toArray(); } return await db.syncQueue.toArray(); };
+export const addToSyncQueue = async (item: any) => { return await db.syncQueue.add({ ...item, created_at: new Date().toISOString() }); };
+export const removeFromSyncQueue = async (id: number) => { await db.syncQueue.delete(id); };
+export const updateSyncQueueItem = async (id: number, updates: any) => { await db.syncQueue.update(id, updates); };
+export const markAsSynced = async (table: string, localId: number, remoteId?: string) => { const targetTable = db.table(table); if (targetTable) { const updateData: any = { sync_status: SyncStatus.SYNCED }; if (remoteId) { updateData.remoteId = remoteId; } await targetTable.update(localId, updateData); } };
+export const getSyncStats = async () => { return { total: 0, synced: 0, pending: 0, errors: 0 }; };
+</file>
+
+<file path="components/Sidebar.tsx">
+import React from 'react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText } from 'lucide-react';
+import { Page } from '../types';
+import { useBranding } from '../context/BrandingContext';
+import SyncStatus from '../src/components/SyncStatus';
+
+interface SidebarProps {
+  activePage: Page;
+  setPage: (page: Page) => void;
+  onLogout: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout }) => {
+  const { branding } = useBranding();
+
+  const menuItems = [
+    { id: Page.HOME, label: 'Dashboard', arLabel: 'الرئيسية', icon: LayoutDashboard },
+    { id: Page.RECEPTION, label: 'Reception', arLabel: 'الاستقبال', icon: Users },
+    { id: Page.GYNECOLOGY, label: 'Gynecology', arLabel: 'عيادة النساء', icon: Activity },
+    { id: Page.OBSTETRICS, label: 'Obstetrics', arLabel: 'متابعة الحمل', icon: Heart },
+    { id: Page.IVF, label: 'IVF Center', arLabel: 'مركز الخصوبة', icon: Baby },
+    { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: FileText },
+    { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
+  ];
+
+  return (
+    // Hidden on mobile, visible from md and up
+    <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 no-print">
+      <div className="p-6 border-b border-gray-100 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          {branding?.logo_url ? (
+            <img src={branding.logo_url} alt="Logo" className="w-12 h-12 rounded-full mb-2 object-cover" />
+          ) : (
+            <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mb-2">
+              <Baby className="text-teal-700 w-8 h-8" />
+            </div>
+          )}
+          <h1 className="text-sm font-bold text-gray-800 text-center">{branding?.clinic_name || 'Nile IVF Center'}</h1>
+          <p className="text-xs text-gray-400 uppercase tracking-wider">EMR System</p>
+        </div>
+      </div>
+      
+      <nav className="flex-1 overflow-y-auto py-4">
+        <ul className="space-y-2 px-4">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activePage === item.id;
+            return (
+              <li key={item.id}>
+                <button
+                  onClick={() => setPage(item.id)}
+                  className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-teal-50 text-teal-700 font-bold shadow-sm' 
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-teal-700' : 'text-gray-400'}`} />
+                  <span>{item.arLabel || item.label}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <div className="p-4 border-t border-gray-100">
+        {/* Sync Status Indicator */}
+        <div className="mb-4">
+          <SyncStatus />
+        </div>
+
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Sign Out</span>
+        </button>
+
+        {/* Developer Credits */}
+        <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+          <p className="text-xs text-gray-400 font-[Tajawal] leading-tight">
+            برمجة وتطوير<br />
+            د. محمد صلاح جبر
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
 </file>
 
 <file path="pages/PatientMasterRecord.tsx">
@@ -13065,33 +13261,45 @@ export class SyncService {
   }
 
   private setupNetworkListeners(): void {
-    window.addEventListener('online', () => { console.log('🔄 Online: Syncing...'); this.isOnline = true; this.forceSync(); });
-    window.addEventListener('offline', () => { console.log('📴 Offline mode'); this.isOnline = false; });
+    window.addEventListener('online', () => { 
+      console.log('🔄 Online: Syncing...'); 
+      this.isOnline = true; 
+      this.forceSync(); 
+    });
+    window.addEventListener('offline', () => { 
+      console.log('📴 Offline mode'); 
+      this.isOnline = false; 
+    });
   }
 
   private startPeriodicSync(): void {
-    this.syncInterval = setInterval(() => { if (this.isOnline && !this.syncInProgress) this.performBackgroundSync(); }, 30000);
+    this.syncInterval = setInterval(() => { 
+      if (this.isOnline && !this.syncInProgress) this.performBackgroundSync(); 
+    }, 30000); // كل 30 ثانية
   }
 
-  // --- PUBLIC API ---
+  // --- دوال التعامل مع البيانات (API) ---
 
   async initializeSync(): Promise<void> {
-    console.log('🚀 Initializing Sync...');
+    console.log('🚀 Initializing Sync Engine...');
+    // 1. حاول رفع البيانات المعلقة أولاً
     await this.processSyncQueue();
+    // 2. اسحب أحدث البيانات من السيرفر لتحديث الواجهة
     await this.pullLatestData();
-    console.log('✅ Sync Ready');
+    console.log('✅ Sync Engine Ready');
   }
 
   async saveItem(table: string, data: any): Promise<any> {
+    // 1. الحفظ محلياً فوراً
     const localData = { ...data, sync_status: SyncStatus.PENDING_CREATE, created_at: new Date().toISOString() };
     const id = await db.table(table).add(localData) as number;
     const localRecord = { ...localData, id };
     
-    // Queue immediately
+    // 2. إضافة لطابور المزامنة
     await addToSyncQueue({ table, operation: 'create', localId: id, payload: data, retryCount: 0, maxRetries: 3 });
     
+    // 3. محاولة المزامنة الفورية إذا كان متصلاً
     if (this.isOnline) {
-       // Trigger background sync without awaiting
        this.performBackgroundSync();
     }
     return localRecord;
@@ -13109,14 +13317,19 @@ export class SyncService {
     if (this.isOnline) this.performBackgroundSync();
   }
 
-  // --- CORE SYNC LOGIC ---
+  // --- منطق المزامنة الخلفي (The Brain) ---
 
   private async performBackgroundSync(): Promise<void> {
     if (this.syncInProgress) return;
     this.syncInProgress = true;
-    try { await this.processSyncQueue(); await this.pullLatestData(); } 
-    catch (e) { console.error('Sync Error:', e); } 
-    finally { this.syncInProgress = false; }
+    try { 
+      await this.processSyncQueue(); 
+      await this.pullLatestData(); 
+    } catch (e) { 
+      console.error('Sync Error:', e); 
+    } finally { 
+      this.syncInProgress = false; 
+    }
   }
 
   private async processSyncQueue(): Promise<void> {
@@ -13127,7 +13340,8 @@ export class SyncService {
             const rec = await db.table(item.table).get(item.localId);
             if (!rec && item.operation !== 'delete') { await removeFromSyncQueue(item.id!); continue; }
 
-            // *** CRITICAL FIX: Resolve Foreign Keys (Local ID -> Remote UUID) ***
+            // *** الذكاء: إصلاح الارتباطات المقطوعة (Local ID -> Remote UUID) ***
+            // قبل الرفع، نتأكد أن السجل مرتبط بـ UUID السحابي وليس الرقم المحلي
             const payload = item.operation === 'create' || item.operation === 'update' 
                 ? await this.resolveForeignKeys(item.table, rec) 
                 : null;
@@ -13147,44 +13361,28 @@ export class SyncService {
     }
   }
 
-  // *** NEW METHOD: FIXES ORPHANED RECORDS ***
+  // دالة تحويل المعرفات المحلية إلى معرفات سحابية
   private async resolveForeignKeys(table: string, record: any): Promise<any> {
     const updatedRecord = { ...record };
     let hasChanges = false;
 
-    // 1. Fix Patient ID (if it's a number, find the remote UUID)
+    // إصلاح معرف المريض
     if (updatedRecord.patient_id && !isNaN(Number(updatedRecord.patient_id))) {
         const patient = await db.patients.get(Number(updatedRecord.patient_id));
         if (patient && patient.remoteId) {
-            console.log(`🔗 Linking orphan ${table} to Patient UUID: ${patient.remoteId}`);
             updatedRecord.patient_id = patient.remoteId;
             hasChanges = true;
         }
     }
-    // Also check camelCase 'patientId' just in case
-    if (updatedRecord.patientId && !isNaN(Number(updatedRecord.patientId))) {
-        const patient = await db.patients.get(Number(updatedRecord.patientId));
-        if (patient && patient.remoteId) {
-            updatedRecord.patient_id = patient.remoteId; // Standardize to snake_case
-            delete updatedRecord.patientId;
+    // إصلاح معرف الحمل
+    if (updatedRecord.pregnancy_id && !isNaN(Number(updatedRecord.pregnancy_id))) {
+        const pregnancy = await db.pregnancies.get(Number(updatedRecord.pregnancy_id));
+        if (pregnancy && pregnancy.remoteId) {
+            updatedRecord.pregnancy_id = pregnancy.remoteId;
             hasChanges = true;
         }
     }
-
-    if (updatedRecord.pregnancy_id && !isNaN(Number(updatedRecord.pregnancy_id))) {
-        try {
-            const pregnancy = await db.pregnancies.get(Number(updatedRecord.pregnancy_id));
-            if (pregnancy && pregnancy.remoteId) {
-                console.log(`🔗 Linking orphan ${table} to Pregnancy UUID: ${pregnancy.remoteId}`);
-                updatedRecord.pregnancy_id = pregnancy.remoteId;
-                hasChanges = true;
-            }
-        } catch (e) {
-            console.warn(`⚠️ Failed to resolve pregnancy for foreign key:`, e);
-        }
-    }
-
-    // 3. Fix Cycle ID (for Logs)
+    // إصلاح معرف الدورة
     if (updatedRecord.cycle_id && !isNaN(Number(updatedRecord.cycle_id))) {
         const cycle = await db.ivf_cycles.get(Number(updatedRecord.cycle_id));
         if (cycle && cycle.remoteId) {
@@ -13193,7 +13391,7 @@ export class SyncService {
         }
     }
 
-    // Apply updates locally if we found the UUIDs
+    // إذا تم التصحيح، نحدث السجل المحلي أيضاً
     if (hasChanges) {
         await db.table(table).update(record.id, updatedRecord);
     }
@@ -13202,19 +13400,18 @@ export class SyncService {
   }
 
   private async syncItem(table: string, localId: number, record: any): Promise<void> {
-    // Map local table names to Supabase
+    // توحيد أسماء الجداول (محلياً اسمها visits وعالمياً antenatal_visits أحياناً)
     const supabaseTable = table === 'visits' ? 'antenatal_visits' : table;
     
-    // Clean payload
     const payload = { ...record };
-    delete payload.id; // Don't send local ID
+    // تنظيف البيانات قبل الإرسال
+    delete payload.id; 
     delete payload.sync_status;
     delete payload.sync_error;
     delete payload.last_sync_attempt;
     delete payload.remoteId;
-    delete payload.created_at; // Let server handle timestamp conflicts if needed, or keep if crucial
     
-    // Ensure patient_id is present if required (sometimes it's missing in payload but present in local DB)
+    // حماية: لا ترسل سجل بدون معرف الأب (Foreign Key)
     if (table !== 'patients' && !payload.patient_id && !payload.pregnancy_id && !payload.cycle_id) {
        console.warn(`⚠️ Skipping sync for ${table} ${localId}: Missing Foreign Key`);
        return; 
@@ -13231,276 +13428,49 @@ export class SyncService {
     if (error) throw error;
   }
 
-  // --- PULL LOGIC ---
+  // --- منطق السحب (Pull) ---
+  
   private async pullLatestData(): Promise<void> {
     try {
         console.log('📥 Pulling data...');
-        
-        // Pull patients first (parent table)
-        try {
-            await this.pullTable('patients');
-        } catch (e) {
-            console.error('❌ Failed to pull patients:', e);
-        }
-        
-        // Try to pull each table independently - don't let one failure stop others
-        const tables = [
-            { remote: 'pregnancies', local: 'pregnancies' },
-            { remote: 'ivf_cycles', local: 'ivf_cycles' },
-            { remote: 'antenatal_visits', local: 'visits' },
-            { remote: 'stimulation_logs', local: 'stimulation_logs' },
-            { remote: 'biometry_scans', local: 'biometry_scans' }
-        ];
-        
-        for (const table of tables) {
-            try {
-                console.log(`🔄 Attempting to pull ${table.remote}...`);
-                await this.pullTable(table.remote, table.local);
-            } catch (e) {
-                console.warn(`⚠️ Failed to pull ${table.remote}:`, e);
-                // Continue to next table instead of stopping
-            }
-        }
-        
-        // Clean up orphaned records
-        try {
-            await this.cleanupOrphanedRecords();
-        } catch (e) {
-            console.warn('⚠️ Cleanup failed:', e);
-        }
-        
-        console.log('✅ Pull phase completed');
-    } catch (e) { 
-        console.error('Critical pull error:', e); 
-    }
-  }
-
-  private async cleanupOrphanedRecords(): Promise<void> {
-    try {
-      console.log('🧹 Cleaning up orphaned records...');
-      
-      // Get all patients with both ID formats
-      const patients = await db.patients.toArray();
-      const idMap = new Map<number | string, { numeric: number; uuid: string }>();
-      
-      for (const p of patients) {
-        if (p.id && p.remoteId) {
-          idMap.set(p.id, { numeric: p.id, uuid: p.remoteId });
-          idMap.set(p.remoteId, { numeric: p.id, uuid: p.remoteId });
-        }
-      }
-
-      // Update visits with numeric patient_id to use UUID
-      const visits = await db.visits.toArray();
-      let updatedCount = 0;
-      
-      for (const visit of visits) {
-        if (visit.patient_id && !isNaN(Number(visit.patient_id))) {
-          const mapping = idMap.get(Number(visit.patient_id));
-          if (mapping && mapping.uuid !== visit.patient_id) {
-            console.log(`🔗 Updating visit ${visit.id}: patient_id ${visit.patient_id} -> ${mapping.uuid}`);
-            await db.visits.update(visit.id!, { patient_id: mapping.uuid });
-            updatedCount++;
-          }
-        }
-      }
-
-      // Update cycles with numeric patient_id to use UUID
-      const cycles = await db.ivf_cycles.toArray();
-      for (const cycle of cycles) {
-        if (cycle.patient_id && !isNaN(Number(cycle.patient_id))) {
-          const mapping = idMap.get(Number(cycle.patient_id));
-          if (mapping && mapping.uuid !== cycle.patient_id) {
-            console.log(`🔗 Updating cycle ${cycle.id}: patient_id ${cycle.patient_id} -> ${mapping.uuid}`);
-            await db.ivf_cycles.update(cycle.id!, { patient_id: mapping.uuid });
-            updatedCount++;
-          }
-        }
-      }
-
-      if (updatedCount > 0) {
-        console.log(`✅ Cleaned up ${updatedCount} orphaned records`);
-      }
-    } catch (e) {
-      console.error('Cleanup error:', e);
-    }
+        // نسحب الجداول بالترتيب لتجنب الأخطاء
+        await this.pullTable('patients');
+        await this.pullTable('ivf_cycles');
+        await this.pullTable('pregnancies');
+        await Promise.all([
+            this.pullTable('antenatal_visits', 'visits'),
+            this.pullTable('stimulation_logs'),
+            this.pullTable('biometry_scans'),
+            this.pullTable('patient_files') // تمت إضافة جدول الملفات
+        ]);
+        console.log('✅ Pull completed');
+    } catch (e) { console.error('Pull error:', e); }
   }
 
   private async pullTable(remoteTable: string, localTableAlias?: string): Promise<void> {
     const localTable = localTableAlias || remoteTable;
     
-    try {
-      // Check if local table exists first
-      const allTables = db.tables.map(t => t.name);
-      if (!allTables.includes(localTable)) {
-        console.warn(`⚠️ Local table "${localTable}" doesn't exist in database schema`);
-        return;
-      }
+    // تأكد من وجود الجدول محلياً قبل السحب
+    if (!db.tables.some(t => t.name === localTable)) return;
 
-      const { data, error } = await supabase.from(remoteTable).select('*').limit(1000);
-      if (error || !data) {
-        console.warn(`⚠️ Error pulling ${remoteTable}:`, error?.message);
-        return;
-      }
+    const { data, error } = await supabase.from(remoteTable).select('*').limit(1000);
+    if (error || !data) return;
 
-      console.log(`📥 Pulling ${remoteTable}: ${data.length} records`);
-
-      const localTableRef = db.table(localTable);
-      
-      for (const remoteRow of data) {
-          try {
-            const existing = await localTableRef.where('remoteId').equals(remoteRow.id).first();
+    // *** الحل لمشكلة 3-6 arguments ***
+    // نمرر الجداول كمصفوفة (Array)
+    await db.transaction('rw', [db.table(localTable)], async () => {
+        for (const remoteRow of data) {
+            const existing = await db.table(localTable).where('remoteId').equals(remoteRow.id).first();
             const cleanRow = { ...remoteRow, remoteId: remoteRow.id, sync_status: SyncStatus.SYNCED };
-            delete cleanRow.id; 
-          
-            if (cleanRow.patient_id) {
-                if (!isNaN(Number(cleanRow.patient_id))) {
-                  try {
-                    const patient = await db.patients.get(Number(cleanRow.patient_id));
-                    if (patient?.remoteId) {
-                        cleanRow.patient_id = patient.remoteId;
-                    }
-                  } catch (e) {
-                    console.warn(`⚠️ Failed to resolve patient for ${localTable}:`, e);
-                  }
-                }
-            }
-            
-            if (cleanRow.pregnancy_id) {
-                if (!isNaN(Number(cleanRow.pregnancy_id))) {
-                  try {
-                    const pregnancy = await db.pregnancies.get(Number(cleanRow.pregnancy_id));
-                    if (pregnancy?.remoteId) {
-                        cleanRow.pregnancy_id = pregnancy.remoteId;
-                    }
-                  } catch (e) {
-                    console.warn(`⚠️ Failed to resolve pregnancy for ${localTable}:`, e);
-                  }
-                }
-            }
+            delete cleanRow.id; // نحافظ على الـ ID المحلي
 
-            if (cleanRow.cycle_id) {
-                if (!isNaN(Number(cleanRow.cycle_id))) {
-                  try {
-                    const cycle = await db.ivf_cycles.get(Number(cleanRow.cycle_id));
-                    if (cycle?.remoteId) {
-                        cleanRow.cycle_id = cycle.remoteId;
-                    }
-                  } catch (e) {
-                    console.warn(`⚠️ Failed to resolve cycle for ${localTable}:`, e);
-                  }
-                }
-            }
-
-            if (existing) {
-                await localTableRef.update(existing.id, cleanRow);
-            } else {
-                await localTableRef.add(cleanRow);
-            }
-          } catch (rowError: any) {
-            console.error(`⚠️ Failed to process row in ${remoteTable}:`, rowError?.message);
-          }
-      }
-      
-      console.log(`✅ Finished pulling ${remoteTable}`);
-    } catch (error: any) {
-      console.error(`❌ Error in pullTable(${remoteTable}):`, error?.message || error);
-      throw error;
-    }
-  }
-
-  // Compat & Additional Methods
-  async fetch(table: string, query: (sb: any) => any): Promise<any> {
-    if (this.isOnline) {
-      try {
-        const result = await query(supabase);
-        if (result.error) throw result.error;
-        return result.data || [];
-      } catch (e) {
-        console.warn(`Fetch failed for ${table}, using local cache:`, e);
-        return await db.table(table).toArray();
-      }
-    } else {
-      return await db.table(table).toArray();
-    }
-  }
-
-  // Diagnostic & Manual Repair
-  async diagnoseOrphanedData(): Promise<{
-    patients: number;
-    orphanedVisits: any[];
-    orphanedCycles: any[];
-    orphanedPregnancies: any[];
-  }> {
-    console.log('🔍 Diagnosing data integrity...');
-    
-    const patients = await db.patients.toArray();
-    const visits = await db.visits.toArray();
-    const cycles = await db.ivf_cycles.toArray();
-    const pregnancies = await db.pregnancies.toArray();
-
-    // Find orphaned records
-    const patientIds = new Set<string | number>();
-    patients.forEach(p => {
-      if (p.id) patientIds.add(p.id);
-      if (p.remoteId) patientIds.add(p.remoteId);
+            if (existing) { await db.table(localTable).update(existing.id, cleanRow); } 
+            else { await db.table(localTable).add(cleanRow); }
+        }
     });
-
-    const orphanedVisits = visits.filter(v => v.patient_id && !patientIds.has(v.patient_id));
-    const orphanedCycles = cycles.filter(c => c.patient_id && !patientIds.has(c.patient_id));
-
-    const pregnancyIds = new Set<string | number>();
-    pregnancies.forEach(p => {
-      if (p.id) pregnancyIds.add(p.id);
-      if (p.remoteId) pregnancyIds.add(p.remoteId);
-    });
-
-    const orphanedPregnancies = pregnancies.filter(p => p.patient_id && !patientIds.has(p.patient_id));
-
-    const report = {
-      patients: patients.length,
-      orphanedVisits: orphanedVisits.length,
-      orphanedCycles: orphanedCycles.length,
-      orphanedPregnancies: orphanedPregnancies.length,
-      orphanedVisitsData: orphanedVisits,
-      orphanedCyclesData: orphanedCycles,
-      orphanedPregnanciesData: orphanedPregnancies
-    };
-
-    console.table(report);
-    return {
-      patients: patients.length,
-      orphanedVisits: orphanedVisits,
-      orphanedCycles: orphanedCycles,
-      orphanedPregnancies: orphanedPregnancies
-    };
   }
 
-  async repairAllData(): Promise<void> {
-    console.log('🔧 Starting comprehensive data repair...');
-    
-    // Step 1: Force pull latest from Supabase
-    console.log('Step 1/3: Pulling latest data from Supabase...');
-    await this.pullLatestData();
-    
-    // Step 2: Run cleanup
-    console.log('Step 2/3: Cleaning up orphaned records...');
-    await this.cleanupOrphanedRecords();
-    
-    // Step 3: Force sync any pending items
-    console.log('Step 3/3: Syncing pending changes...');
-    await this.processSyncQueue();
-    
-    console.log('✅ Data repair completed!');
-    
-    // Show final diagnosis
-    const diagnosis = await this.diagnoseOrphanedData();
-    console.log('📊 Final Data Status:');
-    console.log(`   Patients: ${diagnosis.patients}`);
-    console.log(`   Orphaned Visits: ${diagnosis.orphanedVisits.length}`);
-    console.log(`   Orphaned Cycles: ${diagnosis.orphanedCycles.length}`);
-  }
-
+  // دوال للتوافق مع الكود القديم
   async forceSync() { await this.performBackgroundSync(); }
   getSyncStatus() { return { isOnline: this.isOnline, syncInProgress: this.syncInProgress }; }
   async save(t: string, d: any) { return this.saveItem(t, d); }

@@ -412,6 +412,7 @@ export const obstetricsService = {
 
   getANCVisits: async (pregnancyId: string) => {
     try {
+      console.log('🔍 getANCVisits called with pregnancyId:', pregnancyId);
       // FIX: Resolve ID Mismatch if needed
       let targetId = pregnancyId;
 
@@ -422,34 +423,47 @@ export const obstetricsService = {
           const pregnancy = await localDB.pregnancies.get(Number(localId));
           if (pregnancy && pregnancy.remoteId) {
             targetId = pregnancy.remoteId;
+            console.log('🔄 Resolved local ID to remote ID:', targetId);
           }
         }
       }
 
       // Try local DB first
-      const localVisits = await localDB.visits
+      const localVisits = await localDB.antenatal_visits
         .where('pregnancy_id').equals(targetId)
         .or('pregnancy_id').equals(pregnancyId)
         .toArray();
 
+      console.log('📊 Found local visits:', localVisits.length);
+
       // Background sync
       setTimeout(() => syncManager.read('antenatal_visits'), 0);
 
-      return localVisits.map((v: any) => ({
+      const mappedVisits = localVisits.map((v: any) => ({
         id: v.remoteId || `local_${v.id}`,
         pregnancy_id: v.pregnancy_id,
-        department: v.department,
         visit_date: v.visit_date,
-        clinical_data: v.clinical_data,
-        diagnosis: v.diagnosis,
-        prescription: v.prescription,
+        gestational_age_weeks: v.gestational_age_weeks || 0,
+        gestational_age_days: v.gestational_age_days || 0,
+        systolic_bp: v.systolic_bp,
+        diastolic_bp: v.diastolic_bp,
+        weight_kg: v.weight_kg,
+        urine_albuminuria: v.urine_albuminuria,
+        urine_glycosuria: v.urine_glycosuria,
+        fetal_heart_sound: v.fetal_heart_sound,
+        fundal_height_cm: v.fundal_height_cm,
+        edema: v.edema,
+        edema_grade: v.edema_grade,
         notes: v.notes,
-        doctor_id: v.doctor_id,
-        created_at: v.created_at,
-        updated_at: v.updated_at
+        next_visit_date: v.next_visit_date,
+        prescription: v.prescription,
+        created_at: v.created_at
       }));
+
+      console.log('✅ Returning mapped visits:', mappedVisits.length);
+      return mappedVisits;
     } catch (error) {
-      console.error('Error fetching local ANC visits, falling back to Supabase:', error);
+      console.error('❌ Error fetching local ANC visits, falling back to Supabase:', error);
 
       // Fallback to Supabase
       const { data, error: supabaseError } = await supabase
@@ -459,6 +473,7 @@ export const obstetricsService = {
         .order('visit_date', { ascending: false });
 
       if (supabaseError) throw supabaseError;
+      console.log('🌐 Fallback to Supabase returned:', data?.length || 0, 'visits');
       return data;
     }
   },
@@ -530,6 +545,7 @@ export const obstetricsService = {
 
   getBiometryScans: async (pregnancyId: string) => {
     try {
+      console.log('🔍 getBiometryScans called with pregnancyId:', pregnancyId);
       // FIX: Resolve ID Mismatch if needed
       let targetId = pregnancyId;
 
@@ -540,6 +556,7 @@ export const obstetricsService = {
           const pregnancy = await localDB.pregnancies.get(Number(localId));
           if (pregnancy && pregnancy.remoteId) {
             targetId = pregnancy.remoteId;
+            console.log('🔄 Resolved local ID to remote ID:', targetId);
           }
         }
       }
@@ -548,12 +565,14 @@ export const obstetricsService = {
         .filter(s => s.pregnancy_id === targetId || s.pregnancy_id === pregnancyId)
         .toArray();
 
+      console.log('📊 Found local scans:', localScans.length);
+
       if (networkStatus.getStatus()) {
         setTimeout(() => syncManager.read('biometry_scans'), 0);
       }
 
       if (localScans.length > 0) {
-        return localScans.map((scan: any) => ({
+        const mappedScans = localScans.map((scan: any) => ({
           id: scan.remoteId || `local_${scan.id}`,
           pregnancy_id: scan.pregnancy_id,
           scan_date: scan.scan_date,
@@ -569,9 +588,11 @@ export const obstetricsService = {
           created_at: scan.created_at,
           updated_at: scan.updated_at
         }));
+        console.log('✅ Returning mapped scans:', mappedScans.length);
+        return mappedScans;
       }
     } catch (error) {
-      console.error('Error fetching local biometry scans, falling back to Supabase:', error);
+      console.error('❌ Error fetching local biometry scans, falling back to Supabase:', error);
     }
 
     const { data, error } = await supabase
@@ -581,6 +602,7 @@ export const obstetricsService = {
       .order('scan_date', { ascending: false });
 
     if (error) throw error;
+    console.log('🌐 Fallback to Supabase returned:', data?.length || 0, 'scans');
     return data;
   },
 
