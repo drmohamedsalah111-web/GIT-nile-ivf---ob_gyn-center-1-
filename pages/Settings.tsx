@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
 import { Doctor } from '../types';
-import { db, getSyncStats, initLocalDB } from '../src/db/localDB';
+import { db, getSyncStats, initLocalDB, getPendingSyncItems } from '../src/db/localDB';
 import { syncManager } from '../src/services/syncService';
 import RefreshButton from '../components/RefreshButton';
 
@@ -48,6 +48,8 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   const [logoUploadLoading, setLogoUploadLoading] = useState(false);
   const [syncStats, setSyncStats] = useState<{ total: number; synced: number; pending: number; errors: number } | null>(null);
   const [hardResetLoading, setHardResetLoading] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,6 +88,21 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     };
 
     fetchSyncStats();
+  }, []);
+
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      try {
+        const pending = await getPendingSyncItems();
+        setPendingCount(pending.length);
+      } catch (error) {
+        console.error('Failed to fetch pending count:', error);
+      }
+    };
+
+    fetchPendingCount();
+    const interval = setInterval(fetchPendingCount, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -216,6 +233,41 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
       toast.error('فشل تحديث كلمة المرور');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePushPending = async () => {
+    if (pendingCount === 0) {
+      toast.success('لا توجد بيانات معلقة للرفع');
+      return;
+    }
+
+    try {
+      setPushLoading(true);
+      toast.loading(`جاري رفع ${pendingCount} عنصر معلق...`, { id: 'push-pending' });
+
+      const result = await syncManager.pushPendingItems();
+
+      if (result.success > 0) {
+        toast.success(`✅ تم رفع ${result.success} عنصر بنجاح${result.failed > 0 ? ` (${result.failed} فشلوا)` : ''}`, { id: 'push-pending' });
+        const pending = await getPendingSyncItems();
+        setPendingCount(pending.length);
+        
+        const stats = await getSyncStats();
+        setSyncStats(stats);
+      } else if (result.failed > 0) {
+        toast.error(`فشل رفع جميع العناصر. التفاصيل:\n${result.errors.slice(0, 3).join('\n')}`, { id: 'push-pending' });
+      }
+
+      if (result.errors.length > 0) {
+        console.log('📋 أخطاء الرفع:', result.errors);
+      }
+    } catch (error) {
+      console.error('Push error:', error);
+      const errorMsg = error instanceof Error ? error.message : 'خطأ غير معروف';
+      toast.error(`فشل رفع البيانات المعلقة: ${errorMsg}`, { id: 'push-pending' });
+    } finally {
+      setPushLoading(false);
     }
   };
 
@@ -635,6 +687,35 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
                 </div>
               ) : (
                 <div className="text-gray-500 font-[Tajawal]">جاري تحميل الإحصائيات...</div>
+              )}
+            </div>
+
+            <div>
+              <h4 className="text-lg font-semibold text-gray-800 mb-4 font-[Tajawal]">رفع البيانات المعلقة</h4>
+              <p className="text-sm text-gray-600 mb-4 font-[Tajawal]">
+                استخدم هذا الزر لرفع أي بيانات علقت محلياً ولم يتم رفعها إلى السيرفر.
+              </p>
+              <button
+                onClick={handlePushPending}
+                disabled={pushLoading || pendingCount === 0}
+                className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
+              >
+                {pushLoading ? (
+                  <>
+                    <Loader size={18} className="animate-spin" />
+                    جاري الرفع...
+                  </>
+                ) : (
+                  <>
+                    <Upload size={18} />
+                    📤 رفع البيانات المعلقة ({pendingCount})
+                  </>
+                )}
+              </button>
+              {pendingCount > 0 && (
+                <p className="text-xs text-yellow-600 mt-2 font-[Tajawal]">
+                  ⚠️ هناك {pendingCount} عنصر{pendingCount > 1 ? '' : ''} معلق للرفع
+                </p>
               )}
             </div>
 

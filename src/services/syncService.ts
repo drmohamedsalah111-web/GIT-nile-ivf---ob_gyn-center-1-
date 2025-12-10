@@ -219,6 +219,67 @@ export class SyncService {
     });
   }
 
+  async pushPendingItems(): Promise<{ success: number; failed: number; errors: string[] }> {
+    const items = await getPendingSyncItems();
+    const errors: string[] = [];
+    let success = 0;
+    let failed = 0;
+
+    if (items.length === 0) {
+      console.log('📭 No pending items to sync');
+      return { success: 0, failed: 0, errors: [] };
+    }
+
+    console.log(`📤 Pushing ${items.length} pending items...`);
+
+    for (const item of items) {
+      try {
+        if (item.retryCount >= item.maxRetries) {
+          console.warn(`⚠️ Max retries reached for item ${item.id}. Skipping.`);
+          await removeFromSyncQueue(item.id!);
+          failed++;
+          errors.push(`Item ${item.id} (${item.table}): Max retries exceeded`);
+          continue;
+        }
+
+        const rec = await db.table(item.table).get(item.localId);
+        if (!rec && item.operation !== 'delete') {
+          console.warn(`⚠️ Local record not found: ${item.table} ID ${item.localId}`);
+          await removeFromSyncQueue(item.id!);
+          failed++;
+          errors.push(`Item ${item.id}: Record not found locally`);
+          continue;
+        }
+
+        const payload = item.operation === 'create' || item.operation === 'update' 
+          ? await this.resolveForeignKeys(item.table, rec) 
+          : null;
+
+        if (item.operation === 'create') {
+          await this.syncItem(item.table, item.localId, payload);
+        } else if (item.operation === 'update') {
+          await this.syncItem(item.table, item.localId, payload);
+        } else if (item.operation === 'delete' && rec?.remoteId) {
+          await this.syncDelete(item.table, rec.remoteId);
+          await db.table(item.table).delete(item.localId);
+        }
+
+        await removeFromSyncQueue(item.id!);
+        console.log(`✅ Synced ${item.table} ID ${item.localId}`);
+        success++;
+      } catch (error) {
+        console.error(`❌ Failed to sync item ${item.id}:`, error);
+        await updateSyncQueueItem(item.id!, { retryCount: item.retryCount + 1 });
+        failed++;
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        errors.push(`Item ${item.id} (${item.table}): ${errorMsg}`);
+      }
+    }
+
+    console.log(`📊 Push complete: ${success} succeeded, ${failed} failed`);
+    return { success, failed, errors };
+  }
+
   // دوال للتوافق مع الكود القديم
   async forceSync() { await this.performBackgroundSync(); }
   getSyncStatus() { return { isOnline: this.isOnline, syncInProgress: this.syncInProgress }; }
