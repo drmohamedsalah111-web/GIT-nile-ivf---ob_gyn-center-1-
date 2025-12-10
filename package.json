@@ -6,9 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npx vite build",
-    "typecheck": "npx tsc --noEmit",
-    "preview": "npx vite preview"
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@journeyapps/wa-sqlite": "^1.4.1",
@@ -23,7 +23,6 @@
     "react-hot-toast": "^2.4.1",
     "recharts": "^2.12.2",
     "tailwind-merge": "^2.2.1",
-    "vite-plugin-pwa": "^1.2.0",
     "wa-sqlite": "^1.0.0"
   },
   "devDependencies": {
