@@ -18,8 +18,7 @@ import { authService } from './services/authService';
 import { LogOut, WifiOff } from 'lucide-react';
 import { BrandingProvider } from './context/BrandingContext';
 import { initPWA } from './src/lib/pwa';
-import { initLocalDB } from './src/db/localDB';
-import { syncService } from './src/services/syncService';
+import { initPowerSync } from './src/powersync/db';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
@@ -42,26 +41,15 @@ const App: React.FC = () => {
       try {
         setLoading(true);
 
-        // 1. Initialize Local DB (Critical for Offline)
-        await initLocalDB();
-        initPWA().catch(console.warn); // Non-blocking PWA init
+        // 1. Initialize PowerSync
+        await initPowerSync();
 
-        // 2. Check Local Storage for cached session (FAST CHECK)
-        // Supabase stores session in localStorage by default with key 'sb-[project-ref]-auth-token'
-        // We will try standard auth check first, but handle offline error gracefully
+        // 2. Initialize PWA
+        initPWA().catch(console.warn);
 
-        try {
-          const currentUser = await authService.getCurrentUser();
-          setUser(currentUser);
-
-          // Only trigger sync if we have a user and are online
-          if (currentUser && navigator.onLine) {
-            syncService.initializeSync().catch(console.error);
-          }
-        } catch (authError) {
-          console.warn('Auth check failed:', authError);
-          // Real auth error: do not set user, allow app to show login
-        }
+        // 3. Check user authentication
+        const currentUser = await authService.getCurrentUser();
+        setUser(currentUser);
 
       } catch (error) {
         console.error('Critical App Initialization Error:', error);

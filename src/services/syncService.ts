@@ -1,316 +1,67 @@
-import { supabase } from '../../services/supabaseClient';
-import { db, addToSyncQueue, removeFromSyncQueue, updateSyncQueueItem, markAsSynced, getPendingSyncItems, SyncStatus } from '../db/localDB';
+// ⚠️ Legacy sync system disabled
+// ده Stub بسيط عشان الكود القديم يشتغل من غير ما نستخدم Dexie sync
 
 export class SyncService {
-  private isOnline: boolean = navigator.onLine;
-  private syncInProgress: boolean = false;
-  private syncInterval: NodeJS.Timeout | null = null;
-
-  constructor() {
-    this.setupNetworkListeners();
-    this.startPeriodicSync();
+  getSyncStatus() {
+    return {
+      isOnline: navigator.onLine,
+      syncInProgress: false,
+    };
   }
-
-  private setupNetworkListeners(): void {
-    window.addEventListener('online', () => { 
-      console.log('🔄 Online: Syncing...'); 
-      this.isOnline = true; 
-      this.forceSync(); 
-    });
-    window.addEventListener('offline', () => { 
-      console.log('📴 Offline mode'); 
-      this.isOnline = false; 
-    });
-  }
-
-  private startPeriodicSync(): void {
-    this.syncInterval = setInterval(() => { 
-      if (this.isOnline && !this.syncInProgress) this.performBackgroundSync(); 
-    }, 30000); // كل 30 ثانية
-  }
-
-  // --- دوال التعامل مع البيانات (API) ---
 
   async initializeSync(): Promise<void> {
-    console.log('🚀 Initializing Sync Engine...');
-    // 1. حاول رفع البيانات المعلقة أولاً
-    await this.processSyncQueue();
-    // 2. اسحب أحدث البيانات من السيرفر لتحديث الواجهة
-    await this.pullLatestData();
-    console.log('✅ Sync Engine Ready');
+    console.log('Legacy SyncService.initializeSync() called – no-op (PowerSync in use).');
   }
 
-  async saveItem(table: string, data: any): Promise<any> {
-    // 1. الحفظ محلياً فوراً
-    const localData = { ...data, sync_status: SyncStatus.PENDING_CREATE, created_at: new Date().toISOString() };
-    const id = await db.table(table).add(localData) as number;
-    const localRecord = { ...localData, id };
-    
-    // 2. إضافة لطابور المزامنة
-    await addToSyncQueue({ table, operation: 'create', localId: id, payload: data, retryCount: 0, maxRetries: 3 });
-    
-    // 3. محاولة المزامنة الفورية إذا كان متصلاً
-    if (this.isOnline) {
-       this.performBackgroundSync();
-    }
-    return localRecord;
+  async forceSync(): Promise<void> {
+    console.log('Legacy SyncService.forceSync() called – no-op.');
   }
 
-  async updateItem(table: string, localId: number, data: any): Promise<void> {
-    await db.table(table).update(localId, { ...data, sync_status: SyncStatus.PENDING_UPDATE, updated_at: new Date().toISOString() });
-    await addToSyncQueue({ table, operation: 'update', localId, payload: data, retryCount: 0, maxRetries: 3 });
-    if (this.isOnline) this.performBackgroundSync();
+  fireAndForgetSync(): void {
+    console.log('Legacy SyncService.fireAndForgetSync() called – no-op.');
   }
 
-  async deleteItem(table: string, localId: number): Promise<void> {
-    await db.table(table).update(localId, { sync_status: SyncStatus.PENDING_DELETE });
-    await addToSyncQueue({ table, operation: 'delete', localId, retryCount: 0, maxRetries: 3 });
-    if (this.isOnline) this.performBackgroundSync();
+  async saveItem(_table: string, _data: any): Promise<any> {
+    console.log('Legacy SyncService.saveItem() called – no-op (use Supabase / PowerSync instead).');
+    return null;
   }
 
-  // --- منطق المزامنة الخلفي (The Brain) ---
-
-  private async performBackgroundSync(): Promise<void> {
-    if (this.syncInProgress) return;
-    this.syncInProgress = true;
-    try { 
-      await this.processSyncQueue(); 
-      await this.pullLatestData(); 
-    } catch (e) { 
-      console.error('Sync Error:', e); 
-    } finally { 
-      this.syncInProgress = false; 
-    }
+  async updateItem(_table: string, _localId: number, _data: any): Promise<void> {
+    console.log('Legacy SyncService.updateItem() called – no-op (use Supabase / PowerSync instead).');
   }
 
-  private async processSyncQueue(): Promise<void> {
-    const items = await getPendingSyncItems();
-    for (const item of items) {
-        if (item.retryCount >= item.maxRetries) { await removeFromSyncQueue(item.id!); continue; }
-        try {
-            const rec = await db.table(item.table).get(item.localId);
-            if (!rec && item.operation !== 'delete') { await removeFromSyncQueue(item.id!); continue; }
-
-            // *** الذكاء: إصلاح الارتباطات المقطوعة (Local ID -> Remote UUID) ***
-            // قبل الرفع، نتأكد أن السجل مرتبط بـ UUID السحابي وليس الرقم المحلي
-            const payload = item.operation === 'create' || item.operation === 'update' 
-                ? await this.resolveForeignKeys(item.table, rec) 
-                : null;
-
-            if (item.operation === 'create') await this.syncItem(item.table, item.localId, payload);
-            else if (item.operation === 'update') await this.syncItem(item.table, item.localId, payload);
-            else if (item.operation === 'delete' && rec?.remoteId) { 
-                await this.syncDelete(item.table, rec.remoteId); 
-                await db.table(item.table).delete(item.localId); 
-            }
-            
-            await removeFromSyncQueue(item.id!);
-        } catch (error) { 
-            console.error(`Failed to sync item ${item.id}:`, error);
-            await updateSyncQueueItem(item.id!, { retryCount: item.retryCount + 1 }); 
-        }
-    }
-  }
-
-  // دالة تحويل المعرفات المحلية إلى معرفات سحابية
-  private async resolveForeignKeys(table: string, record: any): Promise<any> {
-    const updatedRecord = { ...record };
-    let hasChanges = false;
-
-    // إصلاح معرف المريض
-    if (updatedRecord.patient_id && !isNaN(Number(updatedRecord.patient_id))) {
-        const patient = await db.patients.get(Number(updatedRecord.patient_id));
-        if (patient && patient.remoteId) {
-            updatedRecord.patient_id = patient.remoteId;
-            hasChanges = true;
-        }
-    }
-    // إصلاح معرف الحمل
-    if (updatedRecord.pregnancy_id && !isNaN(Number(updatedRecord.pregnancy_id))) {
-        const pregnancy = await db.pregnancies.get(Number(updatedRecord.pregnancy_id));
-        if (pregnancy && pregnancy.remoteId) {
-            updatedRecord.pregnancy_id = pregnancy.remoteId;
-            hasChanges = true;
-        }
-    }
-    // إصلاح معرف الدورة
-    if (updatedRecord.cycle_id && !isNaN(Number(updatedRecord.cycle_id))) {
-        const cycle = await db.ivf_cycles.get(Number(updatedRecord.cycle_id));
-        if (cycle && cycle.remoteId) {
-            updatedRecord.cycle_id = cycle.remoteId;
-            hasChanges = true;
-        }
-    }
-
-    // إذا تم التصحيح، نحدث السجل المحلي أيضاً
-    if (hasChanges) {
-        await db.table(table).update(record.id, updatedRecord);
-    }
-
-    return updatedRecord;
-  }
-
-  private async syncItem(table: string, localId: number, record: any): Promise<void> {
-    const supabaseTable = table;
-    
-    const payload = { ...record };
-    // تنظيف البيانات قبل الإرسال
-    delete payload.id; 
-    delete payload.sync_status;
-    delete payload.sync_error;
-    delete payload.last_sync_attempt;
-    delete payload.remoteId;
-    
-    // حماية: لا ترسل سجل بدون معرف الأب (Foreign Key)
-    if (table !== 'patients' && !payload.patient_id && !payload.pregnancy_id && !payload.cycle_id) {
-       console.warn(`⚠️ Skipping sync for ${table} ${localId}: Missing Foreign Key`);
-       return; 
-    }
-
-    const { data, error } = await supabase.from(supabaseTable).upsert(payload).select().single();
-    if (error) throw error;
-    await markAsSynced(table, localId, data.id);
-  }
-
-  private async syncDelete(table: string, remoteId: string): Promise<void> {
-    const { error } = await supabase.from(table).delete().eq('id', remoteId);
-    if (error) throw error;
-  }
-
-  // --- منطق السحب (Pull) ---
-  
-  private async pullLatestData(): Promise<void> {
-    try {
-        console.log('📥 Pulling data...');
-        // نسحب الجداول بالترتيب لتجنب الأخطاء
-        await this.pullTable('patients');
-        await this.pullTable('ivf_cycles');
-        await this.pullTable('pregnancies');
-        await Promise.all([
-            this.pullTable('antenatal_visits'),
-            this.pullTable('stimulation_logs'),
-            this.pullTable('biometry_scans'),
-            this.pullTable('patient_files') // تمت إضافة جدول الملفات
-        ]);
-        console.log('✅ Pull completed');
-    } catch (e) { console.error('Pull error:', e); }
-  }
-
-  private async pullTable(remoteTable: string, localTableAlias?: string): Promise<void> {
-    const localTable = localTableAlias || remoteTable;
-    
-    // تأكد من وجود الجدول محلياً قبل السحب
-    if (!db.tables.some(t => t.name === localTable)) return;
-
-    const { data, error } = await supabase.from(remoteTable).select('*').limit(1000);
-    if (error || !data) return;
-
-    // *** الحل لمشكلة 3-6 arguments ***
-    // نمرر الجداول كمصفوفة (Array)
-    await db.transaction('rw', [db.table(localTable)], async () => {
-        for (const remoteRow of data) {
-            const existing = await db.table(localTable).where('remoteId').equals(remoteRow.id).first();
-            const cleanRow = { ...remoteRow, remoteId: remoteRow.id, sync_status: SyncStatus.SYNCED };
-            delete cleanRow.id; // نحافظ على الـ ID المحلي
-
-            if (existing) { await db.table(localTable).update(existing.id, cleanRow); } 
-            else { await db.table(localTable).add(cleanRow); }
-        }
-    });
+  async deleteItem(_table: string, _localId: number): Promise<void> {
+    console.log('Legacy SyncService.deleteItem() called – no-op (use Supabase / PowerSync instead).');
   }
 
   async pushPendingItems(): Promise<{ success: number; failed: number; errors: string[] }> {
-    const items = await getPendingSyncItems();
-    const errors: string[] = [];
-    let success = 0;
-    let failed = 0;
-
-    if (items.length === 0) {
-      console.log('📭 No pending items to sync');
-      return { success: 0, failed: 0, errors: [] };
-    }
-
-    console.log(`📤 Pushing ${items.length} pending items...`);
-
-    for (const item of items) {
-      try {
-        if (item.retryCount >= item.maxRetries) {
-          console.warn(`⚠️ Max retries reached for item ${item.id}. Skipping.`);
-          await removeFromSyncQueue(item.id!);
-          failed++;
-          errors.push(`Item ${item.id} (${item.table}): Max retries exceeded`);
-          continue;
-        }
-
-        const rec = await db.table(item.table).get(item.localId);
-        if (!rec && item.operation !== 'delete') {
-          console.warn(`⚠️ Local record not found: ${item.table} ID ${item.localId}`);
-          await removeFromSyncQueue(item.id!);
-          failed++;
-          errors.push(`Item ${item.id}: Record not found locally`);
-          continue;
-        }
-
-        const payload = item.operation === 'create' || item.operation === 'update' 
-          ? await this.resolveForeignKeys(item.table, rec) 
-          : null;
-
-        if (item.operation === 'create') {
-          await this.syncItem(item.table, item.localId, payload);
-        } else if (item.operation === 'update') {
-          await this.syncItem(item.table, item.localId, payload);
-        } else if (item.operation === 'delete' && rec?.remoteId) {
-          await this.syncDelete(item.table, rec.remoteId);
-          await db.table(item.table).delete(item.localId);
-        }
-
-        await removeFromSyncQueue(item.id!);
-        console.log(`✅ Synced ${item.table} ID ${item.localId}`);
-        success++;
-      } catch (error) {
-        console.error(`❌ Failed to sync item ${item.id}:`, error);
-        await updateSyncQueueItem(item.id!, { retryCount: item.retryCount + 1 });
-        failed++;
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        errors.push(`Item ${item.id} (${item.table}): ${errorMsg}`);
-      }
-    }
-
-    console.log(`📊 Push complete: ${success} succeeded, ${failed} failed`);
-    return { success, failed, errors };
+    console.log('Legacy SyncService.pushPendingItems() called – no-op.');
+    return { success: 0, failed: 0, errors: [] };
   }
 
   async retryFailedItems(): Promise<number> {
-    const failedItems = await db.syncQueue.where('retryCount').aboveOrEqual(3).toArray();
-    
-    if (failedItems.length === 0) {
-      console.log('✅ No failed items to retry');
-      return 0;
-    }
-
-    console.log(`🔄 Resurrecting ${failedItems.length} failed items...`);
-
-    await db.transaction('rw', db.syncQueue, async () => {
-      for (const item of failedItems) {
-        console.log(`🔄 Resetting retryCount for item ${item.id} (${item.table})`);
-        await updateSyncQueueItem(item.id, { retryCount: 0 });
-      }
-    });
-
-    console.log(`✅ ${failedItems.length} items ready for retry`);
-    await this.performBackgroundSync();
-    
-    return failedItems.length;
+    console.log('Legacy SyncService.retryFailedItems() called – no-op.');
+    return 0;
   }
 
-  // دوال للتوافق مع الكود القديم
-  async forceSync() { await this.performBackgroundSync(); }
-  getSyncStatus() { return { isOnline: this.isOnline, syncInProgress: this.syncInProgress }; }
-  async save(t: string, d: any) { return this.saveItem(t, d); }
-  async read(t: string) { await this.pullLatestData(); }
-  async update(t: string, rid: string, d: any) { const r = await db.table(t).where('remoteId').equals(rid).first(); if(r) await this.updateItem(t, r.id, d); }
-  async delete(t: string, rid: string) { const r = await db.table(t).where('remoteId').equals(rid).first(); if(r) await this.deleteItem(t, r.id); }
+  async save(_table: string, _data: any) {
+    throw new Error('Legacy sync disabled – use Supabase / PowerSync instead.');
+  }
+
+  async read(_table: string) {
+    throw new Error('Legacy sync disabled – use Supabase / PowerSync instead.');
+  }
+
+  async update(_table: string, _remoteId: string, _data: any) {
+    throw new Error('Legacy sync disabled – use Supabase / PowerSync instead.');
+  }
+
+  async delete(_table: string, _remoteId: string) {
+    throw new Error('Legacy sync disabled – use Supabase / PowerSync instead.');
+  }
 }
 
 export const syncService = new SyncService();
+
+// alias للكود القديم اللي بيستخدم syncManager
 export const syncManager = syncService;

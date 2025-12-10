@@ -52,18 +52,13 @@ export const calculateFertilizationRate = (fertilized: number, mii: number): num
   return parseFloat(((fertilized / mii) * 100).toFixed(1));
 };
 
-// Database Service (Supabase Async)
 export const db = {
   // --- Patients ---
   getPatients: async (): Promise<Patient[]> => {
-    // Network-First strategy: Supabase primary, local fallback
-    const patients = await syncManager.fetch('patients', async (sb) => {
-      return sb
-        .from('patients')
-        .select('*')
-        .order('created_at', { ascending: false });
-    });
-
+    const patients = await localDB.patients.toArray();
+    
+    syncManager.fireAndForgetSync();
+    
     return patients.map((p: any) => ({
       id: p.id || p.remoteId,
       name: p.name,
@@ -118,14 +113,10 @@ export const db = {
 
   // --- Visits ---
   getVisits: async (): Promise<Visit[]> => {
-    // Network-First strategy: Supabase primary, local fallback
-    const visits = await syncManager.fetch('antenatal_visits', async (sb) => {
-      return sb
-        .from('antenatal_visits')
-        .select('*')
-        .order('visit_date', { ascending: false });
-    });
-
+    const visits = await localDB.antenatal_visits.toArray();
+    
+    syncManager.fireAndForgetSync();
+    
     return visits.map((v: any) => ({
       id: v.id || v.remoteId,
       patientId: v.patient_id,
@@ -139,21 +130,11 @@ export const db = {
 
   // --- Cycles ---
   getCycles: async (): Promise<IvfCycle[]> => {
-    // Network-First strategy: Supabase primary, local fallback
-    const cycles = await syncManager.fetch('ivf_cycles', async (sb) => {
-      return sb
-        .from('ivf_cycles')
-        .select('*')
-        .order('start_date', { ascending: false });
-    });
-
-    // Also fetch logs
-    const logs = await syncManager.fetch('stimulation_logs', async (sb) => {
-      return sb
-        .from('stimulation_logs')
-        .select('*');
-    });
-
+    const cycles = await localDB.ivf_cycles.toArray();
+    const logs = await localDB.stimulation_logs.toArray();
+    
+    syncManager.fireAndForgetSync();
+    
     return cycles.map((c: any) => {
       const cycleLogs = logs
         .filter((log: any) => log.cycle_id === c.id || log.cycle_id === c.remoteId)

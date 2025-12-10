@@ -1,29 +1,31 @@
-import { PowerSyncDatabase, WASQLiteDBAdapter } from '@powersync/web';
+import { PowerSyncDatabase } from '@powersync/web';
 import { AppSchema } from './AppSchema';
 import { SupabaseConnector } from './SupabaseConnector';
 
-let db: PowerSyncDatabase;
-let connector: SupabaseConnector;
+export const powerSync = new PowerSyncDatabase({
+  schema: AppSchema,
+  database: {
+    dbFilename: 'clinic-powersync.db',
+  },
+});
 
-export const getDB = () => db;
-export const getConnector = () => connector;
+let connector: SupabaseConnector | null = null;
+let connected = false;
 
-export const initPowerSync = async () => {
-  console.log('🔌 Initializing PowerSync...');
-  
-  const dbAdapter = new WASQLiteDBAdapter({
-    dbFilename: 'clinic_powersync_v1.db',
-  });
-  
-  db = new PowerSyncDatabase({
-    schema: AppSchema,
-    database: dbAdapter,
-  });
-  
-  connector = new SupabaseConnector();
-  
-  await db.init();
-  await db.connect(connector);
-  console.log('✅ PowerSync Connected!');
-};
+export async function initPowerSync() {
+  if (connected) {
+    return;
+  }
 
+  if (!connector) {
+    connector = new SupabaseConnector();
+  }
+
+  await connector.init();
+  await connector.loginAnon();
+
+  await powerSync.connect(connector);
+
+  console.log('✅ PowerSync connected');
+  connected = true;
+}
