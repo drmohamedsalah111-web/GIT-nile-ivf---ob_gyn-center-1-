@@ -54,6 +54,7 @@ export const initLocalDB = async (): Promise<void> => {
 
 // دوال مساعدة
 export const getPendingSyncItems = async (table?: string) => { if (table) { return await db.syncQueue.where('table').equals(table).toArray(); } return await db.syncQueue.toArray(); };
+export const getFailedSyncItems = async () => { return await db.syncQueue.where('retryCount').aboveOrEqual(3).toArray(); };
 export const addToSyncQueue = async (item: any) => { return await db.syncQueue.add({ ...item, created_at: new Date().toISOString() }); };
 export const removeFromSyncQueue = async (id: number) => { await db.syncQueue.delete(id); };
 export const updateSyncQueueItem = async (id: number, updates: any) => { await db.syncQueue.update(id, updates); };

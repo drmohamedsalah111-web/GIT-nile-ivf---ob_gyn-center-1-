@@ -280,6 +280,29 @@ export class SyncService {
     return { success, failed, errors };
   }
 
+  async retryFailedItems(): Promise<number> {
+    const failedItems = await db.syncQueue.where('retryCount').aboveOrEqual(3).toArray();
+    
+    if (failedItems.length === 0) {
+      console.log('✅ No failed items to retry');
+      return 0;
+    }
+
+    console.log(`🔄 Resurrecting ${failedItems.length} failed items...`);
+
+    await db.transaction('rw', db.syncQueue, async () => {
+      for (const item of failedItems) {
+        console.log(`🔄 Resetting retryCount for item ${item.id} (${item.table})`);
+        await updateSyncQueueItem(item.id, { retryCount: 0 });
+      }
+    });
+
+    console.log(`✅ ${failedItems.length} items ready for retry`);
+    await this.performBackgroundSync();
+    
+    return failedItems.length;
+  }
+
   // دوال للتوافق مع الكود القديم
   async forceSync() { await this.performBackgroundSync(); }
   getSyncStatus() { return { isOnline: this.isOnline, syncInProgress: this.syncInProgress }; }

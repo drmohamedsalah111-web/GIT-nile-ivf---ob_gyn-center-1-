@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
 import { Doctor } from '../types';
-import { db, getSyncStats, initLocalDB, getPendingSyncItems } from '../src/db/localDB';
+import { db, getSyncStats, initLocalDB, getPendingSyncItems, getFailedSyncItems } from '../src/db/localDB';
 import { syncManager } from '../src/services/syncService';
 import RefreshButton from '../components/RefreshButton';
 
@@ -49,7 +49,9 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   const [syncStats, setSyncStats] = useState<{ total: number; synced: number; pending: number; errors: number } | null>(null);
   const [hardResetLoading, setHardResetLoading] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [retryLoading, setRetryLoading] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -91,17 +93,20 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   }, []);
 
   useEffect(() => {
-    const fetchPendingCount = async () => {
+    const fetchCounts = async () => {
       try {
         const pending = await getPendingSyncItems();
         setPendingCount(pending.length);
+        
+        const failed = await getFailedSyncItems();
+        setFailedCount(failed.length);
       } catch (error) {
-        console.error('Failed to fetch pending count:', error);
+        console.error('Failed to fetch sync counts:', error);
       }
     };
 
-    fetchPendingCount();
-    const interval = setInterval(fetchPendingCount, 5000);
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -268,6 +273,37 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
       toast.error(`فشل رفع البيانات المعلقة: ${errorMsg}`, { id: 'push-pending' });
     } finally {
       setPushLoading(false);
+    }
+  };
+
+  const handleRetryFailed = async () => {
+    if (failedCount === 0) {
+      toast.success('لا توجد عناصر فاشلة لإعادة المحاولة');
+      return;
+    }
+
+    try {
+      setRetryLoading(true);
+      toast.loading(`جاري إعادة محاولة ${failedCount} عنصر فاشل...`, { id: 'retry-failed' });
+
+      const resurrected = await syncManager.retryFailedItems();
+
+      if (resurrected > 0) {
+        toast.success(`🔄 تم إعادة تعيين ${resurrected} عنصر. جاري المحاولة...`, { id: 'retry-failed' });
+        const failed = await getFailedSyncItems();
+        setFailedCount(failed.length);
+        
+        const pending = await getPendingSyncItems();
+        setPendingCount(pending.length);
+      } else {
+        toast.success('✅ لا توجد عناصر فاشلة للمحاولة مرة أخرى', { id: 'retry-failed' });
+      }
+    } catch (error) {
+      console.error('Retry error:', error);
+      const errorMsg = error instanceof Error ? error.message : 'خطأ غير معروف';
+      toast.error(`فشل إعادة محاولة العناصر: ${errorMsg}`, { id: 'retry-failed' });
+    } finally {
+      setRetryLoading(false);
     }
   };
 
@@ -715,6 +751,35 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
               {pendingCount > 0 && (
                 <p className="text-xs text-yellow-600 mt-2 font-[Tajawal]">
                   ⚠️ هناك {pendingCount} عنصر{pendingCount > 1 ? '' : ''} معلق للرفع
+                </p>
+              )}
+            </div>
+
+            <div>
+              <h4 className="text-lg font-semibold text-gray-800 mb-4 font-[Tajawal]">إعادة محاولة العناصر الفاشلة</h4>
+              <p className="text-sm text-gray-600 mb-4 font-[Tajawal]">
+                استخدم هذا الزر لإعادة محاولة رفع العناصر التي فشلت بعد عدة محاولات.
+              </p>
+              <button
+                onClick={handleRetryFailed}
+                disabled={retryLoading || failedCount === 0}
+                className="w-full flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
+              >
+                {retryLoading ? (
+                  <>
+                    <Loader size={18} className="animate-spin" />
+                    جاري الإعادة...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={18} />
+                    🔄 إعادة محاولة العناصر الفاشلة ({failedCount})
+                  </>
+                )}
+              </button>
+              {failedCount > 0 && (
+                <p className="text-xs text-orange-600 mt-2 font-[Tajawal]">
+                  ⚠️ هناك {failedCount} عنصر{failedCount > 1 ? '' : ''} فاشل يحتاج إعادة محاولة
                 </p>
               )}
             </div>
