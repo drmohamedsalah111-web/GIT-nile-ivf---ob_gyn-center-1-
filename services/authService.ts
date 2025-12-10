@@ -54,9 +54,24 @@ export const authService = {
   },
 
   getCurrentUser: async () => {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) throw error;
-    return user;
+    try {
+      // 1. Try strict server verification first (Secure)
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      return user;
+    } catch (error: any) {
+      // 2. If Network Error ("Failed to fetch"), Fallback to Local Session
+      if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
+        console.warn('Offline mode: Verifying local session...');
+        const { data: { session } } = await supabase.auth.getSession();
+        // If we have a valid local session, allow access
+        if (session?.user) {
+          return session.user;
+        }
+      }
+      // Real auth error? Re-throw
+      throw error;
+    }
   },
 
   getDoctorProfile: async (userId: string) => {

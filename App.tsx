@@ -59,23 +59,8 @@ const App: React.FC = () => {
             syncService.initializeSync().catch(console.error);
           }
         } catch (authError) {
-          console.warn('Auth check failed (likely offline):', authError);
-
-          // If offline, check if we have a "persistence" fallback or trust the last state
-          // For now, if getSession fails completely, we might need to rely on localStorage manually
-          // or just accept that the SDK might throw when offline.
-
-          // Fallback: If we are offline, try to see if a session exists in storage
-          const session = localStorage.getItem(`sb-${import.meta.env.VITE_SUPABASE_URL?.split('.')[0]?.split('//')[1]}-auth-token`);
-          if (session) {
-             console.log('Offline mode: Found cached session, allowing access.');
-             // Mock a user object based on cached session or just allow entry
-             // ideally parse the JWT, but for now we assume valid if present
-             const parsed = JSON.parse(session);
-             if (parsed.user) {
-               setUser(parsed.user);
-             }
-          }
+          console.warn('Auth check failed:', authError);
+          // Real auth error: do not set user, allow app to show login
         }
 
       } catch (error) {
