@@ -14,6 +14,7 @@ import FetalGrowthChart from './components/obstetrics/FetalGrowthChart';
 import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 import RefreshButton from '../components/RefreshButton';
+import HistorySidebar from '../src/components/HistorySidebar';
 
 const ObstetricsDashboard: React.FC = () => {
   const patients = useLiveQuery(() => db.patients.toArray(), []) || [];
@@ -25,6 +26,7 @@ const ObstetricsDashboard: React.FC = () => {
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [prescription, setPrescription] = useState<PrescriptionItem[]>([]);
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const [formData, setFormData] = useState({
     lmp_date: '',
@@ -273,11 +275,19 @@ const ObstetricsDashboard: React.FC = () => {
             متابعة شاملة للحمل والولادة مع تقييم المخاطر والمسح البيوميتري
           </p>
         </div>
-        <RefreshButton onRefreshComplete={() => {
-          if (selectedPatientId) {
-            fetchPregnancy(selectedPatientId);
-          }
-        }} />
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowHistory(true)}
+            className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+          >
+            📜 السجل السابق
+          </button>
+          <RefreshButton onRefreshComplete={() => {
+            if (selectedPatientId) {
+              fetchPregnancy(selectedPatientId);
+            }
+          }} />
+        </div>
       </div>
 
       <div className="grid md:grid-cols-4 gap-4 mb-6">
@@ -430,6 +440,13 @@ const ObstetricsDashboard: React.FC = () => {
         })() : ''}
         isOpen={isPrinterOpen}
         onClose={() => setIsPrinterOpen(false)}
+      />
+
+      <HistorySidebar
+        patientId={selectedPatientId || ''}
+        category="OBS"
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
       />
     </div>
   );

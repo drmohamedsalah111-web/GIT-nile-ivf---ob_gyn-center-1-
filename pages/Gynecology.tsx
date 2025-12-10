@@ -10,6 +10,7 @@ import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 import SearchableSelect from '../components/ui/SearchableSelect';
 import RefreshButton from '../components/RefreshButton';
+import HistorySidebar from '../src/components/HistorySidebar';
 import { COMMON_COMPLAINTS, ICD10_DIAGNOSES, PROCEDURE_ORDERS } from '../data/medical_terms';
 
 interface GynecologyData {
@@ -64,6 +65,7 @@ const Gynecology: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'assessment' | 'diagnosis' | 'rx'>('assessment');
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const patients = useLiveQuery(() => db.patients.toArray(), []) || [];
 
@@ -262,7 +264,15 @@ const Gynecology: React.FC = () => {
             Gynecology Station - Diagnosis & Medical Management of Benign Conditions
           </p>
         </div>
-        <RefreshButton />
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowHistory(true)}
+            className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+          >
+            📜 السجل السابق
+          </button>
+          <RefreshButton />
+        </div>
       </div>
 
       {/* Patient Selector */}
@@ -664,6 +674,13 @@ const Gynecology: React.FC = () => {
         notes={gynecologyData.clinicalNotes}
         isOpen={isPrinterOpen}
         onClose={() => setIsPrinterOpen(false)}
+      />
+
+      <HistorySidebar
+        patientId={selectedPatientId}
+        category="GYNA"
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
       />
     </div>
   );

@@ -9,6 +9,7 @@ import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, Alert
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 import RefreshButton from '../components/RefreshButton';
+import HistorySidebar from '../src/components/HistorySidebar';
 
 const PROTOCOL_OPTIONS = ['Long', 'Antagonist', 'Flare-up', 'Mini-IVF'];
 
@@ -158,6 +159,7 @@ const IvfJourney: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'assessment' | 'stimulation' | 'lab' | 'transfer'>('assessment');
   const [isLoading, setIsLoading] = useState(false);
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const selectedPatient = patients.find(p => String(p.id) === selectedPatientId);
 
@@ -448,6 +450,12 @@ const IvfJourney: React.FC = () => {
             <p className="text-teal-100">Comprehensive IVF Cycle Management & Tracking</p>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowHistory(true)}
+              className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+            >
+              📜 السجل السابق
+            </button>
             <RefreshButton variant="secondary" showLabel={false} />
             <TestTube className="w-16 h-16 opacity-20" />
           </div>
@@ -1014,6 +1022,13 @@ const IvfJourney: React.FC = () => {
         notes="Comprehensive IVF Cycle Documentation"
         isOpen={isPrinterOpen}
         onClose={() => setIsPrinterOpen(false)}
+      />
+
+      <HistorySidebar
+        patientId={selectedPatientId}
+        category="IVF"
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
       />
     </div>
   );
