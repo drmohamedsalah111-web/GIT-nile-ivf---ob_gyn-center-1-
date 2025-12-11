@@ -31,12 +31,14 @@
    ```env
    VITE_SUPABASE_URL=https://your-project.supabase.co
    VITE_SUPABASE_ANON_KEY=your-anon-key-here
-   VITE_POWERSYNC_URL=https://your-powersync-instance.powersync.com
+   VITE_POWERSYNC_URL=https://6938cd7948645822f36663c8.powersync.journeyapps.com
    ```
    
    **كيفية الحصول على القيم:**
    - `VITE_SUPABASE_URL` و `VITE_SUPABASE_ANON_KEY`: من Supabase Dashboard > Settings > API
-   - `VITE_POWERSYNC_URL`: من PowerSync Dashboard > Settings > Instance URL
+   - `VITE_POWERSYNC_URL`: الرابط موجود أعلاه، أو من PowerSync Dashboard > Settings > Instance URL
+   
+   **ملاحظة:** راجع ملف `ENV_SETUP.md` للتعليمات التفصيلية
 
 3. **تشغيل التطبيق:**
    ```bash
