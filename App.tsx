@@ -17,6 +17,7 @@ import { authService } from './services/authService';
 import { LogOut, WifiOff } from 'lucide-react';
 import { BrandingProvider } from './context/BrandingContext';
 import { initPWA } from './src/lib/pwa';
+import { initPowerSync } from './src/powersync/db';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
@@ -39,8 +40,8 @@ const App: React.FC = () => {
       try {
         setLoading(true);
 
-        // 1. Initialize PowerSync (disabled - causing module resolution issues)
-        // await initPowerSync();
+        // 1. Initialize PowerSync
+        await initPowerSync();
 
         // 2. Initialize PWA
         initPWA().catch(console.warn);
@@ -156,10 +157,10 @@ const App: React.FC = () => {
             <div className="md:hidden mb-4 flex justify-between items-center">
               {/* <SyncStatus /> */}
               <div className="text-center flex-1">
-                 <h1 className="text-xl font-bold text-gray-900">
+                <h1 className="text-xl font-bold text-gray-900">
                   مرحباً، {user?.email?.split('@')[0]}
                 </h1>
-                {isOffline && <p className="text-xs text-gray-500 flex justify-center items-center gap-1"><WifiOff size={10}/> وضع أوفلاين</p>}
+                {isOffline && <p className="text-xs text-gray-500 flex justify-center items-center gap-1"><WifiOff size={10} /> وضع أوفلاين</p>}
               </div>
               <div className="w-5"></div>
             </div>

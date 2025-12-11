@@ -1,0 +1,16 @@
+# PowerSync Sync Rules for IVF & OB/GYN Center
+# Copy this content to your PowerSync Dashboard under "Sync Rules"
+
+bucket_definitions:
+  global:
+    data:
+      - SELECT id, name, age, phone, husband_name, history, doctor_id FROM patients
+      - SELECT id, patient_id, date, department, diagnosis, prescription, notes, clinical_data FROM visits
+      - SELECT id, patient_id, doctor_id, protocol, status, start_date, assessment_data, lab_data, transfer_data, outcome_data FROM ivf_cycles
+      - SELECT id, cycle_id, cycle_day, date, fsh, hmg, e2, lh, rt_follicles, lt_follicles FROM stimulation_logs
+      - SELECT id, patient_id, doctor_id, lmp_date, edd_date, edd_by_scan, risk_level, risk_factors, aspirin_prescribed, thromboprophylaxis_needed FROM pregnancies
+      - SELECT id, pregnancy_id, visit_date, gestational_age_weeks, gestational_age_days, weight_kg, systolic_bp, diastolic_bp, notes FROM antenatal_visits
+      - SELECT id, pregnancy_id, scan_date, efw_grams, percentile, bpd_mm, hc_mm, ac_mm, fl_mm, notes FROM biometry_scans
+      - SELECT id, patient_id, file_url, file_type, file_name FROM patient_files
+      - SELECT id, email, name, role FROM profiles
+      - SELECT id, clinic_name, logo_url, primary_color, secondary_color FROM app_settings
