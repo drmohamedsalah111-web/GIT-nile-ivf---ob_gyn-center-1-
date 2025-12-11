@@ -1,62 +1,116 @@
-import Dexie, { Table } from 'dexie';
+// Dexie Compatibility Layer for PowerSync
+// This file makes PowerSync work like Dexie so we don't need to change all the code
 
-export enum SyncStatus {
-  SYNCED = 0,        
-  PENDING_CREATE = 1, 
-  PENDING_UPDATE = 2, 
-  PENDING_DELETE = 3, 
-  ERROR = 4          
+import { powerSync } from '../powersync/db';
+
+// Fake useLiveQuery hook that uses PowerSync
+export function useLiveQuery<T>(querier: () => Promise<T[]>, deps: any[]): T[] | undefined {
+    const [data, setData] = React.useState<T[] | undefined>(undefined);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        const fetchData = async () => {
+            try {
+                const result = await querier();
+                if (!cancelled) {
+                    setData(result);
+                }
+            } catch (error) {
+                console.error('useLiveQuery error:', error);
+                if (!cancelled) {
+                    setData([]);
+                }
+            }
+        };
+
+        fetchData();
+
+        // Subscribe to PowerSync changes
+        const unsubscribe = powerSync.watch('SELECT 1', [], {
+            onResult: () => {
+                fetchData();
+            }
+        });
+
+        return () => {
+            cancelled = true;
+            unsubscribe?.();
+        };
+    }, deps);
+
+    return data;
 }
 
-export class ClinicLocalDB extends Dexie {
-  patients!: Table<any>;
-  visits!: Table<any>;
-  ivf_cycles!: Table<any>;
-  stimulation_logs!: Table<any>;
-  pregnancies!: Table<any>;
-  biometry_scans!: Table<any>;
-  antenatal_visits!: Table<any>;
-  patient_files!: Table<any>;
-  syncQueue!: Table<any>;
+// Fake Dexie database that uses PowerSync
+class PowerSyncTable<T = any> {
+    constructor(private tableName: string) { }
 
-  constructor() {
-    super('ClinicLocalDB');
-
-    // تعريف قاعدة البيانات (الإصدار 6 لضمان التحديث)
-    this.version(6).stores({
-      patients: '++id, remoteId, name, phone, created_at, [sync_status]',
-      visits: '++id, remoteId, patient_id, pregnancy_id, date, [sync_status]',
-      ivf_cycles: '++id, remoteId, patient_id, status, [sync_status]',
-      stimulation_logs: '++id, remoteId, cycle_id, [sync_status]',
-      pregnancies: '++id, remoteId, patient_id, [sync_status]',
-      biometry_scans: '++id, remoteId, pregnancy_id, [sync_status]',
-      antenatal_visits: '++id, remoteId, pregnancy_id, visit_date, [sync_status]',
-      patient_files: '++id, remoteId, patient_id, [sync_status]',
-      syncQueue: '++id, table, operation, retryCount, created_at'
-    });
-  }
-}
-
-export const db = new ClinicLocalDB();
-
-// دالة التهيئة الآمنة - لا تحذف البيانات أبداً
-export const initLocalDB = async (): Promise<void> => {
-  try {
-    if (!db.isOpen()) {
-       await db.open();
-       console.log('✅ Local database initialized successfully');
+    async toArray(): Promise<T[]> {
+        const result = await powerSync.getAll(`SELECT * FROM ${this.tableName}`);
+        return result as T[];
     }
-  } catch (error) {
-    console.error('⚠️ Local DB Warning:', error);
-    // تم إزالة كود الحذف التلقائي db.delete() لحماية البيانات
-  }
+
+    where(field: string) {
+        return {
+            equals: async (value: any) => {
+                const result = await powerSync.getAll(
+                    `SELECT * FROM ${this.tableName} WHERE ${field} = ?`,
+                    [value]
+                );
+                return {
+                    toArray: async () => result as T[]
+                };
+            }
+        };
+    }
+
+    async add(data: any) {
+        const id = crypto.randomUUID();
+        const fields = Object.keys(data);
+        const placeholders = fields.map(() => '?').join(', ');
+        const values = Object.values(data);
+
+        await powerSync.execute(
+            `INSERT INTO ${this.tableName} (id, ${fields.join(', ')}) VALUES (?, ${placeholders})`,
+            [id, ...values]
+        );
+
+        return id;
+    }
+
+    async update(id: any, data: any) {
+        const fields = Object.keys(data);
+        const setClause = fields.map(f => `${f} = ?`).join(', ');
+        const values = Object.values(data);
+
+        await powerSync.execute(
+            `UPDATE ${this.tableName} SET ${setClause} WHERE id = ?`,
+            [...values, id]
+        );
+    }
+
+    async delete(id: any) {
+        await powerSync.execute(
+            `DELETE FROM ${this.tableName} WHERE id = ?`,
+            [id]
+        );
+    }
+}
+
+// Fake Dexie database
+export const db = {
+    patients: new PowerSyncTable('patients'),
+    visits: new PowerSyncTable('visits'),
+    ivf_cycles: new PowerSyncTable('ivf_cycles'),
+    stimulation_logs: new PowerSyncTable('stimulation_logs'),
+    pregnancies: new PowerSyncTable('pregnancies'),
+    antenatal_visits: new PowerSyncTable('antenatal_visits'),
+    biometry_scans: new PowerSyncTable('biometry_scans'),
+    patient_files: new PowerSyncTable('patient_files'),
+    profiles: new PowerSyncTable('profiles'),
+    app_settings: new PowerSyncTable('app_settings')
 };
 
-// دوال مساعدة
-export const getPendingSyncItems = async (table?: string) => { if (table) { return await db.syncQueue.where('table').equals(table).toArray(); } return await db.syncQueue.toArray(); };
-export const getFailedSyncItems = async () => { return await db.syncQueue.where('retryCount').aboveOrEqual(3).toArray(); };
-export const addToSyncQueue = async (item: any) => { return await db.syncQueue.add({ ...item, created_at: new Date().toISOString() }); };
-export const removeFromSyncQueue = async (id: number) => { await db.syncQueue.delete(id); };
-export const updateSyncQueueItem = async (id: number, updates: any) => { await db.syncQueue.update(id, updates); };
-export const markAsSynced = async (table: string, localId: number, remoteId?: string) => { const targetTable = db.table(table); if (targetTable) { const updateData: any = { sync_status: SyncStatus.SYNCED }; if (remoteId) { updateData.remoteId = remoteId; } await targetTable.update(localId, updateData); } };
-export const getSyncStats = async () => { return { total: 0, synced: 0, pending: 0, errors: 0 }; };
+// Import React for hooks
+import React from 'react';

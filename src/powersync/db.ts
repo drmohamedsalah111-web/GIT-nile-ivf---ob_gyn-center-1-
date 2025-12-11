@@ -22,7 +22,7 @@ export async function initPowerSync() {
   }
 
   await connector.init();
-  await connector.loginAnon();
+  // Skip anonymous login - use existing authenticated session
 
   await powerSync.connect(connector);
 
