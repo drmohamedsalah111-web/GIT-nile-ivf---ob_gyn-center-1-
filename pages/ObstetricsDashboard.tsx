@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Save } from 'lucide-react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { usePatients } from '../src/hooks/usePatients';
 import toast from 'react-hot-toast';
 import { Pregnancy, Patient, PrescriptionItem } from '../types';
-import { db } from '../src/db/localDB';
 import { obstetricsService, calculateEDD, calculateGestationalAge } from '../services/obstetricsService';
 import { authService } from '../services/authService';
 import { visitsService } from '../services/visitsService';
@@ -17,7 +16,7 @@ import RefreshButton from '../components/RefreshButton';
 import HistorySidebar from '../src/components/HistorySidebar';
 
 const ObstetricsDashboard: React.FC = () => {
-  const patients = useLiveQuery(() => db.patients.toArray(), []) || [];
+  const { patients } = usePatients();
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [pregnancy, setPregnancy] = useState<Pregnancy | null>(null);
   const [isLoadingPregnancy, setIsLoadingPregnancy] = useState(false);
@@ -198,11 +197,11 @@ const ObstetricsDashboard: React.FC = () => {
 
       await obstetricsService.updatePregnancy(pregnancy.id, sanitizedUpdates);
       const updated = await obstetricsService.getPregnancyByPatient(pregnancy.patient_id);
-      
+
       if (!updated || !updated.id) {
         throw new Error('Failed to fetch updated pregnancy data');
       }
-      
+
       setPregnancy(updated);
     } catch (error) {
       console.error('Error updating pregnancy:', error);

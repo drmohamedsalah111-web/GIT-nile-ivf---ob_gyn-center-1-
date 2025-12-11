@@ -9,8 +9,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, LineChart, Line
 } from 'recharts';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../src/db/localDB';
+import { usePowerSyncQuery } from '../src/hooks/usePowerSync';
 import { db as ivfService } from '../services/ivfService';
 import { obstetricsService } from '../services/obstetricsService';
 import { Patient, IvfCycle, Pregnancy } from '../types';
@@ -26,9 +25,9 @@ const Dashboard: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState(syncService.getSyncStatus());
 
   // Live queries for real-time data
-  const patients = useLiveQuery(() => db.patients.toArray(), []);
-  const cycles = useLiveQuery(() => db.ivf_cycles.toArray(), []);
-  const pregnancies = useLiveQuery(() => db.pregnancies.toArray(), []);
+  const { data: patients = [] } = usePowerSyncQuery<Patient>('SELECT * FROM patients');
+  const { data: cycles = [] } = usePowerSyncQuery<IvfCycle>('SELECT * FROM ivf_cycles');
+  const { data: pregnancies = [] } = usePowerSyncQuery<Pregnancy>('SELECT * FROM pregnancies');
 
   // Calculate comprehensive stats
   const stats = useMemo(() => {
@@ -69,8 +68,8 @@ const Dashboard: React.FC = () => {
         patient.phone.includes(searchTerm);
 
       const matchesDepartment = selectedDepartment === 'all' ||
-        (selectedDepartment === 'ivf' && cycles?.some(c => c.patient_id === patient.remoteId || c.patient_id === patient.id.toString())) ||
-        (selectedDepartment === 'ob' && pregnancies?.some(p => p.patient_id === patient.remoteId || p.patient_id === patient.id.toString()));
+        (selectedDepartment === 'ivf' && (cycles as any[])?.some(c => c.patient_id === patient.id || c.patient_id === patient.id.toString())) ||
+        (selectedDepartment === 'ob' && (pregnancies as any[])?.some(p => p.patient_id === patient.id || p.patient_id === patient.id.toString()));
 
       return matchesSearch && matchesDepartment;
     }).slice(0, 10); // Show top 10

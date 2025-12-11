@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Stethoscope, ClipboardList, Pill } from 'lucide-react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { usePatients } from '../src/hooks/usePatients';
 import toast from 'react-hot-toast';
 import { Patient, PrescriptionItem } from '../types';
-import { db } from '../src/db/localDB';
+
 import { visitsService } from '../services/visitsService';
 import { authService } from '../services/authService';
 import PrescriptionComponent from '../components/PrescriptionComponent';
@@ -67,7 +67,7 @@ const Gynecology: React.FC = () => {
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  const patients = useLiveQuery(() => db.patients.toArray(), []) || [];
+  const { patients } = usePatients();
 
   const [gynecologyData, setGynecologyData] = useState<GynecologyData>({
     vitals: {
@@ -235,17 +235,17 @@ const Gynecology: React.FC = () => {
 
   const handleVitalsChange = (field: keyof GynecologyData['vitals'], value: string) => {
     const numValue = value ? parseFloat(value) : undefined;
-    
+
     setGynecologyData(prev => {
       const newVitals = { ...prev.vitals, [field]: numValue };
-      
+
       if (field === 'weight' || field === 'height') {
         if (newVitals.weight && newVitals.height && newVitals.height > 0) {
           const heightInMeters = newVitals.height / 100;
           newVitals.bmi = parseFloat((newVitals.weight / (heightInMeters * heightInMeters)).toFixed(1));
         }
       }
-      
+
       return {
         ...prev,
         vitals: newVitals,
@@ -301,33 +301,30 @@ const Gynecology: React.FC = () => {
             <nav className="flex">
               <button
                 onClick={() => setActiveTab('assessment')}
-                className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
-                  activeTab === 'assessment'
-                    ? 'border-b-2 border-teal-500 text-teal-600 bg-teal-50'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${activeTab === 'assessment'
+                  ? 'border-b-2 border-teal-500 text-teal-600 bg-teal-50'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 <Stethoscope className="w-5 h-5 inline mr-2" />
                 Clinical Assessment
               </button>
               <button
                 onClick={() => setActiveTab('diagnosis')}
-                className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
-                  activeTab === 'diagnosis'
-                    ? 'border-b-2 border-amber-500 text-amber-600 bg-amber-50'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${activeTab === 'diagnosis'
+                  ? 'border-b-2 border-amber-500 text-amber-600 bg-amber-50'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 <ClipboardList className="w-5 h-5 inline mr-2" />
                 Diagnosis & Plan
               </button>
               <button
                 onClick={() => setActiveTab('rx')}
-                className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
-                  activeTab === 'rx'
-                    ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${activeTab === 'rx'
+                  ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 <Pill className="w-5 h-5 inline mr-2" />
                 Prescription
@@ -426,155 +423,155 @@ const Gynecology: React.FC = () => {
 
                 {/* RIGHT COLUMN: Investigations & Scans */}
                 <div className="space-y-6">
-                {/* PV Examination */}
-                <div className="bg-green-50 p-4 rounded-lg" dir="ltr">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Vaginal Examination (PV)</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Vulva</label>
-                      <input
-                        type="text"
-                        value={gynecologyData.pvExamination.vulva}
-                        onChange={(e) => setGynecologyData(prev => ({
-                          ...prev,
-                          pvExamination: { ...prev.pvExamination, vulva: e.target.value }
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="Normal / Lesions / etc."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Vagina</label>
-                      <input
-                        type="text"
-                        value={gynecologyData.pvExamination.vagina}
-                        onChange={(e) => setGynecologyData(prev => ({
-                          ...prev,
-                          pvExamination: { ...prev.pvExamination, vagina: e.target.value }
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="Normal / Discharge / etc."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Cervix</label>
-                      <input
-                        type="text"
-                        value={gynecologyData.pvExamination.cervix}
-                        onChange={(e) => setGynecologyData(prev => ({
-                          ...prev,
-                          pvExamination: { ...prev.pvExamination, cervix: e.target.value }
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="Normal / Erosion / Motion tenderness"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Adnexa</label>
-                      <input
-                        type="text"
-                        value={gynecologyData.pvExamination.adnexa}
-                        onChange={(e) => setGynecologyData(prev => ({
-                          ...prev,
-                          pvExamination: { ...prev.pvExamination, adnexa: e.target.value }
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="Normal / Mass / Tenderness"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Office Ultrasound */}
-                <div dir="ltr">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Transvaginal Ultrasound (TVS)</h3>
-
-                  {/* Uterus */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-medium text-gray-800 mb-3">Uterus</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Dimensions (LxWxAP)</label>
-                        <input type="text" value={gynecologyData.ultrasound.uterus.dimensions} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, uterus: { ...prev.ultrasound.uterus, dimensions: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="e.g., 7x5x4 cm" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                        <select value={gynecologyData.ultrasound.uterus.position} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, uterus: { ...prev.ultrasound.uterus, position: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                          <option value="AVF">Anteverted Flexed (AVF)</option>
-                          <option value="RVF">Retroverted Flexed (RVF)</option>
-                          <option value="Axial">Axial</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Myometrium</label>
-                        <select value={gynecologyData.ultrasound.uterus.myometrium} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, uterus: { ...prev.ultrasound.uterus, myometrium: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                          <option value="Homogeneous">Homogeneous</option>
-                          <option value="Heterogeneous">Heterogeneous</option>
-                          <option value="Fibroid">Fibroid</option>
-                          <option value="Adenomyosis">Adenomyosis</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Cavity</label>
-                        <select value={gynecologyData.ultrasound.uterus.cavity} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, uterus: { ...prev.ultrasound.uterus, cavity: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                          <option value="Empty">Empty</option>
-                          <option value="Polyp">Polyp</option>
-                          <option value="Fibroid">Fibroid</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Endometrium */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-medium text-gray-800 mb-3">Endometrium</h4>
+                  {/* PV Examination */}
+                  <div className="bg-green-50 p-4 rounded-lg" dir="ltr">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Vaginal Examination (PV)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Thickness (mm)</label>
-                        <input type="text" value={gynecologyData.ultrasound.endometrium.thickness} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, endometrium: { ...prev.ultrasound.endometrium, thickness: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="e.g., 8-10 mm" />
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vulva</label>
+                        <input
+                          type="text"
+                          value={gynecologyData.pvExamination.vulva}
+                          onChange={(e) => setGynecologyData(prev => ({
+                            ...prev,
+                            pvExamination: { ...prev.pvExamination, vulva: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="Normal / Lesions / etc."
+                        />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Pattern</label>
-                        <select value={gynecologyData.ultrasound.endometrium.pattern} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, endometrium: { ...prev.ultrasound.endometrium, pattern: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                          <option value="Triple Line">Triple Line</option>
-                          <option value="Hyperechoic">Hyperechoic</option>
-                        </select>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vagina</label>
+                        <input
+                          type="text"
+                          value={gynecologyData.pvExamination.vagina}
+                          onChange={(e) => setGynecologyData(prev => ({
+                            ...prev,
+                            pvExamination: { ...prev.pvExamination, vagina: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="Normal / Discharge / etc."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Cervix</label>
+                        <input
+                          type="text"
+                          value={gynecologyData.pvExamination.cervix}
+                          onChange={(e) => setGynecologyData(prev => ({
+                            ...prev,
+                            pvExamination: { ...prev.pvExamination, cervix: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="Normal / Erosion / Motion tenderness"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Adnexa</label>
+                        <input
+                          type="text"
+                          value={gynecologyData.pvExamination.adnexa}
+                          onChange={(e) => setGynecologyData(prev => ({
+                            ...prev,
+                            pvExamination: { ...prev.pvExamination, adnexa: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="Normal / Mass / Tenderness"
+                        />
                       </div>
                     </div>
                   </div>
 
-                  {/* Adnexa */}
-                  <div>
-                    <h4 className="text-md font-medium text-gray-800 mb-3">Adnexa</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Right Ovary</label>
-                        <select value={gynecologyData.ultrasound.adnexa.rightOvary} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, adnexa: { ...prev.ultrasound.adnexa, rightOvary: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                          <option value="">Select</option>
-                          <option value="Normal">Normal</option>
-                          <option value="PCO">Polycystic (PCO)</option>
-                          <option value="Cyst">Cyst</option>
-                        </select>
+                  {/* Office Ultrasound */}
+                  <div dir="ltr">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Transvaginal Ultrasound (TVS)</h3>
+
+                    {/* Uterus */}
+                    <div className="mb-6">
+                      <h4 className="text-md font-medium text-gray-800 mb-3">Uterus</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Dimensions (LxWxAP)</label>
+                          <input type="text" value={gynecologyData.ultrasound.uterus.dimensions} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, uterus: { ...prev.ultrasound.uterus, dimensions: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="e.g., 7x5x4 cm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                          <select value={gynecologyData.ultrasound.uterus.position} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, uterus: { ...prev.ultrasound.uterus, position: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <option value="AVF">Anteverted Flexed (AVF)</option>
+                            <option value="RVF">Retroverted Flexed (RVF)</option>
+                            <option value="Axial">Axial</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Myometrium</label>
+                          <select value={gynecologyData.ultrasound.uterus.myometrium} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, uterus: { ...prev.ultrasound.uterus, myometrium: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <option value="Homogeneous">Homogeneous</option>
+                            <option value="Heterogeneous">Heterogeneous</option>
+                            <option value="Fibroid">Fibroid</option>
+                            <option value="Adenomyosis">Adenomyosis</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Cavity</label>
+                          <select value={gynecologyData.ultrasound.uterus.cavity} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, uterus: { ...prev.ultrasound.uterus, cavity: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <option value="Empty">Empty</option>
+                            <option value="Polyp">Polyp</option>
+                            <option value="Fibroid">Fibroid</option>
+                          </select>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Left Ovary</label>
-                        <select value={gynecologyData.ultrasound.adnexa.leftOvary} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, adnexa: { ...prev.ultrasound.adnexa, leftOvary: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                          <option value="">Select</option>
-                          <option value="Normal">Normal</option>
-                          <option value="PCO">Polycystic (PCO)</option>
-                          <option value="Cyst">Cyst</option>
-                        </select>
+                    </div>
+
+                    {/* Endometrium */}
+                    <div className="mb-6">
+                      <h4 className="text-md font-medium text-gray-800 mb-3">Endometrium</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Thickness (mm)</label>
+                          <input type="text" value={gynecologyData.ultrasound.endometrium.thickness} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, endometrium: { ...prev.ultrasound.endometrium, thickness: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="e.g., 8-10 mm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Pattern</label>
+                          <select value={gynecologyData.ultrasound.endometrium.pattern} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, endometrium: { ...prev.ultrasound.endometrium, pattern: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <option value="Triple Line">Triple Line</option>
+                            <option value="Hyperechoic">Hyperechoic</option>
+                          </select>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">POD (Pouch of Douglas)</label>
-                        <select value={gynecologyData.ultrasound.adnexa.pod} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, adnexa: { ...prev.ultrasound.adnexa, pod: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                          <option value="Clear">Clear</option>
-                          <option value="Free Fluid">Free Fluid</option>
-                        </select>
+                    </div>
+
+                    {/* Adnexa */}
+                    <div>
+                      <h4 className="text-md font-medium text-gray-800 mb-3">Adnexa</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Right Ovary</label>
+                          <select value={gynecologyData.ultrasound.adnexa.rightOvary} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, adnexa: { ...prev.ultrasound.adnexa, rightOvary: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <option value="">Select</option>
+                            <option value="Normal">Normal</option>
+                            <option value="PCO">Polycystic (PCO)</option>
+                            <option value="Cyst">Cyst</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Left Ovary</label>
+                          <select value={gynecologyData.ultrasound.adnexa.leftOvary} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, adnexa: { ...prev.ultrasound.adnexa, leftOvary: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <option value="">Select</option>
+                            <option value="Normal">Normal</option>
+                            <option value="PCO">Polycystic (PCO)</option>
+                            <option value="Cyst">Cyst</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">POD (Pouch of Douglas)</label>
+                          <select value={gynecologyData.ultrasound.adnexa.pod} onChange={(e) => setGynecologyData(prev => ({ ...prev, ultrasound: { ...prev.ultrasound, adnexa: { ...prev.ultrasound.adnexa, pod: e.target.value } } }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <option value="Clear">Clear</option>
+                            <option value="Free Fluid">Free Fluid</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
                 </div>
               </div>
             )}

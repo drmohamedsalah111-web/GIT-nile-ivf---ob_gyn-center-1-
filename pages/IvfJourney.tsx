@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db as dexieDB } from '../src/db/localDB';
+import { usePatients } from '../src/hooks/usePatients';
 import { calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate, db } from '../services/ivfService';
-import { syncService } from '../src/services/syncService';
 import { Patient } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer, Microscope, Activity, Plus, X } from 'lucide-react';
@@ -82,7 +80,7 @@ interface CycleDataState {
   protocol: string;
   status: 'Assessment' | 'Active' | 'PickUp' | 'Transfer' | 'Done';
   startDate: string;
-  
+
   // Assessment Tab
   coupleAge?: number;
   coupleBMI?: number;
@@ -92,11 +90,11 @@ interface CycleDataState {
   maleFactorAnalysis?: string;
   maleFactorDiagnosis?: string;
   recommendedProtocol?: string;
-  
+
   // Stimulation Tab
   stimulationLogs: StimulationLog[];
   triggerDate?: string;
-  
+
   // Lab Tab
   opuDate?: string;
   totalOocytes?: number;
@@ -107,7 +105,7 @@ interface CycleDataState {
   maturationRate?: number;
   fertilizedTwoPN?: number;
   fertilizationRate?: number;
-  
+
   // Transfer Tab
   transferDate?: string;
   numberTransferred?: number;
@@ -153,7 +151,7 @@ const defaultCycleData: CycleDataState = {
 };
 
 const IvfJourney: React.FC = () => {
-  const patients = useLiveQuery(() => dexieDB.patients.toArray(), []) || [];
+  const { patients } = usePatients();
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [cycleData, setCycleData] = useState<CycleDataState>(defaultCycleData);
   const [activeTab, setActiveTab] = useState<'assessment' | 'stimulation' | 'lab' | 'transfer'>('assessment');
@@ -178,8 +176,8 @@ const IvfJourney: React.FC = () => {
         // Load the most recent cycle
         const activeCycle = patientCycles[0]; // Get the first (most recent) cycle
 
-        // Load stimulation logs for this cycle from local DB
-        const cycleLogs = await dexieDB.stimulation_logs.where('cycle_id').equals(activeCycle.id).toArray();
+        // Load stimulation logs for this cycle from the cycle object itself (populated by service)
+        const cycleLogs = activeCycle.logs || [];
 
         // Map status to component status
         let componentStatus: CycleDataState['status'] = 'Assessment';
@@ -193,16 +191,16 @@ const IvfJourney: React.FC = () => {
           status: componentStatus,
           startDate: activeCycle.startDate,
           stimulationLogs: cycleLogs.map(log => ({
-            id: log.remoteId || `local_${log.id}`,
+            id: log.id,
             date: log.date,
-            cycleDay: log.cycle_day,
+            cycleDay: log.cycleDay,
             fsh: log.fsh || '',
             hmg: log.hmg || '',
             e2: log.e2 || '',
             lh: log.lh || '',
-            rtFollicles: log.rt_follicles || '',
-            ltFollicles: log.lt_follicles || '',
-            endometriumThickness: log.endometrium_thickness || ''
+            rtFollicles: log.rtFollicles || '',
+            ltFollicles: log.ltFollicles || '',
+            endometriumThickness: log.endometriumThickness || ''
           })),
           // Load assessment data from cycle data
           coupleAge: activeCycle.assessment?.coupleProfile?.age,
@@ -290,7 +288,7 @@ const IvfJourney: React.FC = () => {
     }
   };
 
-  const handleAddStimulationLog = () => {
+  const handleAddStimulationLog = async () => {
     const newLog: StimulationLog = {
       date: new Date().toISOString().split('T')[0],
       cycleDay: cycleData.stimulationLogs.length + 1,
@@ -302,10 +300,17 @@ const IvfJourney: React.FC = () => {
       ltFollicles: '',
       endometriumThickness: ''
     };
-    setCycleData(prev => ({
-      ...prev,
-      stimulationLogs: [...prev.stimulationLogs, newLog]
-    }));
+    try {
+      const savedLog = await db.addLog(cycleData.id, newLog);
+      setCycleData(prev => ({
+        ...prev,
+        stimulationLogs: [...prev.stimulationLogs, { ...newLog, id: savedLog.id }]
+      }));
+      toast.success('Day added');
+    } catch (error) {
+      console.error('Error adding log:', error);
+      toast.error('Failed to add day');
+    }
   };
 
   const handleUpdateLog = (index: number, field: string, value: any) => {
@@ -399,28 +404,23 @@ const IvfJourney: React.FC = () => {
       // Save stimulation logs
       for (const log of cycleData.stimulationLogs) {
         const logData = {
-          cycle_id: cycleData.id,
-          cycle_day: log.cycleDay,
+          cycleDay: log.cycleDay,
           date: log.date,
           fsh: log.fsh || '',
           hmg: log.hmg || '',
           e2: log.e2 || '',
           lh: log.lh || '',
-          rt_follicles: log.rtFollicles || '',
-          lt_follicles: log.ltFollicles || '',
-          endometrium_thickness: log.endometriumThickness || ''
+          rtFollicles: log.rtFollicles || '',
+          ltFollicles: log.ltFollicles || '',
+          endometriumThickness: log.endometriumThickness || ''
         };
 
-        if (log.id && log.id.startsWith('local_')) {
-          // This is a local log, update it via syncService
-          const localId = parseInt(log.id.replace('local_', ''));
-          await syncService.updateItem('stimulation_logs', localId, logData);
-        } else if (log.id && !log.id.startsWith('local_')) {
-          // This is a remote log, update via syncService using remote ID
-          await syncService.update('stimulation_logs', log.id, logData);
+        if (log.id) {
+          // Update existing log
+          await db.updateLog(log.id, logData);
         } else {
           // Add new log
-          await syncService.saveItem('stimulation_logs', logData);
+          await db.addLog(cycleData.id, logData);
         }
       }
 
@@ -494,11 +494,10 @@ const IvfJourney: React.FC = () => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab as any)}
-                  className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
-                    activeTab === tab
-                      ? 'border-b-2 border-teal-500 text-teal-600 bg-teal-50'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${activeTab === tab
+                    ? 'border-b-2 border-teal-500 text-teal-600 bg-teal-50'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>

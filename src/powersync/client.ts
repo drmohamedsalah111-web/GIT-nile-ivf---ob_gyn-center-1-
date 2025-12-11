@@ -1,6 +1,6 @@
 import { WASQLitePowerSyncDatabaseOpenFactory } from '@powersync/web';
 import { AppSchema } from './schema';
-import { SupabaseConnector } from './connector';
+import { SupabaseConnector } from './SupabaseConnector';
 
 // Create PowerSync database instance
 export const powerSyncDb = new WASQLitePowerSyncDatabaseOpenFactory({

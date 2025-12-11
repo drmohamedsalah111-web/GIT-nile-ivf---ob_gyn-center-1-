@@ -3,9 +3,8 @@ import {
   Calendar, FileText, User, Heart, Baby, TestTube, Download, ChevronDown, ChevronUp,
   X, Image as ImageIcon, Printer
 } from 'lucide-react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { usePatients } from '../src/hooks/usePatients';
 import { Patient, Visit } from '../types';
-import { db } from '../src/db/localDB';
 import { supabase } from '../services/supabaseClient';
 import { visitsService } from '../services/visitsService';
 import toast from 'react-hot-toast';
@@ -24,18 +23,16 @@ const PatientMasterRecord: React.FC = () => {
   const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
 
-  const localPatients = useLiveQuery(async () => {
-    return await db.patients.toArray();
-  }, []) || [];
+  const { patients: powerSyncPatients, isLoading: isLoadingPatients } = usePatients();
 
-  const patients: Patient[] = localPatients.map((p: any) => ({
-    id: p.id || p.remoteId,
+  const patients: Patient[] = powerSyncPatients.map((p: any) => ({
+    id: p.id,
     name: p.name,
     age: p.age,
     phone: p.phone,
-    husbandName: p.husbandName || p.husband_name,
+    husbandName: p.husband_name, // Map snake_case to camelCase
     history: p.history,
-    createdAt: p.created_at || p.createdAt?.toString()
+    createdAt: p.created_at
   }));
 
   useEffect(() => {
@@ -66,14 +63,12 @@ const PatientMasterRecord: React.FC = () => {
   const fetchPatientFiles = async (patientId: string) => {
     try {
       let targetUuid = patientId;
+
+      // Check if it's a legacy numeric ID (though PowerSync uses UUIDs)
       if (!isNaN(Number(patientId))) {
-        const patient = await db.patients.get(Number(patientId));
-        if (patient && patient.remoteId) {
-          targetUuid = patient.remoteId;
-        } else {
-          console.log('Skipping file fetch for local-only patient');
-          setPatientFiles([]);
-          return;
+        const patient = patients.find(p => p.id == patientId);
+        if (patient && (patient as any).remoteId) {
+          targetUuid = (patient as any).remoteId;
         }
       }
       const { data, error } = await supabase
@@ -283,22 +278,20 @@ const PatientMasterRecord: React.FC = () => {
             <div className="border-b border-gray-200 px-6 flex">
               <button
                 onClick={() => setActiveTab('timeline')}
-                className={`py-4 px-4 font-semibold border-b-2 transition ${
-                  activeTab === 'timeline'
-                    ? 'border-teal-600 text-teal-600'
-                    : 'border-transparent text-gray-600'
-                }`}
+                className={`py-4 px-4 font-semibold border-b-2 transition ${activeTab === 'timeline'
+                  ? 'border-teal-600 text-teal-600'
+                  : 'border-transparent text-gray-600'
+                  }`}
               >
                 <Calendar className="w-5 h-5 inline mr-2" />
                 Timeline
               </button>
               <button
                 onClick={() => setActiveTab('gallery')}
-                className={`py-4 px-4 font-semibold border-b-2 transition ${
-                  activeTab === 'gallery'
-                    ? 'border-teal-600 text-teal-600'
-                    : 'border-transparent text-gray-600'
-                }`}
+                className={`py-4 px-4 font-semibold border-b-2 transition ${activeTab === 'gallery'
+                  ? 'border-teal-600 text-teal-600'
+                  : 'border-transparent text-gray-600'
+                  }`}
               >
                 <ImageIcon className="w-5 h-5 inline mr-2" />
                 Media Gallery
@@ -313,11 +306,10 @@ const PatientMasterRecord: React.FC = () => {
                       <button
                         key={f}
                         onClick={() => setSelectedFilter(f)}
-                        className={`px-4 py-2 rounded-full font-medium transition ${
-                          selectedFilter === f
-                            ? 'bg-teal-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
+                        className={`px-4 py-2 rounded-full font-medium transition ${selectedFilter === f
+                          ? 'bg-teal-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
                       >
                         {f === 'GYNA' ? '♥ Gynecology' : f === 'OBS' ? '👶 Obstetrics' : f === 'IVF' ? '🧬 IVF' : '📋 All'}
                       </button>

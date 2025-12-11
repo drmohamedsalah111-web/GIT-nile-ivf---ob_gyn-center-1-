@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { db } from '../lib/localDb';
+import { useStatus } from '@powersync/react';
 
 export interface SyncStatus {
   isOnline: boolean;
@@ -8,44 +8,15 @@ export interface SyncStatus {
   lastSyncTime?: Date;
 }
 
-export const useSyncStatus = () => {
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
-    isOnline: navigator.onLine,
-    syncInProgress: false,
-    pendingItemsCount: 0,
-  });
+export const useSyncStatus = (): SyncStatus => {
+  const status = useStatus() as any;
 
-  useEffect(() => {
-    const handleOnline = () => {
-      setSyncStatus(prev => ({ ...prev, isOnline: true }));
-    };
-
-    const handleOffline = () => {
-      setSyncStatus(prev => ({ ...prev, isOnline: false }));
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    const updatePendingCount = async () => {
-      const pendingItems = await db.syncQueue.where('retryCount').below(3).toArray();
-      setSyncStatus(prev => ({
-        ...prev,
-        pendingItemsCount: pendingItems.length
-      }));
-    };
-
-    const interval = setInterval(updatePendingCount, 5000);
-    updatePendingCount();
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      clearInterval(interval);
-    };
-  }, []);
-
-  return syncStatus;
+  return {
+    isOnline: status.connected,
+    syncInProgress: status.uploading || status.downloading,
+    pendingItemsCount: 0, // PowerSync handles this internally
+    lastSyncTime: status.lastSyncedAt
+  };
 };
 
 export const useNetworkStatus = () => {
