@@ -18,12 +18,14 @@ import { LogOut, WifiOff } from 'lucide-react';
 import { BrandingProvider } from './context/BrandingContext';
 import { initPWA } from './src/lib/pwa';
 import { initPowerSync } from './src/powersync/client';
+import { useStatus } from '@powersync/react';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const powerSyncStatus = useStatus();
 
   useEffect(() => {
     const handleStatusChange = () => setIsOffline(!navigator.onLine);
@@ -154,7 +156,19 @@ const App: React.FC = () => {
                 {isOffline && (
                   <span className="flex items-center gap-1 px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-bold">
                     <WifiOff size={14} />
-                    وضع أوفلاين
+                    المتصفح أوفلاين
+                  </span>
+                )}
+                {!powerSyncStatus.connected && (
+                  <span className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold" title="غير متصل بالسيرفر">
+                    <WifiOff size={14} />
+                    غير متصل بالسيرفر
+                  </span>
+                )}
+                {powerSyncStatus.connected && (
+                  <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold" title="متصل بالسيرفر">
+                    <WifiOff size={14} />
+                    متصل
                   </span>
                 )}
               </div>
