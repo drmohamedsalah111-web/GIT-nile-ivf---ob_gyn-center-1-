@@ -39,6 +39,10 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    console.log('🔌 PowerSync Status Change:', powerSyncStatus);
+  }, [powerSyncStatus]);
+
+  useEffect(() => {
     const initializeApp = async () => {
       try {
         setLoading(true);
