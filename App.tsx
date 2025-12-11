@@ -42,7 +42,21 @@ const App: React.FC = () => {
     console.log('🔌 PowerSync Status Change:', JSON.stringify(powerSyncStatus, null, 2));
     console.log('🔌 Connected:', powerSyncStatus.connected);
     console.log('🔌 Connecting:', powerSyncStatus.connecting);
-  }, [powerSyncStatus]);
+    
+    // Auto-retry connection if disconnected but online
+    if (!powerSyncStatus.connected && !powerSyncStatus.connecting && navigator.onLine && user) {
+      const timeoutId = setTimeout(async () => {
+        console.log('🔄 Auto-retrying PowerSync connection...');
+        try {
+          await initPowerSync();
+        } catch (error: any) {
+          console.warn('⚠️ Auto-retry failed:', error?.message);
+        }
+      }, 5000); // Retry after 5 seconds
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [powerSyncStatus, user]);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -70,6 +84,10 @@ const App: React.FC = () => {
             await initPowerSync();
           } catch (syncError: any) {
             console.warn('⚠️ PowerSync init failed (app will work offline):', syncError?.message);
+            // Log detailed error for debugging
+            if (syncError?.message?.includes('متغيرات البيئة')) {
+              console.error('❌ Environment variables missing. Please check .env file');
+            }
             // Don't set error - app can work offline
           }
         }
@@ -109,6 +127,10 @@ const App: React.FC = () => {
           setConnectionError(null);
         } catch (err: any) {
           console.warn('⚠️ PowerSync connection failed (offline mode will be used):', err?.message);
+          // Log detailed error for debugging
+          if (err?.message?.includes('متغيرات البيئة')) {
+            console.error('❌ Please check your .env file for missing variables');
+          }
           // Don't set error for PowerSync failures - offline mode is expected
         }
       }
@@ -191,14 +213,32 @@ const App: React.FC = () => {
                     المتصفح أوفلاين
                   </span>
                 )}
-                {!powerSyncStatus.connected && (
-                  <span className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold" title="غير متصل بالسيرفر">
+                {powerSyncStatus.connecting && (
+                  <span className="flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold animate-pulse" title="جاري الاتصال بالسيرفر...">
+                    <Wifi size={14} className="animate-spin" />
+                    جاري الاتصال...
+                  </span>
+                )}
+                {!powerSyncStatus.connected && !powerSyncStatus.connecting && (
+                  <span 
+                    className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold cursor-help" 
+                    title={`غير متصل بالسيرفر${!navigator.onLine ? ' - المتصفح أوفلاين' : ' - جاري إعادة المحاولة تلقائياً'}`}
+                    onClick={async () => {
+                      if (navigator.onLine) {
+                        try {
+                          await initPowerSync();
+                        } catch (error: any) {
+                          console.error('❌ Manual retry failed:', error?.message);
+                        }
+                      }
+                    }}
+                  >
                     <WifiOff size={14} />
                     غير متصل بالسيرفر
                   </span>
                 )}
                 {powerSyncStatus.connected && (
-                  <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold" title="متصل بالسيرفر">
+                  <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold" title={`متصل بالسيرفر${powerSyncStatus.lastSyncedAt ? ` - آخر مزامنة: ${new Date(powerSyncStatus.lastSyncedAt).toLocaleTimeString('ar-EG')}` : ''}`}>
                     <Wifi size={14} />
                     متصل
                   </span>

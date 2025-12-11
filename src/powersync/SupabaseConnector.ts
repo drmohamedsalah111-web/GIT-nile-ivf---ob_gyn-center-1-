@@ -6,20 +6,33 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
   async fetchCredentials() {
     console.log('🔐 SupabaseConnector: Fetching credentials...');
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (!session || error) {
-        console.warn('⚠️ SupabaseConnector: No session found', error?.message);
+      // Check environment variables first
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const endpoint = import.meta.env.VITE_POWERSYNC_URL;
+      
+      if (!supabaseUrl) {
+        console.error('❌ SupabaseConnector: VITE_SUPABASE_URL not configured');
+        console.error('❌ يرجى إضافة VITE_SUPABASE_URL في ملف .env');
+        return null;
+      }
+      
+      if (!endpoint) {
+        console.error('❌ SupabaseConnector: VITE_POWERSYNC_URL not configured');
+        console.error('❌ يرجى إضافة VITE_POWERSYNC_URL في ملف .env');
+        console.error('❌ يمكنك الحصول على الرابط من PowerSync Dashboard > Settings > Instance URL');
         return null;
       }
 
-      const endpoint = import.meta.env.VITE_POWERSYNC_URL;
-      if (!endpoint) {
-        console.error('❌ SupabaseConnector: VITE_POWERSYNC_URL not configured');
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (!session || error) {
+        console.warn('⚠️ SupabaseConnector: No session found', error?.message);
+        console.warn('⚠️ يرجى تسجيل الدخول مرة أخرى');
         return null;
       }
 
       if (!session.access_token) {
         console.warn('⚠️ SupabaseConnector: No access token in session');
+        console.warn('⚠️ يرجى تسجيل الدخول مرة أخرى');
         return null;
       }
 
@@ -32,6 +45,7 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
       };
     } catch (error: any) {
       console.error('❌ SupabaseConnector: Error fetching credentials:', error?.message);
+      console.error('❌ تفاصيل الخطأ:', error);
       return null;
     }
   }
