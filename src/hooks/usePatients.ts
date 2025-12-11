@@ -24,9 +24,10 @@ export function usePatients() {
 
     const addPatient = async (patient: Omit<Patient, 'id' | 'created_at' | 'updated_at'>) => {
         const id = crypto.randomUUID();
+        const now = new Date().toISOString();
         await powerSync.execute(
-            'INSERT INTO patients (id, name, age, phone, husband_name, history, doctor_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
-            [id, patient.name, patient.age, patient.phone, patient.husband_name, patient.history, patient.doctor_id]
+            'INSERT INTO patients (id, name, age, phone, husband_name, history, doctor_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, patient.name, patient.age, patient.phone, patient.husband_name, patient.history, patient.doctor_id, now, now]
         );
         return id;
     };
@@ -45,7 +46,8 @@ export function usePatients() {
 
         if (updates.length === 0) return;
 
-        updates.push('updated_at = datetime("now")');
+        updates.push('updated_at = ?');
+        values.push(new Date().toISOString());
         values.push(id);
 
         await powerSync.execute(
