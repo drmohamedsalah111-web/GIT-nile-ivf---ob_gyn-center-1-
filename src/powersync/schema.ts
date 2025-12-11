@@ -97,8 +97,6 @@ const biometry_scans = new Table({
     fl_mm: column.real,
     efw_grams: column.real,
     percentile: column.real,
-    liquor: column.text,
-    placenta: column.text,
     notes: column.text,
     created_at: column.text,
     updated_at: column.text
@@ -137,7 +135,6 @@ const app_settings = new Table({
     primary_color: column.text,
     secondary_color: column.text,
     accent_color: column.text,
-    default_rx_notes: column.text,
     created_at: column.text,
     updated_at: column.text
 });
