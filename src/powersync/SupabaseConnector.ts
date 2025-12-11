@@ -7,8 +7,8 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     console.log('🔐 SupabaseConnector: Fetching credentials...');
     const { data: { session }, error } = await supabase.auth.getSession();
     if (!session || error) {
-      console.error('❌ SupabaseConnector: No session or error', error);
-      throw new Error('Could not fetch credentials');
+      console.warn('⚠️ SupabaseConnector: No session found, returning null credentials');
+      return null;
     }
 
     console.log('✅ SupabaseConnector: Credentials fetched successfully');
