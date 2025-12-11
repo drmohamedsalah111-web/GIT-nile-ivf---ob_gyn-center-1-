@@ -7,7 +7,7 @@ const DYNAMIC_CACHE = 'nile-ivf-dynamic-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
+  '/manifest.webmanifest',
   '/styles.css',
   // Add other static assets as needed
 ];

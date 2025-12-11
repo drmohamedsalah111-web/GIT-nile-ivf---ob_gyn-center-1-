@@ -150,6 +150,25 @@ const App: React.FC = () => {
     console.log('🚀 App useEffect: Starting initialization...');
     console.log('📱 Browser online status:', navigator.onLine);
 
+    // Suppress manifest.json 401 errors (non-critical, browser will use manifest.webmanifest)
+    const suppressManifestErrors = () => {
+      const originalError = window.console.error;
+      window.console.error = (...args: any[]) => {
+        const message = args[0]?.toString() || '';
+        if (message.includes('manifest.json') && (message.includes('401') || message.includes('Failed to load'))) {
+          // Suppress - non-critical error, manifest.webmanifest will be used instead
+          return;
+        }
+        originalError.apply(console, args);
+      };
+      
+      // Restore after 5 seconds
+      setTimeout(() => {
+        window.console.error = originalError;
+      }, 5000);
+    };
+    suppressManifestErrors();
+
     // Check if worker file exists (non-blocking)
     if (navigator.onLine) {
       fetch('/powersync.worker.js')

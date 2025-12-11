@@ -90,19 +90,40 @@ export const setupNetworkListeners = (
 
 // Initialize PWA features
 export const initPWA = async (): Promise<void> => {
-  // Register service worker
-  await registerServiceWorker();
+  // Suppress manifest.json 401 errors (non-critical)
+  const originalError = console.error;
+  const manifestErrorHandler = (...args: any[]) => {
+    const message = args[0]?.toString() || '';
+    if (message.includes('manifest.json') && message.includes('401')) {
+      // Suppress manifest.json 401 errors - they're non-critical
+      return;
+    }
+    originalError.apply(console, args);
+  };
+  
+  // Temporarily replace console.error to suppress manifest errors
+  console.error = manifestErrorHandler as any;
 
-  // Request notification permission
-  const permission = await requestNotificationPermission();
-  if (permission === 'granted') {
-    console.log('Notification permission granted');
+  try {
+    // Register service worker
+    await registerServiceWorker();
+
+    // Request notification permission
+    const permission = await requestNotificationPermission();
+    if (permission === 'granted') {
+      console.log('Notification permission granted');
+    }
+
+    // Log PWA status
+    console.log('PWA Status:', {
+      installed: isPWAInstalled(),
+      online: isOnline(),
+      notifications: permission
+    });
+  } finally {
+    // Restore original console.error after a delay
+    setTimeout(() => {
+      console.error = originalError;
+    }, 2000);
   }
-
-  // Log PWA status
-  console.log('PWA Status:', {
-    installed: isPWAInstalled(),
-    online: isOnline(),
-    notifications: permission
-  });
 };

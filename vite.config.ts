@@ -16,22 +16,32 @@ export default defineConfig({
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'Dr. Mohamed Salah IVF Center',
-        short_name: 'IVF Center',
-        description: 'IVF Center Management System',
-        theme_color: '#ffffff',
+        name: 'Nile IVF Center',
+        short_name: 'Nile IVF',
+        description: 'Comprehensive IVF and Obstetrics Management System',
+        start_url: '/',
+        display: 'standalone',
+        background_color: '#ffffff',
+        theme_color: '#00838f',
+        orientation: 'portrait',
+        scope: '/',
+        lang: 'ar-EG',
+        dir: 'ltr',
         icons: [
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           }
-        ]
+        ],
+        categories: ['medical', 'health', 'productivity']
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
