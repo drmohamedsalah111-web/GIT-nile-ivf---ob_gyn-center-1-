@@ -1,102 +1,112 @@
-import { ColumnType, Schema } from '@powersync/web';
+import { column, Schema, Table } from '@powersync/web';
+
+const patients = new Table({
+  name: column.text,
+  age: column.integer,
+  phone: column.text,
+  husband_name: column.text,
+  history: column.text,
+  doctor_id: column.text
+});
+
+const visits = new Table({
+  patient_id: column.text,
+  date: column.text,
+  department: column.text,
+  diagnosis: column.text,
+  prescription: column.text,
+  notes: column.text,
+  clinical_data: column.text
+});
+
+const ivf_cycles = new Table({
+  patient_id: column.text,
+  doctor_id: column.text,
+  protocol: column.text,
+  status: column.text,
+  start_date: column.text,
+  assessment_data: column.text,
+  lab_data: column.text,
+  transfer_data: column.text,
+  outcome_data: column.text
+});
+
+const stimulation_logs = new Table({
+  cycle_id: column.text,
+  cycle_day: column.integer,
+  date: column.text,
+  fsh: column.text,
+  hmg: column.text,
+  e2: column.text,
+  lh: column.text,
+  rt_follicles: column.text,
+  lt_follicles: column.text
+});
+
+const pregnancies = new Table({
+  patient_id: column.text,
+  doctor_id: column.text,
+  lmp_date: column.text,
+  edd_date: column.text,
+  edd_by_scan: column.text,
+  risk_level: column.text,
+  risk_factors: column.text,
+  aspirin_prescribed: column.integer,
+  thromboprophylaxis_needed: column.integer
+});
+
+const antenatal_visits = new Table({
+  pregnancy_id: column.text,
+  visit_date: column.text,
+  gestational_age_weeks: column.integer,
+  gestational_age_days: column.integer,
+  weight_kg: column.real,
+  systolic_bp: column.integer,
+  diastolic_bp: column.integer,
+  notes: column.text
+});
+
+const biometry_scans = new Table({
+  pregnancy_id: column.text,
+  scan_date: column.text,
+  efw_grams: column.integer,
+  percentile: column.integer,
+  bpd_mm: column.real,
+  hc_mm: column.real,
+  ac_mm: column.real,
+  fl_mm: column.real,
+  notes: column.text
+});
+
+const patient_files = new Table({
+  patient_id: column.text,
+  file_url: column.text,
+  file_type: column.text,
+  file_name: column.text
+});
+
+const profiles = new Table({
+  email: column.text,
+  name: column.text,
+  role: column.text
+});
+
+const app_settings = new Table({
+  clinic_name: column.text,
+  logo_url: column.text,
+  primary_color: column.text,
+  secondary_color: column.text
+});
 
 export const AppSchema = new Schema({
-  patients: {
-    name: ColumnType.TEXT,
-    age: ColumnType.INTEGER,
-    phone: ColumnType.TEXT,
-    husband_name: ColumnType.TEXT,
-    history: ColumnType.TEXT,
-    doctor_id: ColumnType.TEXT,
-    created_at: ColumnType.TEXT
-  },
-  visits: {
-    patient_id: ColumnType.TEXT,
-    date: ColumnType.TEXT,
-    department: ColumnType.TEXT,
-    diagnosis: ColumnType.TEXT,
-    prescription: ColumnType.TEXT,
-    notes: ColumnType.TEXT,
-    clinical_data: ColumnType.TEXT,
-    created_at: ColumnType.TEXT
-  },
-  ivf_cycles: {
-    patient_id: ColumnType.TEXT,
-    doctor_id: ColumnType.TEXT,
-    protocol: ColumnType.TEXT,
-    status: ColumnType.TEXT,
-    start_date: ColumnType.TEXT,
-    assessment_data: ColumnType.TEXT,
-    lab_data: ColumnType.TEXT,
-    transfer_data: ColumnType.TEXT,
-    outcome_data: ColumnType.TEXT,
-    created_at: ColumnType.TEXT
-  },
-  stimulation_logs: {
-    cycle_id: ColumnType.TEXT,
-    cycle_day: ColumnType.INTEGER,
-    date: ColumnType.TEXT,
-    fsh: ColumnType.TEXT,
-    hmg: ColumnType.TEXT,
-    e2: ColumnType.TEXT,
-    lh: ColumnType.TEXT,
-    rt_follicles: ColumnType.TEXT,
-    lt_follicles: ColumnType.TEXT,
-    endometrium_thickness: ColumnType.TEXT,
-    created_at: ColumnType.TEXT
-  },
-  pregnancies: {
-    patient_id: ColumnType.TEXT,
-    doctor_id: ColumnType.TEXT,
-    lmp_date: ColumnType.TEXT,
-    edd_date: ColumnType.TEXT,
-    edd_by_scan: ColumnType.TEXT,
-    risk_level: ColumnType.TEXT,
-    risk_factors: ColumnType.TEXT,
-    aspirin_prescribed: ColumnType.INTEGER,
-    thromboprophylaxis_needed: ColumnType.INTEGER,
-    created_at: ColumnType.TEXT
-  },
-  antenatal_visits: {
-    pregnancy_id: ColumnType.TEXT,
-    visit_date: ColumnType.TEXT,
-    gestational_age_weeks: ColumnType.INTEGER,
-    gestational_age_days: ColumnType.INTEGER,
-    weight_kg: ColumnType.REAL,
-    systolic_bp: ColumnType.INTEGER,
-    diastolic_bp: ColumnType.INTEGER,
-    notes: ColumnType.TEXT,
-    created_at: ColumnType.TEXT
-  },
-  biometry_scans: {
-    pregnancy_id: ColumnType.TEXT,
-    scan_date: ColumnType.TEXT,
-    efw_grams: ColumnType.INTEGER,
-    percentile: ColumnType.INTEGER,
-    bpd_mm: ColumnType.REAL,
-    hc_mm: ColumnType.REAL,
-    ac_mm: ColumnType.REAL,
-    fl_mm: ColumnType.REAL,
-    notes: ColumnType.TEXT,
-    created_at: ColumnType.TEXT
-  },
-  patient_files: {
-    patient_id: ColumnType.TEXT,
-    file_url: ColumnType.TEXT,
-    file_type: ColumnType.TEXT,
-    file_name: ColumnType.TEXT,
-    created_at: ColumnType.TEXT
-  },
-  profiles: {
-    email: ColumnType.TEXT,
-    name: ColumnType.TEXT,
-    role: ColumnType.TEXT,
-    created_at: ColumnType.TEXT
-  },
-  app_settings: {
-    clinic_name: ColumnType.TEXT,
-    logo_url: ColumnType.TEXT,
-    primary_color: ColumnType.TEXT,
-    secondary_color: ColumnType.TEXT
-  }
-} as any);
+  patients,
+  visits,
+  ivf_cycles,
+  stimulation_logs,
+  pregnancies,
+  antenatal_visits,
+  biometry_scans,
+  patient_files,
+  profiles,
+  app_settings
+});
