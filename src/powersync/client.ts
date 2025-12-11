@@ -5,7 +5,10 @@ import { SupabaseConnector } from './SupabaseConnector';
 // Create PowerSync database instance
 export const powerSyncDb = new WASQLitePowerSyncDatabaseOpenFactory({
     schema: AppSchema,
-    dbFilename: 'powersync.db'
+    dbFilename: 'powersync.db',
+    // Use the worker script from the public directory
+    // @ts-ignore
+    workerScriptURL: '/powersync.worker.js'
 }).getInstance();
 
 // Create connector instance
