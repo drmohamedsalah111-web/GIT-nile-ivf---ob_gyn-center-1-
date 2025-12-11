@@ -17,18 +17,18 @@ export const connector = new SupabaseConnector();
 // Track connection state to prevent multiple simultaneous connection attempts
 let isConnecting = false;
 let lastConnectionAttempt = 0;
-const CONNECTION_COOLDOWN = 10000; // 10 seconds cooldown between connection attempts
+const CONNECTION_COOLDOWN = 5000; // 5 seconds cooldown between connection attempts
 
 // Initialize and connect PowerSync with retry logic
-export async function initPowerSync(retries = 2, delay = 3000): Promise<void> {
-  // Prevent multiple simultaneous connection attempts
+export async function initPowerSync(retries = 3, delay = 2000, force = false): Promise<void> {
+  // Prevent multiple simultaneous connection attempts (unless forced)
   const now = Date.now();
-  if (isConnecting) {
+  if (!force && isConnecting) {
     console.log('⏸️ PowerSync connection already in progress, skipping...');
     return;
   }
   
-  if (now - lastConnectionAttempt < CONNECTION_COOLDOWN) {
+  if (!force && now - lastConnectionAttempt < CONNECTION_COOLDOWN) {
     console.log('⏸️ PowerSync connection cooldown active, skipping...');
     return;
   }
@@ -62,22 +62,50 @@ export async function initPowerSync(retries = 2, delay = 3000): Promise<void> {
       return;
     }
 
+    // First, verify credentials before attempting connection
+    console.log('🔐 Verifying credentials before connection...');
+    const credentials = await connector.fetchCredentials();
+    if (!credentials) {
+      console.error('❌ Failed to fetch credentials - cannot connect to PowerSync');
+      console.error('❌ Please check:');
+      console.error('   1. You are logged in');
+      console.error('   2. VITE_POWERSYNC_URL is correct');
+      console.error('   3. Supabase session is valid');
+      return;
+    }
+    console.log('✅ Credentials verified:', {
+      endpoint: credentials.endpoint,
+      hasToken: !!credentials.token
+    });
+
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         console.log(`🔌 Attempting to connect PowerSync (attempt ${attempt}/${retries})...`);
+        console.log(`🔗 Endpoint: ${credentials.endpoint}`);
+        
+        // Disconnect first if already connected (for reconnection)
+        try {
+          await powerSyncDb.disconnectAndClear();
+        } catch (disconnectError) {
+          // Ignore disconnect errors
+        }
+        
         await powerSyncDb.connect(connector);
         console.log('✅ PowerSync connected successfully');
         return;
       } catch (error: any) {
         const isLastAttempt = attempt === retries;
         console.warn(`⚠️ PowerSync connection attempt ${attempt} failed:`, error?.message);
+        console.warn(`⚠️ Error type:`, error?.constructor?.name);
+        console.warn(`⚠️ Error stack:`, error?.stack);
         
         if (isLastAttempt) {
           console.error('❌ PowerSync connection failed after all retries');
           console.error('❌ Error details:', error);
           console.warn('⚠️ التطبيق سيعمل في وضع أوفلاين');
           console.warn('⚠️ البيانات القديمة متاحة من Supabase مباشرة');
-          // Don't throw - allow app to work offline, but log the error
+          
+          // Provide specific error messages
           if (navigator.onLine) {
             console.error('❌ Network available but PowerSync connection failed');
             console.error('❌ Possible causes:');
@@ -85,8 +113,21 @@ export async function initPowerSync(retries = 2, delay = 3000): Promise<void> {
             console.error('   2. PowerSync server is down');
             console.error('   3. Authentication token expired');
             console.error('   4. Network firewall blocking connection');
+            console.error('   5. PowerSync sync rules not configured');
+            console.error('   6. CORS issues');
+            
+            // Check specific error types
+            if (error?.message?.includes('fetch')) {
+              console.error('❌ Network error detected - check internet connection');
+            }
+            if (error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
+              console.error('❌ Authentication error - token may be expired');
+            }
+            if (error?.message?.includes('CORS')) {
+              console.error('❌ CORS error - check PowerSync server configuration');
+            }
           }
-          return;
+          throw error; // Throw to allow caller to handle
         }
         
         // Wait before retrying

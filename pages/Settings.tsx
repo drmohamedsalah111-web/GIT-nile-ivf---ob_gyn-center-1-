@@ -132,12 +132,26 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     try {
       setCheckingConnection(true);
       toast.loading('جاري إعادة الاتصال...', { id: 'reconnect' });
-      await initPowerSync();
-      toast.success('تم الاتصال بنجاح!', { id: 'reconnect' });
+      
+      // Force reconnection by passing force=true
+      await initPowerSync(3, 2000, true);
+      
+      // Wait a bit for status to update
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check if connected now
+      if (powerSyncStatus.connected) {
+        toast.success('✅ تم الاتصال بنجاح!', { id: 'reconnect' });
+      } else {
+        toast.error('⚠️ فشل الاتصال - تحقق من Console للتفاصيل', { id: 'reconnect', duration: 5000 });
+      }
     } catch (error: any) {
-      toast.error(`فشل الاتصال: ${error?.message}`, { id: 'reconnect' });
+      console.error('❌ Reconnection error:', error);
+      toast.error(`❌ فشل الاتصال: ${error?.message || 'خطأ غير معروف'}`, { id: 'reconnect', duration: 5000 });
     } finally {
       setCheckingConnection(false);
+      // Refresh connection status
+      setTimeout(() => checkConnections(), 2000);
     }
   };
 
@@ -751,14 +765,19 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
                   </div>
                 )}
                 {!powerSyncStatus.connected && (
-                  <button
-                    onClick={handleReconnectPowerSync}
-                    disabled={checkingConnection || powerSyncStatus.connecting}
-                    className="mt-3 w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-[Tajawal] transition-colors"
-                  >
-                    <RefreshCw size={16} className={checkingConnection ? 'animate-spin' : ''} />
-                    إعادة الاتصال
-                  </button>
+                  <div className="mt-3 space-y-2">
+                    <button
+                      onClick={handleReconnectPowerSync}
+                      disabled={checkingConnection || powerSyncStatus.connecting}
+                      className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-[Tajawal] transition-colors"
+                    >
+                      <RefreshCw size={16} className={checkingConnection ? 'animate-spin' : ''} />
+                      {checkingConnection ? 'جاري الاتصال...' : 'إعادة الاتصال'}
+                    </button>
+                    <p className="text-xs text-gray-600 text-center font-[Tajawal]">
+                      اضغط F12 وافتح Console لرؤية تفاصيل الخطأ
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
@@ -813,6 +832,20 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
                 </span>
               </div>
             </div>
+            
+            {/* Troubleshooting Tips */}
+            {!powerSyncStatus.connected && (
+              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h5 className="text-sm font-semibold text-yellow-900 mb-2 font-[Tajawal]">نصائح لحل المشكلة:</h5>
+                <ul className="text-xs text-yellow-800 space-y-1 list-disc list-inside font-[Tajawal]">
+                  <li>تأكد من وجود جميع متغيرات البيئة في ملف .env</li>
+                  <li>أعد تشغيل سيرفر التطوير بعد تعديل .env</li>
+                  <li>تحقق من Console (F12) لرؤية تفاصيل الخطأ</li>
+                  <li>تأكد من أن PowerSync URL صحيح من Dashboard</li>
+                  <li>تأكد من أنك مسجل دخول بشكل صحيح</li>
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       )}
