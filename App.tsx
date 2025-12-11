@@ -40,8 +40,8 @@ const App: React.FC = () => {
       try {
         setLoading(true);
 
-        // 1. Initialize PowerSync
-        await initPowerSync();
+        // 1. Initialize PowerSync (temporarily disabled)
+        // await initPowerSync();
 
         // 2. Initialize PWA
         initPWA().catch(console.warn);

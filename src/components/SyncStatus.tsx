@@ -1,7 +1,9 @@
 import React from 'react';
 import { Cloud, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getSyncStats } from '../db/localDB';
+import { useLiveQuery } from '../db/localDB';
+
+// Temporary sync stats function
+const getSyncStats = async () => ({ synced: 0, pending: 0, errors: 0 });
 
 interface SyncStatusProps {
   className?: string;

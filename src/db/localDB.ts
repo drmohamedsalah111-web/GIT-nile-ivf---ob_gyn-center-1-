@@ -1,13 +1,19 @@
-// Dexie Compatibility Layer for PowerSync
-// This file makes PowerSync work like Dexie so we don't need to change all the code
+// Supabase Direct Access (Simplified)
+// Using Supabase client directly for now
 
-import { powerSync } from '../powersync/db';
+import { createClient } from '@supabase/supabase-js';
+import { useEffect, useState } from 'react';
 
-// Fake useLiveQuery hook that uses PowerSync
+// Initialize Supabase client
+const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
+const supabaseKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Simple live query hook using Supabase
 export function useLiveQuery<T>(querier: () => Promise<T[]>, deps: any[]): T[] | undefined {
-    const [data, setData] = React.useState<T[] | undefined>(undefined);
+    const [data, setData] = useState<T[] | undefined>(undefined);
 
-    React.useEffect(() => {
+    useEffect(() => {
         let cancelled = false;
 
         const fetchData = async () => {
@@ -17,7 +23,7 @@ export function useLiveQuery<T>(querier: () => Promise<T[]>, deps: any[]): T[] |
                     setData(result);
                 }
             } catch (error) {
-                console.error('useLiveQuery error:', error);
+                console.error('Query error:', error);
                 if (!cancelled) {
                     setData([]);
                 }
@@ -26,91 +32,94 @@ export function useLiveQuery<T>(querier: () => Promise<T[]>, deps: any[]): T[] |
 
         fetchData();
 
-        // Subscribe to PowerSync changes
-        const unsubscribe = powerSync.watch('SELECT 1', [], {
-            onResult: () => {
-                fetchData();
-            }
-        });
-
         return () => {
             cancelled = true;
-            unsubscribe?.();
         };
     }, deps);
 
     return data;
 }
 
-// Fake Dexie database that uses PowerSync
-class PowerSyncTable<T = any> {
+// Table wrapper for Supabase
+class SupabaseTable<T = any> {
     constructor(private tableName: string) { }
 
     async toArray(): Promise<T[]> {
-        const result = await powerSync.getAll(`SELECT * FROM ${this.tableName}`);
-        return result as T[];
+        try {
+            const { data, error } = await supabase
+                .from(this.tableName)
+                .select('*');
+
+            if (error) throw error;
+            return (data || []) as T[];
+        } catch (error) {
+            console.error(`Error fetching ${this.tableName}:`, error);
+            return [];
+        }
     }
 
     where(field: string) {
+        const tableName = this.tableName;
         return {
-            equals: async (value: any) => {
-                const result = await powerSync.getAll(
-                    `SELECT * FROM ${this.tableName} WHERE ${field} = ?`,
-                    [value]
-                );
-                return {
-                    toArray: async () => result as T[]
-                };
-            }
+            equals: (value: any) => ({
+                toArray: async () => {
+                    try {
+                        const { data, error } = await supabase
+                            .from(tableName)
+                            .select('*')
+                            .eq(field, value);
+
+                        if (error) throw error;
+                        return (data || []);
+                    } catch (error) {
+                        console.error(`Error querying ${tableName}:`, error);
+                        return [];
+                    }
+                }
+            })
         };
     }
 
     async add(data: any) {
-        const id = crypto.randomUUID();
-        const fields = Object.keys(data);
-        const placeholders = fields.map(() => '?').join(', ');
-        const values = Object.values(data);
+        const { data: result, error } = await supabase
+            .from(this.tableName)
+            .insert([data])
+            .select()
+            .single();
 
-        await powerSync.execute(
-            `INSERT INTO ${this.tableName} (id, ${fields.join(', ')}) VALUES (?, ${placeholders})`,
-            [id, ...values]
-        );
-
-        return id;
+        if (error) throw error;
+        return result;
     }
 
     async update(id: any, data: any) {
-        const fields = Object.keys(data);
-        const setClause = fields.map(f => `${f} = ?`).join(', ');
-        const values = Object.values(data);
+        const { error } = await supabase
+            .from(this.tableName)
+            .update(data)
+            .eq('id', id);
 
-        await powerSync.execute(
-            `UPDATE ${this.tableName} SET ${setClause} WHERE id = ?`,
-            [...values, id]
-        );
+        if (error) throw error;
     }
 
     async delete(id: any) {
-        await powerSync.execute(
-            `DELETE FROM ${this.tableName} WHERE id = ?`,
-            [id]
-        );
+        const { error } = await supabase
+            .from(this.tableName)
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
     }
 }
 
-// Fake Dexie database
+// Export database tables
 export const db = {
-    patients: new PowerSyncTable('patients'),
-    visits: new PowerSyncTable('visits'),
-    ivf_cycles: new PowerSyncTable('ivf_cycles'),
-    stimulation_logs: new PowerSyncTable('stimulation_logs'),
-    pregnancies: new PowerSyncTable('pregnancies'),
-    antenatal_visits: new PowerSyncTable('antenatal_visits'),
-    biometry_scans: new PowerSyncTable('biometry_scans'),
-    patient_files: new PowerSyncTable('patient_files'),
-    profiles: new PowerSyncTable('profiles'),
-    app_settings: new PowerSyncTable('app_settings')
+    patients: new SupabaseTable('patients'),
+    visits: new SupabaseTable('visits'),
+    ivf_cycles: new SupabaseTable('ivf_cycles'),
+    stimulation_logs: new SupabaseTable('stimulation_logs'),
+    pregnancies: new SupabaseTable('pregnancies'),
+    antenatal_visits: new SupabaseTable('antenatal_visits'),
+    biometry_scans: new SupabaseTable('biometry_scans'),
+    patient_files: new SupabaseTable('patient_files'),
+    profiles: new SupabaseTable('profiles'),
+    app_settings: new SupabaseTable('app_settings')
 };
-
-// Import React for hooks
-import React from 'react';
