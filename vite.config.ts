@@ -6,6 +6,11 @@ export default defineConfig({
   plugins: [
     react(),
   ],
+  resolve: {
+    alias: {
+      'dexie-react-hooks': '/src/db/localDB.ts'
+    }
+  },
   worker: {
     format: 'es',
   },
