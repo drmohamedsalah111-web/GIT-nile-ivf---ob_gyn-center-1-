@@ -91,11 +91,12 @@ const biometry_scans = new Table({
     scan_date: column.text,
     gestational_age_weeks: column.integer,
     gestational_age_days: column.integer,
-    bpd: column.real,
-    hc: column.real,
-    ac: column.real,
-    fl: column.real,
-    efw: column.real,
+    bpd_mm: column.real,
+    hc_mm: column.real,
+    ac_mm: column.real,
+    fl_mm: column.real,
+    efw_grams: column.real,
+    percentile: column.real,
     liquor: column.text,
     placenta: column.text,
     notes: column.text,
@@ -114,20 +115,29 @@ const patient_files = new Table({
     updated_at: column.text
 });
 
-const profiles = new Table({
+const doctors = new Table({
+    user_id: column.text,
     email: column.text,
-    full_name: column.text,
-    role: column.text,
-    specialty: column.text,
-    license_number: column.text,
+    name: column.text,
+    specialization: column.text,
+    phone: column.text,
+    doctor_image: column.text,
+    clinic_name: column.text,
+    clinic_address: column.text,
+    clinic_phone: column.text,
     created_at: column.text,
     updated_at: column.text
 });
 
 const app_settings = new Table({
-    setting_key: column.text,
-    setting_value: column.text,
-    description: column.text,
+    clinic_name: column.text,
+    logo_url: column.text,
+    clinic_address: column.text,
+    clinic_phone: column.text,
+    primary_color: column.text,
+    secondary_color: column.text,
+    accent_color: column.text,
+    default_rx_notes: column.text,
     created_at: column.text,
     updated_at: column.text
 });
@@ -141,7 +151,7 @@ export const AppSchema = new Schema({
     antenatal_visits,
     biometry_scans,
     patient_files,
-    profiles,
+    doctors,
     app_settings
 });
 
