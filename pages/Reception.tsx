@@ -222,7 +222,7 @@ const Reception: React.FC = () => {
                           <td className="px-6 py-4 font-bold text-gray-900">{patient.name}</td>
                           <td className="px-6 py-4">{patient.age}</td>
                           <td className="px-6 py-4">{patient.phone}</td>
-                          <td className="px-6 py-4">{patient.husbandName}</td>
+                          <td className="px-6 py-4">{patient.husband_name}</td>
                           <td className="px-6 py-4 truncate max-w-xs">{patient.history}</td>
                         </tr>
                       ))
