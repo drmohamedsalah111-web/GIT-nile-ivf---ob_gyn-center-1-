@@ -142,6 +142,22 @@ const app_settings = new Table({
     updated_at: column.text
 });
 
+const infertility_workups = new Table({
+    patient_id: column.text,
+    amh: column.real,
+    cycle_regularity: column.text,
+    sperm_count: column.integer,
+    motility: column.integer,
+    morphology: column.integer,
+    left_tube: column.text,
+    right_tube: column.text,
+    cavity_status: column.text,
+    diagnosis: column.text,
+    plan: column.text,
+    created_at: column.text,
+    updated_at: column.text
+});
+
 export const AppSchema = new Schema({
     patients,
     visits,
@@ -152,7 +168,8 @@ export const AppSchema = new Schema({
     biometry_scans,
     patient_files,
     doctors,
-    app_settings
+    app_settings,
+    infertility_workups
 });
 
 export type Database = (typeof AppSchema)['types'];

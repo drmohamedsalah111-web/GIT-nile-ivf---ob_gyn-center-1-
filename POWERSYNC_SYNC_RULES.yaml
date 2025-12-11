@@ -14,3 +14,4 @@ bucket_definitions:
       - SELECT id, patient_id, file_url, file_type, file_name FROM patient_files
       - SELECT id, user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone FROM doctors
       - SELECT id, clinic_name, logo_url, clinic_address, clinic_phone, primary_color, secondary_color, accent_color, default_rx_notes FROM app_settings
+      - SELECT id, patient_id, amh, cycle_regularity, sperm_count, motility, morphology, left_tube, right_tube, cavity_status, diagnosis, plan FROM infertility_workups
