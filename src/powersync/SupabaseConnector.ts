@@ -3,14 +3,30 @@ import { PowerSyncBackendConnector, UpdateType } from '@powersync/web';
 import { supabase } from '../lib/supabase';
 
 // Cache credentials to prevent excessive calls
-let credentialsCache: { endpoint: string; token: string; expiresAt: number } | null = null;
+let credentialsCache: { endpoint: string; token: string; expiresAt: number; lastFetch: number } | null = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+const MIN_FETCH_INTERVAL = 2000; // Minimum 2 seconds between fetches (even if cache invalidated)
 
 export class SupabaseConnector implements PowerSyncBackendConnector {
   async fetchCredentials() {
-    // Check cache first
-    if (credentialsCache && credentialsCache.expiresAt > Date.now()) {
-      console.log('🔐 SupabaseConnector: Using cached credentials');
+    const now = Date.now();
+    
+    // Check cache first - use it if still valid
+    if (credentialsCache && credentialsCache.expiresAt > now) {
+      // Only log occasionally to reduce console spam
+      if (Math.random() < 0.1) { // Log 10% of the time
+        console.log('🔐 SupabaseConnector: Using cached credentials');
+      }
+      return {
+        endpoint: credentialsCache.endpoint,
+        token: credentialsCache.token
+      };
+    }
+
+    // Rate limiting: Don't fetch too frequently even if cache invalidated
+    if (credentialsCache && (now - credentialsCache.lastFetch) < MIN_FETCH_INTERVAL) {
+      // Return cached token even if expired, to prevent excessive calls
+      console.log('🔐 SupabaseConnector: Rate limiting - using cached credentials');
       return {
         endpoint: credentialsCache.endpoint,
         token: credentialsCache.token
@@ -57,12 +73,16 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
       credentialsCache = {
         endpoint: endpoint,
         token: session.access_token,
-        expiresAt: Date.now() + CACHE_DURATION
+        expiresAt: Date.now() + CACHE_DURATION,
+        lastFetch: Date.now()
       };
 
-      console.log('✅ SupabaseConnector: Credentials fetched successfully');
-      console.log('🔗 Endpoint:', endpoint);
-      console.log('🔑 Token exists:', !!session.access_token);
+      // Only log occasionally to reduce console spam
+      if (Math.random() < 0.2) { // Log 20% of the time
+        console.log('✅ SupabaseConnector: Credentials fetched successfully');
+        console.log('🔗 Endpoint:', endpoint);
+        console.log('🔑 Token exists:', !!session.access_token);
+      }
       return {
         endpoint: endpoint,
         token: session.access_token
@@ -77,9 +97,21 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
   }
 
   // Method to invalidate cache (useful when token expires)
+  // Note: PowerSync SDK calls this frequently, so we use rate limiting instead of clearing cache
   invalidateCredentials() {
-    credentialsCache = null;
-    console.log('🔄 SupabaseConnector: Credentials cache invalidated');
+    // Don't clear cache immediately - use rate limiting instead
+    // Only clear if cache is very old (more than 10 minutes)
+    if (credentialsCache) {
+      const age = Date.now() - credentialsCache.lastFetch;
+      if (age > 10 * 60 * 1000) { // 10 minutes
+        credentialsCache = null;
+        console.log('🔄 SupabaseConnector: Credentials cache invalidated (old cache)');
+      } else {
+        // Just mark as needing refresh, but keep for rate limiting
+        // Don't log - PowerSync calls this too frequently
+      }
+    }
+    // Don't log invalidate calls - they're too frequent
   }
 
   async uploadData(database: any) {

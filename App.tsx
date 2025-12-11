@@ -162,31 +162,55 @@ const App: React.FC = () => {
 
     initializeApp();
 
+    let lastUserId: string | null = null;
+    let isPowerSyncInitialized = false;
+    
     const subscription = authService.onAuthStateChange(async (user) => {
-      setUser(user);
-      if (user) {
+      const currentUserId = user?.id || null;
+      
+      // Only initialize PowerSync if user actually changed (not just auth state refresh)
+      if (user && currentUserId !== lastUserId) {
+        lastUserId = currentUserId;
+        
         // Reset retry flags on new login
         retryAttemptsRef.current = 0;
         hasGivenUpRef.current = false;
         
-        console.log('📱 App: Auth state changed (login), initializing PowerSync...');
-        try {
-          await initPowerSync();
-          setConnectionError(null);
-        } catch (err: any) {
-          console.warn('⚠️ PowerSync connection failed (offline mode will be used):', err?.message);
-          // Log detailed error for debugging
-          if (err?.message?.includes('متغيرات البيئة')) {
-            console.error('❌ Please check your .env file for missing variables');
+        // Only initialize once per user session
+        if (!isPowerSyncInitialized) {
+          isPowerSyncInitialized = true;
+          console.log('📱 App: Auth state changed (new user), initializing PowerSync...');
+          try {
+            await initPowerSync();
+            setConnectionError(null);
+          } catch (err: any) {
+            console.warn('⚠️ PowerSync connection failed (offline mode will be used):', err?.message);
+            // Log detailed error for debugging
+            if (err?.message?.includes('متغيرات البيئة')) {
+              console.error('❌ Please check your .env file for missing variables');
+            }
+            // Don't set error for PowerSync failures - offline mode is expected
+            // Data will be available directly from Supabase
+            isPowerSyncInitialized = false; // Allow retry on next auth change
           }
-          // Don't set error for PowerSync failures - offline mode is expected
-          // Data will be available directly from Supabase
+        } else {
+          console.log('📱 App: Auth state changed but PowerSync already initialized, skipping...');
         }
-      } else {
+      } else if (!user) {
         // Reset flags on logout
+        lastUserId = null;
+        isPowerSyncInitialized = false;
         retryAttemptsRef.current = 0;
         hasGivenUpRef.current = false;
+      } else {
+        // Same user, just auth state refresh - don't reinitialize
+        // Only log occasionally to reduce spam
+        if (Math.random() < 0.1) {
+          console.log('📱 App: Auth state refresh (same user), skipping PowerSync init...');
+        }
       }
+      
+      setUser(user);
     });
 
     return () => {
