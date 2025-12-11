@@ -17,7 +17,7 @@ import { authService } from './services/authService';
 import { LogOut, WifiOff } from 'lucide-react';
 import { BrandingProvider } from './context/BrandingContext';
 import { initPWA } from './src/lib/pwa';
-import { initPowerSync } from './src/powersync/db';
+import { initPowerSync } from './src/powersync/client';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
@@ -40,8 +40,10 @@ const App: React.FC = () => {
       try {
         setLoading(true);
 
-        // 1. Initialize PowerSync (temporarily disabled)
-        // await initPowerSync();
+        // 1. Initialize PowerSync
+        console.log('📱 App: About to call initPowerSync()...');
+        await initPowerSync();
+        console.log('📱 App: initPowerSync() completed');
 
         // 2. Initialize PWA
         initPWA().catch(console.warn);
@@ -57,7 +59,10 @@ const App: React.FC = () => {
       }
     };
 
-    initializeApp();
+    console.log('🚀 App useEffect: Starting initialization...');
+    initializeApp().catch((err) => {
+      console.error('🚨 Failed to initialize app:', err);
+    });
 
     const subscription = authService.onAuthStateChange((user) => {
       setUser(user);

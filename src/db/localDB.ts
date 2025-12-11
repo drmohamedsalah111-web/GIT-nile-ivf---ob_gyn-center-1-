@@ -1,13 +1,8 @@
 // Supabase Direct Access (Simplified)
 // Using Supabase client directly for now
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import { useEffect, useState } from 'react';
-
-// Initialize Supabase client
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-const supabaseKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Simple live query hook using Supabase
 export function useLiveQuery<T>(querier: () => Promise<T[]>, deps: any[]): T[] | undefined {

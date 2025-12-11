@@ -4,7 +4,12 @@ import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
 import { Doctor } from '../types';
-import { db, getSyncStats, initLocalDB, getPendingSyncItems, getFailedSyncItems } from '../src/db/localDB';
+// Temporary: These functions will be replaced with PowerSync equivalents
+const getSyncStats = async () => ({ total: 0, synced: 0, pending: 0, errors: 0 });
+const initLocalDB = async () => { };
+const getPendingSyncItems = async () => [];
+const getFailedSyncItems = async () => [];
+
 import { syncManager } from '../src/services/syncService';
 import RefreshButton from '../components/RefreshButton';
 
@@ -18,7 +23,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   const [saving, setSaving] = useState(false);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [activeTab, setActiveTab] = useState<'branding' | 'prescription' | 'profile' | 'password' | 'data'>('branding');
-  
+
   const [brandingFormData, setBrandingFormData] = useState({
     clinic_name: '',
     primary_color: '',
@@ -97,7 +102,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
       try {
         const pending = await getPendingSyncItems();
         setPendingCount(pending.length);
-        
+
         const failed = await getFailedSyncItems();
         setFailedCount(failed.length);
       } catch (error) {
@@ -257,7 +262,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
         toast.success(`✅ تم رفع ${result.success} عنصر بنجاح${result.failed > 0 ? ` (${result.failed} فشلوا)` : ''}`, { id: 'push-pending' });
         const pending = await getPendingSyncItems();
         setPendingCount(pending.length);
-        
+
         const stats = await getSyncStats();
         setSyncStats(stats);
       } else if (result.failed > 0) {
@@ -292,7 +297,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
         toast.success(`🔄 تم إعادة تعيين ${resurrected} عنصر. جاري المحاولة...`, { id: 'retry-failed' });
         const failed = await getFailedSyncItems();
         setFailedCount(failed.length);
-        
+
         const pending = await getPendingSyncItems();
         setPendingCount(pending.length);
       } else {
@@ -315,13 +320,13 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
       setHardResetLoading(true);
       toast.loading('جاري حذف قاعدة البيانات المحلية...', { id: 'hard-reset' });
 
-      // Delete local DB
-      await db.delete();
+      // TODO: Implement PowerSync database reset
+      // await db.delete();
 
       toast.loading('جاري إعادة إنشاء قاعدة البيانات...', { id: 'hard-reset' });
 
-      // Reinitialize DB
-      await initLocalDB();
+      // TODO: Implement PowerSync database initialization
+      // await initLocalDB();
 
       toast.loading('جاري تحميل البيانات من السيرفر...', { id: 'hard-reset' });
 
@@ -364,55 +369,50 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
       <div className="flex flex-col md:flex-row gap-4 mb-8 border-b border-gray-200">
         <button
           onClick={() => setActiveTab('branding')}
-          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${
-            activeTab === 'branding'
-              ? 'border-teal-600 text-teal-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${activeTab === 'branding'
+            ? 'border-teal-600 text-teal-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
         >
           <Palette size={20} />
           المظهر والهوية
         </button>
         <button
           onClick={() => setActiveTab('prescription')}
-          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${
-            activeTab === 'prescription'
-              ? 'border-teal-600 text-teal-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${activeTab === 'prescription'
+            ? 'border-teal-600 text-teal-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
         >
           <FileText size={20} />
           إعدادات الروشتة
         </button>
         <button
           onClick={() => setActiveTab('profile')}
-          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${
-            activeTab === 'profile'
-              ? 'border-teal-600 text-teal-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${activeTab === 'profile'
+            ? 'border-teal-600 text-teal-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
         >
           <User size={20} />
           الملف الشخصي
         </button>
         <button
           onClick={() => setActiveTab('password')}
-          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${
-            activeTab === 'password'
-              ? 'border-teal-600 text-teal-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${activeTab === 'password'
+            ? 'border-teal-600 text-teal-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
         >
           <Lock size={20} />
           كلمة المرور
         </button>
         <button
           onClick={() => setActiveTab('data')}
-          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${
-            activeTab === 'data'
-              ? 'border-teal-600 text-teal-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${activeTab === 'data'
+            ? 'border-teal-600 text-teal-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
         >
           <Database size={20} />
           إدارة البيانات
@@ -424,7 +424,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
           <div className="grid md:grid-cols-2 gap-8">
             <div>
               <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">المظهر والهوية</h3>
-              
+
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">اسم العيادة</label>
                 <input
@@ -468,7 +468,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
             <div>
               <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">شعار العيادة</h3>
-              
+
               <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
                 {logoPreview ? (
                   <div className="mb-4">
@@ -481,7 +481,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
                 ) : (
                   <Palette size={64} className="mx-auto text-gray-400 mb-4" />
                 )}
-                
+
                 <label className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg cursor-pointer font-[Tajawal] font-semibold transition-colors">
                   {logoUploadLoading ? (
                     <>
@@ -502,7 +502,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
                     className="hidden"
                   />
                 </label>
-                
+
                 <p className="text-xs text-gray-500 mt-4 font-[Tajawal]">PNG, JPG حتى 10MB</p>
               </div>
             </div>
@@ -513,7 +513,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
       {activeTab === 'prescription' && (
         <div className="bg-white rounded-lg shadow-md p-8 max-w-2xl">
           <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">إعدادات الروشتة الطبية</h3>
-          
+
           <div className="mb-6">
             <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">عنوان العيادة</label>
             <textarea
@@ -564,7 +564,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
           <div className="grid md:grid-cols-2 gap-8">
             <div>
               <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">بيانات الملف الشخصي</h3>
-              
+
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">الاسم</label>
                 <input
@@ -617,7 +617,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
             <div>
               <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">صورة الملف الشخصي</h3>
-              
+
               <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
                 {profileFormData.doctor_image ? (
                   <div className="mb-4">
@@ -630,7 +630,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
                 ) : (
                   <User size={64} className="mx-auto text-gray-400 mb-4" />
                 )}
-                
+
                 <label className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg cursor-pointer font-[Tajawal] font-semibold transition-colors">
                   <Upload size={18} />
                   اختر صورة
@@ -642,7 +642,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
                     className="hidden"
                   />
                 </label>
-                
+
                 <p className="text-xs text-gray-500 mt-4 font-[Tajawal]">PNG, JPG حتى 10MB</p>
               </div>
             </div>

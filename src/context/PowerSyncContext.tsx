@@ -1,11 +1,12 @@
 import { PowerSyncContext } from "@powersync/react";
 import { ReactNode } from "react";
-import { powerSync } from "../powersync/db";
+import { powerSyncDb } from "../powersync/client";
 
 export const PowerSyncProvider = ({ children }: { children: ReactNode }) => {
     return (
-        <PowerSyncContext.Provider value={powerSync}>
+        <PowerSyncContext.Provider value={powerSyncDb}>
             {children}
         </PowerSyncContext.Provider>
     );
 };
+
