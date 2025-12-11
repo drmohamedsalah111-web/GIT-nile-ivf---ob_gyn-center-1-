@@ -39,7 +39,9 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    console.log('🔌 PowerSync Status Change:', powerSyncStatus);
+    console.log('🔌 PowerSync Status Change:', JSON.stringify(powerSyncStatus, null, 2));
+    console.log('🔌 Connected:', powerSyncStatus.connected);
+    console.log('🔌 Connecting:', powerSyncStatus.connecting);
   }, [powerSyncStatus]);
 
   useEffect(() => {
