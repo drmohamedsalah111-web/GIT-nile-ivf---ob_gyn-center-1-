@@ -20,6 +20,10 @@ const Reception: React.FC = () => {
   // PowerSync hook
   const { patients, addPatient } = usePatients();
 
+
+
+  console.log('🏥 Reception: patients array from hook:', patients);
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.phone) {

@@ -22,6 +22,8 @@ export function usePatients() {
         'SELECT * FROM patients ORDER BY created_at DESC'
     );
 
+    console.log('🔄 usePatients hook:', { patients, isLoading, error });
+
     const addPatient = async (patient: Omit<Patient, 'id' | 'created_at' | 'updated_at'>) => {
         const id = crypto.randomUUID();
         const now = new Date().toISOString();
