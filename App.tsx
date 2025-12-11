@@ -74,6 +74,15 @@ const App: React.FC = () => {
     };
 
     console.log('🚀 App useEffect: Starting initialization...');
+
+    // Check if worker file exists
+    fetch('/powersync.worker.js')
+      .then(res => {
+        console.log('👷 Worker file check:', res.status, res.statusText);
+        if (!res.ok) console.error('❌ Worker file not found!');
+      })
+      .catch(err => console.error('❌ Failed to check worker file:', err));
+
     initializeApp().catch((err) => {
       console.error('🚨 Failed to initialize app:', err);
     });
