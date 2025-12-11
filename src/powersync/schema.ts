@@ -7,7 +7,9 @@ const patients = new Table({
     phone: column.text,
     husband_name: column.text,
     history: column.text,
-    doctor_id: column.text
+    doctor_id: column.text,
+    created_at: column.text,
+    updated_at: column.text
 });
 
 const visits = new Table({
@@ -17,7 +19,9 @@ const visits = new Table({
     diagnosis: column.text,
     prescription: column.text,
     notes: column.text,
-    clinical_data: column.text
+    clinical_data: column.text,
+    created_at: column.text,
+    updated_at: column.text
 });
 
 const ivf_cycles = new Table({
@@ -29,7 +33,9 @@ const ivf_cycles = new Table({
     assessment_data: column.text,
     lab_data: column.text,
     transfer_data: column.text,
-    outcome_data: column.text
+    outcome_data: column.text,
+    created_at: column.text,
+    updated_at: column.text
 });
 
 const stimulation_logs = new Table({
@@ -41,7 +47,9 @@ const stimulation_logs = new Table({
     e2: column.text,
     lh: column.text,
     rt_follicles: column.text,
-    lt_follicles: column.text
+    lt_follicles: column.text,
+    created_at: column.text,
+    updated_at: column.text
 });
 
 const pregnancies = new Table({
@@ -53,7 +61,9 @@ const pregnancies = new Table({
     risk_level: column.text,
     risk_factors: column.text,
     aspirin_prescribed: column.integer,
-    thromboprophylaxis_needed: column.integer
+    thromboprophylaxis_needed: column.integer,
+    created_at: column.text,
+    updated_at: column.text
 });
 
 const antenatal_visits = new Table({
@@ -71,7 +81,9 @@ const antenatal_visits = new Table({
     edema: column.integer,
     edema_grade: column.text,
     notes: column.text,
-    next_visit_date: column.text
+    next_visit_date: column.text,
+    created_at: column.text,
+    updated_at: column.text
 });
 
 const biometry_scans = new Table({
@@ -86,7 +98,9 @@ const biometry_scans = new Table({
     efw: column.real,
     liquor: column.text,
     placenta: column.text,
-    notes: column.text
+    notes: column.text,
+    created_at: column.text,
+    updated_at: column.text
 });
 
 const patient_files = new Table({
@@ -95,7 +109,9 @@ const patient_files = new Table({
     file_type: column.text,
     file_url: column.text,
     file_size: column.integer,
-    uploaded_by: column.text
+    uploaded_by: column.text,
+    created_at: column.text,
+    updated_at: column.text
 });
 
 const profiles = new Table({
@@ -103,13 +119,17 @@ const profiles = new Table({
     full_name: column.text,
     role: column.text,
     specialty: column.text,
-    license_number: column.text
+    license_number: column.text,
+    created_at: column.text,
+    updated_at: column.text
 });
 
 const app_settings = new Table({
     setting_key: column.text,
     setting_value: column.text,
-    description: column.text
+    description: column.text,
+    created_at: column.text,
+    updated_at: column.text
 });
 
 export const AppSchema = new Schema({

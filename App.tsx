@@ -40,10 +40,9 @@ const App: React.FC = () => {
       try {
         setLoading(true);
 
-        // 1. Initialize PowerSync
-        console.log('📱 App: About to call initPowerSync()...');
-        await initPowerSync();
-        console.log('📱 App: initPowerSync() completed');
+        // 1. Initialize PowerSync (Moved to after auth check)
+        // console.log('📱 App: About to call initPowerSync()...');
+        // await initPowerSync();
 
         // 2. Initialize PWA
         initPWA().catch(console.warn);
@@ -51,6 +50,11 @@ const App: React.FC = () => {
         // 3. Check user authentication
         const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
+
+        if (currentUser) {
+          console.log('📱 App: User authenticated, initializing PowerSync...');
+          await initPowerSync();
+        }
 
       } catch (error) {
         console.error('Critical App Initialization Error:', error);
@@ -64,8 +68,16 @@ const App: React.FC = () => {
       console.error('🚨 Failed to initialize app:', err);
     });
 
-    const subscription = authService.onAuthStateChange((user) => {
+    const subscription = authService.onAuthStateChange(async (user) => {
       setUser(user);
+      if (user) {
+        console.log('📱 App: Auth state changed (login), initializing PowerSync...');
+        try {
+          await initPowerSync();
+        } catch (err) {
+          console.error('Failed to init PowerSync on login:', err);
+        }
+      }
     });
 
     return () => {

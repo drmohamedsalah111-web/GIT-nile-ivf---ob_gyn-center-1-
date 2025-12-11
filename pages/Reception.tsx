@@ -1,10 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
-import { UserPlus, Search, Phone, User, History, Loader2 } from 'lucide-react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../src/db/localDB';
-import { syncService } from '../src/services/syncService';
-import { Patient } from '../types';
+import React, { useState } from 'react';
+import { UserPlus, Search, Phone, User, History } from 'lucide-react';
+import { usePatients } from '../src/hooks/usePatients';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
 import RefreshButton from '../components/RefreshButton';
@@ -20,10 +17,8 @@ const Reception: React.FC = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Reactive patient data from local database
-  const patients = useLiveQuery(async () => {
-    return await db.patients.toArray();
-  }, []) || [];
+  // PowerSync hook
+  const { patients, addPatient } = usePatients();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +37,7 @@ const Reception: React.FC = () => {
       const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
       if (!doctor) throw new Error("Doctor profile missing. Please log out and sign in again.");
 
-      await syncService.saveItem('patients', {
+      await addPatient({
         name: formData.name,
         age: parseInt(formData.age) || 0,
         phone: formData.phone,
@@ -61,8 +56,8 @@ const Reception: React.FC = () => {
     }
   };
 
-  const filteredPatients = patients.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredPatients = patients.filter(p =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.phone.includes(searchTerm)
   );
 
@@ -75,171 +70,171 @@ const Reception: React.FC = () => {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[600px]">
         <div className="flex border-b border-gray-100">
-        <button
-          onClick={() => setActiveTab('register')}
-          className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'register' ? 'text-teal-700 border-b-2 border-teal-700 bg-teal-50' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          New Registration
-        </button>
-        <button
-          onClick={() => setActiveTab('directory')}
-          className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'directory' ? 'text-teal-700 border-b-2 border-teal-700 bg-teal-50' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          Patient Directory
-        </button>
-      </div>
+          <button
+            onClick={() => setActiveTab('register')}
+            className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'register' ? 'text-teal-700 border-b-2 border-teal-700 bg-teal-50' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            New Registration
+          </button>
+          <button
+            onClick={() => setActiveTab('directory')}
+            className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'directory' ? 'text-teal-700 border-b-2 border-teal-700 bg-teal-50' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Patient Directory
+          </button>
+        </div>
 
-      <div className="p-4 md:p-8">
-        {activeTab === 'register' ? (
-          <form onSubmit={handleRegister} className="max-w-2xl mx-auto space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name (Wife)</label>
-                <div className="relative">
-                  <User className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
+        <div className="p-4 md:p-8">
+          {activeTab === 'register' ? (
+            <form onSubmit={handleRegister} className="max-w-2xl mx-auto space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name (Wife)</label>
+                  <div className="relative">
+                    <User className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      required
+                      className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                      placeholder="Full Name"
+                      value={formData.name}
+                      onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Age</label>
+                  <input
+                    type="number"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                    placeholder="Years"
+                    value={formData.age}
+                    onChange={e => setFormData({ ...formData, age: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                  <div className="relative">
+                    <Phone className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
+                    <input
+                      type="tel"
+                      required
+                      className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                      placeholder="01xxxxxxxxx"
+                      value={formData.phone}
+                      onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Husband Name</label>
                   <input
                     type="text"
-                    required
-                    className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                    placeholder="Full Name"
-                    value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                    placeholder="Husband Name"
+                    value={formData.husbandName}
+                    onChange={e => setFormData({ ...formData, husbandName: e.target.value })}
                   />
                 </div>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Age</label>
-                <input
-                  type="number"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-                  placeholder="Years"
-                  value={formData.age}
-                  onChange={e => setFormData({...formData, age: e.target.value})}
-                />
-              </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Medical History (Brief)</label>
                 <div className="relative">
-                  <Phone className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
-                  <input
-                    type="tel"
-                    required
-                    className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-                    placeholder="01xxxxxxxxx"
-                    value={formData.phone}
-                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                  <History className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
+                  <textarea
+                    className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none h-32"
+                    placeholder="G P A, Previous Operations, Allergies..."
+                    value={formData.history}
+                    onChange={e => setFormData({ ...formData, history: e.target.value })}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Husband Name</label>
+              <button
+                type="submit"
+                className="w-full bg-teal-700 text-white py-3 rounded-xl font-bold hover:bg-teal-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-teal-700/20"
+              >
+                <UserPlus className="w-5 h-5" />
+                Register Patient
+              </button>
+            </form>
+          ) : (
+            <div className="space-y-6">
+              <div className="relative">
+                <Search className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-                  placeholder="Husband Name"
-                  value={formData.husbandName}
-                  onChange={e => setFormData({...formData, husbandName: e.target.value})}
+                  className="w-full pl-4 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none shadow-sm"
+                  placeholder="Search by name or phone..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Medical History (Brief)</label>
-              <div className="relative">
-                <History className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
-                <textarea
-                  className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none h-32"
-                  placeholder="G P A, Previous Operations, Allergies..."
-                  value={formData.history}
-                  onChange={e => setFormData({...formData, history: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-teal-700 text-white py-3 rounded-xl font-bold hover:bg-teal-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-teal-700/20"
-            >
-              <UserPlus className="w-5 h-5" />
-              Register Patient
-            </button>
-          </form>
-        ) : (
-          <div className="space-y-6">
-            <div className="relative">
-              <Search className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                className="w-full pl-4 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none shadow-sm"
-                placeholder="Search by name or phone..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-                {/* Mobile: render cards */}
-                <div className="block md:hidden space-y-3">
-                  {filteredPatients.length > 0 ? filteredPatients.map(patient => (
-                    <div key={patient.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-bold text-gray-900">{patient.name}</div>
-                          <div className="text-xs text-gray-500 mt-1">{patient.phone} • Age {patient.age}</div>
-                        </div>
-                        <div className="text-right text-xs text-gray-400 font-mono">
-                          {patient.remoteId ? patient.remoteId.slice(0,6) : `#${patient.id}`}
-                        </div>
+              {/* Mobile: render cards */}
+              <div className="block md:hidden space-y-3">
+                {filteredPatients.length > 0 ? filteredPatients.map(patient => (
+                  <div key={patient.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-bold text-gray-900">{patient.name}</div>
+                        <div className="text-xs text-gray-500 mt-1">{patient.phone} • Age {patient.age}</div>
                       </div>
-                      <div className="mt-3 text-xs text-gray-600 truncate">{patient.history}</div>
+                      <div className="text-right text-xs text-gray-400 font-mono">
+                        {patient.remoteId ? patient.remoteId.slice(0, 6) : `#${patient.id}`}
+                      </div>
                     </div>
-                  )) : (
-                    <div className="text-center text-gray-400 py-8">No patients found matching your search.</div>
-                  )}
-                </div>
+                    <div className="mt-3 text-xs text-gray-600 truncate">{patient.history}</div>
+                  </div>
+                )) : (
+                  <div className="text-center text-gray-400 py-8">No patients found matching your search.</div>
+                )}
+              </div>
 
-                {/* Desktop: table */}
-                <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200">
-                  <table className="w-full text-right">
-                    <thead className="bg-gray-50 text-gray-600 font-medium text-sm">
-                      <tr>
-                        <th className="px-6 py-4">ID</th>
-                        <th className="px-6 py-4">Patient Name</th>
-                        <th className="px-6 py-4">Age</th>
-                        <th className="px-6 py-4">Phone</th>
-                        <th className="px-6 py-4">Husband</th>
-                        <th className="px-6 py-4">History</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {filteredPatients.length > 0 ? (
-                        filteredPatients.map((patient) => (
-                          <tr key={patient.id} className="hover:bg-teal-50/30 transition-colors text-sm text-gray-700">
-                            <td className="px-6 py-4 font-mono text-xs text-gray-400">
-                              {patient.remoteId ? patient.remoteId.slice(0, 6) : `#${patient.id}`}
-                            </td>
-                            <td className="px-6 py-4 font-bold text-gray-900">{patient.name}</td>
-                            <td className="px-6 py-4">{patient.age}</td>
-                            <td className="px-6 py-4">{patient.phone}</td>
-                            <td className="px-6 py-4">{patient.husbandName}</td>
-                            <td className="px-6 py-4 truncate max-w-xs">{patient.history}</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
-                            No patients found matching your search.
+              {/* Desktop: table */}
+              <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200">
+                <table className="w-full text-right">
+                  <thead className="bg-gray-50 text-gray-600 font-medium text-sm">
+                    <tr>
+                      <th className="px-6 py-4">ID</th>
+                      <th className="px-6 py-4">Patient Name</th>
+                      <th className="px-6 py-4">Age</th>
+                      <th className="px-6 py-4">Phone</th>
+                      <th className="px-6 py-4">Husband</th>
+                      <th className="px-6 py-4">History</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredPatients.length > 0 ? (
+                      filteredPatients.map((patient) => (
+                        <tr key={patient.id} className="hover:bg-teal-50/30 transition-colors text-sm text-gray-700">
+                          <td className="px-6 py-4 font-mono text-xs text-gray-400">
+                            {patient.remoteId ? patient.remoteId.slice(0, 6) : `#${patient.id}`}
                           </td>
+                          <td className="px-6 py-4 font-bold text-gray-900">{patient.name}</td>
+                          <td className="px-6 py-4">{patient.age}</td>
+                          <td className="px-6 py-4">{patient.phone}</td>
+                          <td className="px-6 py-4">{patient.husbandName}</td>
+                          <td className="px-6 py-4 truncate max-w-xs">{patient.history}</td>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-          </div>
-        )}
-      </div>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                          No patients found matching your search.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
