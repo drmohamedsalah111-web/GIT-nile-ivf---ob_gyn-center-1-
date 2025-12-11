@@ -24,6 +24,8 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
       }
 
       console.log('✅ SupabaseConnector: Credentials fetched successfully');
+      console.log('🔗 Endpoint:', endpoint);
+      console.log('🔑 Token exists:', !!session.access_token);
       return {
         endpoint: endpoint,
         token: session.access_token
