@@ -2,8 +2,21 @@
 import { PowerSyncBackendConnector, UpdateType } from '@powersync/web';
 import { supabase } from '../lib/supabase';
 
+// Cache credentials to prevent excessive calls
+let credentialsCache: { endpoint: string; token: string; expiresAt: number } | null = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
 export class SupabaseConnector implements PowerSyncBackendConnector {
   async fetchCredentials() {
+    // Check cache first
+    if (credentialsCache && credentialsCache.expiresAt > Date.now()) {
+      console.log('🔐 SupabaseConnector: Using cached credentials');
+      return {
+        endpoint: credentialsCache.endpoint,
+        token: credentialsCache.token
+      };
+    }
+
     console.log('🔐 SupabaseConnector: Fetching credentials...');
     try {
       // Check environment variables first
@@ -27,14 +40,25 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
       if (!session || error) {
         console.warn('⚠️ SupabaseConnector: No session found', error?.message);
         console.warn('⚠️ يرجى تسجيل الدخول مرة أخرى');
+        // Clear cache on auth error
+        credentialsCache = null;
         return null;
       }
 
       if (!session.access_token) {
         console.warn('⚠️ SupabaseConnector: No access token in session');
         console.warn('⚠️ يرجى تسجيل الدخول مرة أخرى');
+        // Clear cache on auth error
+        credentialsCache = null;
         return null;
       }
+
+      // Cache the credentials
+      credentialsCache = {
+        endpoint: endpoint,
+        token: session.access_token,
+        expiresAt: Date.now() + CACHE_DURATION
+      };
 
       console.log('✅ SupabaseConnector: Credentials fetched successfully');
       console.log('🔗 Endpoint:', endpoint);
@@ -46,8 +70,16 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     } catch (error: any) {
       console.error('❌ SupabaseConnector: Error fetching credentials:', error?.message);
       console.error('❌ تفاصيل الخطأ:', error);
+      // Clear cache on error
+      credentialsCache = null;
       return null;
     }
+  }
+
+  // Method to invalidate cache (useful when token expires)
+  invalidateCredentials() {
+    credentialsCache = null;
+    console.log('🔄 SupabaseConnector: Credentials cache invalidated');
   }
 
   async uploadData(database: any) {

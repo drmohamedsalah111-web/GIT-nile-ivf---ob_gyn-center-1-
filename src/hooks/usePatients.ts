@@ -1,5 +1,8 @@
 import { usePowerSync } from '@powersync/react';
 import { usePowerSyncQuery } from './usePowerSync';
+import { supabase } from '../lib/supabase';
+import { useState, useEffect } from 'react';
+import { useStatus } from '@powersync/react';
 
 export interface Patient {
     id: string;
@@ -16,13 +19,62 @@ export interface Patient {
 
 export function usePatients() {
     const powerSync = usePowerSync();
+    const powerSyncStatus = useStatus();
+    const [supabasePatients, setSupabasePatients] = useState<Patient[]>([]);
+    const [isLoadingSupabase, setIsLoadingSupabase] = useState(false);
 
-    // Live query for all patients
-    const { data: patients = [], isLoading, error } = usePowerSyncQuery<Patient>(
+    // Live query for all patients from PowerSync
+    const { data: powerSyncData = [], isLoading: isLoadingPowerSync, error: powerSyncError } = usePowerSyncQuery<Patient>(
         'SELECT * FROM patients ORDER BY created_at DESC'
     );
 
-    console.log('🔄 usePatients hook:', { patients, isLoading, error });
+    // Fallback: Fetch from Supabase directly if PowerSync is not connected
+    useEffect(() => {
+        const fetchFromSupabase = async () => {
+            // Only fetch from Supabase if PowerSync is not connected and we have no data
+            if (!powerSyncStatus.connected && powerSyncData.length === 0 && !isLoadingPowerSync) {
+                setIsLoadingSupabase(true);
+                try {
+                    const user = await supabase.auth.getUser();
+                    if (user.data.user) {
+                        const { data, error } = await supabase
+                            .from('patients')
+                            .select('*')
+                            .order('created_at', { ascending: false });
+                        
+                        if (error) {
+                            console.error('❌ Error fetching patients from Supabase:', error);
+                        } else if (data) {
+                            console.log('✅ Fetched patients from Supabase:', data.length);
+                            setSupabasePatients(data as Patient[]);
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ Error in Supabase fallback:', error);
+                } finally {
+                    setIsLoadingSupabase(false);
+                }
+            }
+        };
+
+        fetchFromSupabase();
+    }, [powerSyncStatus.connected, powerSyncData.length, isLoadingPowerSync]);
+
+    // Use PowerSync data if available, otherwise use Supabase fallback
+    const patients = powerSyncStatus.connected && powerSyncData.length > 0 
+        ? powerSyncData 
+        : (supabasePatients.length > 0 ? supabasePatients : powerSyncData);
+    
+    const isLoading = isLoadingPowerSync || isLoadingSupabase;
+    const error = powerSyncError;
+
+    console.log('🔄 usePatients hook:', { 
+        patients: patients.length, 
+        isLoading, 
+        error,
+        powerSyncConnected: powerSyncStatus.connected,
+        source: powerSyncStatus.connected ? 'PowerSync' : 'Supabase'
+    });
 
     const addPatient = async (patient: Omit<Patient, 'id' | 'created_at' | 'updated_at'>) => {
         const id = crypto.randomUUID();

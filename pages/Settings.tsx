@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { User, Palette, FileText, Lock, Upload, Save, AlertCircle, CheckCircle, Facebook, MessageCircle, Loader, Database, RefreshCw } from 'lucide-react';
+import { User, Palette, FileText, Lock, Upload, Save, AlertCircle, CheckCircle, Facebook, MessageCircle, Loader, Database, RefreshCw, Wifi, WifiOff, Server } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
 import { Doctor } from '../types';
 import { powerSyncDb } from '../src/powersync/client';
 import RefreshButton from '../components/RefreshButton';
+import { useStatus } from '@powersync/react';
+import { supabase } from '../services/supabaseClient';
+import { initPowerSync } from '../src/powersync/client';
 
 interface SettingsProps {
   user: any;
@@ -16,7 +19,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
-  const [activeTab, setActiveTab] = useState<'branding' | 'prescription' | 'profile' | 'password' | 'data'>('branding');
+  const [activeTab, setActiveTab] = useState<'branding' | 'prescription' | 'profile' | 'password' | 'data' | 'connection'>('branding');
 
   const [brandingFormData, setBrandingFormData] = useState({
     clinic_name: '',
@@ -46,6 +49,16 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploadLoading, setLogoUploadLoading] = useState(false);
   const [hardResetLoading, setHardResetLoading] = useState(false);
+  
+  // Connection status
+  const powerSyncStatus = useStatus();
+  const [supabaseStatus, setSupabaseStatus] = useState<{
+    connected: boolean;
+    url: string;
+    error?: string;
+    user?: any;
+  }>({ connected: false, url: '' });
+  const [checkingConnection, setCheckingConnection] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,7 +84,62 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     };
 
     fetchData();
+    checkConnections();
   }, [user]);
+
+  const checkConnections = async () => {
+    setCheckingConnection(true);
+    try {
+      // Check Supabase
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl) {
+        setSupabaseStatus({
+          connected: false,
+          url: 'Not configured',
+          error: 'VITE_SUPABASE_URL not found'
+        });
+      } else {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+          setSupabaseStatus({
+            connected: false,
+            url: supabaseUrl,
+            error: sessionError?.message || 'No active session'
+          });
+        } else {
+          // Test database query
+          const { error: dbError } = await supabase.from('patients').select('id').limit(1);
+          setSupabaseStatus({
+            connected: !dbError,
+            url: supabaseUrl,
+            error: dbError?.message,
+            user: session.user
+          });
+        }
+      }
+    } catch (error: any) {
+      setSupabaseStatus({
+        connected: false,
+        url: import.meta.env.VITE_SUPABASE_URL || 'Unknown',
+        error: error?.message || 'Unknown error'
+      });
+    } finally {
+      setCheckingConnection(false);
+    }
+  };
+
+  const handleReconnectPowerSync = async () => {
+    try {
+      setCheckingConnection(true);
+      toast.loading('جاري إعادة الاتصال...', { id: 'reconnect' });
+      await initPowerSync();
+      toast.success('تم الاتصال بنجاح!', { id: 'reconnect' });
+    } catch (error: any) {
+      toast.error(`فشل الاتصال: ${error?.message}`, { id: 'reconnect' });
+    } finally {
+      setCheckingConnection(false);
+    }
+  };
 
   // Legacy sync stats effects removed
 
@@ -312,6 +380,16 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
         >
           <Database size={20} />
           إدارة البيانات
+        </button>
+        <button
+          onClick={() => setActiveTab('connection')}
+          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${activeTab === 'connection'
+            ? 'border-teal-600 text-teal-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+        >
+          <Server size={20} />
+          حالة الاتصال
         </button>
       </div>
 
@@ -588,6 +666,154 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
             <Save size={18} />
             {saving ? 'جاري التحديث...' : 'تحديث كلمة المرور'}
           </button>
+        </div>
+      )}
+
+      {activeTab === 'connection' && (
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-gray-900 font-[Tajawal]">حالة الاتصال</h3>
+            <button
+              onClick={checkConnections}
+              disabled={checkingConnection}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white rounded-lg font-[Tajawal] transition-colors"
+            >
+              <RefreshCw size={18} className={checkingConnection ? 'animate-spin' : ''} />
+              تحديث
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6 mb-6">
+            {/* Supabase Status */}
+            <div className={`border-2 rounded-lg p-6 ${supabaseStatus.connected ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-lg font-semibold text-gray-900 font-[Tajawal]">Supabase</h4>
+                {supabaseStatus.connected ? (
+                  <CheckCircle className="text-green-600" size={24} />
+                ) : (
+                  <AlertCircle className="text-red-600" size={24} />
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700 font-[Tajawal]">الحالة:</span>
+                  <span className={`text-sm font-bold ${supabaseStatus.connected ? 'text-green-700' : 'text-red-700'} font-[Tajawal]`}>
+                    {supabaseStatus.connected ? '✅ متصل' : '❌ غير متصل'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700 font-[Tajawal]">الرابط:</span>
+                  <span className="text-xs text-gray-600 font-mono break-all">{supabaseStatus.url}</span>
+                </div>
+                {supabaseStatus.user && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 font-[Tajawal]">المستخدم:</span>
+                    <span className="text-sm text-gray-600">{supabaseStatus.user.email}</span>
+                  </div>
+                )}
+                {supabaseStatus.error && (
+                  <div className="mt-2 p-2 bg-red-100 rounded text-xs text-red-700 font-[Tajawal]">
+                    {supabaseStatus.error}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* PowerSync Status */}
+            <div className={`border-2 rounded-lg p-6 ${powerSyncStatus.connected ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-lg font-semibold text-gray-900 font-[Tajawal]">PowerSync</h4>
+                {powerSyncStatus.connected ? (
+                  <CheckCircle className="text-green-600" size={24} />
+                ) : (
+                  <AlertCircle className="text-red-600" size={24} />
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700 font-[Tajawal]">الحالة:</span>
+                  <span className={`text-sm font-bold ${powerSyncStatus.connected ? 'text-green-700' : 'text-red-700'} font-[Tajawal]`}>
+                    {powerSyncStatus.connected ? '✅ متصل' : powerSyncStatus.connecting ? '🔄 جاري الاتصال...' : '❌ غير متصل'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700 font-[Tajawal]">الرابط:</span>
+                  <span className="text-xs text-gray-600 font-mono break-all">
+                    {import.meta.env.VITE_POWERSYNC_URL || 'Not configured'}
+                  </span>
+                </div>
+                {powerSyncStatus.lastSyncedAt && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 font-[Tajawal]">آخر مزامنة:</span>
+                    <span className="text-sm text-gray-600">
+                      {new Date(powerSyncStatus.lastSyncedAt).toLocaleString('ar-EG')}
+                    </span>
+                  </div>
+                )}
+                {!powerSyncStatus.connected && (
+                  <button
+                    onClick={handleReconnectPowerSync}
+                    disabled={checkingConnection || powerSyncStatus.connecting}
+                    className="mt-3 w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-[Tajawal] transition-colors"
+                  >
+                    <RefreshCw size={16} className={checkingConnection ? 'animate-spin' : ''} />
+                    إعادة الاتصال
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Overall Status */}
+          <div className={`border-2 rounded-lg p-6 ${
+            supabaseStatus.connected && powerSyncStatus.connected
+              ? 'border-green-300 bg-green-50'
+              : supabaseStatus.connected || powerSyncStatus.connected
+              ? 'border-yellow-300 bg-yellow-50'
+              : 'border-red-300 bg-red-50'
+          }`}>
+            <h4 className="text-lg font-semibold text-gray-900 mb-3 font-[Tajawal]">الحالة العامة</h4>
+            <p className={`text-sm font-[Tajawal] ${
+              supabaseStatus.connected && powerSyncStatus.connected
+                ? 'text-green-800'
+                : supabaseStatus.connected || powerSyncStatus.connected
+                ? 'text-yellow-800'
+                : 'text-red-800'
+            }`}>
+              {supabaseStatus.connected && powerSyncStatus.connected
+                ? '✅ جميع الاتصالات تعمل بشكل صحيح - البيانات متزامنة'
+                : supabaseStatus.connected
+                ? '⚠️ Supabase متصل، لكن PowerSync غير متصل - البيانات متاحة من Supabase مباشرة'
+                : powerSyncStatus.connected
+                ? '⚠️ PowerSync متصل، لكن Supabase غير متصل'
+                : '❌ جميع الاتصالات فاشلة - يرجى التحقق من الإعدادات'}
+            </p>
+          </div>
+
+          {/* Environment Variables Check */}
+          <div className="mt-6 border border-gray-200 rounded-lg p-6">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4 font-[Tajawal]">متغيرات البيئة</h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700 font-[Tajawal]">VITE_SUPABASE_URL:</span>
+                <span className={`text-xs font-mono ${import.meta.env.VITE_SUPABASE_URL ? 'text-green-600' : 'text-red-600'}`}>
+                  {import.meta.env.VITE_SUPABASE_URL ? '✓ موجود' : '✗ غير موجود'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700 font-[Tajawal]">VITE_SUPABASE_ANON_KEY:</span>
+                <span className={`text-xs font-mono ${import.meta.env.VITE_SUPABASE_ANON_KEY ? 'text-green-600' : 'text-red-600'}`}>
+                  {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✓ موجود' : '✗ غير موجود'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700 font-[Tajawal]">VITE_POWERSYNC_URL:</span>
+                <span className={`text-xs font-mono ${import.meta.env.VITE_POWERSYNC_URL ? 'text-green-600' : 'text-red-600'}`}>
+                  {import.meta.env.VITE_POWERSYNC_URL ? '✓ موجود' : '✗ غير موجود'}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

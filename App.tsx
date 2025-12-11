@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 // import SyncStatus from './components/SyncStatus';
@@ -38,23 +38,67 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Track retry attempts to prevent infinite loops
+  const retryAttemptsRef = useRef(0);
+  const lastRetryTimeRef = useRef(0);
+  const hasGivenUpRef = useRef(false); // Flag to stop retrying after max attempts
+  const MAX_RETRIES = 2; // Reduced to 2 attempts
+  const RETRY_COOLDOWN = 60000; // 60 seconds cooldown between retry attempts
+
   useEffect(() => {
-    console.log('🔌 PowerSync Status Change:', JSON.stringify(powerSyncStatus, null, 2));
-    console.log('🔌 Connected:', powerSyncStatus.connected);
-    console.log('🔌 Connecting:', powerSyncStatus.connecting);
+    // Only log status changes in development
+    if (import.meta.env.DEV) {
+      console.log('🔌 PowerSync Status Change:', JSON.stringify(powerSyncStatus, null, 2));
+      console.log('🔌 Connected:', powerSyncStatus.connected);
+      console.log('🔌 Connecting:', powerSyncStatus.connecting);
+    }
+    
+    // Stop retrying if we've given up
+    if (hasGivenUpRef.current) {
+      return;
+    }
     
     // Auto-retry connection if disconnected but online
     if (!powerSyncStatus.connected && !powerSyncStatus.connecting && navigator.onLine && user) {
-      const timeoutId = setTimeout(async () => {
-        console.log('🔄 Auto-retrying PowerSync connection...');
-        try {
-          await initPowerSync();
-        } catch (error: any) {
-          console.warn('⚠️ Auto-retry failed:', error?.message);
-        }
-      }, 5000); // Retry after 5 seconds
+      const now = Date.now();
+      const timeSinceLastRetry = now - lastRetryTimeRef.current;
       
-      return () => clearTimeout(timeoutId);
+      // Check if we should retry (cooldown period passed and haven't exceeded max retries)
+      if (timeSinceLastRetry > RETRY_COOLDOWN && retryAttemptsRef.current < MAX_RETRIES) {
+        retryAttemptsRef.current++;
+        lastRetryTimeRef.current = now;
+        
+        const timeoutId = setTimeout(async () => {
+          console.log(`🔄 Auto-retrying PowerSync connection (attempt ${retryAttemptsRef.current}/${MAX_RETRIES})...`);
+          try {
+            await initPowerSync();
+            // Reset retry counter on success
+            if (powerSyncStatus.connected) {
+              retryAttemptsRef.current = 0;
+              hasGivenUpRef.current = false;
+            }
+          } catch (error: any) {
+            console.warn('⚠️ Auto-retry failed:', error?.message);
+            if (retryAttemptsRef.current >= MAX_RETRIES) {
+              hasGivenUpRef.current = true;
+              console.warn('⚠️ Max retry attempts reached. PowerSync will work in offline mode.');
+              console.warn('⚠️ البيانات القديمة متاحة من Supabase مباشرة حتى يتم الاتصال.');
+            }
+          }
+        }, 10000); // Retry after 10 seconds
+        
+        return () => clearTimeout(timeoutId);
+      } else if (retryAttemptsRef.current >= MAX_RETRIES) {
+        if (!hasGivenUpRef.current) {
+          hasGivenUpRef.current = true;
+          console.warn('⚠️ Max retry attempts reached. PowerSync will work in offline mode.');
+          console.warn('⚠️ البيانات القديمة متاحة من Supabase مباشرة حتى يتم الاتصال.');
+        }
+      }
+    } else if (powerSyncStatus.connected) {
+      // Reset retry counter when connected
+      retryAttemptsRef.current = 0;
+      hasGivenUpRef.current = false;
     }
   }, [powerSyncStatus, user]);
 
@@ -121,6 +165,10 @@ const App: React.FC = () => {
     const subscription = authService.onAuthStateChange(async (user) => {
       setUser(user);
       if (user) {
+        // Reset retry flags on new login
+        retryAttemptsRef.current = 0;
+        hasGivenUpRef.current = false;
+        
         console.log('📱 App: Auth state changed (login), initializing PowerSync...');
         try {
           await initPowerSync();
@@ -132,7 +180,12 @@ const App: React.FC = () => {
             console.error('❌ Please check your .env file for missing variables');
           }
           // Don't set error for PowerSync failures - offline mode is expected
+          // Data will be available directly from Supabase
         }
+      } else {
+        // Reset flags on logout
+        retryAttemptsRef.current = 0;
+        hasGivenUpRef.current = false;
       }
     });
 
