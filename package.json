@@ -16,6 +16,8 @@
     "@powersync/web": "^1.29.1",
     "@supabase/supabase-js": "^2.39.7",
     "clsx": "^2.1.0",
+    "dexie": "^3.2.4",
+    "dexie-react-hooks": "^1.1.7",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
