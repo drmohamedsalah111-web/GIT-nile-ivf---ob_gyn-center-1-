@@ -25,6 +25,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const powerSyncStatus = useStatus();
 
   useEffect(() => {
@@ -58,8 +59,9 @@ const App: React.FC = () => {
           await initPowerSync();
         }
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('Critical App Initialization Error:', error);
+        setConnectionError(error.message || 'Unknown initialization error');
       } finally {
         setLoading(false);
       }
@@ -76,8 +78,10 @@ const App: React.FC = () => {
         console.log('📱 App: Auth state changed (login), initializing PowerSync...');
         try {
           await initPowerSync();
-        } catch (err) {
+          setConnectionError(null);
+        } catch (err: any) {
           console.error('Failed to init PowerSync on login:', err);
+          setConnectionError(err.message || 'Failed to connect');
         }
       }
     });
