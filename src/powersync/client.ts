@@ -19,10 +19,19 @@ export async function initPowerSync() {
     console.log('🔌 Initializing PowerSync...');
 
     try {
+        // Check if offline before attempting connection
+        if (!navigator.onLine) {
+            console.warn('⚠️ Browser is offline - PowerSync will work in offline mode');
+            return;
+        }
+
         await powerSyncDb.connect(connector);
         console.log('✅ PowerSync connected successfully');
-    } catch (error) {
-        console.error('❌ PowerSync connection failed:', error);
-        throw error;
+    } catch (error: any) {
+        console.warn('⚠️ PowerSync connection failed (offline mode available):', error?.message);
+        // Don't throw - allow app to work offline
+        if (navigator.onLine) {
+            console.error('❌ Network available but PowerSync connection failed');
+        }
     }
 }

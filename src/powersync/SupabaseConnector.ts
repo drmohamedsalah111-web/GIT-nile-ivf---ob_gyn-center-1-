@@ -5,17 +5,33 @@ import { supabase } from '../lib/supabase';
 export class SupabaseConnector implements PowerSyncBackendConnector {
   async fetchCredentials() {
     console.log('🔐 SupabaseConnector: Fetching credentials...');
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (!session || error) {
-      console.warn('⚠️ SupabaseConnector: No session found, returning null credentials');
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (!session || error) {
+        console.warn('⚠️ SupabaseConnector: No session found', error?.message);
+        return null;
+      }
+
+      const endpoint = import.meta.env.VITE_POWERSYNC_URL;
+      if (!endpoint) {
+        console.error('❌ SupabaseConnector: VITE_POWERSYNC_URL not configured');
+        return null;
+      }
+
+      if (!session.access_token) {
+        console.warn('⚠️ SupabaseConnector: No access token in session');
+        return null;
+      }
+
+      console.log('✅ SupabaseConnector: Credentials fetched successfully');
+      return {
+        endpoint: endpoint,
+        token: session.access_token
+      };
+    } catch (error: any) {
+      console.error('❌ SupabaseConnector: Error fetching credentials:', error?.message);
       return null;
     }
-
-    console.log('✅ SupabaseConnector: Credentials fetched successfully');
-    return {
-      endpoint: import.meta.env.VITE_POWERSYNC_URL,
-      token: session.access_token
-    };
   }
 
   async uploadData(database: any) {
@@ -23,22 +39,40 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     if (!transaction) return;
 
     try {
+      let successCount = 0;
+      let failCount = 0;
+
       for (const op of transaction.crud) {
         const table = op.table;
         const data = op.opData;
 
-        if (op.op === UpdateType.PUT) {
-          await supabase.from(table).upsert(data);
-        } else if (op.op === UpdateType.PATCH) {
-          await supabase.from(table).update(data).eq('id', data.id);
-        } else if (op.op === UpdateType.DELETE) {
-          await supabase.from(table).delete().eq('id', data.id);
+        try {
+          if (op.op === UpdateType.PUT) {
+            const { error } = await supabase.from(table).upsert(data);
+            if (error) throw error;
+          } else if (op.op === UpdateType.PATCH) {
+            const { error } = await supabase.from(table).update(data).eq('id', data.id);
+            if (error) throw error;
+          } else if (op.op === UpdateType.DELETE) {
+            const { error } = await supabase.from(table).delete().eq('id', data.id);
+            if (error) throw error;
+          }
+          successCount++;
+        } catch (error: any) {
+          failCount++;
+          console.error(`❌ Upload failed for ${table}:`, error?.message);
         }
       }
-      await transaction.complete();
-    } catch (error) {
-      console.error('Upload failed', error);
-      // await transaction.reject();
+
+      if (failCount === 0) {
+        console.log(`✅ Upload complete: ${successCount} operations successful`);
+        await transaction.complete();
+      } else {
+        console.warn(`⚠️ Upload partial: ${successCount} successful, ${failCount} failed`);
+        await transaction.complete();
+      }
+    } catch (error: any) {
+      console.error('❌ Upload transaction failed:', error?.message);
     }
   }
 }

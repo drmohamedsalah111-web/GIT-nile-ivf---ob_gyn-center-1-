@@ -14,7 +14,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import { Login } from './pages/Login';
 import { Toaster } from 'react-hot-toast';
 import { authService } from './services/authService';
-import { LogOut, WifiOff } from 'lucide-react';
+import { LogOut, WifiOff, Wifi } from 'lucide-react';
 import { BrandingProvider } from './context/BrandingContext';
 import { initPWA } from './src/lib/pwa';
 import { initPowerSync } from './src/powersync/client';
@@ -48,44 +48,57 @@ const App: React.FC = () => {
     const initializeApp = async () => {
       try {
         setLoading(true);
+        setConnectionError(null);
 
-        // 1. Initialize PowerSync (Moved to after auth check)
-        // console.log('📱 App: About to call initPowerSync()...');
-        // await initPowerSync();
-
-        // 2. Initialize PWA
+        // 1. Initialize PWA
         initPWA().catch(console.warn);
 
-        // 3. Check user authentication
-        const currentUser = await authService.getCurrentUser();
+        // 2. Check user authentication
+        let currentUser;
+        try {
+          currentUser = await authService.getCurrentUser();
+        } catch (authError: any) {
+          console.warn('⚠️ Auth check failed (offline mode):', authError?.message);
+          // Continue without auth error - offline mode may still work
+        }
         setUser(currentUser);
 
+        // 3. Initialize PowerSync (non-blocking)
         if (currentUser) {
           console.log('📱 App: User authenticated, initializing PowerSync...');
-          await initPowerSync();
+          try {
+            await initPowerSync();
+          } catch (syncError: any) {
+            console.warn('⚠️ PowerSync init failed (app will work offline):', syncError?.message);
+            // Don't set error - app can work offline
+          }
         }
 
       } catch (error: any) {
-        console.error('Critical App Initialization Error:', error);
-        setConnectionError(error.message || 'Unknown initialization error');
+        console.error('❌ Critical App Initialization Error:', error?.message);
+        // Only set error if it's truly critical (auth failure with online)
+        if (navigator.onLine && error?.message?.includes('auth')) {
+          setConnectionError('Authentication failed. Please check your connection and reload.');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     console.log('🚀 App useEffect: Starting initialization...');
+    console.log('📱 Browser online status:', navigator.onLine);
 
-    // Check if worker file exists
-    fetch('/powersync.worker.js')
-      .then(res => {
-        console.log('👷 Worker file check:', res.status, res.statusText);
-        if (!res.ok) console.error('❌ Worker file not found!');
-      })
-      .catch(err => console.error('❌ Failed to check worker file:', err));
+    // Check if worker file exists (non-blocking)
+    if (navigator.onLine) {
+      fetch('/powersync.worker.js')
+        .then(res => {
+          console.log('👷 Worker file check:', res.status, res.statusText);
+          if (!res.ok) console.warn('⚠️ Worker file might not be accessible');
+        })
+        .catch(err => console.warn('⚠️ Could not check worker file:', err?.message));
+    }
 
-    initializeApp().catch((err) => {
-      console.error('🚨 Failed to initialize app:', err);
-    });
+    initializeApp();
 
     const subscription = authService.onAuthStateChange(async (user) => {
       setUser(user);
@@ -95,8 +108,8 @@ const App: React.FC = () => {
           await initPowerSync();
           setConnectionError(null);
         } catch (err: any) {
-          console.error('Failed to init PowerSync on login:', err);
-          setConnectionError(err.message || 'Failed to connect');
+          console.warn('⚠️ PowerSync connection failed (offline mode will be used):', err?.message);
+          // Don't set error for PowerSync failures - offline mode is expected
         }
       }
     });
@@ -186,7 +199,7 @@ const App: React.FC = () => {
                 )}
                 {powerSyncStatus.connected && (
                   <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold" title="متصل بالسيرفر">
-                    <WifiOff size={14} />
+                    <Wifi size={14} />
                     متصل
                   </span>
                 )}
