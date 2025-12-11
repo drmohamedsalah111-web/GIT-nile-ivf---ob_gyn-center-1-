@@ -6,6 +6,7 @@ import {
 import toast from 'react-hot-toast';
 import { useBranding } from '../context/BrandingContext';
 import { supabase } from '../services/supabaseClient';
+import { powerSyncDb } from '../src/powersync/client';
 import { EGYPTIAN_DRUGS } from '../constants';
 import RefreshButton from '../components/RefreshButton';
 
@@ -68,7 +69,7 @@ const AdminDashboard: React.FC = () => {
       setSaving(true);
       const fileInput = document.querySelector('[type="file"]') as HTMLInputElement;
       const logoFile = fileInput?.files?.[0];
-      
+
       if (!brandingData.clinic_name.trim()) {
         toast.error('يجب إدخال اسم العيادة');
         return;
@@ -100,20 +101,15 @@ const AdminDashboard: React.FC = () => {
   const loadRecords = async () => {
     try {
       setRecordsLoading(true);
-      const { data, error } = await supabase
-        .from('visits')
-        .select('id, date, patient_id, diagnosis, department')
-        .order('date', { ascending: false })
-        .limit(50);
+      // Use PowerSync for offline access
+      const data = await powerSyncDb.getAll(
+        'SELECT id, date, patient_id, diagnosis, department FROM visits ORDER BY date DESC LIMIT 50'
+      );
 
-      if (error) {
-        console.error('Error loading records:', error);
-        throw error;
-      }
       setRecords(data || []);
     } catch (error: any) {
       console.error('Error loading records:', error);
-      const errorMsg = error?.message || 'فشل تحميل السجلات. تأكد من وجود جدول visits في قاعدة البيانات';
+      const errorMsg = error?.message || 'فشل تحميل السجلات';
       toast.error(errorMsg);
     } finally {
       setRecordsLoading(false);
@@ -130,12 +126,8 @@ const AdminDashboard: React.FC = () => {
     if (!window.confirm('هل أنت متأكد من حذف هذا السجل؟')) return;
 
     try {
-      const { error } = await supabase
-        .from('visits')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      // Use PowerSync for offline deletion
+      await powerSyncDb.execute('DELETE FROM visits WHERE id = ?', [id]);
 
       setRecords(records.filter(r => r.id !== id));
       toast.success('تم حذف السجل بنجاح');
@@ -165,33 +157,30 @@ const AdminDashboard: React.FC = () => {
       <div className="flex gap-2 border-b border-gray-200">
         <button
           onClick={() => setActiveTab('branding')}
-          className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
-            activeTab === 'branding'
-              ? 'border-b-2 border-indigo-600 text-indigo-600'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
+          className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${activeTab === 'branding'
+            ? 'border-b-2 border-indigo-600 text-indigo-600'
+            : 'text-gray-600 hover:text-gray-900'
+            }`}
         >
           <Palette size={20} />
           تخصيص التصميم
         </button>
         <button
           onClick={() => setActiveTab('prescription')}
-          className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
-            activeTab === 'prescription'
-              ? 'border-b-2 border-indigo-600 text-indigo-600'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
+          className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${activeTab === 'prescription'
+            ? 'border-b-2 border-indigo-600 text-indigo-600'
+            : 'text-gray-600 hover:text-gray-900'
+            }`}
         >
           <FileText size={20} />
           إعدادات الروشتة
         </button>
         <button
           onClick={() => setActiveTab('records')}
-          className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
-            activeTab === 'records'
-              ? 'border-b-2 border-indigo-600 text-indigo-600'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
+          className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${activeTab === 'records'
+            ? 'border-b-2 border-indigo-600 text-indigo-600'
+            : 'text-gray-600 hover:text-gray-900'
+            }`}
         >
           <Database size={20} />
           إدارة السجلات

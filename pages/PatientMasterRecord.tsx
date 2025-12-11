@@ -6,6 +6,7 @@ import {
 import { usePatients } from '../src/hooks/usePatients';
 import { Patient, Visit } from '../types';
 import { supabase } from '../services/supabaseClient';
+import { powerSyncDb } from '../src/powersync/client';
 import { visitsService } from '../services/visitsService';
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
@@ -71,17 +72,14 @@ const PatientMasterRecord: React.FC = () => {
           targetUuid = (patient as any).remoteId;
         }
       }
-      const { data, error } = await supabase
-        .from('patient_files')
-        .select('*')
-        .eq('patient_id', targetUuid)
-        .order('created_at', { ascending: false });
-      if (error) {
-        console.error('Error fetching patient files:', error);
-        setPatientFiles([]);
-      } else {
-        setPatientFiles(data || []);
-      }
+
+      // Use PowerSync for offline access to file metadata
+      const data = await powerSyncDb.getAll(
+        'SELECT * FROM patient_files WHERE patient_id = ? ORDER BY created_at DESC',
+        [targetUuid]
+      );
+
+      setPatientFiles(data || []);
     } catch (error) {
       console.error('Error fetching patient files:', error);
       setPatientFiles([]);

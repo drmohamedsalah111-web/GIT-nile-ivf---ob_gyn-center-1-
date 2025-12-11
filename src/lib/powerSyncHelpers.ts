@@ -1,7 +1,7 @@
 // PowerSync Query Helpers
 // Use these instead of Dexie queries
 
-import { powerSync } from '../powersync/db';
+import { powerSyncDb as powerSync } from '../powersync/client';
 import { useQuery } from '@powersync/react';
 
 // Hook to get all patients

@@ -455,10 +455,10 @@ export const obstetricsService = {
   },
 
   getBiometryScans: async (pregnancyId: string) => {
-    return await powerSyncDb.getAll(
+    return (await powerSyncDb.getAll(
       'SELECT * FROM biometry_scans WHERE pregnancy_id = ? ORDER BY scan_date DESC',
       [pregnancyId]
-    );
+    )) as BiometryScan[];
   },
 
   updateBiometryScan: async (scanId: string, updates: Partial<BiometryScan>) => {

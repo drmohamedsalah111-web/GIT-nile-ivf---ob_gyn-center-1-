@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { authService } from '../services/authService';
+import { powerSyncDb } from '../src/powersync/client';
 
 interface BrandingSettings {
   id: number;
@@ -35,15 +36,14 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from('app_settings')
-        .select('*')
-        .eq('id', 1)
-        .single();
+      // Use PowerSync for offline-first data
+      const results = await powerSyncDb.getAll('SELECT * FROM app_settings');
 
-      if (fetchError) throw fetchError;
-
-      setBranding(data || getDefaultBranding());
+      if (results.length > 0) {
+        setBranding(results[0] as BrandingSettings);
+      } else {
+        setBranding(getDefaultBranding());
+      }
     } catch (err) {
       console.error('Failed to fetch branding:', err);
       setError('فشل تحميل إعدادات العلامة التجارية');
@@ -75,6 +75,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       let logoUrl = updates.logo_url;
 
+      // Image upload still requires online connection to Supabase Storage
       if (logoFile) {
         try {
           const user = await authService.getCurrentUser();
@@ -117,21 +118,42 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       setBranding(prev => prev ? { ...prev, ...updateData } : null);
 
-      const { data, error: updateError } = await supabase
-        .from('app_settings')
-        .update(updateData)
-        .eq('id', 1)
-        .select()
-        .single();
+      // Update local PowerSync DB (which will sync to Supabase)
+      // Note: We assume there's only one row in app_settings
+      const existing = await powerSyncDb.getAll('SELECT id FROM app_settings');
 
-      if (updateError) {
-        console.error('Update error:', updateError);
-        throw updateError;
+      if (existing.length > 0) {
+        const id = (existing[0] as any).id;
+        await powerSyncDb.execute(
+          `UPDATE app_settings SET 
+             clinic_name = ?, clinic_address = ?, clinic_phone = ?, 
+             primary_color = ?, secondary_color = ?, accent_color = ?, 
+             default_rx_notes = ?, logo_url = ?, updated_at = ? 
+           WHERE id = ?`,
+          [
+            updateData.clinic_name, updateData.clinic_address, updateData.clinic_phone,
+            updateData.primary_color, updateData.secondary_color, updateData.accent_color,
+            updateData.default_rx_notes, updateData.logo_url, updateData.updated_at,
+            id
+          ]
+        );
+      } else {
+        // Insert if not exists (though sync should handle this)
+        await powerSyncDb.execute(
+          `INSERT INTO app_settings (
+             id, clinic_name, clinic_address, clinic_phone, 
+             primary_color, secondary_color, accent_color, 
+             default_rx_notes, logo_url, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            crypto.randomUUID(), // Generate a new UUID if creating locally
+            updateData.clinic_name, updateData.clinic_address, updateData.clinic_phone,
+            updateData.primary_color, updateData.secondary_color, updateData.accent_color,
+            updateData.default_rx_notes, updateData.logo_url, updateData.updated_at
+          ]
+        );
       }
 
-      if (data) {
-        setBranding(data);
-      }
     } catch (err) {
       console.error('Failed to update branding:', err);
       setError('فشل تحديث إعدادات العلامة التجارية');

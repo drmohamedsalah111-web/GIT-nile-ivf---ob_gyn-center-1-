@@ -4,13 +4,7 @@ import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
 import { Doctor } from '../types';
-// Temporary: These functions will be replaced with PowerSync equivalents
-const getSyncStats = async () => ({ total: 0, synced: 0, pending: 0, errors: 0 });
-const initLocalDB = async () => { };
-const getPendingSyncItems = async () => [];
-const getFailedSyncItems = async () => [];
-
-import { syncManager } from '../src/services/syncService';
+import { powerSyncDb } from '../src/powersync/client';
 import RefreshButton from '../components/RefreshButton';
 
 interface SettingsProps {
@@ -51,12 +45,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploadLoading, setLogoUploadLoading] = useState(false);
-  const [syncStats, setSyncStats] = useState<{ total: number; synced: number; pending: number; errors: number } | null>(null);
   const [hardResetLoading, setHardResetLoading] = useState(false);
-  const [pushLoading, setPushLoading] = useState(false);
-  const [retryLoading, setRetryLoading] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [failedCount, setFailedCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -84,36 +73,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     fetchData();
   }, [user]);
 
-  useEffect(() => {
-    const fetchSyncStats = async () => {
-      try {
-        const stats = await getSyncStats();
-        setSyncStats(stats);
-      } catch (error) {
-        console.error('Failed to fetch sync stats:', error);
-      }
-    };
-
-    fetchSyncStats();
-  }, []);
-
-  useEffect(() => {
-    const fetchCounts = async () => {
-      try {
-        const pending = await getPendingSyncItems();
-        setPendingCount(pending.length);
-
-        const failed = await getFailedSyncItems();
-        setFailedCount(failed.length);
-      } catch (error) {
-        console.error('Failed to fetch sync counts:', error);
-      }
-    };
-
-    fetchCounts();
-    const interval = setInterval(fetchCounts, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  // Legacy sync stats effects removed
 
   useEffect(() => {
     if (branding) {
@@ -246,71 +206,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     }
   };
 
-  const handlePushPending = async () => {
-    if (pendingCount === 0) {
-      toast.success('لا توجد بيانات معلقة للرفع');
-      return;
-    }
-
-    try {
-      setPushLoading(true);
-      toast.loading(`جاري رفع ${pendingCount} عنصر معلق...`, { id: 'push-pending' });
-
-      const result = await syncManager.pushPendingItems();
-
-      if (result.success > 0) {
-        toast.success(`✅ تم رفع ${result.success} عنصر بنجاح${result.failed > 0 ? ` (${result.failed} فشلوا)` : ''}`, { id: 'push-pending' });
-        const pending = await getPendingSyncItems();
-        setPendingCount(pending.length);
-
-        const stats = await getSyncStats();
-        setSyncStats(stats);
-      } else if (result.failed > 0) {
-        toast.error(`فشل رفع جميع العناصر. التفاصيل:\n${result.errors.slice(0, 3).join('\n')}`, { id: 'push-pending' });
-      }
-
-      if (result.errors.length > 0) {
-        console.log('📋 أخطاء الرفع:', result.errors);
-      }
-    } catch (error) {
-      console.error('Push error:', error);
-      const errorMsg = error instanceof Error ? error.message : 'خطأ غير معروف';
-      toast.error(`فشل رفع البيانات المعلقة: ${errorMsg}`, { id: 'push-pending' });
-    } finally {
-      setPushLoading(false);
-    }
-  };
-
-  const handleRetryFailed = async () => {
-    if (failedCount === 0) {
-      toast.success('لا توجد عناصر فاشلة لإعادة المحاولة');
-      return;
-    }
-
-    try {
-      setRetryLoading(true);
-      toast.loading(`جاري إعادة محاولة ${failedCount} عنصر فاشل...`, { id: 'retry-failed' });
-
-      const resurrected = await syncManager.retryFailedItems();
-
-      if (resurrected > 0) {
-        toast.success(`🔄 تم إعادة تعيين ${resurrected} عنصر. جاري المحاولة...`, { id: 'retry-failed' });
-        const failed = await getFailedSyncItems();
-        setFailedCount(failed.length);
-
-        const pending = await getPendingSyncItems();
-        setPendingCount(pending.length);
-      } else {
-        toast.success('✅ لا توجد عناصر فاشلة للمحاولة مرة أخرى', { id: 'retry-failed' });
-      }
-    } catch (error) {
-      console.error('Retry error:', error);
-      const errorMsg = error instanceof Error ? error.message : 'خطأ غير معروف';
-      toast.error(`فشل إعادة محاولة العناصر: ${errorMsg}`, { id: 'retry-failed' });
-    } finally {
-      setRetryLoading(false);
-    }
-  };
+  // Unused handlers removed
 
   const handleHardReset = async () => {
     const confirmed = window.confirm('⚠️ تحذير: سيتم حذف جميع البيانات المحلية وإعادة تحميلها من السيرفر. هل أنت متأكد؟');
@@ -330,8 +226,8 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
       toast.loading('جاري تحميل البيانات من السيرفر...', { id: 'hard-reset' });
 
-      // Pull latest data
-      await syncManager.forceSync();
+      // Clear local database to force re-sync on reload
+      await powerSyncDb.disconnectAndClear();
 
       toast.success('تم إعادة تحميل البيانات بنجاح! سيتم إعادة تحميل الصفحة...', { id: 'hard-reset' });
 
@@ -699,89 +595,13 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
         <div className="bg-white rounded-lg shadow-md p-8">
           <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">إدارة البيانات والمزامنة</h3>
 
-          <div className="grid md:grid-cols-2 gap-8 mb-8">
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 mb-4 font-[Tajawal]">إحصائيات قاعدة البيانات المحلية</h4>
-              {syncStats ? (
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="font-[Tajawal]">إجمالي السجلات:</span>
-                    <span className="font-semibold">{syncStats.total}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-[Tajawal]">السجلات المتزامنة:</span>
-                    <span className="font-semibold text-green-600">{syncStats.synced}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-[Tajawal]">في انتظار المزامنة:</span>
-                    <span className="font-semibold text-yellow-600">{syncStats.pending}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-[Tajawal]">أخطاء المزامنة:</span>
-                    <span className="font-semibold text-red-600">{syncStats.errors}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-gray-500 font-[Tajawal]">جاري تحميل الإحصائيات...</div>
-              )}
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 mb-4 font-[Tajawal]">رفع البيانات المعلقة</h4>
-              <p className="text-sm text-gray-600 mb-4 font-[Tajawal]">
-                استخدم هذا الزر لرفع أي بيانات علقت محلياً ولم يتم رفعها إلى السيرفر.
+          <div className="grid md:grid-cols-1 gap-8 mb-8">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="text-lg font-semibold text-blue-900 mb-2 font-[Tajawal]">حالة المزامنة</h4>
+              <p className="text-sm text-blue-800 font-[Tajawal]">
+                يتم مزامنة البيانات تلقائياً مع السيرفر باستخدام PowerSync.
+                تعمل هذه التقنية في الخلفية لضمان توفر بياناتك دائماً، حتى بدون اتصال بالإنترنت.
               </p>
-              <button
-                onClick={handlePushPending}
-                disabled={pushLoading || pendingCount === 0}
-                className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
-              >
-                {pushLoading ? (
-                  <>
-                    <Loader size={18} className="animate-spin" />
-                    جاري الرفع...
-                  </>
-                ) : (
-                  <>
-                    <Upload size={18} />
-                    📤 رفع البيانات المعلقة ({pendingCount})
-                  </>
-                )}
-              </button>
-              {pendingCount > 0 && (
-                <p className="text-xs text-yellow-600 mt-2 font-[Tajawal]">
-                  ⚠️ هناك {pendingCount} عنصر{pendingCount > 1 ? '' : ''} معلق للرفع
-                </p>
-              )}
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 mb-4 font-[Tajawal]">إعادة محاولة العناصر الفاشلة</h4>
-              <p className="text-sm text-gray-600 mb-4 font-[Tajawal]">
-                استخدم هذا الزر لإعادة محاولة رفع العناصر التي فشلت بعد عدة محاولات.
-              </p>
-              <button
-                onClick={handleRetryFailed}
-                disabled={retryLoading || failedCount === 0}
-                className="w-full flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
-              >
-                {retryLoading ? (
-                  <>
-                    <Loader size={18} className="animate-spin" />
-                    جاري الإعادة...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw size={18} />
-                    🔄 إعادة محاولة العناصر الفاشلة ({failedCount})
-                  </>
-                )}
-              </button>
-              {failedCount > 0 && (
-                <p className="text-xs text-orange-600 mt-2 font-[Tajawal]">
-                  ⚠️ هناك {failedCount} عنصر{failedCount > 1 ? '' : ''} فاشل يحتاج إعادة محاولة
-                </p>
-              )}
             </div>
 
             <div>
@@ -802,7 +622,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
                 ) : (
                   <>
                     <RefreshCw size={18} />
-                    ⚠️ إعادة تحميل البيانات من السيرفر
+                    إعادة تحميل قاعدة البيانات (Hard Reset)
                   </>
                 )}
               </button>
@@ -814,6 +634,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
         </div>
       )}
     </div>
+
   );
 };
 

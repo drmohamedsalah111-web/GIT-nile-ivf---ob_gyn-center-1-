@@ -14,7 +14,7 @@ import { db as ivfService } from '../services/ivfService';
 import { obstetricsService } from '../services/obstetricsService';
 import { Patient, IvfCycle, Pregnancy } from '../types';
 import { useBranding } from '../context/BrandingContext';
-import { syncService } from '../src/services/syncService';
+
 import toast from 'react-hot-toast';
 
 const Dashboard: React.FC = () => {
@@ -22,27 +22,34 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
-  const [syncStatus, setSyncStatus] = useState(syncService.getSyncStatus());
+
 
   // Live queries for real-time data
   const { data: patients = [] } = usePowerSyncQuery<Patient>('SELECT * FROM patients');
-  const { data: cycles = [] } = usePowerSyncQuery<IvfCycle>('SELECT * FROM ivf_cycles');
-  const { data: pregnancies = [] } = usePowerSyncQuery<Pregnancy>('SELECT * FROM pregnancies');
+  const { data: cycles = [] } = usePowerSyncQuery<any>('SELECT * FROM ivf_cycles');
+  const { data: pregnancies = [] } = usePowerSyncQuery<any>('SELECT * FROM pregnancies');
 
   // Calculate comprehensive stats
   const stats = useMemo(() => {
     if (!patients || !cycles || !pregnancies) return null;
 
-    const activeCycles = cycles.filter(c => c.status === 'Active').length;
-    const completedCycles = cycles.filter(c => c.status === 'Completed').length;
-    const highRiskPregnancies = pregnancies.filter(p => p.risk_level === 'high').length;
+    const activeCycles = cycles.filter((c: any) => c.status === 'Active').length;
+    const completedCycles = cycles.filter((c: any) => c.status === 'Completed').length;
+    const highRiskPregnancies = pregnancies.filter((p: any) => p.risk_level === 'high').length;
     const totalPregnancies = pregnancies.length;
 
     // Mock today's visits (would come from visits table)
     const todayVisits = Math.floor(Math.random() * 15) + 5;
 
     // Calculate success rates
-    const successfulCycles = cycles.filter(c => c.outcome_data?.clinicalPregnancy).length;
+    const successfulCycles = cycles.filter((c: any) => {
+      try {
+        const outcome = c.outcome_data ? JSON.parse(c.outcome_data) : {};
+        return outcome.clinicalPregnancy;
+      } catch (e) {
+        return false;
+      }
+    }).length;
     const successRate = cycles.length > 0 ? Math.round((successfulCycles / cycles.length) * 100) : 0;
 
     return {
@@ -68,8 +75,8 @@ const Dashboard: React.FC = () => {
         patient.phone.includes(searchTerm);
 
       const matchesDepartment = selectedDepartment === 'all' ||
-        (selectedDepartment === 'ivf' && (cycles as any[])?.some(c => c.patient_id === patient.id || c.patient_id === patient.id.toString())) ||
-        (selectedDepartment === 'ob' && (pregnancies as any[])?.some(p => p.patient_id === patient.id || p.patient_id === patient.id.toString()));
+        (selectedDepartment === 'ivf' && cycles.some((c: any) => c.patient_id === patient.id || c.patient_id === String(patient.id))) ||
+        (selectedDepartment === 'ob' && pregnancies.some((p: any) => p.patient_id === patient.id || p.patient_id === String(patient.id)));
 
       return matchesSearch && matchesDepartment;
     }).slice(0, 10); // Show top 10
@@ -96,15 +103,6 @@ const Dashboard: React.FC = () => {
     { name: 'Gynecology', patients: Math.floor((patients?.length || 0) * 0.6), color: '#EF4444' },
   ];
 
-  useEffect(() => {
-    // Update sync status periodically
-    const interval = setInterval(() => {
-      setSyncStatus(syncService.getSyncStatus());
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
-
   // Set loading to false once we have data
   useEffect(() => {
     if (patients !== undefined && cycles !== undefined && pregnancies !== undefined) {
@@ -114,8 +112,8 @@ const Dashboard: React.FC = () => {
 
   const handleRefresh = async () => {
     try {
-      await syncService.forceSync();
-      toast.success('Data refreshed successfully');
+      // Refresh logic if needed, or just toast
+      toast.success('Data refreshed');
     } catch (error) {
       toast.error('Failed to refresh data');
     }
@@ -123,8 +121,8 @@ const Dashboard: React.FC = () => {
 
   const getPatientStatus = (patient: Patient) => {
     const patientId = patient.id?.toString();
-    const hasActiveCycle = cycles?.some(c => c.patient_id === patientId && c.status === 'Active');
-    const hasPregnancy = pregnancies?.some(p => p.patient_id === patientId);
+    const hasActiveCycle = cycles?.some((c: any) => c.patient_id === patientId && c.status === 'Active');
+    const hasPregnancy = pregnancies?.some((p: any) => p.patient_id === patientId);
 
     if (hasActiveCycle) return { status: 'IVF Active', color: 'bg-purple-100 text-purple-800' };
     if (hasPregnancy) return { status: 'Pregnancy Care', color: 'bg-pink-100 text-pink-800' };
@@ -155,21 +153,12 @@ const Dashboard: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Sync Status */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
-              <div className={`w-2 h-2 rounded-full ${syncStatus.isOnline ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="text-sm text-gray-600">
-                {syncStatus.isOnline ? 'Online' : 'Offline'}
-                {syncStatus.syncInProgress && ' (Syncing...)'}
-              </span>
-            </div>
-
             {/* Refresh Button */}
             <button
               onClick={handleRefresh}
               className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
             >
-              <RefreshCw className={`w-4 h-4 ${syncStatus.syncInProgress ? 'animate-spin' : ''}`} />
+              <RefreshCw className="w-4 h-4" />
               Refresh
             </button>
           </div>
