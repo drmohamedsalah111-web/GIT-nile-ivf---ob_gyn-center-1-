@@ -44,10 +44,47 @@ export default defineConfig({
         categories: ['medical', 'health', 'productivity']
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // IMPORTANT (offline-first SQLite):
+        // PowerSync / wa-sqlite load WASM + worker chunks from /assets at runtime.
+        // If those assets are not cached by the service worker, an offline reload will crash
+        // with ERR_INTERNET_DISCONNECTED while fetching e.g. /assets/wa-sqlite-async-*.wasm.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
+        // Default Workbox precache limit is 2 MiB, but wa-sqlite-async wasm is > 2 MiB.
+        // We must allow precaching these WASM binaries, otherwise offline reloads crash.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
+          // Cache wasm binaries for offline reloads
           {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            urlPattern: /\/assets\/.*\.wasm$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'wasm-cache',
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 365
+              }
+            }
+          },
+          // Cache web worker chunks for offline reloads
+          {
+            urlPattern: /\/assets\/.*\.worker-.*\.js$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'worker-cache',
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 365
+              }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*$/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'google-fonts-cache',
@@ -61,7 +98,7 @@ export default defineConfig({
             }
           },
           {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*$/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'gstatic-fonts-cache',
