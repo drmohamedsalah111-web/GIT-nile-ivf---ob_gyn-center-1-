@@ -28,11 +28,12 @@ export function usePatients() {
         'SELECT * FROM patients ORDER BY created_at DESC'
     );
 
-    // Fallback: Fetch from Supabase directly if PowerSync is not connected
+    // Fallback: Fetch from Supabase directly if online and local PowerSync has no data
+    // Local PowerSync DB must never be cleared automatically to preserve offline data.
     useEffect(() => {
         const fetchFromSupabase = async () => {
-            // Only fetch from Supabase if PowerSync is not connected and we have no data
-            if (!powerSyncStatus.connected && powerSyncData.length === 0 && !isLoadingPowerSync) {
+            // Only fetch from Supabase if online, local has no data, and we haven't fetched yet
+            if (navigator.onLine && powerSyncData.length === 0 && !isLoadingPowerSync) {
                 setIsLoadingSupabase(true);
                 try {
                     const user = await supabase.auth.getUser();
@@ -41,7 +42,7 @@ export function usePatients() {
                             .from('patients')
                             .select('*')
                             .order('created_at', { ascending: false });
-                        
+
                         if (error) {
                             console.error('❌ Error fetching patients from Supabase:', error);
                         } else if (data) {
@@ -58,22 +59,20 @@ export function usePatients() {
         };
 
         fetchFromSupabase();
-    }, [powerSyncStatus.connected, powerSyncData.length, isLoadingPowerSync]);
+    }, [powerSyncData.length, isLoadingPowerSync]);
 
-    // Use PowerSync data if available, otherwise use Supabase fallback
-    const patients = powerSyncStatus.connected && powerSyncData.length > 0 
-        ? powerSyncData 
-        : (supabasePatients.length > 0 ? supabasePatients : powerSyncData);
+    // Offline-first: Use PowerSync data if available, otherwise use Supabase fallback
+    const patients = powerSyncData.length > 0 ? powerSyncData : supabasePatients;
     
     const isLoading = isLoadingPowerSync || isLoadingSupabase;
     const error = powerSyncError;
 
-    console.log('🔄 usePatients hook:', { 
-        patients: patients.length, 
-        isLoading, 
+    console.log('🔄 usePatients hook:', {
+        patients: patients.length,
+        isLoading,
         error,
         powerSyncConnected: powerSyncStatus.connected,
-        source: powerSyncStatus.connected ? 'PowerSync' : 'Supabase'
+        source: powerSyncData.length > 0 ? 'PowerSync' : 'Supabase'
     });
 
     const addPatient = async (patient: Omit<Patient, 'id' | 'created_at' | 'updated_at'>) => {

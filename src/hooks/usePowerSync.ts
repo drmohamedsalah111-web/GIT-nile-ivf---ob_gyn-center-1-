@@ -29,10 +29,11 @@ export function usePowerSyncQuery<T = any>(sql: string, parameters: any[] = []) 
     useEffect(() => {
         const fetchFromSupabase = async () => {
             // Only fetch once if online, local has no data, and we haven't fetched yet
+            // Local PowerSync DB must never be cleared automatically to preserve offline data.
             if (navigator.onLine && powerSyncData.length === 0 && tableName && !hasFetchedSupabase && !isLoadingPowerSync) {
                 setIsLoadingSupabase(true);
                 setHasFetchedSupabase(true);
-                
+
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
                     if (!user) {
@@ -42,10 +43,10 @@ export function usePowerSyncQuery<T = any>(sql: string, parameters: any[] = []) 
                     }
 
                     console.log(`🔄 Fetching ${tableName} from Supabase (fallback mode)...`);
-                    
+
                     // Build basic query
                     let query = supabase.from(tableName).select('*');
-                    
+
                     // Handle WHERE clause with parameters
                     if (parameters.length > 0 && sql.includes('WHERE')) {
                         const whereMatch = sql.match(/WHERE\s+(.+?)(?:\s+ORDER|\s+LIMIT|$)/i);
@@ -61,7 +62,7 @@ export function usePowerSyncQuery<T = any>(sql: string, parameters: any[] = []) 
                             }
                         }
                     }
-                    
+
                     // Handle ORDER BY
                     const orderMatch = sql.match(/ORDER\s+BY\s+(\w+)(?:\s+(ASC|DESC))?/i);
                     if (orderMatch) {
@@ -69,9 +70,9 @@ export function usePowerSyncQuery<T = any>(sql: string, parameters: any[] = []) 
                         const orderDirection = orderMatch[2]?.toLowerCase() === 'desc' ? { ascending: false } : { ascending: true };
                         query = query.order(orderColumn, orderDirection);
                     }
-                    
+
                     const { data, error } = await query;
-                    
+
                     if (error) {
                         console.error(`❌ Error fetching ${tableName} from Supabase:`, error);
                     } else if (data && data.length > 0) {
@@ -89,15 +90,7 @@ export function usePowerSyncQuery<T = any>(sql: string, parameters: any[] = []) 
         };
 
         fetchFromSupabase();
-    }, [powerSyncStatus.connected, tableName, hasFetchedSupabase, isLoadingPowerSync]);
-
-    // Reset Supabase fetch flag when PowerSync connects
-    useEffect(() => {
-        if (powerSyncStatus.connected) {
-            setHasFetchedSupabase(false);
-            setSupabaseData([]);
-        }
-    }, [powerSyncStatus.connected]);
+    }, [powerSyncData.length, tableName, hasFetchedSupabase, isLoadingPowerSync]);
 
     // Return PowerSync data first (offline-first), fallback to Supabase only if PowerSync has no data
     const data = powerSyncData.length > 0

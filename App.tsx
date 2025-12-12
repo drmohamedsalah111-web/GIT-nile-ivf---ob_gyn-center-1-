@@ -75,20 +75,7 @@ const App: React.FC = () => {
         }
         setUser(currentUser);
 
-        // 3. Initialize PowerSync (non-blocking)
-        if (currentUser) {
-          console.log('📱 App: User authenticated, initializing PowerSync...');
-          try {
-            await initPowerSync();
-          } catch (syncError: any) {
-            console.warn('⚠️ PowerSync init failed (app will work offline):', syncError?.message);
-            // Log detailed error for debugging
-            if (syncError?.message?.includes('متغيرات البيئة')) {
-              console.error('❌ Environment variables missing. Please check .env file');
-            }
-            // Don't set error - app can work offline
-          }
-        }
+        // PowerSync initialization is handled in auth state change listener
 
       } catch (error: any) {
         console.error('❌ Critical App Initialization Error:', error?.message);
