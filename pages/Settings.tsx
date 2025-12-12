@@ -8,7 +8,7 @@ import { powerSyncDb } from '../src/powersync/client';
 import RefreshButton from '../components/RefreshButton';
 import { useStatus } from '@powersync/react';
 import { supabase } from '../services/supabaseClient';
-import { initPowerSync } from '../src/powersync/client';
+import { connectPowerSync } from '../src/powersync/client';
 
 interface SettingsProps {
   user: any;
@@ -107,12 +107,11 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
             error: sessionError?.message || 'No active session'
           });
         } else {
-          // Test database query
-          const { error: dbError } = await supabase.from('patients').select('id').limit(1);
+          // In PowerSync-only dev mode, Supabase is used ONLY for auth/token.
+          // Do not query Supabase tables from the UI.
           setSupabaseStatus({
-            connected: !dbError,
+            connected: true,
             url: supabaseUrl,
-            error: dbError?.message,
             user: session.user
           });
         }
@@ -133,8 +132,8 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
       setCheckingConnection(true);
       toast.loading('جاري إعادة الاتصال...', { id: 'reconnect' });
       
-      // Force reconnection by passing force=true
-      await initPowerSync(3, 2000, true);
+      // Force reconnection
+      await connectPowerSync({ force: true });
       
       // Wait a bit for status to update
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -802,7 +801,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
               {supabaseStatus.connected && powerSyncStatus.connected
                 ? '✅ جميع الاتصالات تعمل بشكل صحيح - البيانات متزامنة'
                 : supabaseStatus.connected
-                ? '⚠️ Supabase متصل، لكن PowerSync غير متصل - البيانات متاحة من Supabase مباشرة'
+                ? '⚠️ Supabase متصل، لكن PowerSync غير متصل'
                 : powerSyncStatus.connected
                 ? '⚠️ PowerSync متصل، لكن Supabase غير متصل'
                 : '❌ جميع الاتصالات فاشلة - يرجى التحقق من الإعدادات'}

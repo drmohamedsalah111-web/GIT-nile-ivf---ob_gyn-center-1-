@@ -1,7 +1,5 @@
 import { usePowerSync } from '@powersync/react';
 import { usePowerSyncQuery } from './usePowerSync';
-import { supabase } from '../lib/supabase';
-import { useState, useEffect } from 'react';
 import { useStatus } from '@powersync/react';
 
 export interface Patient {
@@ -19,52 +17,18 @@ export interface Patient {
 
 export function usePatients() {
     const powerSync = usePowerSync();
-    const powerSyncStatus = useStatus();
-    const [supabasePatients, setSupabasePatients] = useState<Patient[]>([]);
-    const [isLoadingSupabase, setIsLoadingSupabase] = useState(false);
+    const powerSyncStatus = useStatus() as any;
 
     // Live query for all patients from PowerSync
     const { data: powerSyncData = [], isLoading: isLoadingPowerSync, error: powerSyncError } = usePowerSyncQuery<Patient>(
         'SELECT * FROM patients ORDER BY created_at DESC'
     );
 
-    // Fallback: Fetch from Supabase directly if online and local PowerSync has no data
-    // Local PowerSync DB must never be cleared automatically to preserve offline data.
-    useEffect(() => {
-        const fetchFromSupabase = async () => {
-            // Only fetch from Supabase if online, local has no data, and we haven't fetched yet
-            if (navigator.onLine && powerSyncData.length === 0 && !isLoadingPowerSync) {
-                setIsLoadingSupabase(true);
-                try {
-                    const user = await supabase.auth.getUser();
-                    if (user.data.user) {
-                        const { data, error } = await supabase
-                            .from('patients')
-                            .select('*')
-                            .order('created_at', { ascending: false });
+    // PowerSync-only
+    const patients = powerSyncData;
 
-                        if (error) {
-                            console.error('❌ Error fetching patients from Supabase:', error);
-                        } else if (data) {
-                            console.log('✅ Fetched patients from Supabase:', data.length);
-                            setSupabasePatients(data as Patient[]);
-                        }
-                    }
-                } catch (error) {
-                    console.error('❌ Error in Supabase fallback:', error);
-                } finally {
-                    setIsLoadingSupabase(false);
-                }
-            }
-        };
-
-        fetchFromSupabase();
-    }, [powerSyncData.length, isLoadingPowerSync]);
-
-    // Offline-first: Use PowerSync data if available, otherwise use Supabase fallback
-    const patients = powerSyncData.length > 0 ? powerSyncData : supabasePatients;
-    
-    const isLoading = isLoadingPowerSync || isLoadingSupabase;
+    // While syncing, keep UI in loading state
+    const isLoading = isLoadingPowerSync || powerSyncStatus.connecting || powerSyncStatus.downloading || powerSyncStatus.uploading;
     const error = powerSyncError;
 
     console.log('🔄 usePatients hook:', {
@@ -72,7 +36,7 @@ export function usePatients() {
         isLoading,
         error,
         powerSyncConnected: powerSyncStatus.connected,
-        source: powerSyncData.length > 0 ? 'PowerSync' : 'Supabase'
+        source: 'PowerSync'
     });
 
     const addPatient = async (patient: Omit<Patient, 'id' | 'created_at' | 'updated_at'>) => {

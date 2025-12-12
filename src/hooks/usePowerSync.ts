@@ -1,106 +1,26 @@
 import { useQuery, useStatus } from '@powersync/react';
-import { powerSyncDb } from '../powersync/client';
-import { supabase } from '../lib/supabase';
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
+import { getDb } from '../powersync/client';
 
-// Hook for querying PowerSync data with Supabase fallback
+export type PowerSyncUiStatus = 'OFFLINE' | 'SYNCING' | 'READY';
+
+function mapUiStatus(status: any): PowerSyncUiStatus {
+    if (!status?.connected) return 'OFFLINE';
+    if (status?.uploading || status?.downloading || status?.connecting) return 'SYNCING';
+    return 'READY';
+}
+
+// Hook for querying PowerSync data (PowerSync-only; no Supabase fallback)
 export function usePowerSyncQuery<T = any>(sql: string, parameters: any[] = []) {
-    const powerSyncStatus = useStatus();
-    const [supabaseData, setSupabaseData] = useState<T[]>([]);
-    const [isLoadingSupabase, setIsLoadingSupabase] = useState(false);
-    const [hasFetchedSupabase, setHasFetchedSupabase] = useState(false);
-    
-    // Try PowerSync first
-    let powerSyncQueryResult;
-    try {
-        powerSyncQueryResult = useQuery<T>(sql, parameters);
-    } catch (error) {
-        console.warn('⚠️ PowerSync query failed, using Supabase fallback:', error);
-        powerSyncQueryResult = { data: [], isLoading: false, error };
-    }
-    
-    const { data: powerSyncData = [], isLoading: isLoadingPowerSync, error: powerSyncError } = powerSyncQueryResult;
+    const status = useStatus() as any;
+    const uiStatus = useMemo(() => mapUiStatus(status), [status?.connected, status?.uploading, status?.downloading, status?.connecting]);
 
-    // Extract table name from SQL
-    const tableMatch = sql.match(/FROM\s+(\w+)/i);
-    const tableName = tableMatch ? tableMatch[1] : null;
+    const { data = [], isLoading: queryLoading, error } = useQuery<T>(sql, parameters);
 
-    // Fallback to Supabase only when online and local PowerSync has no data
-    useEffect(() => {
-        const fetchFromSupabase = async () => {
-            // Only fetch once if online, local has no data, and we haven't fetched yet
-            // Local PowerSync DB must never be cleared automatically to preserve offline data.
-            if (navigator.onLine && powerSyncData.length === 0 && tableName && !hasFetchedSupabase && !isLoadingPowerSync) {
-                setIsLoadingSupabase(true);
-                setHasFetchedSupabase(true);
+    // While PowerSync is syncing, keep UI in loading state to avoid showing empty placeholders.
+    const isLoading = queryLoading || uiStatus === 'SYNCING';
 
-                try {
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (!user) {
-                        console.warn('⚠️ No user logged in for Supabase fallback');
-                        setIsLoadingSupabase(false);
-                        return;
-                    }
-
-                    console.log(`🔄 Fetching ${tableName} from Supabase (fallback mode)...`);
-
-                    // Build basic query
-                    let query = supabase.from(tableName).select('*');
-
-                    // Handle WHERE clause with parameters
-                    if (parameters.length > 0 && sql.includes('WHERE')) {
-                        const whereMatch = sql.match(/WHERE\s+(.+?)(?:\s+ORDER|\s+LIMIT|$)/i);
-                        if (whereMatch) {
-                            const whereClause = whereMatch[1];
-                            // Handle common patterns: patient_id = ?, doctor_id = ?
-                            if (whereClause.includes('patient_id = ?')) {
-                                query = query.eq('patient_id', parameters[0]);
-                            } else if (whereClause.includes('doctor_id = ?')) {
-                                query = query.eq('doctor_id', parameters[0]);
-                            } else if (whereClause.includes('id = ?')) {
-                                query = query.eq('id', parameters[0]);
-                            }
-                        }
-                    }
-
-                    // Handle ORDER BY
-                    const orderMatch = sql.match(/ORDER\s+BY\s+(\w+)(?:\s+(ASC|DESC))?/i);
-                    if (orderMatch) {
-                        const orderColumn = orderMatch[1];
-                        const orderDirection = orderMatch[2]?.toLowerCase() === 'desc' ? { ascending: false } : { ascending: true };
-                        query = query.order(orderColumn, orderDirection);
-                    }
-
-                    const { data, error } = await query;
-
-                    if (error) {
-                        console.error(`❌ Error fetching ${tableName} from Supabase:`, error);
-                    } else if (data && data.length > 0) {
-                        console.log(`✅ Fetched ${data.length} records from Supabase (${tableName})`);
-                        setSupabaseData(data as T[]);
-                    } else {
-                        console.log(`ℹ️ No data found in Supabase for ${tableName}`);
-                    }
-                } catch (error) {
-                    console.error(`❌ Error in Supabase fallback for ${tableName}:`, error);
-                } finally {
-                    setIsLoadingSupabase(false);
-                }
-            }
-        };
-
-        fetchFromSupabase();
-    }, [powerSyncData.length, tableName, hasFetchedSupabase, isLoadingPowerSync]);
-
-    // Return PowerSync data first (offline-first), fallback to Supabase only if PowerSync has no data
-    const data = powerSyncData.length > 0
-        ? powerSyncData
-        : supabaseData;
-    
-    const isLoading = isLoadingPowerSync || isLoadingSupabase;
-    const error = powerSyncError;
-
-    return { data, isLoading, error };
+    return { data, isLoading, error, status: uiStatus };
 }
 
 // Helper hooks for common queries
@@ -123,4 +43,4 @@ export function usePowerSyncCycles(patientId?: string) {
 }
 
 // Direct database access for writes
-export { powerSyncDb as db };
+export const db = getDb();

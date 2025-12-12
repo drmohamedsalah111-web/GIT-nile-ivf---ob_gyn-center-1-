@@ -17,7 +17,7 @@ import { authService } from './services/authService';
 import { LogOut, WifiOff, Wifi } from 'lucide-react';
 import { BrandingProvider } from './context/BrandingContext';
 import { initPWA } from './src/lib/pwa';
-import { initPowerSync } from './src/powersync/client';
+import { connectPowerSync } from './src/powersync/client';
 import { useStatus } from '@powersync/react';
 
 const App: React.FC = () => {
@@ -137,17 +137,12 @@ const App: React.FC = () => {
           isPowerSyncInitialized = true;
           console.log('📱 App: Auth state changed (new user), initializing PowerSync...');
           try {
-            await initPowerSync();
+            await connectPowerSync();
             setConnectionError(null);
           } catch (err: any) {
             console.warn('⚠️ PowerSync connection failed (offline mode will be used):', err?.message);
-            // Log detailed error for debugging
-            if (err?.message?.includes('متغيرات البيئة')) {
-              console.error('❌ Please check your .env file for missing variables');
-            }
-            // Don't set error for PowerSync failures - offline mode is expected
-            // Data will be available directly from Supabase
-            isPowerSyncInitialized = false; // Allow retry on next auth change
+            // No reconnect loops here; keep failure non-fatal.
+            // Manual reconnect can be triggered from Settings / debug tools.
           }
         } else {
           console.log('📱 App: Auth state changed but PowerSync already initialized, skipping...');
@@ -257,7 +252,7 @@ const App: React.FC = () => {
                     onClick={async () => {
                       if (navigator.onLine) {
                         try {
-                          await initPowerSync();
+                          await connectPowerSync({ force: true });
                         } catch (error: any) {
                           console.error('❌ Manual retry failed:', error?.message);
                         }

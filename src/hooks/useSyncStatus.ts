@@ -1,20 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useStatus } from '@powersync/react';
 
+export type PowerSyncUiStatus = 'OFFLINE' | 'SYNCING' | 'READY';
+
 export interface SyncStatus {
-  isOnline: boolean;
-  syncInProgress: boolean;
-  pendingItemsCount: number;
+  uiStatus: PowerSyncUiStatus;
   lastSyncTime?: Date;
+}
+
+function mapUiStatus(status: any): PowerSyncUiStatus {
+  if (!status?.connected) return 'OFFLINE';
+  if (status?.uploading || status?.downloading || status?.connecting) return 'SYNCING';
+  return 'READY';
 }
 
 export const useSyncStatus = (): SyncStatus => {
   const status = useStatus() as any;
 
   return {
-    isOnline: status.connected,
-    syncInProgress: status.uploading || status.downloading,
-    pendingItemsCount: 0, // PowerSync handles this internally
+    uiStatus: mapUiStatus(status),
     lastSyncTime: status.lastSyncedAt
   };
 };

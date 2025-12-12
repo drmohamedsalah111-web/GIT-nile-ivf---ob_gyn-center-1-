@@ -1,32 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, CloudOff, AlertCircle, RotateCw } from 'lucide-react';
+import { Cloud, CloudOff, RotateCw } from 'lucide-react';
 import { useSyncStatus } from '../src/hooks/useSyncStatus';
-import { initPowerSync } from '../src/powersync/client';
+import { connectPowerSync } from '../src/powersync/client';
 import toast from 'react-hot-toast';
 
-interface SyncStatusState {
-  isOnline: boolean;
-  syncInProgress: boolean;
-  pendingCount: number;
-  hasErrors: boolean;
-}
 
 const SyncStatus: React.FC = () => {
   // Use PowerSync status as single source of truth
-  const { isOnline, syncInProgress, lastSyncTime } = useSyncStatus();
+  const { uiStatus, lastSyncTime } = useSyncStatus();
   const [showTooltip, setShowTooltip] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
 
   // Debug logging for PowerSync status
-  console.log('🔌 PowerSync Status:', { isOnline, syncInProgress, lastSyncTime });
-
-  // Map PowerSync status to component state
-  const status: SyncStatusState = {
-    isOnline,
-    syncInProgress,
-    pendingCount: 0, // PowerSync handles this internally
-    hasErrors: false // Will be determined by connection state
-  };
+  console.log('🔌 PowerSync Status:', { uiStatus, lastSyncTime });
 
   useEffect(() => {
     // Listen for network changes and show toasts
@@ -50,7 +36,7 @@ const SyncStatus: React.FC = () => {
   const handleRetrySync = async () => {
     setIsRetrying(true);
     try {
-      await initPowerSync(3, 2000, true); // Force reconnection
+      await connectPowerSync({ force: true });
       toast.success('✅ PowerSync reconnected');
     } catch (error) {
       toast.error('❌ Reconnection failed - check your connection');
@@ -61,22 +47,22 @@ const SyncStatus: React.FC = () => {
 
   // Determine status color and icon based on PowerSync status
   const getStatusDisplay = () => {
-    if (!isOnline) {
+    if (uiStatus === 'OFFLINE') {
       return {
         color: 'text-gray-400',
         bgColor: 'bg-gray-100 hover:bg-gray-200',
         icon: <CloudOff className="w-5 h-5" />,
-        label: 'Offline Mode',
+        label: 'OFFLINE',
         description: 'Data available locally'
       };
     }
 
-    if (syncInProgress) {
+    if (uiStatus === 'SYNCING') {
       return {
         color: 'text-amber-500',
         bgColor: 'bg-amber-100 hover:bg-amber-200',
         icon: <Cloud className="w-5 h-5 animate-pulse" />,
-        label: 'Syncing...',
+        label: 'SYNCING',
         description: 'Synchronizing data...'
       };
     }
@@ -85,13 +71,13 @@ const SyncStatus: React.FC = () => {
       color: 'text-green-500',
       bgColor: 'bg-green-100 hover:bg-green-200',
       icon: <Cloud className="w-5 h-5" />,
-      label: 'Connected',
+      label: 'READY',
       description: lastSyncTime ? `Synced: ${new Date(lastSyncTime).toLocaleTimeString()}` : 'All synced'
     };
   };
 
   const display = getStatusDisplay();
-  const isError = status.hasErrors;
+  const isError = false;
 
   return (
     <div className="relative">
@@ -124,15 +110,9 @@ const SyncStatus: React.FC = () => {
           {/* Status indicators */}
           <div className="space-y-1 text-xs">
             <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+              <span className={`w-2 h-2 rounded-full ${uiStatus === 'OFFLINE' ? 'bg-gray-400' : 'bg-green-500'}`}></span>
               <span className="text-gray-700">
-                {isOnline ? 'PowerSync Connected' : 'Offline Mode'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${syncInProgress ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`}></span>
-              <span className="text-gray-700">
-                {syncInProgress ? 'Syncing' : 'Synced'}
+                {uiStatus}
               </span>
             </div>
           </div>
