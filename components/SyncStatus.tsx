@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Cloud, CloudOff, AlertCircle, RotateCw } from 'lucide-react';
-import { syncService } from '../src/services/syncService';
+import { useSyncStatus } from '../src/hooks/useSyncStatus';
+import { initPowerSync } from '../src/powersync/client';
 import toast from 'react-hot-toast';
 
 interface SyncStatusState {
@@ -11,44 +12,33 @@ interface SyncStatusState {
 }
 
 const SyncStatus: React.FC = () => {
-  const [status, setStatus] = useState<SyncStatusState>({
-    isOnline: navigator.onLine,
-    syncInProgress: false,
-    pendingCount: 0,
-    hasErrors: false
-  });
+  // Use PowerSync status as single source of truth
+  const { isOnline, syncInProgress, lastSyncTime } = useSyncStatus();
   const [showTooltip, setShowTooltip] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
 
-  useEffect(() => {
-    const updateStatus = () => {
-      const syncStatus = syncService.getSyncStatus();
-      setStatus(prev => ({
-        ...prev,
-        isOnline: syncStatus.isOnline,
-        syncInProgress: syncStatus.syncInProgress
-      }));
-    };
+  // Map PowerSync status to component state
+  const status: SyncStatusState = {
+    isOnline,
+    syncInProgress,
+    pendingCount: 0, // PowerSync handles this internally
+    hasErrors: false // Will be determined by connection state
+  };
 
-    // Check status every 2 seconds
-    const interval = setInterval(updateStatus, 2000);
-    
-    // Listen for network changes
+  useEffect(() => {
+    // Listen for network changes and show toasts
     const handleOnline = () => {
-      setStatus(prev => ({ ...prev, isOnline: true }));
-      toast.success('🔄 Connection restored - syncing...');
+      toast.success('🔄 Connection restored - PowerSync will sync automatically');
     };
 
     const handleOffline = () => {
-      setStatus(prev => ({ ...prev, isOnline: false }));
-      toast.error('📴 Connection lost');
+      toast.error('📴 Connection lost - working offline');
     };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
     return () => {
-      clearInterval(interval);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
@@ -57,46 +47,34 @@ const SyncStatus: React.FC = () => {
   const handleRetrySync = async () => {
     setIsRetrying(true);
     try {
-      await syncService.forceSync();
-      toast.success('✅ Sync completed');
+      await initPowerSync(3, 2000, true); // Force reconnection
+      toast.success('✅ PowerSync reconnected');
     } catch (error) {
-      toast.error('❌ Sync failed - check your connection');
+      toast.error('❌ Reconnection failed - check your connection');
     } finally {
       setIsRetrying(false);
     }
   };
 
-  // Determine status color and icon
+  // Determine status color and icon based on PowerSync status
   const getStatusDisplay = () => {
-    if (!status.isOnline) {
+    if (!isOnline) {
       return {
         color: 'text-gray-400',
         bgColor: 'bg-gray-100 hover:bg-gray-200',
         icon: <CloudOff className="w-5 h-5" />,
-        label: 'Offline',
-        description: 'Waiting for connection...'
+        label: 'Offline Mode',
+        description: 'Data available locally'
       };
     }
 
-    if (status.hasErrors) {
-      return {
-        color: 'text-red-500',
-        bgColor: 'bg-red-100 hover:bg-red-200',
-        icon: <AlertCircle className="w-5 h-5" />,
-        label: 'Sync Error',
-        description: 'Click to retry'
-      };
-    }
-
-    if (status.syncInProgress || status.pendingCount > 0) {
+    if (syncInProgress) {
       return {
         color: 'text-amber-500',
         bgColor: 'bg-amber-100 hover:bg-amber-200',
-        icon: (
-          <Cloud className={`w-5 h-5 ${status.syncInProgress ? 'animate-pulse' : ''}`} />
-        ),
+        icon: <Cloud className="w-5 h-5 animate-pulse" />,
         label: 'Syncing...',
-        description: `${status.pendingCount} pending items`
+        description: 'Synchronizing data...'
       };
     }
 
@@ -104,8 +82,8 @@ const SyncStatus: React.FC = () => {
       color: 'text-green-500',
       bgColor: 'bg-green-100 hover:bg-green-200',
       icon: <Cloud className="w-5 h-5" />,
-      label: 'All Synced',
-      description: 'Everything is up to date'
+      label: 'Connected',
+      description: lastSyncTime ? `Synced: ${new Date(lastSyncTime).toLocaleTimeString()}` : 'All synced'
     };
   };
 
@@ -143,15 +121,15 @@ const SyncStatus: React.FC = () => {
           {/* Status indicators */}
           <div className="space-y-1 text-xs">
             <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${status.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+              <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></span>
               <span className="text-gray-700">
-                {status.isOnline ? 'Online' : 'Offline'}
+                {isOnline ? 'PowerSync Connected' : 'Offline Mode'}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${status.syncInProgress ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`}></span>
+              <span className={`w-2 h-2 rounded-full ${syncInProgress ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`}></span>
               <span className="text-gray-700">
-                {status.syncInProgress ? 'Syncing' : 'Idle'}
+                {syncInProgress ? 'Syncing' : 'Synced'}
               </span>
             </div>
           </div>

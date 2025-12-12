@@ -19,6 +19,9 @@ let isConnecting = false;
 let lastConnectionAttempt = 0;
 const CONNECTION_COOLDOWN = 5000; // 5 seconds cooldown between connection attempts
 
+// Track initialization state to ensure PowerSync initializes only once per session
+let isInitialized = false;
+
 // Initialize and connect PowerSync with retry logic
 export async function initPowerSync(retries = 3, delay = 2000, force = false): Promise<void> {
   // Prevent multiple simultaneous connection attempts (unless forced)
@@ -27,9 +30,15 @@ export async function initPowerSync(retries = 3, delay = 2000, force = false): P
     console.log('⏸️ PowerSync connection already in progress, skipping...');
     return;
   }
-  
+
   if (!force && now - lastConnectionAttempt < CONNECTION_COOLDOWN) {
     console.log('⏸️ PowerSync connection cooldown active, skipping...');
+    return;
+  }
+
+  // Prevent multiple initializations unless forced (for offline-first, initialize once per session)
+  if (!force && isInitialized) {
+    console.log('⏸️ PowerSync already initialized for this session, skipping...');
     return;
   }
 
@@ -37,7 +46,7 @@ export async function initPowerSync(retries = 3, delay = 2000, force = false): P
   lastConnectionAttempt = now;
 
   try {
-    console.log('🔌 Initializing PowerSync...');
+    console.log('🚀 PowerSync init start - session initialization');
 
     // Check if offline before attempting connection
     if (!navigator.onLine) {
@@ -85,13 +94,14 @@ export async function initPowerSync(retries = 3, delay = 2000, force = false): P
         
         // Disconnect first if already connected (for reconnection)
         try {
-          await powerSyncDb.disconnectAndClear();
+          await powerSyncDb.disconnect();
         } catch (disconnectError) {
           // Ignore disconnect errors
         }
-        
+
         await powerSyncDb.connect(connector);
-        console.log('✅ PowerSync connected successfully');
+        console.log('✅ PowerSync connection success - offline-first DB ready');
+        isInitialized = true; // Mark as initialized for this session
         return;
       } catch (error: any) {
         const isLastAttempt = attempt === retries;
@@ -100,35 +110,35 @@ export async function initPowerSync(retries = 3, delay = 2000, force = false): P
         console.warn(`⚠️ Error stack:`, error?.stack);
         
         if (isLastAttempt) {
-          console.error('❌ PowerSync connection failed after all retries');
-          console.error('❌ Error details:', error);
-          console.warn('⚠️ التطبيق سيعمل في وضع أوفلاين');
-          console.warn('⚠️ البيانات القديمة متاحة من Supabase مباشرة');
-          
-          // Provide specific error messages
-          if (navigator.onLine) {
-            console.error('❌ Network available but PowerSync connection failed');
-            console.error('❌ Possible causes:');
-            console.error('   1. VITE_POWERSYNC_URL is incorrect');
-            console.error('   2. PowerSync server is down');
-            console.error('   3. Authentication token expired');
-            console.error('   4. Network firewall blocking connection');
-            console.error('   5. PowerSync sync rules not configured');
-            console.error('   6. CORS issues');
-            
-            // Check specific error types
-            if (error?.message?.includes('fetch')) {
-              console.error('❌ Network error detected - check internet connection');
-            }
-            if (error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
-              console.error('❌ Authentication error - token may be expired');
-            }
-            if (error?.message?.includes('CORS')) {
-              console.error('❌ CORS error - check PowerSync server configuration');
-            }
-          }
-          throw error; // Throw to allow caller to handle
-        }
+           console.error('❌ PowerSync connection failure - all retries exhausted');
+           console.error('❌ Final error details:', error);
+           console.warn('⚠️ Switching to offline mode - local data preserved');
+           console.warn('⚠️ App will work with cached data until connection restored');
+
+           // Provide specific error messages
+           if (navigator.onLine) {
+             console.error('❌ Network available but PowerSync connection failed');
+             console.error('❌ Possible causes:');
+             console.error('   1. VITE_POWERSYNC_URL is incorrect');
+             console.error('   2. PowerSync server is down');
+             console.error('   3. Authentication token expired');
+             console.error('   4. Network firewall blocking connection');
+             console.error('   5. PowerSync sync rules not configured');
+             console.error('   6. CORS issues');
+
+             // Check specific error types
+             if (error?.message?.includes('fetch')) {
+               console.error('❌ Network error detected - check internet connection');
+             }
+             if (error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
+               console.error('❌ Authentication error - token may be expired');
+             }
+             if (error?.message?.includes('CORS')) {
+               console.error('❌ CORS error - check PowerSync server configuration');
+             }
+           }
+           throw error; // Throw to allow caller to handle
+         }
         
         // Wait before retrying
         console.log(`⏳ Waiting ${delay}ms before retry...`);

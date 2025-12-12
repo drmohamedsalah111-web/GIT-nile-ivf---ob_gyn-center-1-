@@ -38,12 +38,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Track retry attempts to prevent infinite loops
-  const retryAttemptsRef = useRef(0);
-  const lastRetryTimeRef = useRef(0);
-  const hasGivenUpRef = useRef(false); // Flag to stop retrying after max attempts
-  const MAX_RETRIES = 2; // Reduced to 2 attempts
-  const RETRY_COOLDOWN = 60000; // 60 seconds cooldown between retry attempts
+  // PowerSync initialization is handled once per session in auth state change
 
   useEffect(() => {
     // Only log status changes in development
@@ -52,55 +47,14 @@ const App: React.FC = () => {
       console.log('🔌 Connected:', powerSyncStatus.connected);
       console.log('🔌 Connecting:', powerSyncStatus.connecting);
     }
-    
-    // Stop retrying if we've given up
-    if (hasGivenUpRef.current) {
-      return;
+
+    // Log connection status for debugging (no auto-retry loops)
+    if (powerSyncStatus.connected) {
+      console.log('✅ PowerSync is connected - offline data available');
+    } else if (!powerSyncStatus.connecting) {
+      console.log('⚠️ PowerSync disconnected - working in offline mode');
     }
-    
-    // Auto-retry connection if disconnected but online
-    if (!powerSyncStatus.connected && !powerSyncStatus.connecting && navigator.onLine && user) {
-      const now = Date.now();
-      const timeSinceLastRetry = now - lastRetryTimeRef.current;
-      
-      // Check if we should retry (cooldown period passed and haven't exceeded max retries)
-      if (timeSinceLastRetry > RETRY_COOLDOWN && retryAttemptsRef.current < MAX_RETRIES) {
-        retryAttemptsRef.current++;
-        lastRetryTimeRef.current = now;
-        
-        const timeoutId = setTimeout(async () => {
-          console.log(`🔄 Auto-retrying PowerSync connection (attempt ${retryAttemptsRef.current}/${MAX_RETRIES})...`);
-          try {
-            await initPowerSync();
-            // Reset retry counter on success
-            if (powerSyncStatus.connected) {
-              retryAttemptsRef.current = 0;
-              hasGivenUpRef.current = false;
-            }
-          } catch (error: any) {
-            console.warn('⚠️ Auto-retry failed:', error?.message);
-            if (retryAttemptsRef.current >= MAX_RETRIES) {
-              hasGivenUpRef.current = true;
-              console.warn('⚠️ Max retry attempts reached. PowerSync will work in offline mode.');
-              console.warn('⚠️ البيانات القديمة متاحة من Supabase مباشرة حتى يتم الاتصال.');
-            }
-          }
-        }, 10000); // Retry after 10 seconds
-        
-        return () => clearTimeout(timeoutId);
-      } else if (retryAttemptsRef.current >= MAX_RETRIES) {
-        if (!hasGivenUpRef.current) {
-          hasGivenUpRef.current = true;
-          console.warn('⚠️ Max retry attempts reached. PowerSync will work in offline mode.');
-          console.warn('⚠️ البيانات القديمة متاحة من Supabase مباشرة حتى يتم الاتصال.');
-        }
-      }
-    } else if (powerSyncStatus.connected) {
-      // Reset retry counter when connected
-      retryAttemptsRef.current = 0;
-      hasGivenUpRef.current = false;
-    }
-  }, [powerSyncStatus, user]);
+  }, [powerSyncStatus]);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -190,11 +144,7 @@ const App: React.FC = () => {
       // Only initialize PowerSync if user actually changed (not just auth state refresh)
       if (user && currentUserId !== lastUserId) {
         lastUserId = currentUserId;
-        
-        // Reset retry flags on new login
-        retryAttemptsRef.current = 0;
-        hasGivenUpRef.current = false;
-        
+
         // Only initialize once per user session
         if (!isPowerSyncInitialized) {
           isPowerSyncInitialized = true;
@@ -219,8 +169,6 @@ const App: React.FC = () => {
         // Reset flags on logout
         lastUserId = null;
         isPowerSyncInitialized = false;
-        retryAttemptsRef.current = 0;
-        hasGivenUpRef.current = false;
       } else {
         // Same user, just auth state refresh - don't reinitialize
         // Only log occasionally to reduce spam

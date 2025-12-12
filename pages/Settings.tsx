@@ -308,8 +308,8 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
       toast.loading('جاري تحميل البيانات من السيرفر...', { id: 'hard-reset' });
 
-      // Clear local database to force re-sync on reload
-      await powerSyncDb.disconnectAndClear();
+      // Disconnect to allow clean reconnection (data preserved for offline-first)
+      await powerSyncDb.disconnect();
 
       toast.success('تم إعادة تحميل البيانات بنجاح! سيتم إعادة تحميل الصفحة...', { id: 'hard-reset' });
 

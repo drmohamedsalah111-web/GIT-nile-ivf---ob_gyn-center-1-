@@ -1,26 +1,9 @@
 import { supabase } from './supabaseClient';
 import { authService } from './authService';
 import { Patient, IvfCycle, StimulationLog } from '../types';
+import { powerSyncDb } from '../src/powersync/client';
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000;
-
-const executeWithRetry = async (fn: () => Promise<any>, context: string, retries = MAX_RETRIES): Promise<any> => {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      const isLastAttempt = attempt === retries;
-      console.error(`❌ [${context}] Attempt ${attempt}/${retries} failed:`, error?.message);
-      
-      if (isLastAttempt) {
-        throw new Error(`${context} failed after ${retries} attempts: ${error?.message}`);
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * attempt));
-    }
-  }
-};
+// PowerSync handles retries and offline queuing automatically
 
 export const dbService = {
   // --- Patients ---
@@ -32,14 +15,13 @@ export const dbService = {
       const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
       if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
 
-      const { data, error } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('doctor_id', doctor.id);
+      // Read from PowerSync (offline-first)
+      const result = await powerSyncDb.execute(
+        'SELECT * FROM patients WHERE doctor_id = ? ORDER BY name',
+        [doctor.id]
+      );
 
-      if (error) throw error;
-
-      return (data || []).map((p: any) => ({
+      return result.rows?._array.map((p: any) => ({
         id: p.id,
         name: p.name,
         age: p.age || 0,
@@ -47,7 +29,7 @@ export const dbService = {
         husbandName: p.husband_name || '',
         history: p.history || '',
         createdAt: p.created_at || new Date().toISOString()
-      }));
+      })) || [];
     } catch (error: any) {
       console.error('❌ getPatients error:', error?.message);
       throw new Error(`فشل في جلب قائمة المرضى: ${error?.message}`);
@@ -65,21 +47,14 @@ export const dbService = {
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
 
-      await executeWithRetry(
-        () => supabase.from('patients').insert({
-          id,
-          name: patient.name,
-          age: patient.age,
-          phone: patient.phone,
-          husband_name: patient.husbandName,
-          history: patient.history,
-          doctor_id: doctor.id,
-          created_at: now,
-          updated_at: now
-        }),
-        'Save Patient'
+      // Write to PowerSync (offline-first)
+      await powerSyncDb.execute(
+        `INSERT INTO patients (id, name, age, phone, husband_name, history, doctor_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, patient.name, patient.age, patient.phone, patient.husbandName, patient.history, doctor.id, now, now]
       );
 
+      console.log('✅ Patient saved to PowerSync:', id);
       return { id, ...patient, createdAt: now };
     } catch (error: any) {
       console.error('❌ savePatient error:', error?.message);
@@ -96,16 +71,18 @@ export const dbService = {
       const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
       if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
 
-      const [cyclesData, logsData] = await Promise.all([
-        supabase.from('ivf_cycles').select('*').eq('doctor_id', doctor.id),
-        supabase.from('stimulation_logs').select('*')
-      ]);
+      // Read from PowerSync (offline-first)
+      const cyclesResult = await powerSyncDb.execute(
+        'SELECT * FROM ivf_cycles WHERE doctor_id = ? ORDER BY start_date DESC',
+        [doctor.id]
+      );
 
-      if (cyclesData.error) throw cyclesData.error;
-      if (logsData.error) throw logsData.error;
+      const logsResult = await powerSyncDb.execute(
+        'SELECT * FROM stimulation_logs ORDER BY date DESC'
+      );
 
-      const cycles = cyclesData.data || [];
-      const logs = logsData.data || [];
+      const cycles = cyclesResult.rows?._array || [];
+      const logs = logsResult.rows?._array || [];
 
       const parseJSON = (str: string) => {
         try { return str ? JSON.parse(str) : undefined; } catch (e) { return undefined; }
@@ -153,24 +130,16 @@ export const dbService = {
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
 
-      await executeWithRetry(
-        () => supabase.from('ivf_cycles').insert({
-          id,
-          patient_id: cycle.patientId,
-          doctor_id: doctor.id,
-          protocol: cycle.protocol,
-          status: cycle.status || 'Active',
-          start_date: cycle.startDate,
-          assessment_data: JSON.stringify(cycle.assessment || {}),
-          lab_data: JSON.stringify(cycle.lab || {}),
-          transfer_data: JSON.stringify(cycle.transfer || {}),
-          outcome_data: JSON.stringify(cycle.outcome || {}),
-          created_at: now,
-          updated_at: now
-        }),
-        'Save IVF Cycle'
+      // Write to PowerSync (offline-first)
+      await powerSyncDb.execute(
+        `INSERT INTO ivf_cycles (id, patient_id, doctor_id, protocol, status, start_date, assessment_data, lab_data, transfer_data, outcome_data, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, cycle.patientId, doctor.id, cycle.protocol, cycle.status || 'Active', cycle.startDate,
+         JSON.stringify(cycle.assessment || {}), JSON.stringify(cycle.lab || {}),
+         JSON.stringify(cycle.transfer || {}), JSON.stringify(cycle.outcome || {}), now, now]
       );
 
+      console.log('✅ IVF Cycle saved to PowerSync:', id);
       return { id, ...cycle };
     } catch (error: any) {
       console.error('❌ saveCycle error:', error?.message);
@@ -187,25 +156,15 @@ export const dbService = {
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
 
-      await executeWithRetry(
-        () => supabase.from('stimulation_logs').insert({
-          id,
-          cycle_id: cycleId,
-          cycle_day: log.cycleDay,
-          date: log.date,
-          fsh: log.fsh || '',
-          hmg: log.hmg || '',
-          e2: log.e2 || '',
-          lh: log.lh || '',
-          rt_follicles: log.rtFollicles || '',
-          lt_follicles: log.ltFollicles || '',
-          endometrium_thickness: log.endometriumThickness || '',
-          created_at: now,
-          updated_at: now
-        }),
-        'Add Stimulation Log'
+      // Write to PowerSync (offline-first)
+      await powerSyncDb.execute(
+        `INSERT INTO stimulation_logs (id, cycle_id, cycle_day, date, fsh, hmg, e2, lh, rt_follicles, lt_follicles, endometrium_thickness, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, cycleId, log.cycleDay, log.date, log.fsh || '', log.hmg || '', log.e2 || '',
+         log.lh || '', log.rtFollicles || '', log.ltFollicles || '', log.endometriumThickness || '', now, now]
       );
 
+      console.log('✅ Stimulation log saved to PowerSync:', id);
       return { id, ...log };
     } catch (error: any) {
       console.error('❌ addLog error:', error?.message);
@@ -230,10 +189,17 @@ export const dbService = {
 
       updateData.updated_at = new Date().toISOString();
 
-      await executeWithRetry(
-        () => supabase.from('stimulation_logs').update(updateData).eq('id', logId),
-        'Update Stimulation Log'
+      // Build dynamic UPDATE query
+      const setParts = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
+      const values = Object.values(updateData);
+      values.push(logId); // Add logId at the end
+
+      await powerSyncDb.execute(
+        `UPDATE stimulation_logs SET ${setParts} WHERE id = ?`,
+        values
       );
+
+      console.log('✅ Stimulation log updated in PowerSync:', logId);
     } catch (error: any) {
       console.error('❌ updateLog error:', error?.message);
       throw new Error(`فشل في تحديث سجل التحفيز: ${error?.message}`);
@@ -246,13 +212,12 @@ export const dbService = {
       if (!assessment) throw new Error('بيانات التقييم مطلوبة');
 
       const now = new Date().toISOString();
-      await executeWithRetry(
-        () => supabase.from('ivf_cycles').update({
-          assessment_data: JSON.stringify(assessment),
-          updated_at: now
-        }).eq('id', cycleId),
-        'Update IVF Cycle Assessment'
+      await powerSyncDb.execute(
+        `UPDATE ivf_cycles SET assessment_data = ?, updated_at = ? WHERE id = ?`,
+        [JSON.stringify(assessment), now, cycleId]
       );
+
+      console.log('✅ Cycle assessment updated in PowerSync:', cycleId);
     } catch (error: any) {
       console.error('❌ updateCycleAssessment error:', error?.message);
       throw new Error(`فشل في حفظ التقييم: ${error?.message}`);
@@ -265,13 +230,12 @@ export const dbService = {
       if (!labData) throw new Error('بيانات المختبر مطلوبة');
 
       const now = new Date().toISOString();
-      await executeWithRetry(
-        () => supabase.from('ivf_cycles').update({
-          lab_data: JSON.stringify(labData),
-          updated_at: now
-        }).eq('id', cycleId),
-        'Update IVF Lab Data'
+      await powerSyncDb.execute(
+        `UPDATE ivf_cycles SET lab_data = ?, updated_at = ? WHERE id = ?`,
+        [JSON.stringify(labData), now, cycleId]
       );
+
+      console.log('✅ Cycle lab data updated in PowerSync:', cycleId);
     } catch (error: any) {
       console.error('❌ updateCycleLabData error:', error?.message);
       throw new Error(`فشل في حفظ بيانات المختبر: ${error?.message}`);
@@ -284,13 +248,12 @@ export const dbService = {
       if (!transferData) throw new Error('بيانات النقل مطلوبة');
 
       const now = new Date().toISOString();
-      await executeWithRetry(
-        () => supabase.from('ivf_cycles').update({
-          transfer_data: JSON.stringify(transferData),
-          updated_at: now
-        }).eq('id', cycleId),
-        'Update IVF Transfer Data'
+      await powerSyncDb.execute(
+        `UPDATE ivf_cycles SET transfer_data = ?, updated_at = ? WHERE id = ?`,
+        [JSON.stringify(transferData), now, cycleId]
       );
+
+      console.log('✅ Cycle transfer data updated in PowerSync:', cycleId);
     } catch (error: any) {
       console.error('❌ updateCycleTransfer error:', error?.message);
       throw new Error(`فشل في حفظ بيانات النقل: ${error?.message}`);
@@ -303,14 +266,12 @@ export const dbService = {
       if (!outcomeData) throw new Error('بيانات النتيجة مطلوبة');
 
       const now = new Date().toISOString();
-      await executeWithRetry(
-        () => supabase.from('ivf_cycles').update({
-          outcome_data: JSON.stringify(outcomeData),
-          status: 'Completed',
-          updated_at: now
-        }).eq('id', cycleId),
-        'Update IVF Cycle Outcome'
+      await powerSyncDb.execute(
+        `UPDATE ivf_cycles SET outcome_data = ?, status = ?, updated_at = ? WHERE id = ?`,
+        [JSON.stringify(outcomeData), 'Completed', now, cycleId]
       );
+
+      console.log('✅ Cycle outcome updated in PowerSync:', cycleId);
     } catch (error: any) {
       console.error('❌ updateCycleOutcome error:', error?.message);
       throw new Error(`فشل في حفظ نتيجة الدورة: ${error?.message}`);

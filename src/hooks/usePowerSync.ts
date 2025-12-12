@@ -99,10 +99,10 @@ export function usePowerSyncQuery<T = any>(sql: string, parameters: any[] = []) 
         }
     }, [powerSyncStatus.connected]);
 
-    // Return PowerSync data if connected and has data, otherwise return Supabase fallback
-    const data = powerSyncStatus.connected && powerSyncData.length > 0 
-        ? powerSyncData 
-        : (supabaseData.length > 0 ? supabaseData : powerSyncData);
+    // Return PowerSync data first (offline-first), fallback to Supabase only if PowerSync has no data
+    const data = powerSyncData.length > 0
+        ? powerSyncData
+        : supabaseData;
     
     const isLoading = isLoadingPowerSync || isLoadingSupabase;
     const error = powerSyncError;
