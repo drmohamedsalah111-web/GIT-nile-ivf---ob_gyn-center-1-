@@ -9,7 +9,9 @@ const STATIC_ASSETS = [
   '/index.html',
   '/manifest.webmanifest',
   '/styles.css',
-  // Add other static assets as needed
+  '/powersync.worker.js',
+  // Note: /assets/* files are cached dynamically on first load
+  // This ensures .wasm, .js, and worker files are available offline
 ];
 
 // Install event - cache static assets
@@ -86,8 +88,8 @@ self.addEventListener('fetch', (event) => {
 
         return fetch(request)
           .then((response) => {
-            // Cache successful responses
-            if (response.ok && response.type === 'basic') {
+            // Cache successful responses - include all types for /assets/ (wasm, workers)
+            if (response.ok) {
               const responseClone = response.clone();
               caches.open(DYNAMIC_CACHE).then((cache) => {
                 cache.put(request, responseClone);
