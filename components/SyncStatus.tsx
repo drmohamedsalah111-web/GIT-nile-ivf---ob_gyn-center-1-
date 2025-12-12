@@ -17,6 +17,9 @@ const SyncStatus: React.FC = () => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
 
+  // Debug logging for PowerSync status
+  console.log('🔌 PowerSync Status:', { isOnline, syncInProgress, lastSyncTime });
+
   // Map PowerSync status to component state
   const status: SyncStatusState = {
     isOnline,

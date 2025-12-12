@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { powerSyncDb } from '../src/powersync/client';
 
 export const authService = {
   login: async (email: string, password: string) => {
@@ -20,29 +21,16 @@ export const authService = {
     if (error) throw error;
 
     if (data.user) {
-      const { error: dbError } = await supabase
-        .from('doctors')
-        .insert([
-          {
-            user_id: data.user.id,
-            email: email,
-            name: doctorData.name,
-            specialization: doctorData.specialization || null,
-            phone: doctorData.phone || null,
-            doctor_image: null,
-            clinic_name: null,
-            clinic_address: null,
-            clinic_phone: null,
-            clinic_image: null,
-            clinic_latitude: null,
-            clinic_longitude: null,
-          }
-        ]);
+      // Write to PowerSync (offline-first)
+      const now = new Date().toISOString();
+      await powerSyncDb.execute(
+        `INSERT INTO doctors (user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [data.user.id, email, doctorData.name, doctorData.specialization || null, doctorData.phone || null,
+         null, null, null, null, now, now]
+      );
 
-      if (dbError) {
-        console.error('Doctor insert error:', dbError);
-        throw dbError;
-      }
+      console.log('✅ Doctor record created in PowerSync');
     }
 
     return data;
@@ -75,14 +63,18 @@ export const authService = {
   },
 
   getDoctorProfile: async (userId: string) => {
-    const { data, error } = await supabase
-      .from('doctors')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    // Read from PowerSync (offline-first)
+    const result = await powerSyncDb.execute(
+      'SELECT * FROM doctors WHERE user_id = ?',
+      [userId]
+    );
 
-    if (error) throw error;
-    return data;
+    const doctors = result.rows?._array || [];
+    if (doctors.length === 0) {
+      throw new Error('Doctor profile not found');
+    }
+
+    return doctors[0];
   },
 
   onAuthStateChange: (callback: (user: any) => void) => {
@@ -94,16 +86,19 @@ export const authService = {
   },
 
   updateDoctorProfile: async (userId: string, updates: any) => {
-    const { data, error } = await supabase
-      .from('doctors')
-      .update(updates)
-      .eq('user_id', userId);
+    // Build dynamic UPDATE query
+    const updateData = { ...updates, updated_at: new Date().toISOString() };
+    const setParts = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
+    const values = Object.values(updateData);
+    values.push(userId); // Add userId at the end
 
-    if (error) {
-      console.error('Update error details:', error);
-      throw new Error(error.message || 'Failed to update profile');
-    }
-    return data;
+    await powerSyncDb.execute(
+      `UPDATE doctors SET ${setParts} WHERE user_id = ?`,
+      values
+    );
+
+    console.log('✅ Doctor profile updated in PowerSync');
+    return updateData;
   },
 
   updatePassword: async (newPassword: string) => {
@@ -134,42 +129,27 @@ export const authService = {
   },
 
   ensureDoctorRecord: async (userId: string, email: string) => {
-    const { data: existingDoctor, error: fetchError } = await supabase
-      .from('doctors')
-      .select('id')
-      .eq('user_id', userId)
-      .single();
+    // Check if doctor exists in PowerSync
+    const result = await powerSyncDb.execute(
+      'SELECT id FROM doctors WHERE user_id = ?',
+      [userId]
+    );
 
-    if (existingDoctor) {
-      return existingDoctor;
+    const doctors = result.rows?._array || [];
+    if (doctors.length > 0) {
+      return doctors[0];
     }
 
-    const { data: newDoctor, error: insertError } = await supabase
-      .from('doctors')
-      .insert([
-        {
-          user_id: userId,
-          email: email,
-          name: 'الطبيب',
-          specialization: null,
-          phone: null,
-          doctor_image: null,
-          clinic_name: null,
-          clinic_address: null,
-          clinic_phone: null,
-          clinic_image: null,
-          clinic_latitude: null,
-          clinic_longitude: null,
-        }
-      ])
-      .select()
-      .single();
+    // Create new doctor record in PowerSync
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await powerSyncDb.execute(
+      `INSERT INTO doctors (id, user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, userId, email, 'الطبيب', null, null, null, null, null, null, now, now]
+    );
 
-    if (insertError) {
-      console.error('Error creating doctor record:', insertError);
-      throw insertError;
-    }
-
-    return newDoctor;
+    console.log('✅ Doctor record ensured in PowerSync');
+    return { id };
   }
 };

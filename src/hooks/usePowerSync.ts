@@ -25,11 +25,11 @@ export function usePowerSyncQuery<T = any>(sql: string, parameters: any[] = []) 
     const tableMatch = sql.match(/FROM\s+(\w+)/i);
     const tableName = tableMatch ? tableMatch[1] : null;
 
-    // Fallback to Supabase if PowerSync is not connected
+    // Fallback to Supabase only when online and local PowerSync has no data
     useEffect(() => {
         const fetchFromSupabase = async () => {
-            // Only fetch once if PowerSync is not connected and we have no data
-            if (!powerSyncStatus.connected && tableName && !hasFetchedSupabase && !isLoadingPowerSync) {
+            // Only fetch once if online, local has no data, and we haven't fetched yet
+            if (navigator.onLine && powerSyncData.length === 0 && tableName && !hasFetchedSupabase && !isLoadingPowerSync) {
                 setIsLoadingSupabase(true);
                 setHasFetchedSupabase(true);
                 
