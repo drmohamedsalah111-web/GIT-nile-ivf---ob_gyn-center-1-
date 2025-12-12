@@ -820,6 +820,295 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage, onLogout }) => {
 export default BottomNav;
 </file>
 
+<file path="components/PrescriptionPrinter.tsx">
+import React, { useState, useEffect, useRef } from 'react';
+import { Printer, X } from 'lucide-react';
+import { PrescriptionItem, Patient, Doctor } from '../types';
+import { authService } from '../services/authService';
+import { useBranding } from '../context/BrandingContext';
+import toast from 'react-hot-toast';
+
+interface PrescriptionPrinterProps {
+  patient: Patient | null;
+  prescriptions: PrescriptionItem[];
+  diagnosis?: string;
+  notes?: string;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const PrescriptionPrinter: React.FC<PrescriptionPrinterProps> = ({
+  patient,
+  prescriptions,
+  diagnosis,
+  notes,
+  isOpen,
+  onClose
+}) => {
+  const { branding } = useBranding();
+  const [doctor, setDoctor] = useState<Doctor | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchDoctorInfo();
+    }
+  }, [isOpen]);
+
+  const fetchDoctorInfo = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (user) {
+        const doctorData = await authService.getDoctorProfile(user.id);
+        setDoctor(doctorData);
+      }
+    } catch (error) {
+      console.error('Error fetching doctor info:', error);
+      toast.error('فشل تحميل بيانات الطبيب');
+    }
+  };
+
+  const handlePrint = () => {
+    const printContent = printRef.current;
+    if (!printContent) return;
+
+    const printWindow = window.open('', '', 'height=800,width=1000');
+    if (!printWindow) {
+      toast.error('فشل فتح نافذة الطباعة');
+      return;
+    }
+
+    const styles = `
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; padding: 20px; }
+        .prescription-container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border: 1px solid #ddd; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2d5a6b; padding-bottom: 20px; margin-bottom: 30px; }
+        .clinic-info { flex: 1; }
+        .clinic-name { font-size: 24px; font-weight: bold; color: #2d5a6b; margin-bottom: 8px; }
+        .clinic-details { font-size: 12px; color: #666; line-height: 1.8; }
+        .logo-area { flex: 1; text-align: right; color: #2d5a6b; font-weight: bold; font-size: 14px; }
+        .patient-doctor-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+        .info-block { }
+        .info-label { font-weight: bold; color: #2d5a6b; font-size: 13px; margin-bottom: 5px; }
+        .info-value { font-size: 14px; color: #333; }
+        .rx-title { font-size: 18px; font-weight: bold; color: #2d5a6b; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
+        .prescriptions-list { margin-bottom: 30px; }
+        .prescription-item { background: #f9f9f9; border: 1px solid #e0e0e0; padding: 12px 15px; margin-bottom: 10px; border-radius: 4px; }
+        .prescription-number { display: inline-block; background: #2d5a6b; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold; margin-right: 10px; font-size: 12px; }
+        .prescription-content { margin-left: 38px; }
+        .drug-name { font-weight: bold; font-size: 14px; color: #333; }
+        .drug-dose { font-size: 12px; color: #666; margin-top: 3px; }
+        .drug-category { font-size: 11px; color: #999; margin-top: 3px; }
+        .diagnosis-section, .notes-section { margin-bottom: 25px; padding: 15px; background: #f5f5f5; border-left: 4px solid #2d5a6b; }
+        .section-title { font-weight: bold; color: #2d5a6b; margin-bottom: 8px; font-size: 13px; text-transform: uppercase; }
+        .section-content { color: #333; font-size: 13px; line-height: 1.6; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .signature-box { }
+        .signature-label { font-size: 12px; font-weight: bold; color: #666; margin-top: 40px; border-top: 1px solid #333; padding-top: 5px; text-align: center; }
+        .date-time { font-size: 12px; color: #666; margin-top: 15px; text-align: center; }
+        @media print {
+          body { padding: 0; }
+          .prescription-container { border: none; padding: 0; }
+        }
+      </style>
+    `;
+
+    const content = printContent.innerHTML;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>روشتة طبية</title>
+          ${styles}
+        </head>
+        <body>
+          ${content}
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    return {
+      date: now.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }),
+      time: now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+    };
+  };
+
+  const { date, time } = getCurrentDateTime();
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-teal-600 text-white px-6 py-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold">معاينة الروشتة الطبية</h2>
+          <button
+            onClick={onClose}
+            className="hover:bg-teal-700 p-2 rounded-lg transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          <div ref={printRef} className="prescription-container">
+            {/* Header */}
+            <div className="header">
+              <div className="clinic-info">
+                <div className="clinic-name">
+                  {branding?.clinic_name || 'عيادة متخصصة'}
+                </div>
+                <div className="clinic-details">
+                  {branding?.clinic_address && <div>{branding.clinic_address}</div>}
+                  {branding?.clinic_phone && <div>ت: {branding.clinic_phone}</div>}
+                  {doctor?.email && <div>البريد الإلكتروني: {doctor.email}</div>}
+                </div>
+              </div>
+              <div className="logo-area">
+                {branding?.logo_url ? (
+                  <img src={branding.logo_url} alt="Logo" style={{ maxWidth: '80px', maxHeight: '80px' }} />
+                ) : (
+                  'ℜ'
+                )}
+              </div>
+            </div>
+
+            {/* Patient & Doctor Info */}
+            <div className="patient-doctor-section">
+              <div className="info-block">
+                <div className="info-label">بيانات المريضة</div>
+                <div className="info-value">{patient?.name || 'N/A'}</div>
+                <div className="info-value" style={{ fontSize: '12px', marginTop: '5px', color: '#666' }}>
+                  العمر: {patient?.age || 'N/A'} سنة
+                </div>
+                <div className="info-value" style={{ fontSize: '12px', marginTop: '5px', color: '#666' }}>
+                  الهاتف: {patient?.phone || 'N/A'}
+                </div>
+              </div>
+              <div className="info-block">
+                <div className="info-label">بيانات الطبيب</div>
+                <div className="info-value">{doctor?.name || 'N/A'}</div>
+                <div className="info-value" style={{ fontSize: '12px', marginTop: '5px', color: '#666' }}>
+                  {doctor?.specialization || ''}
+                </div>
+                <div className="info-value" style={{ fontSize: '12px', marginTop: '5px', color: '#666' }}>
+                  {date} - {time}
+                </div>
+              </div>
+            </div>
+
+            {/* Diagnosis */}
+            {diagnosis && (
+              <div className="diagnosis-section">
+                <div className="section-title">التشخيص</div>
+                <div className="section-content">{diagnosis}</div>
+              </div>
+            )}
+
+            {/* Prescriptions */}
+            {prescriptions.length > 0 && (
+              <>
+                <div className="rx-title">الروشتة الطبية</div>
+                <div className="prescriptions-list">
+                  {prescriptions.map((prescription, index) => (
+                    <div key={index} className="prescription-item">
+                      <span className="prescription-number">{index + 1}</span>
+                      <div className="prescription-content">
+                        <div className="drug-name">{prescription.drug}</div>
+                        <div className="drug-dose">
+                          {prescription.dose || 'الجرعة القياسية'}
+                        </div>
+                        <div className="drug-category">التصنيف: {prescription.category}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Notes */}
+            {notes && (
+              <div className="notes-section">
+                <div className="section-title">ملاحظات</div>
+                <div className="section-content">{notes}</div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="footer">
+              <div className="signature-box">
+                <div className="signature-label">توقيع الطبيب</div>
+              </div>
+              <div className="signature-box">
+                <div className="signature-label">توقيع المريضة</div>
+              </div>
+            </div>
+
+            {/* System Signature */}
+            <div style={{
+              marginTop: '30px',
+              paddingTop: '15px',
+              borderTop: '1px solid #ccc',
+              fontSize: '10px',
+              color: '#999',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                {branding?.clinic_address && <div>{branding.clinic_address}</div>}
+                {branding?.clinic_phone && <div>Tel: {branding.clinic_phone}</div>}
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                System developed by Dr. Mohamed Salah Gabr
+              </div>
+            </div>
+
+            {/* Date Time */}
+            <div className="date-time">
+              تم الطباعة: {date} في {time}
+            </div>
+          </div>
+
+          {/* Print Button */}
+          <div className="mt-6 flex gap-3 justify-end sticky bottom-0 bg-gray-50 p-4 rounded-b-lg">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              إغلاق
+            </button>
+            <button
+              onClick={handlePrint}
+              className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2"
+            >
+              <Printer className="w-4 h-4" />
+              طباعة الروشتة
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PrescriptionPrinter;
+</file>
+
 <file path="constants.ts">
 // Egyptian IVF Medications Database
 export const EGYPTIAN_DRUGS = {
@@ -4147,295 +4436,6 @@ const PrescriptionComponent: React.FC<PrescriptionComponentProps> = ({
 export default PrescriptionComponent;
 </file>
 
-<file path="components/PrescriptionPrinter.tsx">
-import React, { useState, useEffect, useRef } from 'react';
-import { Printer, X } from 'lucide-react';
-import { PrescriptionItem, Patient, Doctor } from '../types';
-import { authService } from '../services/authService';
-import { useBranding } from '../context/BrandingContext';
-import toast from 'react-hot-toast';
-
-interface PrescriptionPrinterProps {
-  patient: Patient | null;
-  prescriptions: PrescriptionItem[];
-  diagnosis?: string;
-  notes?: string;
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-const PrescriptionPrinter: React.FC<PrescriptionPrinterProps> = ({
-  patient,
-  prescriptions,
-  diagnosis,
-  notes,
-  isOpen,
-  onClose
-}) => {
-  const { branding } = useBranding();
-  const [doctor, setDoctor] = useState<Doctor | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchDoctorInfo();
-    }
-  }, [isOpen]);
-
-  const fetchDoctorInfo = async () => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (user) {
-        const doctorData = await authService.getDoctorProfile(user.id);
-        setDoctor(doctorData);
-      }
-    } catch (error) {
-      console.error('Error fetching doctor info:', error);
-      toast.error('فشل تحميل بيانات الطبيب');
-    }
-  };
-
-  const handlePrint = () => {
-    const printContent = printRef.current;
-    if (!printContent) return;
-
-    const printWindow = window.open('', '', 'height=800,width=1000');
-    if (!printWindow) {
-      toast.error('فشل فتح نافذة الطباعة');
-      return;
-    }
-
-    const styles = `
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; padding: 20px; }
-        .prescription-container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border: 1px solid #ddd; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2d5a6b; padding-bottom: 20px; margin-bottom: 30px; }
-        .clinic-info { flex: 1; }
-        .clinic-name { font-size: 24px; font-weight: bold; color: #2d5a6b; margin-bottom: 8px; }
-        .clinic-details { font-size: 12px; color: #666; line-height: 1.8; }
-        .logo-area { flex: 1; text-align: right; color: #2d5a6b; font-weight: bold; font-size: 14px; }
-        .patient-doctor-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
-        .info-block { }
-        .info-label { font-weight: bold; color: #2d5a6b; font-size: 13px; margin-bottom: 5px; }
-        .info-value { font-size: 14px; color: #333; }
-        .rx-title { font-size: 18px; font-weight: bold; color: #2d5a6b; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
-        .prescriptions-list { margin-bottom: 30px; }
-        .prescription-item { background: #f9f9f9; border: 1px solid #e0e0e0; padding: 12px 15px; margin-bottom: 10px; border-radius: 4px; }
-        .prescription-number { display: inline-block; background: #2d5a6b; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold; margin-right: 10px; font-size: 12px; }
-        .prescription-content { margin-left: 38px; }
-        .drug-name { font-weight: bold; font-size: 14px; color: #333; }
-        .drug-dose { font-size: 12px; color: #666; margin-top: 3px; }
-        .drug-category { font-size: 11px; color: #999; margin-top: 3px; }
-        .diagnosis-section, .notes-section { margin-bottom: 25px; padding: 15px; background: #f5f5f5; border-left: 4px solid #2d5a6b; }
-        .section-title { font-weight: bold; color: #2d5a6b; margin-bottom: 8px; font-size: 13px; text-transform: uppercase; }
-        .section-content { color: #333; font-size: 13px; line-height: 1.6; }
-        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-        .signature-box { }
-        .signature-label { font-size: 12px; font-weight: bold; color: #666; margin-top: 40px; border-top: 1px solid #333; padding-top: 5px; text-align: center; }
-        .date-time { font-size: 12px; color: #666; margin-top: 15px; text-align: center; }
-        @media print {
-          body { padding: 0; }
-          .prescription-container { border: none; padding: 0; }
-        }
-      </style>
-    `;
-
-    const content = printContent.innerHTML;
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>روشتة طبية</title>
-          ${styles}
-        </head>
-        <body>
-          ${content}
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
-  };
-
-  const getCurrentDateTime = () => {
-    const now = new Date();
-    return {
-      date: now.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }),
-      time: now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
-    };
-  };
-
-  const { date, time } = getCurrentDateTime();
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-teal-600 text-white px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold">معاينة الروشتة الطبية</h2>
-          <button
-            onClick={onClose}
-            className="hover:bg-teal-700 p-2 rounded-lg transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
-          <div ref={printRef} className="prescription-container">
-            {/* Header */}
-            <div className="header">
-              <div className="clinic-info">
-                <div className="clinic-name">
-                  {branding?.clinic_name || 'عيادة متخصصة'}
-                </div>
-                <div className="clinic-details">
-                  {branding?.clinic_address && <div>{branding.clinic_address}</div>}
-                  {branding?.clinic_phone && <div>ت: {branding.clinic_phone}</div>}
-                  {doctor?.email && <div>البريد الإلكتروني: {doctor.email}</div>}
-                </div>
-              </div>
-              <div className="logo-area">
-                {branding?.logo_url ? (
-                  <img src={branding.logo_url} alt="Logo" style={{ maxWidth: '80px', maxHeight: '80px' }} />
-                ) : (
-                  'ℜ'
-                )}
-              </div>
-            </div>
-
-            {/* Patient & Doctor Info */}
-            <div className="patient-doctor-section">
-              <div className="info-block">
-                <div className="info-label">بيانات المريضة</div>
-                <div className="info-value">{patient?.name || 'N/A'}</div>
-                <div className="info-value" style={{ fontSize: '12px', marginTop: '5px', color: '#666' }}>
-                  العمر: {patient?.age || 'N/A'} سنة
-                </div>
-                <div className="info-value" style={{ fontSize: '12px', marginTop: '5px', color: '#666' }}>
-                  الهاتف: {patient?.phone || 'N/A'}
-                </div>
-              </div>
-              <div className="info-block">
-                <div className="info-label">بيانات الطبيب</div>
-                <div className="info-value">{doctor?.name || 'N/A'}</div>
-                <div className="info-value" style={{ fontSize: '12px', marginTop: '5px', color: '#666' }}>
-                  {doctor?.specialization || ''}
-                </div>
-                <div className="info-value" style={{ fontSize: '12px', marginTop: '5px', color: '#666' }}>
-                  {date} - {time}
-                </div>
-              </div>
-            </div>
-
-            {/* Diagnosis */}
-            {diagnosis && (
-              <div className="diagnosis-section">
-                <div className="section-title">التشخيص</div>
-                <div className="section-content">{diagnosis}</div>
-              </div>
-            )}
-
-            {/* Prescriptions */}
-            {prescriptions.length > 0 && (
-              <>
-                <div className="rx-title">الروشتة الطبية</div>
-                <div className="prescriptions-list">
-                  {prescriptions.map((prescription, index) => (
-                    <div key={index} className="prescription-item">
-                      <span className="prescription-number">{index + 1}</span>
-                      <div className="prescription-content">
-                        <div className="drug-name">{prescription.drug}</div>
-                        <div className="drug-dose">
-                          {prescription.dose || 'الجرعة القياسية'}
-                        </div>
-                        <div className="drug-category">التصنيف: {prescription.category}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Notes */}
-            {notes && (
-              <div className="notes-section">
-                <div className="section-title">ملاحظات</div>
-                <div className="section-content">{notes}</div>
-              </div>
-            )}
-
-            {/* Footer */}
-            <div className="footer">
-              <div className="signature-box">
-                <div className="signature-label">توقيع الطبيب</div>
-              </div>
-              <div className="signature-box">
-                <div className="signature-label">توقيع المريضة</div>
-              </div>
-            </div>
-
-            {/* System Signature */}
-            <div style={{
-              marginTop: '30px',
-              paddingTop: '15px',
-              borderTop: '1px solid #ccc',
-              fontSize: '10px',
-              color: '#999',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <div>
-                {branding?.clinic_address && <div>{branding.clinic_address}</div>}
-                {branding?.clinic_phone && <div>Tel: {branding.clinic_phone}</div>}
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                System developed by Dr. Mohamed Salah Gabr
-              </div>
-            </div>
-
-            {/* Date Time */}
-            <div className="date-time">
-              تم الطباعة: {date} في {time}
-            </div>
-          </div>
-
-          {/* Print Button */}
-          <div className="mt-6 flex gap-3 justify-end sticky bottom-0 bg-gray-50 p-4 rounded-b-lg">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              إغلاق
-            </button>
-            <button
-              onClick={handlePrint}
-              className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2"
-            >
-              <Printer className="w-4 h-4" />
-              طباعة الروشتة
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default PrescriptionPrinter;
-</file>
-
 <file path="components/RefreshButton.tsx">
 import React, { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
@@ -4502,6 +4502,100 @@ const RefreshButton: React.FC<RefreshButtonProps> = ({
 };
 
 export default RefreshButton;
+</file>
+
+<file path="components/Sidebar.tsx">
+import React from 'react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText } from 'lucide-react';
+import { Page } from '../types';
+import { useBranding } from '../context/BrandingContext';
+import SyncStatus from '../src/components/SyncStatus';
+
+interface SidebarProps {
+  activePage: Page;
+  setPage: (page: Page) => void;
+  onLogout: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout }) => {
+  const { branding } = useBranding();
+
+  const menuItems = [
+    { id: Page.HOME, label: 'Dashboard', arLabel: 'الرئيسية', icon: LayoutDashboard },
+    { id: Page.RECEPTION, label: 'Reception', arLabel: 'الاستقبال', icon: Users },
+    { id: Page.GYNECOLOGY, label: 'Gynecology', arLabel: 'عيادة النساء', icon: Activity },
+    { id: Page.OBSTETRICS, label: 'Obstetrics', arLabel: 'متابعة الحمل', icon: Heart },
+    { id: Page.IVF, label: 'IVF Center', arLabel: 'مركز الخصوبة', icon: Baby },
+    { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: FileText },
+    { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
+  ];
+
+  return (
+    // Hidden on mobile, visible from md and up
+    <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 no-print">
+      <div className="p-6 border-b border-gray-100 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          {branding?.logo_url ? (
+            <img src={branding.logo_url} alt="Logo" className="w-12 h-12 rounded-full mb-2 object-cover" />
+          ) : (
+            <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mb-2">
+              <Baby className="text-teal-700 w-8 h-8" />
+            </div>
+          )}
+          <h1 className="text-sm font-bold text-gray-800 text-center">{branding?.clinic_name || 'Nile IVF Center'}</h1>
+          <p className="text-xs text-gray-400 uppercase tracking-wider">EMR System</p>
+        </div>
+      </div>
+      
+      <nav className="flex-1 overflow-y-auto py-4">
+        <ul className="space-y-2 px-4">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activePage === item.id;
+            return (
+              <li key={item.id}>
+                <button
+                  onClick={() => setPage(item.id)}
+                  className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-teal-50 text-teal-700 font-bold shadow-sm' 
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-teal-700' : 'text-gray-400'}`} />
+                  <span>{item.arLabel || item.label}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <div className="p-4 border-t border-gray-100">
+        {/* Sync Status Indicator */}
+        <div className="mb-4">
+          <SyncStatus />
+        </div>
+
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Sign Out</span>
+        </button>
+
+        {/* Developer Credits */}
+        <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+          <p className="text-xs text-gray-400 font-[Tajawal] leading-tight">
+            برمجة وتطوير<br />
+            د. محمد صلاح جبر
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
 </file>
 
 <file path="components/SyncStatus.tsx">
@@ -27295,100 +27389,6 @@ export default {
 }
 </file>
 
-<file path="components/Sidebar.tsx">
-import React from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText } from 'lucide-react';
-import { Page } from '../types';
-import { useBranding } from '../context/BrandingContext';
-import SyncStatus from '../src/components/SyncStatus';
-
-interface SidebarProps {
-  activePage: Page;
-  setPage: (page: Page) => void;
-  onLogout: () => void;
-}
-
-export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout }) => {
-  const { branding } = useBranding();
-
-  const menuItems = [
-    { id: Page.HOME, label: 'Dashboard', arLabel: 'الرئيسية', icon: LayoutDashboard },
-    { id: Page.RECEPTION, label: 'Reception', arLabel: 'الاستقبال', icon: Users },
-    { id: Page.GYNECOLOGY, label: 'Gynecology', arLabel: 'عيادة النساء', icon: Activity },
-    { id: Page.OBSTETRICS, label: 'Obstetrics', arLabel: 'متابعة الحمل', icon: Heart },
-    { id: Page.IVF, label: 'IVF Center', arLabel: 'مركز الخصوبة', icon: Baby },
-    { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: FileText },
-    { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
-  ];
-
-  return (
-    // Hidden on mobile, visible from md and up
-    <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 no-print">
-      <div className="p-6 border-b border-gray-100 flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          {branding?.logo_url ? (
-            <img src={branding.logo_url} alt="Logo" className="w-12 h-12 rounded-full mb-2 object-cover" />
-          ) : (
-            <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mb-2">
-              <Baby className="text-teal-700 w-8 h-8" />
-            </div>
-          )}
-          <h1 className="text-sm font-bold text-gray-800 text-center">{branding?.clinic_name || 'Nile IVF Center'}</h1>
-          <p className="text-xs text-gray-400 uppercase tracking-wider">EMR System</p>
-        </div>
-      </div>
-      
-      <nav className="flex-1 overflow-y-auto py-4">
-        <ul className="space-y-2 px-4">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activePage === item.id;
-            return (
-              <li key={item.id}>
-                <button
-                  onClick={() => setPage(item.id)}
-                  className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${
-                    isActive 
-                      ? 'bg-teal-50 text-teal-700 font-bold shadow-sm' 
-                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-teal-700' : 'text-gray-400'}`} />
-                  <span>{item.arLabel || item.label}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      <div className="p-4 border-t border-gray-100">
-        {/* Sync Status Indicator */}
-        <div className="mb-4">
-          <SyncStatus />
-        </div>
-
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Sign Out</span>
-        </button>
-
-        {/* Developer Credits */}
-        <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-          <p className="text-xs text-gray-400 font-[Tajawal] leading-tight">
-            برمجة وتطوير<br />
-            د. محمد صلاح جبر
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-</file>
-
 <file path="context/BrandingContext.tsx">
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
@@ -29919,6 +29919,400 @@ export const AppSchema = new Schema({
 });
 </file>
 
+<file path="index.html">
+<!DOCTYPE html>
+<html lang="en" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>مركز د صلاح للخصوبة - نظام د. محمد صلاح جبر</title>
+    <meta name="author" content="Dr. Mohamed Salah Gabr">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#00838f">
+    <meta name="description" content="Comprehensive IVF and Obstetrics Management System">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/pwa-192x192.png">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "react-hot-toast": "https://aistudiocdn.com/react-hot-toast@^2.6.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.86.2"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
+</file>
+
+<file path="pages/Login.tsx">
+import React, { useState } from 'react';
+import { authService } from '../services/authService';
+import toast from 'react-hot-toast';
+import { LogIn, AlertCircle, Mail, Lock, User, Phone, Stethoscope, Facebook, MessageCircle } from 'lucide-react';
+
+interface LoginProps {
+  onLoginSuccess: () => void;
+}
+
+export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
+  const [signupData, setSignupData] = useState({
+    name: '',
+    specialization: '',
+    phone: '',
+  });
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      toast.error('الرجاء ملء جميع الحقول');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await authService.login(email, password);
+      toast.success('تم تسجيل الدخول بنجاح');
+      onLoginSuccess();
+    } catch (error: any) {
+      toast.error(error.message || 'فشل تسجيل الدخول');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!email || !password || !signupData.name) {
+      toast.error('الرجاء ملء البيانات المطلوبة');
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await authService.signup(email, password, signupData);
+      toast.success('تم التسجيل بنجاح! يرجى التحقق من بريدك الإلكتروني');
+      setShowSignup(false);
+      setEmail('');
+      setPassword('');
+      setSignupData({ name: '', specialization: '', phone: '' });
+    } catch (error: any) {
+      toast.error(error.message || 'فشل التسجيل');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fallback branding for login page
+  const branding = {
+    clinic_name: 'Nile IVF Center',
+    logo_url: null
+  };
+
+  return (
+    <div className="min-h-screen flex font-[Tajawal]" dir="rtl">
+      {/* Left Side - Login Form */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-white md:w-1/2">
+        <div className="w-full max-w-md space-y-8">
+          {/* Logo and Branding */}
+          <div className="text-center">
+            <div className="flex justify-center mb-6">
+              {branding?.logo_url ? (
+                <img
+                  src={branding.logo_url}
+                  alt="Nile IVF Center Logo"
+                  className="w-20 h-20 rounded-full object-cover border-4 border-teal-100"
+                />
+              ) : (
+                <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center">
+                  <Stethoscope className="text-white" size={32} />
+                </div>
+              )}
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              مركز د صلاح للخصوبة
+            </h1>
+            <p className="text-gray-600 text-lg mb-2">
+              معاكم خطوة بخطوة
+            </p>
+            <p className="text-gray-500 text-base">
+              {showSignup ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}
+            </p>
+          </div>
+
+          {/* Login Form */}
+          {!showSignup ? (
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  البريد الإلكتروني
+                </label>
+                <div className="relative">
+                  <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
+                    placeholder="doctor@example.com"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  كلمة المرور
+                </label>
+                <div className="relative">
+                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
+                    placeholder="••••••••"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    جاري التسجيل...
+                  </div>
+                ) : (
+                  'تسجيل الدخول'
+                )}
+              </button>
+            </form>
+          ) : (
+            /* Signup Form */
+            <form onSubmit={handleSignup} className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  الاسم الكامل *
+                </label>
+                <div className="relative">
+                  <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="text"
+                    value={signupData.name}
+                    onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
+                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
+                    placeholder="د. أحمد محمد"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  التخصص
+                </label>
+                <div className="relative">
+                  <Stethoscope className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="text"
+                    value={signupData.specialization}
+                    onChange={(e) => setSignupData({ ...signupData, specialization: e.target.value })}
+                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
+                    placeholder="أمراض النساء والتوليد"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  رقم الهاتف
+                </label>
+                <div className="relative">
+                  <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="tel"
+                    value={signupData.phone}
+                    onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
+                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
+                    placeholder="+966501234567"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  البريد الإلكتروني *
+                </label>
+                <div className="relative">
+                  <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
+                    placeholder="doctor@example.com"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  كلمة المرور *
+                </label>
+                <div className="relative">
+                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
+                    placeholder="••••••••"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex gap-3 items-start">
+                <AlertCircle size={20} className="text-rose-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-rose-800">
+                  تأكد من أن كلمة المرور قوية وسهلة الحفظ
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    جاري التسجيل...
+                  </div>
+                ) : (
+                  'إنشاء حساب'
+                )}
+              </button>
+            </form>
+          )}
+
+          {/* Toggle between Login/Signup */}
+          <div className="text-center">
+            <button
+              onClick={() => {
+                setShowSignup(!showSignup);
+                setEmail('');
+                setPassword('');
+                setSignupData({ name: '', specialization: '', phone: '' });
+              }}
+              className="text-teal-600 hover:text-teal-700 font-semibold transition-colors duration-200"
+              disabled={loading}
+            >
+              {showSignup ? 'هل لديك حساب؟ تسجيل الدخول' : 'ليس لديك حساب؟ إنشاء حساب'}
+            </button>
+          </div>
+
+          {/* Footer with Copyright and Developer Credits */}
+          <div className="pt-8 border-t border-gray-200 text-center text-gray-500 text-sm">
+            <p>Copyright © 2025 مركز د صلاح للخصوبة. All Rights Reserved.</p>
+            <p className="mt-1">تم التطوير بواسطة د. محمد صلاح جبر</p>
+            
+            <div className="mt-4 flex items-center justify-center gap-4">
+              <a
+                href="https://www.facebook.com/profile.php?id=100000785193419"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors font-medium"
+              >
+                <Facebook size={16} />
+                <span>تابعنا على فيسبوك</span>
+              </a>
+              <span className="text-gray-300">|</span>
+              <a
+                href="https://wa.me/201003418068"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors font-medium"
+              >
+                <MessageCircle size={16} />
+                <span>راسلنا على واتساب</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Side - Decorative Banner */}
+      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-teal-600 to-cyan-700 relative overflow-hidden">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-20"
+          style={{
+            backgroundImage: `url('https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')`
+          }}
+        />
+
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-teal-600/80 to-cyan-700/80" />
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-center items-center text-white p-12 text-center">
+          <div className="max-w-md">
+            <h2 className="text-4xl font-bold mb-6 leading-tight">
+              نرافقكم في رحلة الأمل
+            </h2>
+            <p className="text-xl mb-8 opacity-90 leading-relaxed">
+              نحن هنا لمساعدتكم في تحقيق أحلامكم في بناء أسرة سعيدة
+            </p>
+            <div className="flex items-center justify-center gap-2 text-lg">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              <span>مركز د صلاح للخصوبة</span>
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Decorative Elements */}
+        <div className="absolute top-10 right-10 w-20 h-20 border-2 border-white/20 rounded-full"></div>
+        <div className="absolute bottom-10 left-10 w-16 h-16 bg-white/10 rounded-full"></div>
+        <div className="absolute top-1/2 left-10 w-12 h-12 border border-white/30 rounded-full"></div>
+      </div>
+    </div>
+  );
+};
+</file>
+
 <file path="POWERSYNC_SYNC_RULES.yaml">
 # PowerSync Sync Rules for IVF & OB/GYN Center
 # Copy this content to your PowerSync Dashboard under "Sync Rules"
@@ -30065,44 +30459,6 @@ export function usePatients() {
         deletePatient
     };
 }
-</file>
-
-<file path="index.html">
-<!DOCTYPE html>
-<html lang="en" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>مركز د صلاح للخصوبة - نظام د. محمد صلاح جبر</title>
-    <meta name="author" content="Dr. Mohamed Salah Gabr">
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#00838f">
-    <meta name="description" content="Comprehensive IVF and Obstetrics Management System">
-    <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="apple-touch-icon" href="/pwa-192x192.png">
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css">
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "react-hot-toast": "https://aistudiocdn.com/react-hot-toast@^2.6.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "vite": "https://aistudiocdn.com/vite@^7.2.6",
-    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.86.2"
-  }
-}
-</script>
-</head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
-</html>
 </file>
 
 <file path="pages/Dashboard.tsx">
@@ -32247,362 +32603,6 @@ const IvfJourney: React.FC = () => {
 };
 
 export default IvfJourney;
-</file>
-
-<file path="pages/Login.tsx">
-import React, { useState } from 'react';
-import { authService } from '../services/authService';
-import toast from 'react-hot-toast';
-import { LogIn, AlertCircle, Mail, Lock, User, Phone, Stethoscope, Facebook, MessageCircle } from 'lucide-react';
-
-interface LoginProps {
-  onLoginSuccess: () => void;
-}
-
-export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showSignup, setShowSignup] = useState(false);
-  const [signupData, setSignupData] = useState({
-    name: '',
-    specialization: '',
-    phone: '',
-  });
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email || !password) {
-      toast.error('الرجاء ملء جميع الحقول');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await authService.login(email, password);
-      toast.success('تم تسجيل الدخول بنجاح');
-      onLoginSuccess();
-    } catch (error: any) {
-      toast.error(error.message || 'فشل تسجيل الدخول');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!email || !password || !signupData.name) {
-      toast.error('الرجاء ملء البيانات المطلوبة');
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await authService.signup(email, password, signupData);
-      toast.success('تم التسجيل بنجاح! يرجى التحقق من بريدك الإلكتروني');
-      setShowSignup(false);
-      setEmail('');
-      setPassword('');
-      setSignupData({ name: '', specialization: '', phone: '' });
-    } catch (error: any) {
-      toast.error(error.message || 'فشل التسجيل');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fallback branding for login page
-  const branding = {
-    clinic_name: 'Nile IVF Center',
-    logo_url: null
-  };
-
-  return (
-    <div className="min-h-screen flex font-[Tajawal]" dir="rtl">
-      {/* Left Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white md:w-1/2">
-        <div className="w-full max-w-md space-y-8">
-          {/* Logo and Branding */}
-          <div className="text-center">
-            <div className="flex justify-center mb-6">
-              {branding?.logo_url ? (
-                <img
-                  src={branding.logo_url}
-                  alt="Nile IVF Center Logo"
-                  className="w-20 h-20 rounded-full object-cover border-4 border-teal-100"
-                />
-              ) : (
-                <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center">
-                  <Stethoscope className="text-white" size={32} />
-                </div>
-              )}
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              مركز د صلاح للخصوبة
-            </h1>
-            <p className="text-gray-600 text-lg mb-2">
-              معاكم خطوة بخطوة
-            </p>
-            <p className="text-gray-500 text-base">
-              {showSignup ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}
-            </p>
-          </div>
-
-          {/* Login Form */}
-          {!showSignup ? (
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  البريد الإلكتروني
-                </label>
-                <div className="relative">
-                  <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="doctor@example.com"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  كلمة المرور
-                </label>
-                <div className="relative">
-                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="••••••••"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    جاري التسجيل...
-                  </div>
-                ) : (
-                  'تسجيل الدخول'
-                )}
-              </button>
-            </form>
-          ) : (
-            /* Signup Form */
-            <form onSubmit={handleSignup} className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  الاسم الكامل *
-                </label>
-                <div className="relative">
-                  <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="text"
-                    value={signupData.name}
-                    onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="د. أحمد محمد"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  التخصص
-                </label>
-                <div className="relative">
-                  <Stethoscope className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="text"
-                    value={signupData.specialization}
-                    onChange={(e) => setSignupData({ ...signupData, specialization: e.target.value })}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="أمراض النساء والتوليد"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  رقم الهاتف
-                </label>
-                <div className="relative">
-                  <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="tel"
-                    value={signupData.phone}
-                    onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="+966501234567"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  البريد الإلكتروني *
-                </label>
-                <div className="relative">
-                  <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="doctor@example.com"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  كلمة المرور *
-                </label>
-                <div className="relative">
-                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="••••••••"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex gap-3 items-start">
-                <AlertCircle size={20} className="text-rose-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-rose-800">
-                  تأكد من أن كلمة المرور قوية وسهلة الحفظ
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    جاري التسجيل...
-                  </div>
-                ) : (
-                  'إنشاء حساب'
-                )}
-              </button>
-            </form>
-          )}
-
-          {/* Toggle between Login/Signup */}
-          <div className="text-center">
-            <button
-              onClick={() => {
-                setShowSignup(!showSignup);
-                setEmail('');
-                setPassword('');
-                setSignupData({ name: '', specialization: '', phone: '' });
-              }}
-              className="text-teal-600 hover:text-teal-700 font-semibold transition-colors duration-200"
-              disabled={loading}
-            >
-              {showSignup ? 'هل لديك حساب؟ تسجيل الدخول' : 'ليس لديك حساب؟ إنشاء حساب'}
-            </button>
-          </div>
-
-          {/* Footer with Copyright and Developer Credits */}
-          <div className="pt-8 border-t border-gray-200 text-center text-gray-500 text-sm">
-            <p>Copyright © 2025 مركز د صلاح للخصوبة. All Rights Reserved.</p>
-            <p className="mt-1">تم التطوير بواسطة د. محمد صلاح جبر</p>
-            
-            <div className="mt-4 flex items-center justify-center gap-4">
-              <a
-                href="https://www.facebook.com/profile.php?id=100000785193419"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors font-medium"
-              >
-                <Facebook size={16} />
-                <span>تابعنا على فيسبوك</span>
-              </a>
-              <span className="text-gray-300">|</span>
-              <a
-                href="https://wa.me/201003418068"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors font-medium"
-              >
-                <MessageCircle size={16} />
-                <span>راسلنا على واتساب</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Side - Decorative Banner */}
-      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-teal-600 to-cyan-700 relative overflow-hidden">
-        {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-20"
-          style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')`
-          }}
-        />
-
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-teal-600/80 to-cyan-700/80" />
-
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-center items-center text-white p-12 text-center">
-          <div className="max-w-md">
-            <h2 className="text-4xl font-bold mb-6 leading-tight">
-              نرافقكم في رحلة الأمل
-            </h2>
-            <p className="text-xl mb-8 opacity-90 leading-relaxed">
-              نحن هنا لمساعدتكم في تحقيق أحلامكم في بناء أسرة سعيدة
-            </p>
-            <div className="flex items-center justify-center gap-2 text-lg">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              <span>مركز د صلاح للخصوبة</span>
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Decorative Elements */}
-        <div className="absolute top-10 right-10 w-20 h-20 border-2 border-white/20 rounded-full"></div>
-        <div className="absolute bottom-10 left-10 w-16 h-16 bg-white/10 rounded-full"></div>
-        <div className="absolute top-1/2 left-10 w-12 h-12 border border-white/30 rounded-full"></div>
-      </div>
-    </div>
-  );
-};
 </file>
 
 <file path="pages/Reception.tsx">
