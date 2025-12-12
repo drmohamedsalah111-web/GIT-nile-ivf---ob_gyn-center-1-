@@ -118,29 +118,69 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     const transaction = await database.getNextCrudTransaction();
     if (!transaction) return;
 
+    const UPLOAD_RETRIES = 3;
+    const RETRY_DELAY = 1000;
+
+    const uploadWithRetry = async (op: any): Promise<{ success: boolean; error?: string }> => {
+      const { table, opData } = op;
+
+      for (let attempt = 1; attempt <= UPLOAD_RETRIES; attempt++) {
+        try {
+          let result;
+
+          if (op.op === UpdateType.PUT) {
+            result = await supabase.from(table).upsert(opData, { onConflict: 'id' });
+          } else if (op.op === UpdateType.PATCH) {
+            result = await supabase.from(table).update(opData).eq('id', opData.id);
+          } else if (op.op === UpdateType.DELETE) {
+            result = await supabase.from(table).delete().eq('id', opData.id);
+          } else {
+            return { success: false, error: `Unknown operation type: ${op.op}` };
+          }
+
+          if (result.error) {
+            const statusCode = result.error?.code;
+            
+            if (attempt < UPLOAD_RETRIES && ['PGRST116', 'PGRST301', 'Connection'].some(c => statusCode?.includes(c))) {
+              const delayMs = RETRY_DELAY * attempt;
+              console.warn(`⚠️ [${table}] Retry ${attempt}/${UPLOAD_RETRIES} in ${delayMs}ms:`, result.error.message);
+              await new Promise(resolve => setTimeout(resolve, delayMs));
+              continue;
+            }
+
+            return { success: false, error: result.error.message };
+          }
+
+          console.log(`✅ [${table}] ${op.op === UpdateType.PUT ? 'Upserted' : op.op === UpdateType.PATCH ? 'Updated' : 'Deleted'} successfully (attempt ${attempt})`);
+          return { success: true };
+        } catch (error: any) {
+          const isLastAttempt = attempt === UPLOAD_RETRIES;
+          console.error(`❌ [${table}] Upload error (attempt ${attempt}/${UPLOAD_RETRIES}):`, error?.message);
+
+          if (isLastAttempt) {
+            return { success: false, error: error?.message };
+          }
+
+          const delayMs = RETRY_DELAY * attempt;
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
+
+      return { success: false, error: 'Max retries exceeded' };
+    };
+
     try {
       let successCount = 0;
       let failCount = 0;
+      const failures = [];
 
       for (const op of transaction.crud) {
-        const table = op.table;
-        const data = op.opData;
-
-        try {
-          if (op.op === UpdateType.PUT) {
-            const { error } = await supabase.from(table).upsert(data);
-            if (error) throw error;
-          } else if (op.op === UpdateType.PATCH) {
-            const { error } = await supabase.from(table).update(data).eq('id', data.id);
-            if (error) throw error;
-          } else if (op.op === UpdateType.DELETE) {
-            const { error } = await supabase.from(table).delete().eq('id', data.id);
-            if (error) throw error;
-          }
+        const result = await uploadWithRetry(op);
+        if (result.success) {
           successCount++;
-        } catch (error: any) {
+        } else {
           failCount++;
-          console.error(`❌ Upload failed for ${table}:`, error?.message);
+          failures.push({ table: op.table, error: result.error });
         }
       }
 
@@ -149,6 +189,7 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
         await transaction.complete();
       } else {
         console.warn(`⚠️ Upload partial: ${successCount} successful, ${failCount} failed`);
+        console.error('Failed operations:', failures);
         await transaction.complete();
       }
     } catch (error: any) {

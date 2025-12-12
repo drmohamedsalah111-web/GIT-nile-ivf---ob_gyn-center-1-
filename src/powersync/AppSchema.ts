@@ -40,7 +40,8 @@ const stimulation_logs = new Table({
   e2: column.text,
   lh: column.text,
   rt_follicles: column.text,
-  lt_follicles: column.text
+  lt_follicles: column.text,
+  endometrium_thickness: column.text
 });
 
 const pregnancies = new Table({
@@ -63,12 +64,21 @@ const antenatal_visits = new Table({
   weight_kg: column.real,
   systolic_bp: column.integer,
   diastolic_bp: column.integer,
-  notes: column.text
+  urine_albuminuria: column.text,
+  urine_glycosuria: column.text,
+  fetal_heart_sound: column.integer,
+  fundal_height_cm: column.real,
+  edema: column.integer,
+  edema_grade: column.text,
+  notes: column.text,
+  next_visit_date: column.text
 });
 
 const biometry_scans = new Table({
   pregnancy_id: column.text,
   scan_date: column.text,
+  gestational_age_weeks: column.integer,
+  gestational_age_days: column.integer,
   efw_grams: column.integer,
   percentile: column.integer,
   bpd_mm: column.real,
@@ -83,6 +93,21 @@ const patient_files = new Table({
   file_url: column.text,
   file_type: column.text,
   file_name: column.text
+});
+
+const doctors = new Table({
+  user_id: column.text,
+  email: column.text,
+  name: column.text,
+  specialization: column.text,
+  phone: column.text,
+  doctor_image: column.text,
+  clinic_name: column.text,
+  clinic_address: column.text,
+  clinic_phone: column.text,
+  clinic_image: column.text,
+  clinic_latitude: column.text,
+  clinic_longitude: column.text
 });
 
 const profiles = new Table({
@@ -107,6 +132,7 @@ export const AppSchema = new Schema({
   antenatal_visits,
   biometry_scans,
   patient_files,
+  doctors,
   profiles,
   app_settings
 });
