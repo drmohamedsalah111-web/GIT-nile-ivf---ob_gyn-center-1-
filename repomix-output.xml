@@ -748,6 +748,78 @@ COMMENT ON INDEX idx_visits_department IS 'Index for filtering visits by departm
 COMMENT ON INDEX idx_visits_patient_clinical IS 'Index for patient clinical visits ordered by date';
 </file>
 
+<file path="components/BottomNav.tsx">
+import React from 'react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, FileText, LogOut } from 'lucide-react';
+import { Page } from '../types';
+
+interface Props {
+  activePage: Page;
+  setPage: (p: Page) => void;
+  onLogout: () => void;
+}
+
+const BottomNav: React.FC<Props> = ({ activePage, setPage, onLogout }) => {
+  // Consolidated navigation items in logical order
+  const navItems = [
+    { id: Page.HOME, label: 'الرئيسية', icon: LayoutDashboard, action: null },
+    { id: Page.RECEPTION, label: 'المرضى', icon: Users, action: null },
+    { id: Page.GYNECOLOGY, label: 'النساء', icon: Activity, action: null },
+    { id: Page.OBSTETRICS, label: 'الحمل', icon: Heart, action: null },
+    { id: Page.IVF, label: 'الخصوبة', icon: Baby, action: null },
+    { id: Page.PATIENT_RECORD, label: 'السجلات', icon: FileText, action: null },
+    { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings, action: null },
+    { id: 'logout', label: 'خروج', icon: LogOut, action: onLogout },
+  ];
+
+  const NavButton: React.FC<{ item: any, isActive: boolean }> = ({ item, isActive }) => {
+    const Icon = typeof item.icon === 'string' ? null : item.icon;
+    return (
+      <button
+        onClick={() => {
+          if (item.action) {
+            item.action();
+          } else {
+            setPage(item.id);
+          }
+        }}
+        className={`flex-none flex flex-col items-center justify-center min-w-[4.5rem] py-2 pb-safe transition-colors duration-200 ${
+          isActive
+            ? 'text-teal-600 bg-teal-50 border-t-4 border-teal-600'
+            : item.id === 'logout'
+            ? 'text-red-600 hover:bg-red-50'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`}
+        aria-label={item.label}
+        aria-current={isActive ? 'page' : undefined}
+      >
+        {Icon && <Icon className="w-5 h-5 mb-1" />}
+        <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
+      </button>
+    );
+  };
+
+  return (
+    <>
+      {/* Mobile Bottom Navigation - Horizontally Scrollable */}
+      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-gray-200 shadow-xl z-50">
+        <div className="flex overflow-x-auto w-full bg-white border-t border-gray-200 no-scrollbar">
+          {navItems.map((item) => (
+            <NavButton
+              key={item.id}
+              item={item}
+              isActive={activePage === item.id}
+            />
+          ))}
+        </div>
+      </nav>
+    </>
+  );
+};
+
+export default BottomNav;
+</file>
+
 <file path="constants.ts">
 // Egyptian IVF Medications Database
 export const EGYPTIAN_DRUGS = {
@@ -3809,78 +3881,6 @@ async function checkDatabase() {
 }
 
 checkDatabase();
-</file>
-
-<file path="components/BottomNav.tsx">
-import React from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, FileText, LogOut } from 'lucide-react';
-import { Page } from '../types';
-
-interface Props {
-  activePage: Page;
-  setPage: (p: Page) => void;
-  onLogout: () => void;
-}
-
-const BottomNav: React.FC<Props> = ({ activePage, setPage, onLogout }) => {
-  // Consolidated navigation items in logical order
-  const navItems = [
-    { id: Page.HOME, label: 'الرئيسية', icon: LayoutDashboard, action: null },
-    { id: Page.RECEPTION, label: 'المرضى', icon: Users, action: null },
-    { id: Page.GYNECOLOGY, label: 'النساء', icon: Activity, action: null },
-    { id: Page.OBSTETRICS, label: 'الحمل', icon: Heart, action: null },
-    { id: Page.IVF, label: 'الخصوبة', icon: Baby, action: null },
-    { id: Page.PATIENT_RECORD, label: 'السجلات', icon: FileText, action: null },
-    { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings, action: null },
-    { id: 'logout', label: 'خروج', icon: LogOut, action: onLogout },
-  ];
-
-  const NavButton: React.FC<{ item: any, isActive: boolean }> = ({ item, isActive }) => {
-    const Icon = typeof item.icon === 'string' ? null : item.icon;
-    return (
-      <button
-        onClick={() => {
-          if (item.action) {
-            item.action();
-          } else {
-            setPage(item.id);
-          }
-        }}
-        className={`flex-none flex flex-col items-center justify-center min-w-[4.5rem] py-2 pb-safe transition-colors duration-200 ${
-          isActive
-            ? 'text-teal-600 bg-teal-50 border-t-4 border-teal-600'
-            : item.id === 'logout'
-            ? 'text-red-600 hover:bg-red-50'
-            : 'text-gray-600 hover:bg-gray-50'
-        }`}
-        aria-label={item.label}
-        aria-current={isActive ? 'page' : undefined}
-      >
-        {Icon && <Icon className="w-5 h-5 mb-1" />}
-        <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
-      </button>
-    );
-  };
-
-  return (
-    <>
-      {/* Mobile Bottom Navigation - Horizontally Scrollable */}
-      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-gray-200 shadow-xl z-50">
-        <div className="flex overflow-x-auto w-full bg-white border-t border-gray-200 no-scrollbar">
-          {navItems.map((item) => (
-            <NavButton
-              key={item.id}
-              item={item}
-              isActive={activePage === item.id}
-            />
-          ))}
-        </div>
-      </nav>
-    </>
-  );
-};
-
-export default BottomNav;
 </file>
 
 <file path="components/PrescriptionComponent.tsx">
@@ -27147,6 +27147,93 @@ export async function getFullConnectionStatus(): Promise<ConnectionStatus> {
 }
 </file>
 
+<file path="styles.css">
+/* tailwindcss */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Tajawal', sans-serif;
+  background-color: #f3f4f6;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Bottom Navigation Scrollbar Styles */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  body, html {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 32px !important;
+    background: white !important;
+  }
+
+  #root {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-only * {
+    background: white !important;
+    color: #000 !important;
+  }
+
+  .print-only h1,
+  .print-only h2,
+  .print-only h3 {
+    margin-top: 0 !important;
+    page-break-after: avoid !important;
+  }
+}
+</file>
+
 <file path="tailwind.config.js">
 export default {
   content: [
@@ -29066,93 +29153,6 @@ export class Connector implements PowerSyncBackendConnector {
             // await transaction.reject();
         }
     }
-}
-</file>
-
-<file path="styles.css">
-/* tailwindcss */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-body {
-  font-family: 'Tajawal', sans-serif;
-  background-color: #f3f4f6;
-}
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* Bottom Navigation Scrollbar Styles */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0);
-}
-
-.print-only {
-  display: none;
-}
-
-@media print {
-  body, html {
-    background: white !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-  }
-
-  .no-print {
-    display: none !important;
-  }
-
-  .print-only {
-    display: block !important;
-    position: relative !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 32px !important;
-    background: white !important;
-  }
-
-  #root {
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  .print-only * {
-    background: white !important;
-    color: #000 !important;
-  }
-
-  .print-only h1,
-  .print-only h2,
-  .print-only h3 {
-    margin-top: 0 !important;
-    page-break-after: avoid !important;
-  }
 }
 </file>
 
