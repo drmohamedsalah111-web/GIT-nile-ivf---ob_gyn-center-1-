@@ -21,16 +21,21 @@ export const authService = {
     if (error) throw error;
 
     if (data.user) {
-      // Write to PowerSync (offline-first)
-      const now = new Date().toISOString();
-      await powerSyncDb.execute(
-        `INSERT INTO doctors (user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [data.user.id, email, doctorData.name, doctorData.specialization || null, doctorData.phone || null,
-         null, null, null, null, now, now]
-      );
+      try {
+        const id = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await powerSyncDb.execute(
+          `INSERT INTO doctors (id, user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [id, data.user.id, email, doctorData.name, doctorData.specialization || null, doctorData.phone || null,
+           null, null, null, null, now, now]
+        );
 
-      console.log('✅ Doctor record created in PowerSync');
+        console.log('✅ Doctor record created in PowerSync');
+      } catch (dbError: any) {
+        console.error('❌ Failed to create doctor record:', dbError);
+        throw new Error(`فشل إنشاء ملف الطبيب: ${dbError.message || 'خطأ في قاعدة البيانات'}`);
+      }
     }
 
     return data;
