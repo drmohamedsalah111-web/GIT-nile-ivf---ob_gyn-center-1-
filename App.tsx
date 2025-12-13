@@ -19,6 +19,7 @@ import { BrandingProvider } from './context/BrandingContext';
 import { initPWA } from './src/lib/pwa';
 import { connectPowerSync } from './src/powersync/client';
 import { useStatus } from '@powersync/react';
+import { checkOfflineReadiness } from './src/lib/offlineReadinessCheck';
 
 const App: React.FC = () => {
   const host = window.location.host;
@@ -90,6 +91,11 @@ const App: React.FC = () => {
       }
     };
 
+    const run = async () => {
+      await initializeApp();
+      await checkOfflineReadiness();
+    };
+
     console.log('🚀 App useEffect: Starting initialization...');
     console.log('📱 Browser online status:', navigator.onLine);
 
@@ -122,7 +128,7 @@ const App: React.FC = () => {
         .catch(err => console.warn('⚠️ Could not check worker file:', err?.message));
     }
 
-    initializeApp();
+    run();
 
     let lastUserId: string | null = null;
     let isPowerSyncInitialized = false;
