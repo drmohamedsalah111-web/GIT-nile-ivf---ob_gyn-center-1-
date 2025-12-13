@@ -1,21 +1,26 @@
 /// <reference types="vite/client" />
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { validateEnvironment, logEnvironmentStatus } from './envValidation';
 
 // Get environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Validate environment variables
-if (!supabaseUrl) {
-  console.error('❌ VITE_SUPABASE_URL is not configured');
-  console.error('❌ يرجى إضافة VITE_SUPABASE_URL في ملف .env');
-  console.error('❌ يمكنك الحصول على الرابط من Supabase Dashboard > Settings > API');
-}
+// Validate environment at module load time
+const envValidation = validateEnvironment();
 
-if (!supabaseKey) {
-  console.error('❌ VITE_SUPABASE_ANON_KEY is not configured');
-  console.error('❌ يرجى إضافة VITE_SUPABASE_ANON_KEY في ملف .env');
-  console.error('❌ يمكنك الحصول على المفتاح من Supabase Dashboard > Settings > API');
+// Log environment status on startup
+if (import.meta.env.DEV || !import.meta.env.PROD) {
+  logEnvironmentStatus();
+} else {
+  if (!envValidation.isValid) {
+    console.error('❌ CRITICAL: Environment variables not properly configured');
+    envValidation.errors.forEach(err => {
+      console.error(`   ❌ ${err}`);
+    });
+  } else {
+    console.log('✅ Environment validation passed');
+  }
 }
 
 // Create Supabase client with optimized options
@@ -67,6 +72,9 @@ export function getSupabaseConfigStatus(): {
     fullyConfigured: !!(supabaseUrl && supabaseKey),
   };
 }
+
+// Export environment validation for use in other parts of the app
+export { validateEnvironment, hasEnvironmentErrors, getEnvironmentErrors } from './envValidation';
 
 // Log configuration status in development
 if (import.meta.env.DEV) {

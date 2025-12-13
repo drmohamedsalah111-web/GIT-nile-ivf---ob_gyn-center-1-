@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 // import SyncStatus from './components/SyncStatus';
+import EnvErrorBanner from './components/EnvErrorBanner';
 import { Page } from './types';
 import Dashboard from './pages/Dashboard';
 import Reception from './pages/Reception';
@@ -228,6 +229,7 @@ const App: React.FC = () => {
 
   return (
     <BrandingProvider>
+      <EnvErrorBanner />
       <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row-reverse font-[Tajawal]">
         <div className="hidden md:flex">
           <Sidebar activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
