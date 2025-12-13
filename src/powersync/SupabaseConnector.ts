@@ -2,6 +2,33 @@
 import { PowerSyncBackendConnector, UpdateType } from '@powersync/web';
 import { supabase } from '../lib/supabase';
 
+// Diagnostic state for upload errors and pending CRUD count
+export interface UploadDiagnostics {
+  pendingCrudCount: number;
+  lastUploadError: string | null;
+  lastUploadErrorAt: number | null;
+  successfulUploads: number;
+}
+
+export const uploadDiagnostics: UploadDiagnostics = {
+  pendingCrudCount: 0,
+  lastUploadError: null,
+  lastUploadErrorAt: null,
+  successfulUploads: 0
+};
+
+// Subscribers for diagnostic updates (for UI components)
+const diagnosticSubscribers = new Set<(diag: UploadDiagnostics) => void>();
+
+export function subscribeToDiagnostics(callback: (diag: UploadDiagnostics) => void) {
+  diagnosticSubscribers.add(callback);
+  return () => diagnosticSubscribers.delete(callback);
+}
+
+function notifyDiagnosticsChange() {
+  diagnosticSubscribers.forEach(cb => cb({ ...uploadDiagnostics }));
+}
+
 // Cache credentials to prevent excessive calls
 let credentialsCache: { endpoint: string; token: string; expiresAt: number; lastFetch: number } | null = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
@@ -116,49 +143,60 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
   async uploadData(database: any) {
     const transaction = await database.getNextCrudTransaction();
-    if (!transaction) return;
+    if (!transaction) {
+      uploadDiagnostics.pendingCrudCount = 0;
+      notifyDiagnosticsChange();
+      return;
+    }
 
     const UPLOAD_RETRIES = 3;
-    const RETRY_DELAY = 1000;
+    const RETRY_DELAY = 1000; // exponential backoff: 1s, 2s, 3s
 
-    const uploadWithRetry = async (op: any): Promise<{ success: boolean; error?: string }> => {
+    const uploadWithRetry = async (op: any): Promise<{ success: boolean; error?: string; recordId?: string }> => {
       const { table, opData } = op;
+      const recordId = opData?.id || 'unknown';
 
       for (let attempt = 1; attempt <= UPLOAD_RETRIES; attempt++) {
         try {
           let result;
+          const operationType = 
+            op.op === UpdateType.PUT ? 'PUT (upsert)' : 
+            op.op === UpdateType.PATCH ? 'PATCH (update)' : 
+            op.op === UpdateType.DELETE ? 'DELETE' : 'UNKNOWN';
 
           if (op.op === UpdateType.PUT) {
             result = await supabase.from(table).upsert(opData, { onConflict: 'id' });
           } else if (op.op === UpdateType.PATCH) {
-            result = await supabase.from(table).update(opData).eq('id', opData.id);
+            const { id, ...updateData } = opData;
+            result = await supabase.from(table).update(updateData).eq('id', id);
           } else if (op.op === UpdateType.DELETE) {
-            result = await supabase.from(table).delete().eq('id', opData.id);
+            result = await supabase.from(table).delete().eq('id', recordId);
           } else {
-            return { success: false, error: `Unknown operation type: ${op.op}` };
+            return { success: false, error: `Unknown operation type: ${op.op}`, recordId };
           }
 
           if (result.error) {
             const statusCode = result.error?.code;
+            const isRetryable = ['PGRST116', 'PGRST301', 'Connection'].some(c => statusCode?.includes(c));
             
-            if (attempt < UPLOAD_RETRIES && ['PGRST116', 'PGRST301', 'Connection'].some(c => statusCode?.includes(c))) {
+            if (attempt < UPLOAD_RETRIES && isRetryable) {
               const delayMs = RETRY_DELAY * attempt;
-              console.warn(`⚠️ [${table}] Retry ${attempt}/${UPLOAD_RETRIES} in ${delayMs}ms:`, result.error.message);
+              console.warn(`⚠️ [${table}:${recordId}] ${operationType} retry ${attempt}/${UPLOAD_RETRIES} in ${delayMs}ms: ${result.error.message}`);
               await new Promise(resolve => setTimeout(resolve, delayMs));
               continue;
             }
 
-            return { success: false, error: result.error.message };
+            return { success: false, error: `[${table}:${recordId}] ${result.error.message}`, recordId };
           }
 
-          console.log(`✅ [${table}] ${op.op === UpdateType.PUT ? 'Upserted' : op.op === UpdateType.PATCH ? 'Updated' : 'Deleted'} successfully (attempt ${attempt})`);
-          return { success: true };
+          console.log(`✅ [${table}:${recordId}] ${operationType} success (attempt ${attempt})`);
+          return { success: true, recordId };
         } catch (error: any) {
           const isLastAttempt = attempt === UPLOAD_RETRIES;
-          console.error(`❌ [${table}] Upload error (attempt ${attempt}/${UPLOAD_RETRIES}):`, error?.message);
+          console.error(`❌ [${table}:${recordId}] Upload error (attempt ${attempt}/${UPLOAD_RETRIES}): ${error?.message}`);
 
           if (isLastAttempt) {
-            return { success: false, error: error?.message };
+            return { success: false, error: `[${table}:${recordId}] ${error?.message}`, recordId };
           }
 
           const delayMs = RETRY_DELAY * attempt;
@@ -166,34 +204,64 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
         }
       }
 
-      return { success: false, error: 'Max retries exceeded' };
+      return { success: false, error: `[${table}:${recordId}] Max retries exceeded`, recordId };
     };
 
     try {
       let successCount = 0;
       let failCount = 0;
-      const failures = [];
+      const failures: Array<{ table: string; recordId: string; error: string }> = [];
 
+      // Process each CRUD operation
       for (const op of transaction.crud) {
         const result = await uploadWithRetry(op);
         if (result.success) {
           successCount++;
         } else {
           failCount++;
-          failures.push({ table: op.table, error: result.error });
+          failures.push({ 
+            table: op.table, 
+            recordId: result.recordId || 'unknown',
+            error: result.error || 'Unknown error' 
+          });
         }
       }
 
+      // Update pending CRUD count
+      uploadDiagnostics.pendingCrudCount = transaction.crud.length;
+
       if (failCount === 0) {
+        // All operations succeeded - complete the transaction
         console.log(`✅ Upload complete: ${successCount} operations successful`);
+        uploadDiagnostics.successfulUploads += successCount;
+        uploadDiagnostics.lastUploadError = null;
+        uploadDiagnostics.lastUploadErrorAt = null;
+        uploadDiagnostics.pendingCrudCount = 0;
         await transaction.complete();
+        console.log('✅ Transaction marked complete');
       } else {
-        console.warn(`⚠️ Upload partial: ${successCount} successful, ${failCount} failed`);
-        console.error('Failed operations:', failures);
-        await transaction.complete();
+        // Partial or complete failure - DO NOT complete the transaction
+        const errorMsg = `${successCount} OK, ${failCount} FAILED: ${failures.map(f => f.error).join(' | ')}`;
+        console.warn(`⚠️ Upload partial failure: ${errorMsg}`);
+        uploadDiagnostics.lastUploadError = errorMsg;
+        uploadDiagnostics.lastUploadErrorAt = Date.now();
+        
+        // Log individual failures for debugging
+        failures.forEach(f => {
+          console.error(`   ❌ ${f.table}[${f.recordId}]: ${f.error}`);
+        });
+        
+        // CRITICAL: Do NOT call transaction.complete() - leave for retry
+        console.log('⏸️ Transaction pending for retry (not completed)');
       }
+
+      notifyDiagnosticsChange();
     } catch (error: any) {
-      console.error('❌ Upload transaction failed:', error?.message);
+      const errorMsg = `Transaction error: ${error?.message}`;
+      console.error(`❌ ${errorMsg}`);
+      uploadDiagnostics.lastUploadError = errorMsg;
+      uploadDiagnostics.lastUploadErrorAt = Date.now();
+      notifyDiagnosticsChange();
     }
   }
 }
