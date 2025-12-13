@@ -19,7 +19,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
-  const [activeTab, setActiveTab] = useState<'branding' | 'prescription' | 'profile' | 'password' | 'data' | 'connection'>('branding');
+  const [activeTab, setActiveTab] = useState<'branding' | 'prescription' | 'profile' | 'password' | 'data' | 'connection' | 'debug'>('branding');
 
   const [brandingFormData, setBrandingFormData] = useState({
     clinic_name: '',
@@ -49,6 +49,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploadLoading, setLogoUploadLoading] = useState(false);
   const [hardResetLoading, setHardResetLoading] = useState(false);
+  const [rowCounts, setRowCounts] = useState<Record<string, number | string>>({});
   
   // Connection status
   const powerSyncStatus = useStatus();
@@ -85,6 +86,9 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
     fetchData();
     checkConnections();
+    if (import.meta.env.DEV) {
+      fetchRowCounts();
+    }
   }, [user]);
 
   const checkConnections = async () => {
@@ -125,6 +129,20 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     } finally {
       setCheckingConnection(false);
     }
+  };
+
+  const fetchRowCounts = async () => {
+    const tables = ['patients', 'visits', 'clinical_stations', 'obstetrics', 'ivf_cycles', 'doctors'];
+    const counts: Record<string, number | string> = {};
+    for (const table of tables) {
+      try {
+        const result = await powerSyncDb.execute(`SELECT COUNT(*) as count FROM ${table}`);
+        counts[table] = result.rows[0].count;
+      } catch (e) {
+        counts[table] = 'error';
+      }
+    }
+    setRowCounts(counts);
   };
 
   const handleReconnectPowerSync = async () => {
@@ -404,6 +422,18 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
           <Server size={20} />
           حالة الاتصال
         </button>
+        {import.meta.env.DEV && (
+          <button
+            onClick={() => setActiveTab('debug')}
+            className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${activeTab === 'debug'
+              ? 'border-teal-600 text-teal-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+          >
+            <Database size={20} />
+            Debug (DEV)
+          </button>
+        )}
       </div>
 
       {activeTab === 'branding' && (
@@ -889,6 +919,56 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'debug' && import.meta.env.DEV && (
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">Debug Panel (DEV Only)</h3>
+
+          <div className="grid md:grid-cols-2 gap-6 mb-6">
+            {/* PowerSync Status */}
+            <div className="border border-gray-200 rounded-lg p-4">
+              <h4 className="font-semibold mb-2 font-[Tajawal]">PowerSync Status</h4>
+              <div className="space-y-1 text-sm">
+                <div>Connected: {powerSyncStatus.connected ? 'Yes' : 'No'}</div>
+                <div>Connecting: {powerSyncStatus.connecting ? 'Yes' : 'No'}</div>
+                <div>Last Synced: {powerSyncStatus.lastSyncedAt ? new Date(powerSyncStatus.lastSyncedAt).toLocaleString() : 'Never'}</div>
+              </div>
+            </div>
+
+            {/* Row Counts */}
+            <div className="border border-gray-200 rounded-lg p-4">
+              <h4 className="font-semibold mb-2 font-[Tajawal]">Local Row Counts</h4>
+              <div className="space-y-1 text-sm">
+                {Object.entries(rowCounts).map(([table, count]) => (
+                  <div key={table}>{table}: {count}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <h4 className="font-semibold mb-2 font-[Tajawal]">Profile</h4>
+            <div className="text-sm">
+              <div>Doctor ID: {doctor?.id}</div>
+              <div>Clinic ID: Not available</div>
+            </div>
+          </div>
+
+          <button
+            onClick={async () => {
+              try {
+                await connectPowerSync({ force: true });
+                toast.success('Force resync initiated');
+              } catch (e) {
+                toast.error('Force resync failed');
+              }
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-[Tajawal] transition-colors"
+          >
+            Force Resync
+          </button>
         </div>
       )}
     </div>
