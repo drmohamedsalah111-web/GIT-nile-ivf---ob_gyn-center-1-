@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 // import SyncStatus from './components/SyncStatus';
 import EnvErrorBanner from './components/EnvErrorBanner';
+import PreviewWarningBanner from './components/PreviewWarningBanner';
 import { Page } from './types';
 import Dashboard from './pages/Dashboard';
 import Reception from './pages/Reception';
@@ -23,8 +24,6 @@ import { useStatus } from '@powersync/react';
 import { checkOfflineReadiness } from './src/lib/offlineReadinessCheck';
 
 const App: React.FC = () => {
-  const host = window.location.host;
-  const isPreview = host.endsWith('.mosalahicsi.pages.dev') && host !== 'mosalahicsi.pages.dev';
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -230,6 +229,7 @@ const App: React.FC = () => {
   return (
     <BrandingProvider>
       <EnvErrorBanner />
+      <PreviewWarningBanner />
       <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row-reverse font-[Tajawal]">
         <div className="hidden md:flex">
           <Sidebar activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />

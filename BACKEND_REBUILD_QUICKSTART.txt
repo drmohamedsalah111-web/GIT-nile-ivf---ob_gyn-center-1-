@@ -1,0 +1,262 @@
+================================================================================
+NILE IVF BACKEND REBUILD - QUICK START GUIDE
+================================================================================
+
+Two Supabase Projects:
+  OLD: Current project (untouched, for reference/fallback)
+  NEW: Clean project with PowerSync configured
+
+================================================================================
+STEP 1: CREATE NEW SUPABASE PROJECT (5 minutes)
+================================================================================
+
+Go to: https://app.supabase.com/
+- Click "New Project"
+- Name: nile-ivf-prod-v2
+- Password: Generate strong password (save securely)
+- Region: Same as old project
+- Copy: Project URL (https://<NEW-REF>.supabase.co)
+- Copy: Anon Key (starts with eyJhbGc...)
+
+Save these credentials securely.
+
+================================================================================
+STEP 2: RUN SQL IN NEW PROJECT (5 minutes)
+================================================================================
+
+Go to: NEW Supabase Project → SQL Editor → New Query
+
+Run these in order:
+
+A) SNIPPET 1 (Extensions) - 2 lines
+   See: BACKEND_REBUILD_SQL_SNIPPETS.md → SNIPPET 1
+
+B) SNIPPET 2 (Schema) - 615 lines
+   Copy entire file: POWERSYNC_SCHEMA_SETUP.sql
+   Paste in SQL Editor → Run
+   ✓ Should complete without errors
+
+C) SNIPPET 3 (Replication Role) - 9 lines
+   See: BACKEND_REBUILD_SQL_SNIPPETS.md → SNIPPET 3
+   ⚠️  Change PASSWORD to something strong
+
+D) SNIPPET 4 (Publication) - 30 lines
+   See: BACKEND_REBUILD_SQL_SNIPPETS.md → SNIPPET 4
+   ✓ Should show 10 tables in results
+
+================================================================================
+STEP 3: CONFIGURE POWERSYNC DASHBOARD (5 minutes)
+================================================================================
+
+Go to: https://dashboard.powersync.co/
+
+1. Add Connector → PostgreSQL
+2. Fill connection details:
+   - Host: db.<NEW-REF>.supabase.co
+   - Port: 5432
+   - Database: postgres
+   - Username: powersync_role
+   - Password: (from SNIPPET 3)
+   - SSL: require
+
+3. Test Connection → Should show ✓ Connected
+
+4. Go to Sync Rules → Paste POWERSYNC_SYNC_RULES.yaml → Save
+
+================================================================================
+STEP 4: VERIFY SETUP (2 minutes)
+================================================================================
+
+Run in NEW Supabase SQL Editor:
+
+SNIPPET 5: Verify role exists
+  → Should show: rolname=powersync_role, rolcanlogin=t, rolreplication=t
+
+SNIPPET 6: Verify tables in publication
+  → Should show: 10 rows (all tables listed)
+
+SNIPPET 7: Verify RLS enabled
+  → Should show: All tables with rowsecurity=true
+
+================================================================================
+STEP 5: UPDATE APPLICATION (2 minutes)
+================================================================================
+
+Update environment variables:
+
+For local testing (.env):
+  VITE_SUPABASE_URL=https://<NEW-REF>.supabase.co
+  VITE_SUPABASE_ANON_KEY=<new-anon-key>
+
+For Cloudflare Pages deployment:
+  Go to Settings → Environment Variables
+  Set in BOTH Production and Preview:
+    - VITE_SUPABASE_URL
+    - VITE_SUPABASE_ANON_KEY
+    - VITE_POWERSYNC_URL (optional)
+
+Then deploy:
+  npm run build
+  git push (if using auto-deploy)
+
+================================================================================
+STEP 6: TEST OFFLINE-FIRST (5 minutes)
+================================================================================
+
+In browser:
+  1. Log in with test account
+  2. Create a test patient (should sync)
+  3. Open DevTools → Network → Set to "Offline"
+  4. Create another test patient
+  5. Go back to "Online"
+  6. Check PowerSync Dashboard → Logs for successful sync
+
+================================================================================
+STEP 7: DATA MIGRATION (OPTIONAL - 30 minutes)
+================================================================================
+
+If you want to copy data from OLD → NEW project:
+
+From OLD project:
+  - Run SNIPPET 8 for each table
+  - Export as CSV
+  - Save all 10 CSV files
+
+To NEW project:
+  - Use Table Editor → Import Data
+  - Upload each CSV in order:
+    1. doctors
+    2. patients
+    3. visits
+    4. ivf_cycles
+    5. stimulation_logs
+    6. pregnancies
+    7. antenatal_visits
+    8. biometry_scans
+    9. patient_files
+    10. app_settings
+
+  - Run SNIPPET 10 to verify row counts match
+  - Run SNIPPET 11 to verify referential integrity
+
+================================================================================
+REFERENCE FILES IN PROJECT
+================================================================================
+
+BACKEND_REBUILD_CHECKLIST.md (Comprehensive)
+  ├─ PHASE 1-3: Initial setup
+  ├─ PHASE 4-7: SQL verification
+  ├─ PHASE 8-11: Deployment & migration
+  └─ Troubleshooting section
+
+BACKEND_REBUILD_SQL_SNIPPETS.md (Copy-Paste Ready)
+  ├─ SNIPPET 1-7: Setup SQL
+  ├─ SNIPPET 8-13: Data migration SQL
+  └─ Quick reference: Connection strings
+
+POWERSYNC_SCHEMA_SETUP.sql (615 lines)
+  ├─ Extensions
+  ├─ 10 tables (doctors, patients, visits, ivf_cycles, etc.)
+  ├─ Row-level security policies
+  └─ Publication setup
+
+POWERSYNC_PUBLICATION_SETUP.sql (42 lines)
+  └─ Creates logical replication publication
+
+POWERSYNC_SYNC_RULES.yaml (18 lines)
+  └─ Upload to PowerSync Dashboard → Sync Rules
+
+================================================================================
+CONNECTION STRINGS
+================================================================================
+
+PowerSync to Database:
+  postgresql://powersync_role:PASSWORD@db.<NEW-REF>.supabase.co:5432/postgres
+
+Application to Supabase API:
+  URL: https://<NEW-REF>.supabase.co
+  Key: eyJhbGc... (anon key)
+
+Test connection locally (psql):
+  psql "postgresql://powersync_role:PASSWORD@db.<NEW-REF>.supabase.co:5432/postgres"
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+❌ "Publication not found"
+   → Run SNIPPET 4 again
+
+❌ "Role already exists"
+   → Safe to ignore, run SNIPPET 5 to verify
+
+❌ "RLS blocking inserts"
+   → RLS is working correctly, ensure auth.uid() matches doctor.user_id
+
+❌ "PowerSync not syncing"
+   → Check Dashboard → Connection status
+   → Verify credentials in PowerSync connector
+   → Check browser console for errors
+
+❌ "Offline mode crashes"
+   → Clear browser cache + storage
+   → Rebuild app: npm run build
+   → Hard refresh: Ctrl+Shift+R (or Cmd+Shift+R)
+
+See BACKEND_REBUILD_CHECKLIST.md → PHASE 11: TROUBLESHOOTING for more.
+
+================================================================================
+TIMELINE ESTIMATE
+================================================================================
+
+Without data migration:
+  Step 1 (Create project):     5 min
+  Step 2 (Run SQL):            5 min
+  Step 3 (PowerSync config):   5 min
+  Step 4 (Verify):             2 min
+  Step 5 (Update app):         2 min
+  Step 6 (Test offline):       5 min
+  ─────────────────────────────────
+  Total:                        24 minutes
+
+With data migration (optional):
+  + 30 minutes for exporting CSV from OLD
+  + 30 minutes for importing to NEW
+  + 10 minutes for verification
+  ─────────────────────────────────
+  Total with migration:         ~2 hours
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. Follow Quick Start Guide (above) - ~25 minutes
+2. Test locally with new credentials
+3. Deploy to staging/preview first (if available)
+4. Monitor PowerSync Dashboard for sync errors (first 24h)
+5. Optionally migrate historical data when ready
+6. Switch production traffic to NEW project
+7. Keep OLD project as fallback for 1-2 weeks
+
+================================================================================
+SECURITY NOTES
+================================================================================
+
+✓ powersync_role has READ-ONLY permissions (SELECT only)
+✓ Row-level security (RLS) enforces doctor isolation
+✓ Doctors can only see their own patients/data
+✓ Use strong password for powersync_role (min 12 chars + symbols)
+✓ Store credentials in environment variables (not in code)
+✓ SSL required for all database connections (Supabase enforces this)
+
+================================================================================
+QUESTIONS?
+================================================================================
+
+See detailed documentation:
+  - Full checklist: BACKEND_REBUILD_CHECKLIST.md
+  - SQL reference: BACKEND_REBUILD_SQL_SNIPPETS.md
+  - PowerSync docs: https://docs.powersync.co/
+  - Supabase docs: https://supabase.com/docs/
+
+================================================================================

@@ -1,17 +1,67 @@
 # PowerSync Sync Rules for IVF & OB/GYN Center
+# SECURED: All rules filter by auth.uid() to prevent data leaks
 # Copy this content to your PowerSync Dashboard under "Sync Rules"
 
 bucket_definitions:
   global:
     data:
-      - SELECT id, name, age, phone, husband_name, history, doctor_id FROM patients
-      - SELECT id, patient_id, date, department, diagnosis, prescription, notes, clinical_data FROM visits
-      - SELECT id, patient_id, doctor_id, protocol, status, start_date, assessment_data, lab_data, transfer_data, outcome_data FROM ivf_cycles
-      - SELECT id, cycle_id, cycle_day, date, fsh, hmg, e2, lh, rt_follicles, lt_follicles FROM stimulation_logs
-      - SELECT id, patient_id, doctor_id, lmp_date, edd_date, edd_by_scan, risk_level, risk_factors, aspirin_prescribed, thromboprophylaxis_needed FROM pregnancies
-      - SELECT id, pregnancy_id, visit_date, gestational_age_weeks, gestational_age_days, weight_kg, systolic_bp, diastolic_bp, urine_albuminuria, urine_glycosuria, fetal_heart_sound, fundal_height_cm, edema, edema_grade, notes, next_visit_date FROM antenatal_visits
-      - SELECT id, pregnancy_id, scan_date, efw_grams, percentile, bpd_mm, hc_mm, ac_mm, fl_mm, notes FROM biometry_scans
-      - SELECT id, patient_id, file_url, file_type, file_name FROM patient_files
+      # Doctors: Only their own profile
       - SELECT id, user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone FROM doctors
-      - SELECT id, clinic_name, logo_url, clinic_address, clinic_phone, primary_color, secondary_color, accent_color FROM app_settings
+        WHERE user_id = auth.uid()
+      
+      # Patients: Only their assigned patients
+      - SELECT id, name, age, phone, husband_name, history, doctor_id FROM patients
+        WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+      
+      # Visits: Only visits of their patients
+      - SELECT id, patient_id, date, department, diagnosis, prescription, notes, clinical_data FROM visits
+        WHERE patient_id IN (
+          SELECT id FROM patients 
+          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+        )
+      
+      # IVF Cycles: Only their cycles
+      - SELECT id, patient_id, doctor_id, protocol, status, start_date, assessment_data, lab_data, transfer_data, outcome_data FROM ivf_cycles
+        WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+      
+      # Stimulation Logs: Only logs for their cycles
+      - SELECT id, cycle_id, cycle_day, date, fsh, hmg, e2, lh, rt_follicles, lt_follicles FROM stimulation_logs
+        WHERE cycle_id IN (
+          SELECT id FROM ivf_cycles 
+          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+        )
+      
+      # Pregnancies: Only their pregnancies
+      - SELECT id, patient_id, doctor_id, lmp_date, edd_date, edd_by_scan, risk_level, risk_factors, aspirin_prescribed, thromboprophylaxis_needed FROM pregnancies
+        WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+      
+      # Antenatal Visits: Only visits for their pregnancies
+      - SELECT id, pregnancy_id, visit_date, gestational_age_weeks, gestational_age_days, weight_kg, systolic_bp, diastolic_bp, urine_albuminuria, urine_glycosuria, fetal_heart_sound, fundal_height_cm, edema, edema_grade, notes, next_visit_date FROM antenatal_visits
+        WHERE pregnancy_id IN (
+          SELECT id FROM pregnancies 
+          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+        )
+      
+      # Biometry Scans: Only scans for their pregnancies
+      - SELECT id, pregnancy_id, scan_date, efw_grams, percentile, bpd_mm, hc_mm, ac_mm, fl_mm, notes FROM biometry_scans
+        WHERE pregnancy_id IN (
+          SELECT id FROM pregnancies 
+          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+        )
+      
+      # Patient Files: Only files for their patients
+      - SELECT id, patient_id, file_url, file_type, file_name FROM patient_files
+        WHERE patient_id IN (
+          SELECT id FROM patients 
+          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+        )
+      
+      # Infertility Workups: Only workups for their patients
       - SELECT id, patient_id, amh, cycle_regularity, sperm_count, motility, morphology, left_tube, right_tube, cavity_status, diagnosis, plan FROM infertility_workups
+        WHERE patient_id IN (
+          SELECT id FROM patients 
+          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+        )
+      
+      # App Settings: Public, read-only (no WHERE clause needed)
+      - SELECT id, clinic_name, logo_url, clinic_address, clinic_phone, primary_color, secondary_color, accent_color FROM app_settings

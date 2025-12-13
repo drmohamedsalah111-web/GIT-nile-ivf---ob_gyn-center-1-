@@ -1,33 +1,46 @@
 // PWA Registration and Management
+// NOTE: Service Worker registration is handled automatically by VitePWA
+// (see vite.config.ts: injectRegister: 'auto')
+// This function now focuses on monitoring the SW and handling updates
+
 export const registerServiceWorker = async (): Promise<void> => {
   if ('serviceWorker' in navigator) {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/'
-      });
+      // VitePWA auto-registers the SW, but we still need to listen for updates
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      
+      if (registrations.length === 0) {
+        console.warn('⚠️ No service worker registrations found');
+        return;
+      }
 
-      console.log('Service Worker registered successfully:', registration.scope);
+      registrations.forEach((registration) => {
+        console.log('✅ Service Worker found:', registration.scope);
 
-      // Handle updates
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        if (newWorker) {
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // New version available
-              showUpdateNotification();
-            }
-          });
-        }
+        // Handle updates
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New version available
+                console.log('📦 New app version available');
+                showUpdateNotification();
+              }
+            });
+          }
+        });
       });
 
       // Handle controller change (new SW activated)
       navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('🔄 New service worker activated, reloading app...');
         window.location.reload();
       });
 
+      console.log('✅ Service Worker monitoring initialized');
     } catch (error) {
-      console.error('Service Worker registration failed:', error);
+      console.error('❌ Service Worker monitoring failed:', error);
     }
   }
 };

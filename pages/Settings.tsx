@@ -343,6 +343,58 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     }
   };
 
+  const handleClearLocalDB = async () => {
+    const currentHost = window.location.host;
+    const confirmed = window.confirm(
+      `⚠️ تحذير: سيتم حذف جميع البيانات المحلية لهذا الموقع فقط (${currentHost}).\n\n` +
+      'لن يؤثر على بيانات المواقع الأخرى أو الخادم. هل أنت متأكد؟'
+    );
+    if (!confirmed) return;
+
+    try {
+      setHardResetLoading(true);
+      toast.loading('جاري حذف قاعدة البيانات المحلية...', { id: 'clear-db' });
+
+      // Get all IndexedDB database names
+      const dbs = await (window.indexedDB as any).databases?.() || [];
+      
+      // Delete PowerSync database
+      const powerSyncDbNames = ['powersync', 'powersync.db'];
+      for (const dbName of [...dbs.map((db: any) => db.name), ...powerSyncDbNames]) {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const request = window.indexedDB.deleteDatabase(dbName);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          });
+          console.log(`✅ Deleted database: ${dbName}`);
+        } catch (error) {
+          console.warn(`⚠️ Could not delete database ${dbName}:`, error);
+        }
+      }
+
+      // Clear LocalStorage for this origin
+      localStorage.clear();
+      console.log('✅ Cleared localStorage');
+
+      // Clear SessionStorage for this origin
+      sessionStorage.clear();
+      console.log('✅ Cleared sessionStorage');
+
+      toast.success('تم حذف البيانات المحلية بنجاح! سيتم إعادة تحميل الصفحة...', { id: 'clear-db' });
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+
+    } catch (error) {
+      console.error('Clear local DB error:', error);
+      toast.error('فشل حذف البيانات المحلية. قد تحتاج إلى إعادة فتح المتصفح.', { id: 'clear-db' });
+    } finally {
+      setHardResetLoading(false);
+    }
+  };
+
   if (loading || brandingLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -916,6 +968,27 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
               </button>
               <p className="text-xs text-red-600 mt-2 font-[Tajawal]">
                 تحذير: سيتم حذف جميع البيانات المحلية وإعادة تحميلها من السيرفر
+              </p>
+
+              <button
+                onClick={handleClearLocalDB}
+                disabled={hardResetLoading}
+                className="w-full flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors mt-4"
+              >
+                {hardResetLoading ? (
+                  <>
+                    <Loader size={18} className="animate-spin" />
+                    جاري المسح...
+                  </>
+                ) : (
+                  <>
+                    <Database size={18} />
+                    مسح البيانات المحلية فقط (لهذا الموقع)
+                  </>
+                )}
+              </button>
+              <p className="text-xs text-orange-600 mt-2 font-[Tajawal]">
+                تحذير: سيتم حذف جميع البيانات المحلية لهذا الموقع فقط (IndexedDB, LocalStorage). لن يؤثر على الخادم أو مواقع أخرى.
               </p>
             </div>
           </div>

@@ -1,4 +1,10 @@
-// Service Worker for Nile IVF PWA
+// DEPRECATED: This custom Service Worker is no longer used.
+// The application now uses VitePWA's Workbox-based Service Worker for better offline support.
+// VitePWA is configured in vite.config.ts with proper caching for WASM binaries and worker threads.
+// This file is kept for reference only and will be removed in a future version.
+//
+// See vite.config.ts for the active Workbox configuration.
+
 const CACHE_NAME = 'nile-ivf-v1';
 const STATIC_CACHE = 'nile-ivf-static-v1';
 const DYNAMIC_CACHE = 'nile-ivf-dynamic-v1';

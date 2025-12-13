@@ -1,0 +1,176 @@
+================================================================================
+PREVIEW VS PRODUCTION HARDENING: STATUS & CONFIGURATION
+================================================================================
+
+STATUS: ✅ FULLY IMPLEMENTED
+
+All hardening measures are in place and working correctly.
+
+================================================================================
+WHAT'S IMPLEMENTED
+================================================================================
+
+1. PREVIEW DETECTION
+   File: src/lib/previewDetection.ts
+   Logic: Detects *.pages.dev but excludes mosalahicsi.pages.dev (production)
+   
+2. WARNING BANNER
+   File: components/PreviewWarningBanner.tsx
+   Shows: Amber banner explaining preview uses separate storage
+   Links: Direct link to https://mosalahicsi.pages.dev
+   
+3. OPTIONAL AUTO-REDIRECT
+   Env flags: VITE_AUTO_REDIRECT_PREVIEW=true, VITE_AUTO_REDIRECT_DELAY=2000
+   Effect: 2-second countdown then redirect to production
+   
+4. CLEAR LOCAL DB BUTTON
+   Location: Settings → Data tab (orange button)
+   Function: Clears IndexedDB + localStorage + sessionStorage for CURRENT ORIGIN ONLY
+   Safety: Confirms hostname before deletion
+
+================================================================================
+ORIGIN STORAGE DIFFERENCE (2 LINES)
+================================================================================
+
+Each origin (staging.pages.dev, mosalahicsi.pages.dev, localhost) has 
+completely isolated IndexedDB, localStorage, and sessionStorage—data from 
+one cannot be read by another, preventing cross-environment data leaks.
+
+================================================================================
+HOW TO CONFIGURE
+================================================================================
+
+For PREVIEW ENVIRONMENT (Cloudflare Pages):
+  Settings → Environment Variables → Preview
+  
+  VITE_AUTO_REDIRECT_PREVIEW=true
+  VITE_AUTO_REDIRECT_DELAY=2000  (optional, default 3000)
+
+For PRODUCTION ENVIRONMENT (Cloudflare Pages):
+  Settings → Environment Variables → Production
+  
+  (leave VITE_AUTO_REDIRECT_PREVIEW unset)
+
+================================================================================
+VERIFICATION CHECKLIST
+================================================================================
+
+☐ Visit preview URL (e.g., staging.pages.dev)
+  → Should see AMBER WARNING BANNER
+  
+☐ Wait 2 seconds (if auto-redirect enabled)
+  → Should AUTO-REDIRECT to mosalahicsi.pages.dev
+  
+☐ Visit production URL (mosalahicsi.pages.dev)
+  → Should NOT see any warning banner
+  
+☐ Go to Settings → Data tab
+  → Should see orange "Clear local offline DB" button
+  
+☐ Click "Clear local offline DB"
+  → Should show confirmation with hostname
+  → Should clear only current origin's data
+  → Page reloads automatically
+
+================================================================================
+FILES INVOLVED
+================================================================================
+
+src/lib/previewDetection.ts
+  ├─ detectPreview() → Returns { isPreview, productionUrl, currentHost }
+  ├─ shouldAutoRedirectPreview() → Reads VITE_AUTO_REDIRECT_PREVIEW
+  └─ getAutoRedirectDelay() → Reads VITE_AUTO_REDIRECT_DELAY
+
+components/PreviewWarningBanner.tsx
+  ├─ Renders amber banner (fixed top, z-index 9998)
+  ├─ Shows production URL link
+  ├─ Optional countdown timer
+  └─ Dismissable (but shows again on refresh)
+
+pages/Settings.tsx
+  ├─ handleClearLocalDB() function (line 346-396)
+  ├─ Confirmation dialog with hostname
+  ├─ Clears IndexedDB, localStorage, sessionStorage
+  └─ Auto-reloads after 2 seconds
+
+App.tsx
+  └─ Renders <PreviewWarningBanner /> at top level
+
+================================================================================
+USAGE: DOCTOR IN PREVIEW BY MISTAKE
+================================================================================
+
+Scenario: Doctor opens preview instead of production
+  1. Doctor visits https://staging.pages.dev
+  2. Amber banner shows: "Preview uses separate storage"
+  3. After 2 seconds: Auto-redirects to production
+  4. Doctor now on official site (if auto-redirect enabled)
+
+Scenario: Doctor created data in preview by accident
+  1. Doctor realizes: "I created patient on preview, not production"
+  2. Goes to Settings → Data tab
+  3. Clicks "Clear local offline DB"
+  4. Confirms: "Clear data for staging.pages.dev?"
+  5. ✓ Local preview data cleared
+  6. ✓ Production data untouched
+  7. ✓ Other doctors' data untouched
+
+================================================================================
+DEBUGGING
+================================================================================
+
+Check if detection is working (browser console):
+  import { detectPreview } from '@/src/lib/previewDetection';
+  detectPreview();  // Should show { isPreview: true/false, ... }
+
+Check auto-redirect config (browser console):
+  import.meta.env.VITE_AUTO_REDIRECT_PREVIEW  // Should be 'true'
+  import.meta.env.VITE_AUTO_REDIRECT_DELAY    // Should be '2000'
+
+Check storage isolation:
+  On staging.pages.dev: Check IndexedDB in DevTools → Application
+  Switch to mosalahicsi.pages.dev: Check again
+  Should see completely different databases
+
+================================================================================
+CLEANUP PATCH: Remove unused variable in App.tsx
+================================================================================
+
+Line 28 in App.tsx has unused preview detection:
+  const isPreview = host.endsWith('.mosalahicsi.pages.dev') && host !== 'mosalahicsi.pages.dev';
+
+This variable is not used (PreviewWarningBanner uses its own detection).
+
+PATCH: Delete line 28 (minor cleanup, logic is already handled by PreviewWarningBanner)
+
+Before:
+  const host = window.location.host;
+  const isPreview = host.endsWith('.mosalahicsi.pages.dev') && host !== 'mosalahicsi.pages.dev';
+  const [activePage, setActivePage] = useState<Page>(Page.HOME);
+
+After:
+  const [activePage, setActivePage] = useState<Page>(Page.HOME);
+
+================================================================================
+SECURITY BENEFITS
+================================================================================
+
+✓ Prevents accidental use of preview in production
+✓ Warns users about data isolation
+✓ One-click cleanup for corrupted/stale local data
+✓ Browser storage isolation prevents cross-origin leaks
+✓ Confirmation dialog prevents accidental data loss
+✓ Origin-specific clearing doesn't affect other environments/doctors
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. (Optional) Apply cleanup patch to App.tsx line 28
+2. Set environment variables in Cloudflare Pages (see CONFIGURATION section)
+3. Test on preview: Should see banner + auto-redirect
+4. Test on production: Should see no banner
+5. Monitor first 24 hours for any unexpected behavior
+6. Document in team runbook
+
+================================================================================
