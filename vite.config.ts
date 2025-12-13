@@ -48,7 +48,7 @@ export default defineConfig({
         // PowerSync / wa-sqlite load WASM + worker chunks from /assets at runtime.
         // If those assets are not cached by the service worker, an offline reload will crash
         // with ERR_INTERNET_DISCONNECTED while fetching e.g. /assets/wa-sqlite-async-*.wasm.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,wasm}'],
         // Default Workbox precache limit is 2 MiB, but wa-sqlite-async wasm is > 2 MiB.
         // We must allow precaching these WASM binaries, otherwise offline reloads crash.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,

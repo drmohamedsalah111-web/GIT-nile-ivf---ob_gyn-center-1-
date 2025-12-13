@@ -21,6 +21,8 @@ import { connectPowerSync } from './src/powersync/client';
 import { useStatus } from '@powersync/react';
 
 const App: React.FC = () => {
+  const host = window.location.host;
+  const isPreview = host.endsWith('.mosalahicsi.pages.dev') && host !== 'mosalahicsi.pages.dev';
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);

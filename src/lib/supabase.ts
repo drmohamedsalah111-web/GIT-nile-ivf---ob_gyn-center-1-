@@ -25,7 +25,7 @@ export const supabase: SupabaseClient = createClient(
   {
     auth: {
       // Automatically refresh tokens before they expire
-      autoRefreshToken: true,
+      autoRefreshToken: !(import.meta.env.DEV || import.meta.env.VITE_OFFLINE_DEV_MODE),
       // Persist session in localStorage
       persistSession: true,
       // Detect session from URL hash (for OAuth redirects)
