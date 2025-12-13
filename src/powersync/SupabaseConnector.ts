@@ -154,21 +154,28 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
     const uploadWithRetry = async (op: any): Promise<{ success: boolean; error?: string; recordId?: string }> => {
       const { table, opData } = op;
-      const recordId = opData?.id || 'unknown';
+      const recordId = op.id;
+
+      if (!recordId) {
+        const error = `[${table}] Missing op.id (canonical record id)`;
+        console.error(`❌ ${error}`);
+        return { success: false, error, recordId: 'undefined' };
+      }
+
+      const operationType = 
+        op.op === UpdateType.PUT ? 'PUT (upsert)' : 
+        op.op === UpdateType.PATCH ? 'PATCH (update)' : 
+        op.op === UpdateType.DELETE ? 'DELETE' : 'UNKNOWN';
 
       for (let attempt = 1; attempt <= UPLOAD_RETRIES; attempt++) {
         try {
           let result;
-          const operationType = 
-            op.op === UpdateType.PUT ? 'PUT (upsert)' : 
-            op.op === UpdateType.PATCH ? 'PATCH (update)' : 
-            op.op === UpdateType.DELETE ? 'DELETE' : 'UNKNOWN';
 
           if (op.op === UpdateType.PUT) {
-            result = await supabase.from(table).upsert(opData, { onConflict: 'id' });
+            result = await supabase.from(table).upsert({ ...opData, id: recordId }, { onConflict: 'id' });
           } else if (op.op === UpdateType.PATCH) {
             const { id, ...updateData } = opData;
-            result = await supabase.from(table).update(updateData).eq('id', id);
+            result = await supabase.from(table).update(updateData).eq('id', recordId);
           } else if (op.op === UpdateType.DELETE) {
             result = await supabase.from(table).delete().eq('id', recordId);
           } else {
@@ -177,26 +184,28 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
           if (result.error) {
             const statusCode = result.error?.code;
+            const errorMessage = result.error?.message || 'Unknown error';
             const isRetryable = ['PGRST116', 'PGRST301', 'Connection'].some(c => statusCode?.includes(c));
             
             if (attempt < UPLOAD_RETRIES && isRetryable) {
               const delayMs = RETRY_DELAY * attempt;
-              console.warn(`⚠️ [${table}:${recordId}] ${operationType} retry ${attempt}/${UPLOAD_RETRIES} in ${delayMs}ms: ${result.error.message}`);
+              console.warn(`⚠️ [${table}:${recordId}] ${operationType} retry ${attempt}/${UPLOAD_RETRIES} in ${delayMs}ms. Code: ${statusCode}. Message: ${errorMessage}`);
               await new Promise(resolve => setTimeout(resolve, delayMs));
               continue;
             }
 
-            return { success: false, error: `[${table}:${recordId}] ${result.error.message}`, recordId };
+            return { success: false, error: `[${table}:${recordId}] ${operationType} failed. Code: ${statusCode}. ${errorMessage}`, recordId };
           }
 
           console.log(`✅ [${table}:${recordId}] ${operationType} success (attempt ${attempt})`);
           return { success: true, recordId };
         } catch (error: any) {
           const isLastAttempt = attempt === UPLOAD_RETRIES;
-          console.error(`❌ [${table}:${recordId}] Upload error (attempt ${attempt}/${UPLOAD_RETRIES}): ${error?.message}`);
+          const errorMessage = error?.message || 'Unknown error';
+          console.error(`❌ [${table}:${recordId}] ${operationType} error (attempt ${attempt}/${UPLOAD_RETRIES}): ${errorMessage}`);
 
           if (isLastAttempt) {
-            return { success: false, error: `[${table}:${recordId}] ${error?.message}`, recordId };
+            return { success: false, error: `[${table}:${recordId}] ${operationType} failed: ${errorMessage}`, recordId };
           }
 
           const delayMs = RETRY_DELAY * attempt;

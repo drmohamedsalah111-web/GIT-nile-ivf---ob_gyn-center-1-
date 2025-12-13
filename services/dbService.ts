@@ -15,13 +15,12 @@ export const dbService = {
       const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
       if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
 
-      // Read from PowerSync (offline-first)
-      const result = await powerSyncDb.execute(
+      const patients = await powerSyncDb.getAll(
         'SELECT * FROM patients WHERE doctor_id = ? ORDER BY name',
         [doctor.id]
       );
 
-      return result.rows?._array.map((p: any) => ({
+      return patients.map((p: any) => ({
         id: p.id,
         name: p.name,
         age: p.age || 0,
@@ -71,18 +70,14 @@ export const dbService = {
       const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
       if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
 
-      // Read from PowerSync (offline-first)
-      const cyclesResult = await powerSyncDb.execute(
+      const cycles = await powerSyncDb.getAll(
         'SELECT * FROM ivf_cycles WHERE doctor_id = ? ORDER BY start_date DESC',
         [doctor.id]
       );
 
-      const logsResult = await powerSyncDb.execute(
+      const logs = await powerSyncDb.getAll(
         'SELECT * FROM stimulation_logs ORDER BY date DESC'
       );
-
-      const cycles = cyclesResult.rows?._array || [];
-      const logs = logsResult.rows?._array || [];
 
       const parseJSON = (str: string) => {
         try { return str ? JSON.parse(str) : undefined; } catch (e) { return undefined; }

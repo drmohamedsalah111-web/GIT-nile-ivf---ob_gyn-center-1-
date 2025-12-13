@@ -3,7 +3,13 @@ export const SYNC_RULES = `
 -- POWERSYNC SYNC RULES (YAML FORMAT)
 -- Configure in PowerSync Dashboard > Settings > Sync Rules
 -- ============================================================================
-
+--
+-- UUID Handling:
+-- - No CAST(... AS uuid) or ::uuid casts used
+-- - PowerSync handles UUID values as text in comparisons
+-- - Comparisons: auth.uid() = user_id (both text type)
+-- - All subqueries return id fields for safe direct comparison
+--
 -- Use the following sync rules to configure which tables and columns
 -- are synchronized based on user authentication and permissions
 

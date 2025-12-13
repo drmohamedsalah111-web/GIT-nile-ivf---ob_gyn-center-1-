@@ -68,18 +68,16 @@ export const authService = {
   },
 
   getDoctorProfile: async (userId: string) => {
-    // Read from PowerSync (offline-first)
-    const result = await powerSyncDb.execute(
+    const doctor = await powerSyncDb.getOptional(
       'SELECT * FROM doctors WHERE user_id = ?',
       [userId]
     );
 
-    const doctors = result.rows?._array || [];
-    if (doctors.length === 0) {
+    if (!doctor) {
       throw new Error('Doctor profile not found');
     }
 
-    return doctors[0];
+    return doctor;
   },
 
   onAuthStateChange: (callback: (user: any) => void) => {
@@ -134,27 +132,46 @@ export const authService = {
   },
 
   ensureDoctorRecord: async (userId: string, email: string) => {
-    // Check if doctor exists in PowerSync
-    const result = await powerSyncDb.execute(
+    // Check if doctor already exists
+    const existingDoctor = await powerSyncDb.getOptional(
       'SELECT id FROM doctors WHERE user_id = ?',
       [userId]
     );
 
-    const doctors = result.rows?._array || [];
-    if (doctors.length > 0) {
-      return doctors[0];
+    if (existingDoctor) {
+      console.log('✅ Doctor record already exists:', existingDoctor.id);
+      return existingDoctor;
     }
 
-    // Create new doctor record in PowerSync
+    // Create new doctor record only if it doesn't exist
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    await powerSyncDb.execute(
-      `INSERT INTO doctors (id, user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, userId, email, 'الطبيب', null, null, null, null, null, null, now, now]
-    );
+    
+    try {
+      await powerSyncDb.execute(
+        `INSERT INTO doctors (id, user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, userId, email, 'الطبيب', null, null, null, null, null, null, now, now]
+      );
+      console.log('✅ Doctor record created in PowerSync:', id);
+    } catch (error: any) {
+      // Handle UNIQUE constraint violation (doctor was created by another process)
+      if (error?.message?.includes('UNIQUE') || error?.code === 'SQLITE_CONSTRAINT') {
+        console.warn('⚠️ Doctor record UNIQUE constraint: retrying lookup');
+        // Retry the lookup in case another process just created it
+        const retryDoctor = await powerSyncDb.getOptional(
+          'SELECT id FROM doctors WHERE user_id = ?',
+          [userId]
+        );
+        if (retryDoctor) {
+          console.log('✅ Doctor record found after retry:', retryDoctor.id);
+          return retryDoctor;
+        }
+      }
+      console.error('❌ Failed to ensure doctor record:', error?.message);
+      throw error;
+    }
 
-    console.log('✅ Doctor record ensured in PowerSync');
     return { id };
   }
 };

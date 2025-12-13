@@ -136,8 +136,8 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     const counts: Record<string, number | string> = {};
     for (const table of tables) {
       try {
-        const result = await powerSyncDb.execute(`SELECT COUNT(*) as count FROM ${table}`);
-        counts[table] = result.rows[0].count;
+        const result = await powerSyncDb.getOptional(`SELECT COUNT(*) as count FROM ${table}`);
+        counts[table] = result?.count || 0;
       } catch (e) {
         counts[table] = 'error';
       }

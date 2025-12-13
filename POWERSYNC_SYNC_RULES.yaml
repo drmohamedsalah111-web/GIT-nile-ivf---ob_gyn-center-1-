@@ -1,6 +1,12 @@
 # PowerSync Sync Rules for IVF & OB/GYN Center
 # SECURED: All rules filter by auth.uid() to prevent data leaks
 # Copy this content to your PowerSync Dashboard under "Sync Rules"
+#
+# UUID Handling:
+# - No CAST(... AS uuid) or ::uuid casts used
+# - PowerSync handles UUID values as text in comparisons
+# - user_id and doctor_id compared directly to auth.uid() without type conversion
+# - All subqueries return id fields (text type) for safe comparison
 
 bucket_definitions:
   global:
