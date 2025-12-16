@@ -380,15 +380,15 @@ const PatientMasterRecord: React.FC = () => {
                           <div className="grid grid-cols-4 gap-4">
                             {files.map(f => (
                               <div
-                                key={f.id}
-                                className="bg-gray-100 rounded-lg overflow-hidden cursor-pointer group hover:shadow-lg transition"
-                                onClick={() => setSelectedImage(f)}
-                              >
-                                <div className="aspect-square bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center group-hover:from-gray-300 group-hover:to-gray-400">
-                                  <ImageIcon className="w-8 h-8 text-gray-500" />
+                                  key={f.id}
+                                  className="bg-gray-100 rounded-lg overflow-hidden cursor-pointer group hover:shadow-lg transition"
+                                  onClick={() => setSelectedImage(f)}
+                                >
+                                  <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                                    <img src={f.file_url} alt={f.name || 'File'} className="w-full h-full object-cover rounded" />
+                                  </div>
+                                  <p className="text-xs text-gray-600 p-2 truncate">{f.file_name || 'File'}</p>
                                 </div>
-                                <p className="text-xs text-gray-600 p-2 truncate">{f.name || 'File'}</p>
-                              </div>
                             ))}
                           </div>
                         </div>
@@ -404,13 +404,13 @@ const PatientMasterRecord: React.FC = () => {
                             onClick={(e) => e.stopPropagation()}
                           >
                             <div className="flex items-center justify-between mb-4">
-                              <h3 className="text-lg font-semibold">{selectedImage.name || 'File'}</h3>
+                              <h3 className="text-lg font-semibold">{selectedImage.file_name || 'File'}</h3>
                               <button onClick={() => setSelectedImage(null)} className="text-gray-600 hover:text-gray-900">
                                 <X className="w-6 h-6" />
                               </button>
                             </div>
                             <div className="bg-gray-100 rounded-lg p-4 min-h-96 flex items-center justify-center">
-                              <ImageIcon className="w-16 h-16 text-gray-400" />
+                              <img src={selectedImage.file_url} alt={selectedImage.file_name || 'File'} className="max-w-full max-h-full object-contain" />
                             </div>
                             <p className="text-sm text-gray-600 mt-4">{formatDate(selectedImage.created_at)}</p>
                           </div>
