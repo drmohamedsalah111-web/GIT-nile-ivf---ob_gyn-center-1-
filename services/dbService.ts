@@ -5,12 +5,16 @@ import { Patient, IvfCycle, StimulationLog } from '../types';
 export const dbService = {
   // --- Patients ---
   getPatients: async (): Promise<Patient[]> => {
-    console.log('🚀 Attempting to fetch patients from Supabase...');
+    console.log('🚀 Fetching patients...');
     
     const { data, error } = await supabase.from('patients').select('*');
 
-    if (error) console.error('❌ Supabase Error:', error);
-    else console.log('✅ Supabase Raw Data:', data);
+    if (error) {
+      console.error('❌ Supabase Error:', error);
+    } else {
+      console.log('✅ Raw Data Length:', data?.length);
+      console.log('📄 First Patient Sample:', data?.[0]);
+    }
 
     if (!data || data.length === 0) return [];
 
