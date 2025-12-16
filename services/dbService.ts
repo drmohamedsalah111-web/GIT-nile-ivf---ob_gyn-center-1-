@@ -9,13 +9,9 @@ export const dbService = {
       const user = await authService.getCurrentUser();
       if (!user) throw new Error('يجب تسجيل الدخول أولاً');
 
-      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
-
       const { data, error } = await supabase
         .from('patients')
         .select('*')
-        .eq('doctor_id', doctor.id)
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -76,13 +72,9 @@ export const dbService = {
       const user = await authService.getCurrentUser();
       if (!user) throw new Error('يجب تسجيل الدخول أولاً');
 
-      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
-
       const { data: cycles, error: cyclesError } = await supabase
         .from('ivf_cycles')
         .select('*')
-        .eq('doctor_id', doctor.id)
         .order('start_date', { ascending: false });
 
       if (cyclesError) throw cyclesError;
