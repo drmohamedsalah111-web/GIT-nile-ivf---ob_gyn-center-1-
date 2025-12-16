@@ -9,7 +9,6 @@ import { authService } from '../services/authService';
 import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 import SearchableSelect from '../components/ui/SearchableSelect';
-import RefreshButton from '../components/RefreshButton';
 import HistorySidebar from '../src/components/HistorySidebar';
 import { COMMON_COMPLAINTS, ICD10_DIAGNOSES, PROCEDURE_ORDERS } from '../data/medical_terms';
 
@@ -271,7 +270,6 @@ const Gynecology: React.FC = () => {
           >
             📜 السجل السابق
           </button>
-          <RefreshButton />
         </div>
       </div>
 

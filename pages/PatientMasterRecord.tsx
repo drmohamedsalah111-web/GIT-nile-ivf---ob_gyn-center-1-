@@ -10,7 +10,6 @@ import { powerSyncDb } from '../src/powersync/client';
 import { visitsService } from '../services/visitsService';
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
-import RefreshButton from '../components/RefreshButton';
 
 const PatientMasterRecord: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
@@ -232,12 +231,6 @@ const PatientMasterRecord: React.FC = () => {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Patient Master Record</h1>
             <p className="text-gray-600">Comprehensive Medical Timeline & Archive</p>
           </div>
-          <RefreshButton onRefreshComplete={() => {
-            if (selectedPatientId) {
-              fetchPatientVisits(selectedPatientId);
-              fetchPatientFiles(selectedPatientId);
-            }
-          }} />
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">

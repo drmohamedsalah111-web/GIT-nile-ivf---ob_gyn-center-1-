@@ -8,7 +8,7 @@ import { useBranding } from '../context/BrandingContext';
 import { supabase } from '../services/supabaseClient';
 import { powerSyncDb } from '../src/powersync/client';
 import { EGYPTIAN_DRUGS } from '../constants';
-import RefreshButton from '../components/RefreshButton';
+
 
 interface TabState {
   active: 'branding' | 'prescription' | 'records';
@@ -140,17 +140,14 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 mb-8">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-indigo-100 rounded-lg">
-            <Settings className="w-8 h-8 text-indigo-600" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">لوحة تحكم الإدارة</h1>
-            <p className="text-gray-600">إدارة إعدادات التطبيق والعلامة التجارية والسجلات</p>
-          </div>
+      <div className="flex items-center gap-3 mb-8">
+        <div className="p-3 bg-indigo-100 rounded-lg">
+          <Settings className="w-8 h-8 text-indigo-600" />
         </div>
-        <RefreshButton />
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">لوحة تحكم الإدارة</h1>
+          <p className="text-gray-600">إدارة إعدادات التطبيق والعلامة التجارية والسجلات</p>
+        </div>
       </div>
 
       {/* Tab Navigation */}

@@ -4,7 +4,6 @@ import { UserPlus, Search, Phone, User, History } from 'lucide-react';
 import { usePatients } from '../src/hooks/usePatients';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
-import RefreshButton from '../components/RefreshButton';
 
 const Reception: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'register' | 'directory'>('register');
@@ -67,10 +66,7 @@ const Reception: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold text-gray-900">Reception & Patient Directory</h1>
-        <RefreshButton />
-      </div>
+      <h1 className="text-4xl font-bold text-gray-900">Reception & Patient Directory</h1>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[600px]">
         <div className="flex border-b border-gray-100">

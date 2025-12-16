@@ -12,7 +12,6 @@ import ANCFlowSheet from './components/obstetrics/ANCFlowSheet';
 import FetalGrowthChart from './components/obstetrics/FetalGrowthChart';
 import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
-import RefreshButton from '../components/RefreshButton';
 import HistorySidebar from '../src/components/HistorySidebar';
 
 const ObstetricsDashboard: React.FC = () => {
@@ -281,11 +280,6 @@ const ObstetricsDashboard: React.FC = () => {
           >
             📜 السجل السابق
           </button>
-          <RefreshButton onRefreshComplete={() => {
-            if (selectedPatientId) {
-              fetchPregnancy(selectedPatientId);
-            }
-          }} />
         </div>
       </div>
 

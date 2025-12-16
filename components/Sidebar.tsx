@@ -2,7 +2,6 @@ import React from 'react';
 import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText } from 'lucide-react';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
-import SyncStatus from '../src/components/SyncStatus';
 
 interface SidebarProps {
   activePage: Page;
@@ -65,11 +64,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
       </nav>
 
       <div className="p-4 border-t border-gray-100">
-        {/* Sync Status Indicator */}
-        <div className="mb-4">
-          <SyncStatus />
-        </div>
-
         <button
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors"

@@ -4,7 +4,6 @@ import { db, calculateBMI, analyzeSemenAnalysis } from '../services/ivfService';
 import { EGYPTIAN_DRUGS } from '../constants';
 import { PrescriptionItem, Patient } from '../types';
 import { AlertTriangle, Plus, Trash2, Printer, FileText, Activity, Microscope, Info } from 'lucide-react';
-import RefreshButton from '../components/RefreshButton';
 
 interface FemaleFactor {
   // Hormones
@@ -131,11 +130,7 @@ const ClinicalStation: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header with Refresh */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold text-gray-900">Clinical Station</h1>
-        <RefreshButton />
-      </div>
+      <h1 className="text-4xl font-bold text-gray-900">Clinical Station</h1>
 
       {/* Patient Selector */}
       <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">

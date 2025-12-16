@@ -6,7 +6,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer, Microscope, Activity, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
-import RefreshButton from '../components/RefreshButton';
 import HistorySidebar from '../src/components/HistorySidebar';
 
 const PROTOCOL_OPTIONS = ['Long', 'Antagonist', 'Flare-up', 'Mini-IVF'];
@@ -456,7 +455,6 @@ const IvfJourney: React.FC = () => {
             >
               📜 السجل السابق
             </button>
-            <RefreshButton variant="secondary" showLabel={false} />
             <TestTube className="w-16 h-16 opacity-20" />
           </div>
         </div>

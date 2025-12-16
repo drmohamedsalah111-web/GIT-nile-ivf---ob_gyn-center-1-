@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Palette, FileText, Lock, Upload, Save, AlertCircle, CheckCircle, Facebook, MessageCircle, Loader } from 'lucide-react';
+import { User, Palette, FileText, Lock, Upload, Save, AlertCircle, CheckCircle, Facebook, MessageCircle, Loader, Database } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
@@ -43,7 +43,6 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploadLoading, setLogoUploadLoading] = useState(false);
-  const [hardResetLoading, setHardResetLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -206,93 +205,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
   // Unused handlers removed
 
-  const handleHardReset = async () => {
-    const confirmed = window.confirm('⚠️ تحذير: سيتم حذف جميع البيانات المحلية وإعادة تحميلها من السيرفر. هل أنت متأكد؟');
-    if (!confirmed) return;
 
-    try {
-      setHardResetLoading(true);
-      toast.loading('جاري حذف قاعدة البيانات المحلية...', { id: 'hard-reset' });
-
-      // TODO: Implement PowerSync database reset
-      // await db.delete();
-
-      toast.loading('جاري إعادة إنشاء قاعدة البيانات...', { id: 'hard-reset' });
-
-      // TODO: Implement PowerSync database initialization
-      // await initLocalDB();
-
-      toast.loading('جاري تحميل البيانات من السيرفر...', { id: 'hard-reset' });
-
-      // Disconnect to allow clean reconnection (data preserved for offline-first)
-      await powerSyncDb.disconnect();
-
-      toast.success('تم إعادة تحميل البيانات بنجاح! سيتم إعادة تحميل الصفحة...', { id: 'hard-reset' });
-
-      // Reload page
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-
-    } catch (error) {
-      console.error('Hard reset error:', error);
-      toast.error('فشل إعادة تحميل البيانات. تحقق من اتصال الإنترنت وحاول مرة أخرى.', { id: 'hard-reset' });
-    } finally {
-      setHardResetLoading(false);
-    }
-  };
-
-  const handleClearLocalDB = async () => {
-    const currentHost = window.location.host;
-    const confirmed = window.confirm(
-      `⚠️ تحذير: سيتم حذف جميع البيانات المحلية لهذا الموقع فقط (${currentHost}).\n\n` +
-      'لن يؤثر على بيانات المواقع الأخرى أو الخادم. هل أنت متأكد؟'
-    );
-    if (!confirmed) return;
-
-    try {
-      setHardResetLoading(true);
-      toast.loading('جاري حذف قاعدة البيانات المحلية...', { id: 'clear-db' });
-
-      // Get all IndexedDB database names
-      const dbs = await (window.indexedDB as any).databases?.() || [];
-      
-      // Delete PowerSync database
-      const powerSyncDbNames = ['powersync', 'powersync.db'];
-      for (const dbName of [...dbs.map((db: any) => db.name), ...powerSyncDbNames]) {
-        try {
-          await new Promise<void>((resolve, reject) => {
-            const request = window.indexedDB.deleteDatabase(dbName);
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-          });
-          console.log(`✅ Deleted database: ${dbName}`);
-        } catch (error) {
-          console.warn(`⚠️ Could not delete database ${dbName}:`, error);
-        }
-      }
-
-      // Clear LocalStorage for this origin
-      localStorage.clear();
-      console.log('✅ Cleared localStorage');
-
-      // Clear SessionStorage for this origin
-      sessionStorage.clear();
-      console.log('✅ Cleared sessionStorage');
-
-      toast.success('تم حذف البيانات المحلية بنجاح! سيتم إعادة تحميل الصفحة...', { id: 'clear-db' });
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-
-    } catch (error) {
-      console.error('Clear local DB error:', error);
-      toast.error('فشل حذف البيانات المحلية. قد تحتاج إلى إعادة فتح المتصفح.', { id: 'clear-db' });
-    } finally {
-      setHardResetLoading(false);
-    }
-  };
 
   if (loading || brandingLoading) {
     return (
@@ -304,12 +217,9 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">لوحة التحكم الإدارية</h1>
-          <p className="text-gray-600 font-[Tajawal]">تحكم في إعدادات التطبيق والهوية البصرية والروشتات الطبية</p>
-        </div>
-        <RefreshButton />
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">لوحة التحكم الإدارية</h1>
+        <p className="text-gray-600 font-[Tajawal]">تحكم في إعدادات التطبيق والهوية البصرية والروشتات الطبية</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-8 border-b border-gray-200">
