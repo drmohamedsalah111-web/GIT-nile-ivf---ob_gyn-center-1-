@@ -50,6 +50,8 @@ const PatientMasterRecord: React.FC = () => {
       console.log('Fetching visits for patient:', pId);
       // Use the service which now handles ID resolution (Local vs Remote)
       const data = await visitsService.getVisitsByPatient(pId);
+      console.log('Fetched visits data:', data);
+      console.log('Number of visits:', data.length);
       setVisits(data);
     } catch (error) {
       console.error('Error fetching visits:', error);

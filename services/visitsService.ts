@@ -43,11 +43,23 @@ export const visitsService = {
         supabase.from('ivf_cycles').select('*').eq('patient_id', patientId)
       ]);
 
-      if (visitsError) throw visitsError;
-      if (pregnanciesError) throw pregnanciesError;
-      if (cyclesError) throw cyclesError;
+      if (visitsError) {
+        console.error('❌ Error fetching general visits:', visitsError);
+        throw visitsError;
+      }
+      if (pregnanciesError) {
+        console.error('❌ Error fetching pregnancies:', pregnanciesError);
+        throw pregnanciesError;
+      }
+      if (cyclesError) {
+        console.error('❌ Error fetching IVF cycles:', cyclesError);
+        throw cyclesError;
+      }
 
       console.log(`📊 Found: ${generalVisits?.length || 0} general visits, ${pregnancies?.length || 0} pregnancies, ${ivfCycles?.length || 0} IVF cycles`);
+      console.log('General visits:', generalVisits);
+      console.log('Pregnancies:', pregnancies);
+      console.log('IVF cycles:', ivfCycles);
 
       const ancVisitsPromises = (pregnancies || []).map(async (pregnancy) => {
         const { data: ancVisits, error: ancError } = await supabase
