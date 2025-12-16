@@ -7,16 +7,29 @@ import { usePatients } from '../src/hooks/usePatients';
 import { Patient, Visit } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { visitsService } from '../services/visitsService';
+import { ivfService } from '../services/ivfService';
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 
+interface HistoryItem {
+  id: string;
+  date: string;
+  type: 'Visit' | 'Pregnancy' | 'IVF';
+  department?: string;
+  diagnosis: string;
+  summary: string;
+  clinical_data?: any;
+  prescription?: any[];
+  notes?: string;
+}
+
 const PatientMasterRecord: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
-  const [visits, setVisits] = useState<Visit[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [patientFiles, setPatientFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
-  const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+  const [selectedVisit, setSelectedVisit] = useState<HistoryItem | null>(null);
   const [activeTab, setActiveTab] = useState<'timeline' | 'gallery'>('timeline');
   const [selectedFilter, setSelectedFilter] = useState<'All' | 'GYNA' | 'OBS' | 'IVF'>('All');
   const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
@@ -36,26 +49,26 @@ const PatientMasterRecord: React.FC = () => {
 
   useEffect(() => {
     if (selectedPatientId) {
-      fetchPatientVisits(selectedPatientId);
+      fetchPatientHistory(selectedPatientId);
       fetchPatientFiles(selectedPatientId);
     } else {
-      setVisits([]);
+      setHistory([]);
       setPatientFiles([]);
     }
   }, [selectedPatientId]);
 
-  const fetchPatientVisits = async (pId: string) => {
+  const fetchPatientHistory = async (pId: string) => {
     setIsLoading(true);
     try {
-      console.log('Fetching visits for patient:', pId);
-      // Use the service which now handles ID resolution (Local vs Remote)
-      const data = await visitsService.getVisitsByPatient(pId);
-      console.log('Fetched visits data:', data);
-      console.log('Number of visits:', data.length);
-      setVisits(data);
+      console.log('Fetching history for patient:', pId);
+      // Use the unified history service
+      const data = await ivfService.getPatientFullHistory(pId);
+      console.log('Fetched history data:', data);
+      console.log('Number of history items:', data.length);
+      setHistory(data);
     } catch (error) {
-      console.error('Error fetching visits:', error);
-      toast.error('Failed to load patient visits');
+      console.error('Error fetching history:', error);
+      toast.error('Failed to load patient history');
     } finally {
       setIsLoading(false);
     }
@@ -175,10 +188,10 @@ const PatientMasterRecord: React.FC = () => {
     );
   };
 
-  const getFilteredVisits = () => {
-    if (selectedFilter === 'All') return visits;
-    if (selectedFilter === 'IVF') return visits.filter(v => v.department?.startsWith('IVF'));
-    return visits.filter(v => v.department === selectedFilter);
+  const getFilteredHistory = () => {
+    if (selectedFilter === 'All') return history;
+    if (selectedFilter === 'IVF') return history.filter(h => h.type === 'IVF' || h.department?.startsWith('IVF'));
+    return history.filter(h => h.department === selectedFilter);
   };
 
   const groupFilesByDate = (files: any[]) => {
@@ -192,7 +205,7 @@ const PatientMasterRecord: React.FC = () => {
   };
 
   const generateMedicalReport = () => {
-    const filteredVisits = getFilteredVisits();
+    const filteredHistory = getFilteredHistory();
     const html = `
       <html>
         <head><title>Medical Report - ${selectedPatient?.name}</title></head>
@@ -203,10 +216,10 @@ const PatientMasterRecord: React.FC = () => {
           <table border="1" style="width: 100%; border-collapse: collapse;">
             <tr style="background: #f0f0f0;">
               <th style="padding: 8px;">Date</th>
-              <th>Department</th>
-              <th>Diagnosis</th>
+              <th>Type</th>
+              <th>Summary</th>
             </tr>
-            ${filteredVisits.map(v => `<tr><td style="padding: 8px;">${formatDate(v.date)}</td><td>${getDepartmentName(v.department)}</td><td>${v.diagnosis || 'N/A'}</td></tr>`).join('')}
+            ${filteredHistory.map(h => `<tr><td style="padding: 8px;">${formatDate(h.date)}</td><td>${h.type}</td><td>${h.summary || 'N/A'}</td></tr>`).join('')}
           </table>
         </body>
       </html>
@@ -303,14 +316,14 @@ const PatientMasterRecord: React.FC = () => {
                     ))}
                   </div>
 
-                  {getFilteredVisits().length > 0 ? (
+                  {getFilteredHistory().length > 0 ? (
                     <div className="space-y-4">
-                      {getFilteredVisits().map((v) => {
-                        const colors = getDepartmentColor(v.department);
-                        const isExpanded = expandedVisitId === v.id;
+                      {getFilteredHistory().map((h) => {
+                        const colors = getDepartmentColor(h.department);
+                        const isExpanded = expandedVisitId === h.id;
 
                         return (
-                          <div key={v.id} className="flex gap-4">
+                          <div key={h.id} className="flex gap-4">
                             <div className="flex flex-col items-center">
                               <div className={`w-4 h-4 rounded-full ${colors.dot} border-4 border-white shadow-md`} />
                               <div className="w-1 bg-gray-300 flex-1 h-12" />
@@ -318,16 +331,16 @@ const PatientMasterRecord: React.FC = () => {
 
                             <div
                               className={`flex-1 ${colors.bg} border-2 ${colors.border} rounded-lg p-4 cursor-pointer transition hover:shadow-md`}
-                              onClick={() => setExpandedVisitId(isExpanded ? null : v.id)}
+                              onClick={() => setExpandedVisitId(isExpanded ? null : h.id)}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-2">
-                                    {getDepartmentIcon(v.department)}
-                                    <h3 className="font-semibold text-gray-900">{getDepartmentName(v.department)}</h3>
-                                    <span className="text-xs text-gray-500">{formatDate(v.date)}</span>
+                                    {getDepartmentIcon(h.department)}
+                                    <h3 className="font-semibold text-gray-900">{h.type}: {getDepartmentName(h.department)}</h3>
+                                    <span className="text-xs text-gray-500">{formatDate(h.date)}</span>
                                   </div>
-                                  <p className="text-sm font-medium text-gray-700">{v.diagnosis || 'No diagnosis'}</p>
+                                  <p className="text-sm font-medium text-gray-700">{h.summary || h.diagnosis || 'No summary'}</p>
                                 </div>
                                 {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                               </div>
@@ -335,19 +348,23 @@ const PatientMasterRecord: React.FC = () => {
                               {isExpanded && (
                                 <div className="mt-4 pt-4 border-t border-opacity-30">
                                   <div className="bg-white bg-opacity-60 p-3 rounded mb-3">
-                                    {renderClinicalData(v.clinical_data, v.department)}
+                                    {h.type === 'Visit' ? renderClinicalData(h.clinical_data, h.department) : (
+                                      <div className="text-sm text-gray-600">
+                                        <pre className="whitespace-pre-wrap">{JSON.stringify(h.clinical_data, null, 2)}</pre>
+                                      </div>
+                                    )}
                                   </div>
-                                  {v.notes && (
+                                  {h.notes && (
                                     <div className="mb-3">
                                       <p className="text-xs font-medium text-gray-600 mb-1">Notes:</p>
-                                      <p className="text-sm text-gray-700 italic">{v.notes}</p>
+                                      <p className="text-sm text-gray-700 italic">{h.notes}</p>
                                     </div>
                                   )}
-                                  {v.prescription && v.prescription.length > 0 && (
+                                  {h.prescription && h.prescription.length > 0 && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setSelectedVisit(v);
+                                        setSelectedVisit(h);
                                         setIsPrinterOpen(true);
                                       }}
                                       className="mt-3 flex items-center gap-2 text-sm text-teal-600 hover:text-teal-700 font-medium"
