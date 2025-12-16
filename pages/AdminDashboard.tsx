@@ -6,7 +6,6 @@ import {
 import toast from 'react-hot-toast';
 import { useBranding } from '../context/BrandingContext';
 import { supabase } from '../services/supabaseClient';
-import { powerSyncDb } from '../src/powersync/client';
 import { EGYPTIAN_DRUGS } from '../constants';
 
 
@@ -101,11 +100,17 @@ const AdminDashboard: React.FC = () => {
   const loadRecords = async () => {
     try {
       setRecordsLoading(true);
-      // Use PowerSync for offline access
-      const data = await powerSyncDb.getAll(
-        'SELECT id, date, patient_id, diagnosis, department FROM visits ORDER BY date DESC LIMIT 50'
-      );
+      console.log('📊 AdminDashboard: Loading records from Supabase...');
+      
+      const { data, error } = await supabase
+        .from('visits')
+        .select('id, date, patient_id, diagnosis, department')
+        .order('date', { ascending: false })
+        .limit(50);
 
+      if (error) throw error;
+      
+      console.log('✅ AdminDashboard: Loaded', data?.length || 0, 'records');
       setRecords(data || []);
     } catch (error: any) {
       console.error('Error loading records:', error);
@@ -126,12 +131,19 @@ const AdminDashboard: React.FC = () => {
     if (!window.confirm('هل أنت متأكد من حذف هذا السجل؟')) return;
 
     try {
-      // Use PowerSync for offline deletion
-      await powerSyncDb.execute('DELETE FROM visits WHERE id = ?', [id]);
+      console.log('🗑️ AdminDashboard: Deleting record:', id);
+      
+      const { error } = await supabase
+        .from('visits')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
 
       setRecords(records.filter(r => r.id !== id));
+      console.log('✅ AdminDashboard: Record deleted');
       toast.success('تم حذف السجل بنجاح');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting record:', error);
       toast.error('فشل حذف السجل');
     }

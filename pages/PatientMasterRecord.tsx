@@ -6,7 +6,6 @@ import {
 import { usePatients } from '../src/hooks/usePatients';
 import { Patient, Visit } from '../types';
 import { supabase } from '../services/supabaseClient';
-import { powerSyncDb } from '../src/powersync/client';
 import { visitsService } from '../services/visitsService';
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
@@ -62,22 +61,17 @@ const PatientMasterRecord: React.FC = () => {
 
   const fetchPatientFiles = async (patientId: string) => {
     try {
-      let targetUuid = patientId;
+      console.log('📁 PatientMasterRecord: Fetching files for patient:', patientId);
+      
+      const { data, error } = await supabase
+        .from('patient_files')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false });
 
-      // Check if it's a legacy numeric ID (though PowerSync uses UUIDs)
-      if (!isNaN(Number(patientId))) {
-        const patient = patients.find(p => p.id == patientId);
-        if (patient && (patient as any).remoteId) {
-          targetUuid = (patient as any).remoteId;
-        }
-      }
-
-      // Use PowerSync for offline access to file metadata
-      const data = await powerSyncDb.getAll(
-        'SELECT * FROM patient_files WHERE patient_id = ? ORDER BY created_at DESC',
-        [targetUuid]
-      );
-
+      if (error) throw error;
+      
+      console.log('✅ PatientMasterRecord: Fetched', data?.length || 0, 'files');
       setPatientFiles(data || []);
     } catch (error) {
       console.error('Error fetching patient files:', error);
