@@ -9,8 +9,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, LineChart, Line
 } from 'recharts';
-import { usePowerSyncQuery } from '../src/hooks/usePowerSync';
-import { db as ivfService } from '../services/ivfService';
+import { dbService } from '../services/dbService';
 import { obstetricsService } from '../services/obstetricsService';
 import { Patient, IvfCycle, Pregnancy } from '../types';
 import { useBranding } from '../context/BrandingContext';
@@ -23,11 +22,37 @@ const Dashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
 
+  // Data fetched from Supabase
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [cycles, setCycles] = useState<IvfCycle[]>([]);
+  const [pregnancies, setPregnancies] = useState<any[]>([]);
 
-  // Live queries for real-time data
-  const { data: patients = [] } = usePowerSyncQuery<Patient>('SELECT * FROM patients');
-  const { data: cycles = [] } = usePowerSyncQuery<any>('SELECT * FROM ivf_cycles');
-  const { data: pregnancies = [] } = usePowerSyncQuery<any>('SELECT * FROM pregnancies');
+  // Fetch data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        console.log('📊 Dashboard: Fetching data from Supabase...');
+        
+        const [patientsData, cyclesData] = await Promise.all([
+          dbService.getPatients(),
+          dbService.getCycles()
+        ]);
+
+        console.log('✅ Dashboard: Fetched', patientsData.length, 'patients and', cyclesData.length, 'cycles');
+        setPatients(patientsData);
+        setCycles(cyclesData);
+        setPregnancies([]); // Pregnancies not yet migrated
+      } catch (error) {
+        console.error('❌ Dashboard: Error fetching data:', error);
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // Calculate comprehensive stats
   const stats = useMemo(() => {
@@ -103,19 +128,25 @@ const Dashboard: React.FC = () => {
     { name: 'Gynecology', patients: Math.floor((patients?.length || 0) * 0.6), color: '#EF4444' },
   ];
 
-  // Set loading to false once we have data
-  useEffect(() => {
-    if (patients !== undefined && cycles !== undefined && pregnancies !== undefined) {
-      setLoading(false);
-    }
-  }, [patients, cycles, pregnancies]);
-
   const handleRefresh = async () => {
     try {
-      // Refresh logic if needed, or just toast
+      setLoading(true);
+      console.log('🔄 Dashboard: Refreshing data...');
+      
+      const [patientsData, cyclesData] = await Promise.all([
+        dbService.getPatients(),
+        dbService.getCycles()
+      ]);
+
+      setPatients(patientsData);
+      setCycles(cyclesData);
+      console.log('✅ Dashboard: Data refreshed');
       toast.success('Data refreshed');
     } catch (error) {
+      console.error('❌ Dashboard: Refresh failed:', error);
       toast.error('Failed to refresh data');
+    } finally {
+      setLoading(false);
     }
   };
 
