@@ -5,32 +5,30 @@ import { Patient, IvfCycle, StimulationLog } from '../types';
 export const dbService = {
   // --- Patients ---
   getPatients: async (): Promise<Patient[]> => {
-    console.log("🚀 Starting fetch patients...");
+    console.log('🚀 Attempting to fetch patients from Supabase...');
     
-    const { data, error } = await supabase
-      .from('patients')
-      .select('*');
+    const { data, error } = await supabase.from('patients').select('*');
 
-    if (error) {
-      console.error("❌ Supabase Error:", error);
-      console.error("❌ Error Details:", error.message, error.details);
-      return [];
-    }
-
-    console.log("✅ Supabase Success. Rows found:", data?.length);
-    console.log("📄 Raw Data Sample:", data ? data[0] : 'No data');
+    if (error) console.error('❌ Supabase Error:', error);
+    else console.log('✅ Supabase Raw Data:', data);
 
     if (!data || data.length === 0) return [];
 
-    return data.map((p: any) => ({
-      id: p.id,
-      name: p.name,
-      age: p.age,
-      phone: p.phone || p.mobile,
-      husbandName: p.husband_name,
-      history: p.history,
-      createdAt: p.created_at
-    }));
+    try {
+      return data.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        age: p.age,
+        phone: p.phone || p.mobile,
+        husbandName: p.husband_name,
+        history: p.history,
+        createdAt: p.created_at
+      }));
+    } catch (mappingError: any) {
+      console.error('❌ Mapping Error:', mappingError?.message);
+      console.error('❌ Failed to map data:', data);
+      return [];
+    }
   },
 
   savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
