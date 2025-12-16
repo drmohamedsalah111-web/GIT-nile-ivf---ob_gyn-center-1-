@@ -67,8 +67,10 @@ data/medical_terms.ts
 DATABASE_MIGRATION.md
 debug-sync.js
 DEPLOYMENT_QUICK_START.md
+docs/sync-smoke-test.md
 electron/main.js
 electron/preload.js
+env.env
 index.html
 index.tsx
 INFERTILITY_WORKUPS_SETUP.sql
@@ -123,6 +125,7 @@ services/supabaseClient.ts
 services/visitsService.ts
 services/workupService.ts
 src/components/HistorySidebar.tsx
+src/components/SyncDiagnosticPanel.tsx
 src/components/SyncStatus.tsx
 src/context/PowerSyncContext.tsx
 src/hooks/usePatients.ts
@@ -147,6 +150,7 @@ src/services/syncService.ts
 src/utils/connectionDiagnostics.ts
 styles.css
 SUPABASE_SETUP.sql
+SYNC_DIAGNOSTICS.md
 tailwind.config.js
 text
 tsconfig.json
@@ -438,6 +442,10 @@ app_settings {
 2. Verify changes persist after browser refresh
 3. Test prescription printing with new branding
 4. (Optional) Customize color scheme to match your clinic identity
+</file>
+
+<file path="AGENTS.md">
+
 </file>
 
 <file path="BRANDING_SETUP.sql">
@@ -7230,6 +7238,662 @@ Each doctor sees only their own data via RLS policies.
 3. ✅ Build and test locally
 4. ✅ Deploy to production
 5. (Optional) Add PowerSync for offline support
+</file>
+
+<file path="docs/sync-smoke-test.md">
+# PowerSync Sync Smoke Test Checklist
+
+## Overview
+
+This manual test validates that offline data creation, updates, deletions, and online syncing work correctly with PowerSync.
+
+**Test Duration:** ~15-20 minutes  
+**Required Tools:** Browser (Chrome/Firefox), DevTools Console, Supabase Dashboard  
+**Scope:** CREATE → UPDATE → DELETE → UPLOAD → VERIFY
+
+---
+
+## Pre-Test Setup
+
+### 1. Environment Check
+
+Open browser console (F12) and run:
+
+```javascript
+// Verify PowerSync is initialized
+await diagnoseSync()
+```
+
+Expected output:
+```
+✅ FULLY CONNECTED
+📤 NO PENDING UPLOADS
+```
+
+If you see warnings, troubleshoot using [SYNC_DIAGNOSTICS.md](../SYNC_DIAGNOSTICS.md) first.
+
+### 2. Baseline ps_crud State
+
+In Supabase SQL Editor, run:
+
+```sql
+-- Check baseline queue is empty
+SELECT COUNT(*) as pending_count FROM ps_crud;
+```
+
+Expected: `pending_count = 0`
+
+---
+
+## Test 1: Offline Create
+
+### Step 1.1: Enable Offline Mode
+
+In DevTools Console:
+```javascript
+// Disable network to simulate offline
+// Method 1: Use DevTools Network tab
+// - In Chrome/Firefox DevTools, go to Network tab
+// - Click the "Online" dropdown and select "Offline"
+
+// Method 2: Or simulate via JS (harder to test real sync)
+// Just proceed with next step
+```
+
+**Visual Confirmation:**
+- Browser shows ⚠️ or 📴 icon (depends on your SyncStatus component)
+- Or check console:
+```javascript
+await diagnoseSync()
+// Should show: 📴 OFFLINE or ⚠️ PARTIAL CONNECTION
+```
+
+### Step 1.2: Create a Patient Record
+
+In the app, navigate to **Patients** and click **Add Patient**.
+
+Fill in:
+- **Name:** `Test Patient Offline` + timestamp (e.g., `Test Patient Offline 2025-01-01T12:30:45`)
+- **Age:** `30`
+- **Phone:** `+20123456789`
+- **History:** `Test offline creation`
+
+Click **Save**.
+
+Expected on-screen feedback:
+```
+✅ Patient saved to PowerSync: [uuid]
+```
+
+### Step 1.3: Verify ps_crud Has New Record
+
+In Supabase SQL Editor:
+
+```sql
+-- Check ps_crud increased
+SELECT COUNT(*) as pending_count FROM ps_crud;
+```
+
+Expected: `pending_count = 1` (or higher if other ops pending)
+
+Verify the insert operation:
+
+```sql
+-- List the pending operation
+SELECT id, table_name, op, created_at
+FROM ps_crud
+ORDER BY created_at DESC
+LIMIT 1;
+```
+
+Expected output:
+```
+id                                   table_name  op  created_at
+[uuid]                              patients    1   2025-01-01T12:30:45
+```
+
+**Note:** `op = 1` means INSERT
+
+### Step 1.4: Console Logs to Expect
+
+In browser console, you should see:
+```
+✅ Patient saved to PowerSync: 550e8400-e29b-41d4-a716-446655440000
+```
+
+Verify with diagnoseSync:
+```javascript
+await diagnoseSync()
+```
+
+Expected:
+```
+📤 UPLOAD QUEUE HAS PENDING DATA
+  Queue size: 1 operations
+  Status: Waiting for connection
+```
+
+---
+
+## Test 2: Online Upload
+
+### Step 2.1: Re-enable Network
+
+In DevTools Network tab, click dropdown and select **Online**.
+
+**Visual Confirmation:**
+```javascript
+await diagnoseSync()
+// Should show: ✅ FULLY CONNECTED
+```
+
+### Step 2.2: Monitor Upload
+
+Watch console logs as sync happens:
+
+```javascript
+// Subscribe to upload progress
+await printSyncDiagnostics()
+```
+
+Expected output sequence:
+```
+🔍 POWERSYNC SYNC DIAGNOSTICS
+  📡 Connection Status
+    Overall: CONNECTED ✅
+    Supabase: ✅ Connected
+    PowerSync: ✅ Connected
+  
+  📊 Upload Queue Status
+    Pending operations: 0
+    Successful uploads: 1
+    ✅ No recent upload errors
+```
+
+### Step 2.3: Console Logs Expected
+
+In browser console, watch for:
+
+```
+✅ [patients:550e8400...] PUT (upsert) success (attempt 1)
+✅ Upload complete: 1 operations successful
+✅ Transaction marked complete
+```
+
+### Step 2.4: Verify in Supabase
+
+In Supabase Dashboard, query the `patients` table:
+
+```sql
+-- Find the newly synced patient
+SELECT id, name, age, phone, history, created_at, updated_at
+FROM patients
+WHERE name LIKE 'Test Patient Offline%'
+ORDER BY created_at DESC
+LIMIT 1;
+```
+
+Expected:
+```
+id                                   name                              age  phone           history                  created_at           updated_at
+550e8400-e29b-41d4-a716-446655440000 Test Patient Offline 2025-01-01...  30  +20123456789   Test offline creation   2025-01-01T12:30:45  2025-01-01T12:30:45
+```
+
+### Step 2.5: Verify ps_crud Cleared
+
+```sql
+-- Queue should be empty after successful sync
+SELECT COUNT(*) as pending_count FROM ps_crud;
+```
+
+Expected: `pending_count = 0`
+
+---
+
+## Test 3: Offline Update
+
+### Step 3.1: Disconnect Network Again
+
+DevTools → Network → Offline
+
+```javascript
+await diagnoseSync()
+// Expected: 📴 OFFLINE or ⚠️ PARTIAL CONNECTION
+```
+
+### Step 3.2: Edit the Patient Record
+
+In the app, find the patient you just created and click **Edit**.
+
+Update one field:
+- **History:** Change to `Test offline update - modified at [timestamp]`
+
+Click **Save**.
+
+Expected on-screen:
+```
+✅ Patient saved to PowerSync: 550e8400-e29b-41d4-a716-446655440000
+```
+
+### Step 3.3: Verify ps_crud Has Update Operation
+
+```sql
+-- Check for UPDATE operation (op = 2)
+SELECT id, table_name, op, created_at
+FROM ps_crud
+ORDER BY created_at DESC
+LIMIT 1;
+```
+
+Expected:
+```
+id                                   table_name  op  created_at
+[uuid-for-update-op]                 patients    2   2025-01-01T12:31:00
+```
+
+**Note:** `op = 2` means UPDATE (PATCH in PowerSync terms)
+
+### Step 3.4: Check Console
+
+```javascript
+await diagnoseSync()
+```
+
+Expected:
+```
+📤 UPLOAD QUEUE HAS PENDING DATA
+  Queue size: 1 operations
+  Status: Waiting for connection
+```
+
+---
+
+## Test 4: Online Update Sync
+
+### Step 4.1: Go Online
+
+DevTools → Network → Online
+
+```javascript
+await diagnoseSync()
+// Expected: ✅ FULLY CONNECTED
+```
+
+### Step 4.2: Monitor Update Upload
+
+```javascript
+await printSyncDiagnostics()
+```
+
+Expected:
+```
+📊 Upload Queue Status
+  Pending operations: 0
+  Successful uploads: 2
+  ✅ No recent upload errors
+```
+
+### Step 4.3: Console Logs Expected
+
+```
+✅ [patients:550e8400...] PATCH (update) success (attempt 1)
+✅ Upload complete: 1 operations successful
+✅ Transaction marked complete
+```
+
+### Step 4.4: Verify in Supabase
+
+```sql
+-- Verify history was updated
+SELECT id, name, history, updated_at
+FROM patients
+WHERE id = '550e8400-e29b-41d4-a716-446655440000'
+LIMIT 1;
+```
+
+Expected:
+```
+id                                   name                          history                              updated_at
+550e8400-e29b-41d4-a716-446655440000 Test Patient Offline 2025-01... Test offline update - modified at... 2025-01-01T12:31:00
+```
+
+**Note:** `updated_at` should be newer than `created_at`
+
+---
+
+## Test 5: Offline Delete
+
+### Step 5.1: Disconnect Again
+
+DevTools → Network → Offline
+
+```javascript
+await diagnoseSync()
+// Expected: 📴 OFFLINE
+```
+
+### Step 5.2: Delete the Patient Record
+
+In the app, find the test patient and click **Delete**.
+
+Confirm the deletion in the modal.
+
+Expected on-screen:
+```
+✅ Patient deleted
+```
+
+### Step 5.3: Verify ps_crud Has Delete Operation
+
+```sql
+-- Check for DELETE operation (op = 3)
+SELECT COUNT(*) as pending_count FROM ps_crud
+WHERE table_name = 'patients' AND op = 3;
+```
+
+Expected: `pending_count = 1` (at least)
+
+Verify details:
+```sql
+SELECT id, table_name, op, op_data, created_at
+FROM ps_crud
+WHERE table_name = 'patients' AND op = 3
+ORDER BY created_at DESC
+LIMIT 1;
+```
+
+Expected:
+```
+id                                   table_name  op  op_data                                                                  created_at
+[uuid-for-delete-op]                 patients    3   {"id":"550e8400-e29b-41d4-a716-446655440000"}                         2025-01-01T12:32:00
+```
+
+**Note:** `op = 3` means DELETE, `op_data` contains the record ID
+
+### Step 5.4: Check Console
+
+```javascript
+await diagnoseSync()
+```
+
+Expected:
+```
+📤 UPLOAD QUEUE HAS PENDING DATA
+  Queue size: 1 operations (DELETE)
+  Status: Waiting for connection
+```
+
+---
+
+## Test 6: Online Delete Sync
+
+### Step 6.1: Go Online
+
+DevTools → Network → Online
+
+```javascript
+await diagnoseSync()
+// Expected: ✅ FULLY CONNECTED
+```
+
+### Step 6.2: Monitor Delete Upload
+
+```javascript
+await printSyncDiagnostics()
+```
+
+Expected:
+```
+📊 Upload Queue Status
+  Pending operations: 0
+  Successful uploads: 3
+  ✅ No recent upload errors
+```
+
+### Step 6.3: Console Logs Expected
+
+```
+✅ [patients:550e8400...] DELETE success (attempt 1)
+✅ Upload complete: 1 operations successful
+✅ Transaction marked complete
+```
+
+### Step 6.4: Verify in Supabase
+
+```sql
+-- Verify patient is deleted
+SELECT COUNT(*) as count
+FROM patients
+WHERE id = '550e8400-e29b-41d4-a716-446655440000';
+```
+
+Expected: `count = 0`
+
+Or verify with soft-delete pattern (if implemented):
+```sql
+-- If using soft-delete flag
+SELECT id, deleted_at
+FROM patients
+WHERE id = '550e8400-e29b-41d4-a716-446655440000';
+```
+
+Expected: `deleted_at` should be set (not NULL)
+
+### Step 6.5: Final ps_crud Check
+
+```sql
+-- Queue should be empty after all syncs
+SELECT COUNT(*) as pending_count FROM ps_crud;
+```
+
+Expected: `pending_count = 0`
+
+---
+
+## Summary Results Table
+
+Fill in as you complete each test:
+
+| Test | Step | Status | Notes |
+|------|------|--------|-------|
+| **Test 1: Offline Create** | Create patient | ✅ / ❌ | Patient name + time |
+| | ps_crud count increases | ✅ / ❌ | Should see 1 INSERT op |
+| | Console logs | ✅ / ❌ | "Patient saved to PowerSync" |
+| **Test 2: Online Upload** | Network goes online | ✅ / ❌ | Check connection status |
+| | Upload runs | ✅ / ❌ | "Upload complete" in console |
+| | Patient in Supabase | ✅ / ❌ | Query returns the record |
+| | ps_crud empty | ✅ / ❌ | Count = 0 |
+| **Test 3: Offline Update** | Disconnect network | ✅ / ❌ | Status shows OFFLINE |
+| | Edit patient history | ✅ / ❌ | Save succeeds locally |
+| | ps_crud has UPDATE op | ✅ / ❌ | op = 2 in ps_crud |
+| **Test 4: Online Update Sync** | Go online | ✅ / ❌ | Connection restored |
+| | Update syncs | ✅ / ❌ | "PATCH (update) success" |
+| | History updated in Supabase | ✅ / ❌ | Query shows new value |
+| **Test 5: Offline Delete** | Disconnect | ✅ / ❌ | Status shows OFFLINE |
+| | Delete patient | ✅ / ❌ | Confirm deletion |
+| | ps_crud has DELETE op | ✅ / ❌ | op = 3 in ps_crud |
+| **Test 6: Online Delete Sync** | Go online | ✅ / ❌ | Connection restored |
+| | Delete syncs | ✅ / ❌ | "DELETE success" |
+| | Patient gone from Supabase | ✅ / ❌ | Count = 0 in DB |
+
+---
+
+## Troubleshooting During Test
+
+### Issue: ps_crud Not Increasing After Create
+
+**Cause:** PowerSync not capturing the insert.
+
+**Check:**
+```javascript
+// Verify PowerSync db is the actual db being used
+await powerSyncDb.getAll('SELECT COUNT(*) as count FROM patients')
+// Should show the patient you just created
+```
+
+**Solution:**
+1. Ensure you're using `powerSyncDb` not `supabase` for writes
+2. Check `dbService.ts` is using `powerSyncDb.execute()`
+3. Restart the app
+
+### Issue: Upload Not Starting When Online
+
+**Cause:** Connector not connecting or credentials expired.
+
+**Check:**
+```javascript
+await diagnoseSync()
+// Look for PowerSync connection error
+```
+
+**Solution:**
+1. Check `VITE_POWERSYNC_URL` is set
+2. Force reconnect: `await connectPowerSync({ force: true })`
+3. Check Supabase session: `await supabase.auth.getSession()`
+
+### Issue: Upload Fails with UNIQUE Constraint
+
+**Cause:** Duplicate doctor record (common on re-runs).
+
+**Fix:**
+```sql
+-- Delete duplicate doctors for the test user
+DELETE FROM doctors
+WHERE user_id = '[your-user-id]' 
+  AND id NOT IN (
+    SELECT id FROM doctors 
+    WHERE user_id = '[your-user-id]'
+    ORDER BY created_at ASC 
+    LIMIT 1
+  );
+```
+
+### Issue: RLS Violation During Upload
+
+**Cause:** Supabase RLS policies blocking the upload.
+
+**Check:**
+```sql
+-- Verify RLS is enabled
+SELECT tablename, rowsecurity 
+FROM pg_tables 
+WHERE schemaname = 'public' 
+  AND tablename IN ('patients', 'doctors');
+```
+
+Expected: `rowsecurity = true` for all tables
+
+**Verify policies:**
+```sql
+-- List RLS policies for patients table
+SELECT policyname, qual 
+FROM pg_policies 
+WHERE tablename = 'patients';
+```
+
+**Solution:** Check `POWERSYNC_SCHEMA_SETUP.sql` and re-apply RLS policies
+
+---
+
+## Quick Re-Test Script
+
+If you need to run the full test again:
+
+```javascript
+// 1. Clear queue (only if needed)
+const db = await getDb();
+await db.execute('DELETE FROM ps_crud');
+
+// 2. Start fresh
+await connectPowerSync({ force: true });
+await diagnoseSync();
+
+// 3. Follow tests 1-6 above with new patient name
+```
+
+---
+
+## Expected Diagnostic Output Examples
+
+### Success Case
+
+```javascript
+await diagnoseSync()
+```
+
+Expected:
+```
+🔧 SYNC DIAGNOSTICS REPORT
+
+✅ FULLY CONNECTED
+
+✅ NO PENDING UPLOADS
+
+Possible issues & solutions:
+(none - sync is healthy)
+```
+
+### Partial Failure (Upload Queued)
+
+```javascript
+await printSyncDiagnostics()
+```
+
+Expected:
+```
+📡 Connection Status
+  Overall: CONNECTED - ✅ جميع الاتصالات تعمل بشكل صحيح
+  Supabase: ✅ Connected
+  PowerSync: ✅ Connected
+
+📊 Upload Queue Status
+  Pending operations: 1
+  Successful uploads: 2
+  ❌ Last Upload Error
+    Message: [UNIQUE constraint violation on user_id]
+    Time: 1/1/2025, 12:31:00 PM
+
+📋 Pending Operations (1)
+  1. patients [550e8400-e29b...] - INSERT
+```
+
+---
+
+## Sign-Off
+
+When all tests pass, sign off:
+
+```
+✅ SYNC SMOKE TEST PASSED
+- Offline CREATE works (ps_crud captures INSERT)
+- Online UPLOAD works (record synced to Supabase)
+- Offline UPDATE works (ps_crud captures PATCH)
+- Online UPDATE SYNC works (changes synced)
+- Offline DELETE works (ps_crud captures DELETE)
+- Online DELETE SYNC works (record removed from Supabase)
+- ps_crud queue empties after successful sync
+- No RLS or UNIQUE constraint errors
+
+Date: ___________
+Tester: ___________
+Environment: [dev/staging/prod]
+Branch: ___________
+```
+
+---
+
+## Notes
+
+- Replace `550e8400-e29b-41d4-a716-446655440000` with actual UUIDs from your tests
+- Timestamps will vary; use `LIKE` or `ORDER BY created_at DESC` for queries
+- If tests fail on first run, restart the app and try once more
+- Check `SYNC_DIAGNOSTICS.md` for advanced troubleshooting
+</file>
+
+<file path="env.env">
+VITE_SUPABASE_URL=https://yprekwnaxbbvfwbyvfnw.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwcmVrd25heGJidmZ3Ynl2Zm53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MDcyNjUsImV4cCI6MjA4MTE4MzI2NX0.ItLezDqUkv-93s5G56iQgYdke4_T0FgHR20mg1cfz2U
+VITE_POWERSYNC_URL=https://6938cd7948645822f36663c8.powersync.journeyapps.com
 </file>
 
 <file path="INFERTILITY_WORKUPS_SETUP.sql">
@@ -28340,6 +29004,265 @@ export const generateDiagnosis = (data: WorkupState): { diagnosis: string; plan:
 };
 </file>
 
+<file path="src/components/SyncDiagnosticPanel.tsx">
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, CheckCircle2, Wifi, WifiOff, Database, Clock, Zap } from 'lucide-react';
+import {
+  getFullConnectionStatus,
+  printSyncDiagnostics,
+  diagnoseSync,
+  ConnectionStatus
+} from '../utils/connectionDiagnostics';
+
+const SyncDiagnosticPanel: React.FC<{ expanded?: boolean }> = ({ expanded: initialExpanded = false }) => {
+  const [status, setStatus] = useState<ConnectionStatus | null>(null);
+  const [expanded, setExpanded] = useState(initialExpanded);
+  const [loading, setLoading] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+
+  const loadStatus = async () => {
+    setLoading(true);
+    try {
+      const newStatus = await getFullConnectionStatus();
+      setStatus(newStatus);
+      setLastRefresh(new Date());
+    } catch (error) {
+      console.error('Failed to load sync status:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStatus();
+    const interval = setInterval(loadStatus, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getStatusColor = () => {
+    if (!status) return 'bg-gray-100';
+    return status.overall.status === 'connected'
+      ? 'bg-green-50 border-green-200'
+      : status.overall.status === 'partial'
+      ? 'bg-yellow-50 border-yellow-200'
+      : 'bg-red-50 border-red-200';
+  };
+
+  const getStatusIcon = () => {
+    if (!status) return null;
+    if (status.overall.status === 'connected') {
+      return <CheckCircle2 className="w-5 h-5 text-green-600" />;
+    } else if (status.overall.status === 'partial') {
+      return <AlertCircle className="w-5 h-5 text-yellow-600" />;
+    }
+    return <AlertCircle className="w-5 h-5 text-red-600" />;
+  };
+
+  if (!status) {
+    return (
+      <div className="bg-gray-100 border border-gray-300 rounded-lg p-3 text-sm">
+        Loading sync diagnostics...
+      </div>
+    );
+  }
+
+  return (
+    <div className={`border rounded-lg p-4 ${getStatusColor()} transition-all`}>
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between hover:opacity-75 transition-opacity"
+      >
+        <div className="flex items-center gap-2">
+          {getStatusIcon()}
+          <span className="font-semibold text-gray-900">
+            {status.overall.status === 'connected'
+              ? '✅ Sync Healthy'
+              : status.overall.status === 'partial'
+              ? '⚠️ Sync Issues'
+              : '❌ Sync Offline'}
+          </span>
+        </div>
+        <span className="text-xs text-gray-500">
+          {expanded ? '▼' : '▶'} {lastRefresh.toLocaleTimeString()}
+        </span>
+      </button>
+
+      {/* Expanded Details */}
+      {expanded && (
+        <div className="mt-4 space-y-3">
+          {/* Connection Status */}
+          <div className="bg-white rounded p-3 space-y-2 border border-gray-200">
+            <div className="font-medium text-sm text-gray-700 flex items-center gap-2">
+              <Wifi className="w-4 h-4" />
+              Connection Status
+            </div>
+
+            <div className="ml-6 space-y-1 text-xs">
+              <div className="flex items-center gap-2">
+                {status.supabase.connected ? (
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                )}
+                <span>Supabase: {status.supabase.connected ? 'Connected' : 'Disconnected'}</span>
+              </div>
+              {status.supabase.user && (
+                <div className="text-gray-600 ml-4">👤 {status.supabase.user.email}</div>
+              )}
+              {status.supabase.error && (
+                <div className="text-red-600 ml-4 font-mono break-words">{status.supabase.error}</div>
+              )}
+
+              <div className="flex items-center gap-2 mt-1">
+                {status.powerSync.connected ? (
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                )}
+                <span>PowerSync: {status.powerSync.connected ? 'Connected' : 'Disconnected'}</span>
+              </div>
+              {status.powerSync.error && (
+                <div className="text-red-600 ml-4 font-mono break-words">{status.powerSync.error}</div>
+              )}
+            </div>
+          </div>
+
+          {/* Upload Queue Status */}
+          <div className="bg-white rounded p-3 space-y-2 border border-gray-200">
+            <div className="font-medium text-sm text-gray-700 flex items-center gap-2">
+              <Database className="w-4 h-4" />
+              Upload Queue
+            </div>
+
+            <div className="ml-6 space-y-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span>Pending operations:</span>
+                <span className="font-mono font-bold">
+                  {status.sync.uploadQueueSize}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Successful uploads:</span>
+                <span className="font-mono font-bold text-green-600">
+                  {status.sync.successfulUploads}
+                </span>
+              </div>
+            </div>
+
+            {status.sync.uploadQueueSize > 0 && (
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800 ml-6">
+                <div className="font-semibold flex items-center gap-1">
+                  <Zap className="w-3 h-3" />
+                  Data queued for upload
+                </div>
+                <div className="mt-1">
+                  {status.sync.lastUploadError ? (
+                    <>
+                      <div className="text-red-700 font-semibold">❌ Upload Error:</div>
+                      <div className="font-mono text-red-600 mt-1 break-words">
+                        {status.sync.lastUploadError}
+                      </div>
+                      {status.sync.lastUploadErrorAt && (
+                        <div className="text-red-600 text-xs mt-1">
+                          {new Date(status.sync.lastUploadErrorAt).toLocaleString()}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    'Will sync when online or on next sync interval'
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Pending Operations */}
+          {status.sync.pendingOperations.length > 0 && (
+            <div className="bg-white rounded p-3 space-y-2 border border-gray-200">
+              <div className="font-medium text-sm text-gray-700">
+                📋 Recent Operations ({status.sync.pendingOperations.length})
+              </div>
+
+              <div className="ml-2 space-y-1 text-xs font-mono max-h-40 overflow-y-auto">
+                {status.sync.pendingOperations.slice(0, 10).map((op, idx) => {
+                  const opTypeMap = { 1: 'INSERT', 2: 'UPDATE', 3: 'DELETE' };
+                  const opType = opTypeMap[op.op as keyof typeof opTypeMap] || `Unknown(${op.op})`;
+                  return (
+                    <div key={idx} className="text-gray-600 p-1 bg-gray-50 rounded">
+                      <span className="text-blue-600">{op.table}</span>
+                      {' '}
+                      <span className="text-amber-600 font-bold">{opType}</span>
+                      {' '}
+                      <span className="text-gray-400 text-xs">{op.id.substring(0, 8)}...</span>
+                    </div>
+                  );
+                })}
+                {status.sync.pendingOperations.length > 10 && (
+                  <div className="text-gray-500 italic">
+                    ... and {status.sync.pendingOperations.length - 10} more
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Diagnostics Actions */}
+          <div className="flex gap-2">
+            <button
+              onClick={loadStatus}
+              disabled={loading}
+              className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors"
+            >
+              {loading ? '🔄 Refreshing...' : '🔄 Refresh'}
+            </button>
+            <button
+              onClick={() => printSyncDiagnostics()}
+              className="flex-1 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs font-medium transition-colors"
+            >
+              📋 Console
+            </button>
+            <button
+              onClick={() => diagnoseSync()}
+              className="flex-1 px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs font-medium transition-colors"
+            >
+              🔍 Diagnose
+            </button>
+          </div>
+
+          {/* Help Text */}
+          <div className="bg-blue-50 border border-blue-200 rounded p-2 text-xs text-blue-800">
+            <div className="font-semibold mb-1">💡 Troubleshooting:</div>
+            <ul className="list-disc list-inside space-y-1">
+              {!status.supabase.connected && (
+                <li>Supabase not connected - Check network and credentials</li>
+              )}
+              {!status.powerSync.connected && (
+                <li>PowerSync not connected - Restart or check POWERSYNC_URL</li>
+              )}
+              {status.sync.uploadQueueSize > 0 && status.sync.lastUploadError && (
+                <li>
+                  {status.sync.lastUploadError.includes('UNIQUE')
+                    ? 'UNIQUE constraint error - Duplicate record detected'
+                    : status.sync.lastUploadError.includes('RLS')
+                    ? 'RLS violation - Check permissions'
+                    : 'Upload error - See details above'}
+                </li>
+              )}
+              {status.sync.uploadQueueSize > 0 && !status.sync.lastUploadError && (
+                <li>Data queued for upload - Waiting for connection</li>
+              )}
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SyncDiagnosticPanel;
+</file>
+
 <file path="src/lib/envValidation.ts">
 /// <reference types="vite/client" />
 
@@ -28670,133 +29593,6 @@ export async function connectPowerSync(options?: { force?: boolean }): Promise<v
 }
 </file>
 
-<file path="src/powersync/SyncRules.ts">
-export const SYNC_RULES = `
--- ============================================================================
--- POWERSYNC SYNC RULES (YAML FORMAT)
--- Configure in PowerSync Dashboard > Settings > Sync Rules
--- ============================================================================
-
--- Use the following sync rules to configure which tables and columns
--- are synchronized based on user authentication and permissions
-
-bucket_definitions:
-  # Doctors sync: Each doctor only syncs their own profile
-  doctors:
-    table: doctors
-    rule: 'auth.uid() = user_id'
-    
-  # Patients sync: Each doctor syncs only their assigned patients
-  patients:
-    table: patients
-    rule: 'doctor_id in (select id from doctors where user_id = auth.uid())'
-    
-  # Visits sync: Each doctor syncs visits for their patients
-  visits:
-    table: visits
-    rule: |
-      patient_id in (
-        select id from patients 
-        where doctor_id in (select id from doctors where user_id = auth.uid())
-      )
-    
-  # IVF Cycles sync: Each doctor syncs their IVF cycles
-  ivf_cycles:
-    table: ivf_cycles
-    rule: 'doctor_id in (select id from doctors where user_id = auth.uid())'
-    
-  # Stimulation Logs sync: Related to doctor's IVF cycles
-  stimulation_logs:
-    table: stimulation_logs
-    rule: |
-      cycle_id in (
-        select id from ivf_cycles 
-        where doctor_id in (select id from doctors where user_id = auth.uid())
-      )
-    
-  # Pregnancies sync: Each doctor syncs their pregnancies
-  pregnancies:
-    table: pregnancies
-    rule: 'doctor_id in (select id from doctors where user_id = auth.uid())'
-    
-  # Antenatal Visits sync: Related to doctor's pregnancies
-  antenatal_visits:
-    table: antenatal_visits
-    rule: |
-      pregnancy_id in (
-        select id from pregnancies 
-        where doctor_id in (select id from doctors where user_id = auth.uid())
-      )
-    
-  # Biometry Scans sync: Related to doctor's pregnancies
-  biometry_scans:
-    table: biometry_scans
-    rule: |
-      pregnancy_id in (
-        select id from pregnancies 
-        where doctor_id in (select id from doctors where user_id = auth.uid())
-      )
-    
-  # Patient Files sync: Related to doctor's patients
-  patient_files:
-    table: patient_files
-    rule: |
-      patient_id in (
-        select id from patients 
-        where doctor_id in (select id from doctors where user_id = auth.uid())
-      )
-    
-  # App Settings sync: Public data for all authenticated users
-  app_settings:
-    table: app_settings
-    rule: 'true'
-`;
-
-export interface SyncConfig {
-  enabled: boolean;
-  interval: number;
-  batchSize: number;
-  retryAttempts: number;
-  retryDelay: number;
-  conflictResolution: 'remote_wins' | 'local_wins' | 'merge';
-}
-
-export const DEFAULT_SYNC_CONFIG: SyncConfig = {
-  enabled: true,
-  interval: 5000,
-  batchSize: 100,
-  retryAttempts: 3,
-  retryDelay: 1000,
-  conflictResolution: 'remote_wins'
-};
-
-export const OFFLINE_FIRST_STRATEGY = {
-  useLocalFirst: true,
-  syncWhenOnline: true,
-  queueOfflineChanges: true,
-  persistQueue: true,
-  maxOfflineQueue: 1000
-};
-
-export const CONFLICT_RESOLUTION_STRATEGIES = {
-  timestamp: (local: any, remote: any) => {
-    const localTime = new Date(local.updated_at).getTime();
-    const remoteTime = new Date(remote.updated_at).getTime();
-    return remoteTime > localTime ? remote : local;
-  },
-  
-  custom: (local: any, remote: any, context?: any) => {
-    if (context?.field === 'assessment_data' || context?.field === 'lab_data') {
-      return { ...local, ...remote };
-    }
-    return remote;
-  },
-  
-  localWins: (local: any) => local,
-  remoteWins: (remote: any) => remote
-};
-</file>
-
 <file path="src/powersync/worker.ts">
 // PowerSync Web Worker
 // This file is part of the PowerSync worker setup
@@ -28810,172 +29606,6 @@ export * from '@powersync/web';
 // The worker implementation is automatically handled by the WASQLitePowerSyncDatabaseOpenFactory
 // when workerScriptURL is provided in client.ts
 // No additional worker setup is needed here as it's managed by the main client
-</file>
-
-<file path="src/utils/connectionDiagnostics.ts">
-// Connection Diagnostics Utility
-import { supabase } from '../lib/supabase';
-import { powerSyncDb } from '../powersync/client';
-import { useStatus } from '@powersync/react';
-
-export interface ConnectionStatus {
-  supabase: {
-    connected: boolean;
-    url: string;
-    error?: string;
-    user?: any;
-  };
-  powerSync: {
-    connected: boolean;
-    endpoint?: string;
-    error?: string;
-    lastSyncedAt?: Date;
-  };
-  overall: {
-    status: 'connected' | 'partial' | 'disconnected';
-    message: string;
-  };
-}
-
-export async function checkSupabaseConnection(): Promise<{
-  connected: boolean;
-  url: string;
-  error?: string;
-  user?: any;
-}> {
-  try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    
-    if (!supabaseUrl) {
-      return {
-        connected: false,
-        url: 'Not configured',
-        error: 'VITE_SUPABASE_URL not found in environment variables'
-      };
-    }
-
-    // Check authentication
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      return {
-        connected: false,
-        url: supabaseUrl,
-        error: sessionError.message
-      };
-    }
-
-    if (!session) {
-      return {
-        connected: false,
-        url: supabaseUrl,
-        error: 'No active session. Please log in.'
-      };
-    }
-
-    // Test database connection
-    const { data, error } = await supabase
-      .from('patients')
-      .select('id')
-      .limit(1);
-
-    if (error) {
-      return {
-        connected: false,
-        url: supabaseUrl,
-        error: `Database error: ${error.message}`,
-        user: session.user
-      };
-    }
-
-    return {
-      connected: true,
-      url: supabaseUrl,
-      user: session.user
-    };
-  } catch (error: any) {
-    return {
-      connected: false,
-      url: import.meta.env.VITE_SUPABASE_URL || 'Unknown',
-      error: error?.message || 'Unknown error'
-    };
-  }
-}
-
-export async function checkPowerSyncConnection(): Promise<{
-  connected: boolean;
-  endpoint?: string;
-  error?: string;
-  lastSyncedAt?: Date;
-}> {
-  try {
-    const endpoint = import.meta.env.VITE_POWERSYNC_URL;
-    
-    if (!endpoint) {
-      return {
-        connected: false,
-        error: 'VITE_POWERSYNC_URL not found in environment variables'
-      };
-    }
-
-    // Try to query PowerSync database
-    try {
-      const testQuery = await powerSyncDb.getAll('SELECT 1 as test');
-      
-      // Check connection status via useStatus hook would need to be called from component
-      // For now, we'll check if we can query
-      return {
-        connected: true,
-        endpoint: endpoint
-      };
-    } catch (dbError: any) {
-      return {
-        connected: false,
-        endpoint: endpoint,
-        error: `Database query failed: ${dbError?.message}`
-      };
-    }
-  } catch (error: any) {
-    return {
-      connected: false,
-      error: error?.message || 'Unknown error'
-    };
-  }
-}
-
-export async function getFullConnectionStatus(): Promise<ConnectionStatus> {
-  const [supabaseStatus, powerSyncStatus] = await Promise.all([
-    checkSupabaseConnection(),
-    checkPowerSyncConnection()
-  ]);
-
-  // Determine overall status
-  let overallStatus: 'connected' | 'partial' | 'disconnected';
-  let message: string;
-
-  if (supabaseStatus.connected && powerSyncStatus.connected) {
-    overallStatus = 'connected';
-    message = '✅ جميع الاتصالات تعمل بشكل صحيح';
-  } else if (supabaseStatus.connected) {
-    overallStatus = 'partial';
-    message = '⚠️ Supabase متصل، لكن PowerSync غير متصل - البيانات متاحة من Supabase مباشرة';
-  } else if (powerSyncStatus.connected) {
-    overallStatus = 'partial';
-    message = '⚠️ PowerSync متصل، لكن Supabase غير متصل';
-  } else {
-    overallStatus = 'disconnected';
-    message = '❌ جميع الاتصالات فاشلة - يرجى التحقق من الإعدادات';
-  }
-
-  return {
-    supabase: supabaseStatus,
-    powerSync: powerSyncStatus,
-    overall: {
-      status: overallStatus,
-      message: message
-    }
-  };
-}
 </file>
 
 <file path="styles.css">
@@ -29063,6 +29693,300 @@ body {
     page-break-after: avoid !important;
   }
 }
+</file>
+
+<file path="SYNC_DIAGNOSTICS.md">
+# PowerSync Sync Diagnostics Guide
+
+## Quick Start
+
+### 1. **Browser Console - Quick Diagnosis** (Recommended for fast debugging)
+
+Open browser DevTools (F12) and run:
+
+```javascript
+// One-line status check
+await diagnoseSync()
+
+// Detailed diagnostic report
+await printSyncDiagnostics()
+```
+
+These will show:
+- ✅/❌ Connection status (Supabase & PowerSync)
+- 📤 Upload queue size (pending operations)
+- ❌ Last upload error (if any)
+- 📋 Recent pending operations
+- 💡 Troubleshooting suggestions
+
+---
+
+## 2. **Visual Diagnostics Panel** (UI-based)
+
+Import and add to any page:
+
+```tsx
+import SyncDiagnosticPanel from './src/components/SyncDiagnosticPanel';
+
+export default function DebugPage() {
+  return (
+    <div className="p-4">
+      <SyncDiagnosticPanel expanded={true} />
+    </div>
+  );
+}
+```
+
+**Features:**
+- Auto-refreshes every 5 seconds
+- Click to expand/collapse details
+- Shows real-time queue status
+- Lists recent pending operations
+- Quick action buttons: Refresh, Console, Diagnose
+
+---
+
+## 3. **Programmatic API** (For custom integrations)
+
+```typescript
+import {
+  getFullConnectionStatus,
+  getSyncDiagnostics,
+  printSyncDiagnostics,
+  diagnoseSync
+} from './src/utils/connectionDiagnostics';
+
+// Get full status object
+const status = await getFullConnectionStatus();
+console.log(status.overall.status); // 'connected' | 'partial' | 'disconnected'
+console.log(status.sync.uploadQueueSize); // number of pending ops
+console.log(status.sync.lastUploadError); // error message or null
+
+// Get only sync metrics
+const syncDiags = await getSyncDiagnostics();
+```
+
+---
+
+## Troubleshooting Matrix
+
+### Issue: "NOT CONNECTED"
+
+**Possible Cause:** No internet, PowerSync not initialized, credentials missing
+
+**Check:**
+```javascript
+// Run in console:
+await diagnoseSync()
+// Look for specific errors under Supabase/PowerSync sections
+```
+
+**Solutions:**
+1. Verify internet connection
+2. Check `VITE_POWERSYNC_URL` env variable
+3. Check `VITE_SUPABASE_URL` env variable
+4. Refresh page and retry
+
+---
+
+### Issue: "UPLOAD QUEUE HAS PENDING DATA" with error
+
+**Possible Causes:**
+- 🔐 **RLS Violation** - Permission denied on table
+- 🔑 **UNIQUE Constraint** - Duplicate doctor record
+- 📊 **Missing Table** - Table not in Supabase
+- 🔗 **Foreign Key** - Missing parent record
+
+**Check:**
+```javascript
+await printSyncDiagnostics()
+// Look for: "📋 Pending Operations" and "❌ Last Upload Error"
+```
+
+**Solutions by Error:**
+
+| Error Message | Issue | Solution |
+|---------------|-------|----------|
+| `UNIQUE constraint violation` | Duplicate record (usually doctor) | Ensure `ensureDoctorRecord()` only inserts once |
+| `policy violation` | RLS denying access | Check RLS policies in Supabase Dashboard |
+| `relation does not exist` | Table not in Supabase | Run SQL migration for that table |
+| `column does not exist` | Field missing | Check table schema matches sync rules |
+
+---
+
+### Issue: "SYNC RULES RETURNING EMPTY"
+
+**Symptoms:**
+- Connected ✅
+- No errors ❌
+- But data doesn't appear in app
+
+**Check in Supabase Dashboard:**
+```sql
+-- Check if sync rules are actually returning data for logged-in user
+SELECT * FROM doctors WHERE user_id = current_user_id;
+SELECT * FROM patients WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = current_user_id LIMIT 1);
+```
+
+**Possible Issues:**
+1. User ID not in `doctors` table
+2. Doctor exists but has no patients
+3. RLS policies blocking the SELECT
+
+**Solutions:**
+1. Run `ensureDoctorRecord()` to create doctor record
+2. Add test patient via Supabase Dashboard
+3. Check RLS is enabled and has correct policies
+
+---
+
+## SQL Helper Queries
+
+Run these in **Supabase SQL Editor** to inspect sync state:
+
+```sql
+-- 1. Check PowerSync queue (ps_crud)
+SELECT COUNT(*) as pending_count, 
+       array_agg(DISTINCT table_name) as tables
+FROM ps_crud;
+
+-- 2. List recent pending operations
+SELECT id, table_name, op, created_at
+FROM ps_crud
+ORDER BY created_at DESC
+LIMIT 20;
+
+-- 3. Check doctor records exist
+SELECT id, user_id, email, name
+FROM doctors
+ORDER BY created_at DESC;
+
+-- 4. Check patient-doctor relationships
+SELECT p.id, p.name, d.name as doctor_name, p.doctor_id
+FROM patients p
+LEFT JOIN doctors d ON p.doctor_id = d.id
+ORDER BY p.created_at DESC;
+
+-- 5. Verify RLS is working (run as doctor user)
+SELECT COUNT(*) FROM doctors WHERE user_id = current_user_id;
+SELECT COUNT(*) FROM patients WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = current_user_id LIMIT 1);
+```
+
+---
+
+## Integration Example
+
+Add diagnostics to Settings page:
+
+```tsx
+import SyncDiagnosticPanel from '../src/components/SyncDiagnosticPanel';
+
+export default function SettingsPage() {
+  return (
+    <div className="space-y-6 p-4">
+      {/* Debug section */}
+      <div>
+        <h2 className="text-xl font-bold mb-4">🔧 Sync Diagnostics</h2>
+        <SyncDiagnosticPanel expanded={false} />
+      </div>
+
+      {/* Rest of settings... */}
+    </div>
+  );
+}
+```
+
+---
+
+## Monitoring in Production
+
+```typescript
+// Track upload errors in your app
+import { subscribeToDiagnostics } from './src/powersync/SupabaseConnector';
+
+subscribeToDiagnostics((diags) => {
+  if (diags.lastUploadError) {
+    console.error('Upload failed:', diags.lastUploadError);
+    // Send to error tracking service (e.g., Sentry)
+    reportError(diags.lastUploadError);
+  }
+});
+```
+
+---
+
+## Key Metrics to Monitor
+
+| Metric | Normal | Warning | Critical |
+|--------|--------|---------|----------|
+| `uploadQueueSize` | 0 | 1-5 | >50 |
+| `successfulUploads` | Growing | Stalled | 0 for >10s |
+| `lastUploadError` | null | Set but retrying | Set for >1min |
+| Overall Status | `connected` | `partial` | `disconnected` |
+
+---
+
+## Console Shortcuts
+
+Save these bookmarklets for quick access:
+
+```javascript
+// Bookmark 1: Quick Status
+javascript:(async() => { await window.diagnoseSync?.(); })()
+
+// Bookmark 2: Queue Size
+javascript:(async() => { const s = await window.getSyncDiagnostics?.(); console.log(`Queue: ${s?.uploadQueueSize || 0}`); })()
+```
+
+Then access the functions from global scope:
+```javascript
+diagnoseSync()
+printSyncDiagnostics()
+```
+
+---
+
+## Common Fixes
+
+### Fix 1: Duplicate Doctor Record
+
+```typescript
+// In browser console
+const db = getDb();
+await db.execute('DELETE FROM doctors WHERE user_id = ? AND id != ?', 
+  [currentUserId, correctDoctorId]);
+// Then reconnect
+await connectPowerSync({ force: true });
+```
+
+### Fix 2: Clear Upload Queue (Last Resort)
+
+```typescript
+// Only if you're sure pending data is lost
+const db = getDb();
+await db.execute('DELETE FROM ps_crud');
+console.log('Queue cleared - reconnect to sync');
+```
+
+### Fix 3: Sync Rules Not Returning Data
+
+1. Go to PowerSync Dashboard
+2. Update Sync Rules
+3. Test query in dashboard editor:
+   ```sql
+   SELECT * FROM doctors WHERE user_id = auth.uid()
+   ```
+4. If empty, verify user record exists in `doctors` table
+
+---
+
+## Contact Support
+
+If diagnostics show:
+- ❌ Connection error: Check env variables
+- 🔐 RLS violation: Check permissions in Supabase
+- 📤 Upload stuck: Check `ps_crud` table size
+- 💾 Data missing: Run SQL helper queries above
 </file>
 
 <file path="tailwind.config.js">
@@ -30187,289 +31111,6 @@ SELECT * FROM pg_publication_tables WHERE pubname = 'powersync';
 </div>
 </file>
 
-<file path="services/dbService.ts">
-import { supabase } from './supabaseClient';
-import { authService } from './authService';
-import { Patient, IvfCycle, StimulationLog } from '../types';
-import { powerSyncDb } from '../src/powersync/client';
-
-// PowerSync handles retries and offline queuing automatically
-
-export const dbService = {
-  // --- Patients ---
-  getPatients: async (): Promise<Patient[]> => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
-
-      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
-
-      // Read from PowerSync (offline-first)
-      const result = await powerSyncDb.execute(
-        'SELECT * FROM patients WHERE doctor_id = ? ORDER BY name',
-        [doctor.id]
-      );
-
-      return result.rows?._array.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        age: p.age || 0,
-        phone: p.phone,
-        husbandName: p.husband_name || '',
-        history: p.history || '',
-        createdAt: p.created_at || new Date().toISOString()
-      })) || [];
-    } catch (error: any) {
-      console.error('❌ getPatients error:', error?.message);
-      throw new Error(`فشل في جلب قائمة المرضى: ${error?.message}`);
-    }
-  },
-
-  savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
-
-      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
-
-      const id = crypto.randomUUID();
-      const now = new Date().toISOString();
-
-      // Write to PowerSync (offline-first)
-      await powerSyncDb.execute(
-        `INSERT INTO patients (id, name, age, phone, husband_name, history, doctor_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, patient.name, patient.age, patient.phone, patient.husbandName, patient.history, doctor.id, now, now]
-      );
-
-      console.log('✅ Patient saved to PowerSync:', id);
-      return { id, ...patient, createdAt: now };
-    } catch (error: any) {
-      console.error('❌ savePatient error:', error?.message);
-      throw new Error(`فشل في حفظ بيانات المريض: ${error?.message}`);
-    }
-  },
-
-  // --- Cycles ---
-  getCycles: async (): Promise<IvfCycle[]> => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
-
-      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
-
-      // Read from PowerSync (offline-first)
-      const cyclesResult = await powerSyncDb.execute(
-        'SELECT * FROM ivf_cycles WHERE doctor_id = ? ORDER BY start_date DESC',
-        [doctor.id]
-      );
-
-      const logsResult = await powerSyncDb.execute(
-        'SELECT * FROM stimulation_logs ORDER BY date DESC'
-      );
-
-      const cycles = cyclesResult.rows?._array || [];
-      const logs = logsResult.rows?._array || [];
-
-      const parseJSON = (str: string) => {
-        try { return str ? JSON.parse(str) : undefined; } catch (e) { return undefined; }
-      };
-
-      return cycles.map((c: any) => ({
-        id: c.id,
-        patientId: c.patient_id,
-        protocol: c.protocol,
-        startDate: c.start_date,
-        status: c.status,
-        logs: logs
-          .filter((l: any) => l.cycle_id === c.id)
-          .map((l: any) => ({
-            id: l.id,
-            date: l.date,
-            cycleDay: l.cycle_day,
-            fsh: l.fsh,
-            hmg: l.hmg,
-            e2: l.e2,
-            lh: l.lh,
-            rtFollicles: l.rt_follicles,
-            ltFollicles: l.lt_follicles,
-            endometriumThickness: l.endometrium_thickness
-          })),
-        lab: parseJSON(c.lab_data),
-        transfer: parseJSON(c.transfer_data),
-        outcome: parseJSON(c.outcome_data),
-        assessment: parseJSON(c.assessment_data)
-      }));
-    } catch (error: any) {
-      console.error('❌ getCycles error:', error?.message);
-      throw new Error(`فشل في جلب دورات الحقن المجهري: ${error?.message}`);
-    }
-  },
-
-  saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
-
-      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
-
-      const id = crypto.randomUUID();
-      const now = new Date().toISOString();
-
-      // Write to PowerSync (offline-first)
-      await powerSyncDb.execute(
-        `INSERT INTO ivf_cycles (id, patient_id, doctor_id, protocol, status, start_date, assessment_data, lab_data, transfer_data, outcome_data, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, cycle.patientId, doctor.id, cycle.protocol, cycle.status || 'Active', cycle.startDate,
-         JSON.stringify(cycle.assessment || {}), JSON.stringify(cycle.lab || {}),
-         JSON.stringify(cycle.transfer || {}), JSON.stringify(cycle.outcome || {}), now, now]
-      );
-
-      console.log('✅ IVF Cycle saved to PowerSync:', id);
-      return { id, ...cycle };
-    } catch (error: any) {
-      console.error('❌ saveCycle error:', error?.message);
-      throw new Error(`فشل في حفظ دورة الحقن المجهري: ${error?.message}`);
-    }
-  },
-
-  // --- Logs ---
-  addLog: async (cycleId: string, log: Partial<StimulationLog>) => {
-    try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!log.date || !log.cycleDay) throw new Error('التاريخ ورقم اليوم مطلوب');
-
-      const id = crypto.randomUUID();
-      const now = new Date().toISOString();
-
-      // Write to PowerSync (offline-first)
-      await powerSyncDb.execute(
-        `INSERT INTO stimulation_logs (id, cycle_id, cycle_day, date, fsh, hmg, e2, lh, rt_follicles, lt_follicles, endometrium_thickness, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, cycleId, log.cycleDay, log.date, log.fsh || '', log.hmg || '', log.e2 || '',
-         log.lh || '', log.rtFollicles || '', log.ltFollicles || '', log.endometriumThickness || '', now, now]
-      );
-
-      console.log('✅ Stimulation log saved to PowerSync:', id);
-      return { id, ...log };
-    } catch (error: any) {
-      console.error('❌ addLog error:', error?.message);
-      throw new Error(`فشل في إضافة سجل التحفيز: ${error?.message}`);
-    }
-  },
-
-  updateLog: async (logId: string, updates: Partial<StimulationLog>) => {
-    try {
-      if (!logId) throw new Error('معرف السجل مطلوب');
-
-      const updateData: any = {};
-      if (updates.fsh !== undefined) updateData.fsh = updates.fsh;
-      if (updates.hmg !== undefined) updateData.hmg = updates.hmg;
-      if (updates.e2 !== undefined) updateData.e2 = updates.e2;
-      if (updates.lh !== undefined) updateData.lh = updates.lh;
-      if (updates.rtFollicles !== undefined) updateData.rt_follicles = updates.rtFollicles;
-      if (updates.ltFollicles !== undefined) updateData.lt_follicles = updates.ltFollicles;
-      if (updates.endometriumThickness !== undefined) updateData.endometrium_thickness = updates.endometriumThickness;
-
-      if (Object.keys(updateData).length === 0) throw new Error('لا توجد تحديثات للتطبيق');
-
-      updateData.updated_at = new Date().toISOString();
-
-      // Build dynamic UPDATE query
-      const setParts = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
-      const values = Object.values(updateData);
-      values.push(logId); // Add logId at the end
-
-      await powerSyncDb.execute(
-        `UPDATE stimulation_logs SET ${setParts} WHERE id = ?`,
-        values
-      );
-
-      console.log('✅ Stimulation log updated in PowerSync:', logId);
-    } catch (error: any) {
-      console.error('❌ updateLog error:', error?.message);
-      throw new Error(`فشل في تحديث سجل التحفيز: ${error?.message}`);
-    }
-  },
-
-  updateCycleAssessment: async (cycleId: string, assessment: any) => {
-    try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!assessment) throw new Error('بيانات التقييم مطلوبة');
-
-      const now = new Date().toISOString();
-      await powerSyncDb.execute(
-        `UPDATE ivf_cycles SET assessment_data = ?, updated_at = ? WHERE id = ?`,
-        [JSON.stringify(assessment), now, cycleId]
-      );
-
-      console.log('✅ Cycle assessment updated in PowerSync:', cycleId);
-    } catch (error: any) {
-      console.error('❌ updateCycleAssessment error:', error?.message);
-      throw new Error(`فشل في حفظ التقييم: ${error?.message}`);
-    }
-  },
-
-  updateCycleLabData: async (cycleId: string, labData: any) => {
-    try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!labData) throw new Error('بيانات المختبر مطلوبة');
-
-      const now = new Date().toISOString();
-      await powerSyncDb.execute(
-        `UPDATE ivf_cycles SET lab_data = ?, updated_at = ? WHERE id = ?`,
-        [JSON.stringify(labData), now, cycleId]
-      );
-
-      console.log('✅ Cycle lab data updated in PowerSync:', cycleId);
-    } catch (error: any) {
-      console.error('❌ updateCycleLabData error:', error?.message);
-      throw new Error(`فشل في حفظ بيانات المختبر: ${error?.message}`);
-    }
-  },
-
-  updateCycleTransfer: async (cycleId: string, transferData: any) => {
-    try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!transferData) throw new Error('بيانات النقل مطلوبة');
-
-      const now = new Date().toISOString();
-      await powerSyncDb.execute(
-        `UPDATE ivf_cycles SET transfer_data = ?, updated_at = ? WHERE id = ?`,
-        [JSON.stringify(transferData), now, cycleId]
-      );
-
-      console.log('✅ Cycle transfer data updated in PowerSync:', cycleId);
-    } catch (error: any) {
-      console.error('❌ updateCycleTransfer error:', error?.message);
-      throw new Error(`فشل في حفظ بيانات النقل: ${error?.message}`);
-    }
-  },
-
-  updateCycleOutcome: async (cycleId: string, outcomeData: any) => {
-    try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!outcomeData) throw new Error('بيانات النتيجة مطلوبة');
-
-      const now = new Date().toISOString();
-      await powerSyncDb.execute(
-        `UPDATE ivf_cycles SET outcome_data = ?, status = ?, updated_at = ? WHERE id = ?`,
-        [JSON.stringify(outcomeData), 'Completed', now, cycleId]
-      );
-
-      console.log('✅ Cycle outcome updated in PowerSync:', cycleId);
-    } catch (error: any) {
-      console.error('❌ updateCycleOutcome error:', error?.message);
-      throw new Error(`فشل في حفظ نتيجة الدورة: ${error?.message}`);
-    }
-  }
-};
-</file>
-
 <file path="src/components/HistorySidebar.tsx">
 import React, { useState, useEffect } from 'react';
 import { X, Copy, ChevronDown, ChevronUp, Activity, Scale, Baby } from 'lucide-react';
@@ -31132,6 +31773,457 @@ export class Connector implements PowerSyncBackendConnector {
             // await transaction.reject();
         }
     }
+}
+</file>
+
+<file path="src/powersync/SyncRules.ts">
+export const SYNC_RULES = `
+-- ============================================================================
+-- POWERSYNC SYNC RULES (YAML FORMAT)
+-- Configure in PowerSync Dashboard > Settings > Sync Rules
+-- ============================================================================
+--
+-- UUID Handling:
+-- - No CAST(... AS uuid) or ::uuid casts used
+-- - PowerSync handles UUID values as text in comparisons
+-- - Comparisons: auth.uid() = user_id (both text type)
+-- - All subqueries return id fields for safe direct comparison
+--
+-- Use the following sync rules to configure which tables and columns
+-- are synchronized based on user authentication and permissions
+
+bucket_definitions:
+  # Doctors sync: Each doctor only syncs their own profile
+  doctors:
+    table: doctors
+    rule: 'auth.uid() = user_id'
+    
+  # Patients sync: Each doctor syncs only their assigned patients
+  patients:
+    table: patients
+    rule: 'doctor_id in (select id from doctors where user_id = auth.uid())'
+    
+  # Visits sync: Each doctor syncs visits for their patients
+  visits:
+    table: visits
+    rule: |
+      patient_id in (
+        select id from patients 
+        where doctor_id in (select id from doctors where user_id = auth.uid())
+      )
+    
+  # IVF Cycles sync: Each doctor syncs their IVF cycles
+  ivf_cycles:
+    table: ivf_cycles
+    rule: 'doctor_id in (select id from doctors where user_id = auth.uid())'
+    
+  # Stimulation Logs sync: Related to doctor's IVF cycles
+  stimulation_logs:
+    table: stimulation_logs
+    rule: |
+      cycle_id in (
+        select id from ivf_cycles 
+        where doctor_id in (select id from doctors where user_id = auth.uid())
+      )
+    
+  # Pregnancies sync: Each doctor syncs their pregnancies
+  pregnancies:
+    table: pregnancies
+    rule: 'doctor_id in (select id from doctors where user_id = auth.uid())'
+    
+  # Antenatal Visits sync: Related to doctor's pregnancies
+  antenatal_visits:
+    table: antenatal_visits
+    rule: |
+      pregnancy_id in (
+        select id from pregnancies 
+        where doctor_id in (select id from doctors where user_id = auth.uid())
+      )
+    
+  # Biometry Scans sync: Related to doctor's pregnancies
+  biometry_scans:
+    table: biometry_scans
+    rule: |
+      pregnancy_id in (
+        select id from pregnancies 
+        where doctor_id in (select id from doctors where user_id = auth.uid())
+      )
+    
+  # Patient Files sync: Related to doctor's patients
+  patient_files:
+    table: patient_files
+    rule: |
+      patient_id in (
+        select id from patients 
+        where doctor_id in (select id from doctors where user_id = auth.uid())
+      )
+    
+  # App Settings sync: Public data for all authenticated users
+  app_settings:
+    table: app_settings
+    rule: 'true'
+`;
+
+export interface SyncConfig {
+  enabled: boolean;
+  interval: number;
+  batchSize: number;
+  retryAttempts: number;
+  retryDelay: number;
+  conflictResolution: 'remote_wins' | 'local_wins' | 'merge';
+}
+
+export const DEFAULT_SYNC_CONFIG: SyncConfig = {
+  enabled: true,
+  interval: 5000,
+  batchSize: 100,
+  retryAttempts: 3,
+  retryDelay: 1000,
+  conflictResolution: 'remote_wins'
+};
+
+export const OFFLINE_FIRST_STRATEGY = {
+  useLocalFirst: true,
+  syncWhenOnline: true,
+  queueOfflineChanges: true,
+  persistQueue: true,
+  maxOfflineQueue: 1000
+};
+
+export const CONFLICT_RESOLUTION_STRATEGIES = {
+  timestamp: (local: any, remote: any) => {
+    const localTime = new Date(local.updated_at).getTime();
+    const remoteTime = new Date(remote.updated_at).getTime();
+    return remoteTime > localTime ? remote : local;
+  },
+  
+  custom: (local: any, remote: any, context?: any) => {
+    if (context?.field === 'assessment_data' || context?.field === 'lab_data') {
+      return { ...local, ...remote };
+    }
+    return remote;
+  },
+  
+  localWins: (local: any) => local,
+  remoteWins: (remote: any) => remote
+};
+</file>
+
+<file path="src/utils/connectionDiagnostics.ts">
+// Connection Diagnostics Utility
+import { supabase } from '../lib/supabase';
+import { powerSyncDb } from '../powersync/client';
+import { uploadDiagnostics } from '../powersync/SupabaseConnector';
+import { useStatus } from '@powersync/react';
+
+export interface CrudOperation {
+  id: string;
+  table: string;
+  op: number;
+  opData: any;
+  clientId?: string;
+  created_at?: string;
+}
+
+export interface SyncDiagnostics {
+  uploadQueueSize: number;
+  pendingOperations: CrudOperation[];
+  lastUploadError: string | null;
+  lastUploadErrorAt: number | null;
+  successfulUploads: number;
+}
+
+export interface ConnectionStatus {
+  supabase: {
+    connected: boolean;
+    url: string;
+    error?: string;
+    user?: any;
+  };
+  powerSync: {
+    connected: boolean;
+    endpoint?: string;
+    error?: string;
+    lastSyncedAt?: Date;
+  };
+  sync: SyncDiagnostics;
+  overall: {
+    status: 'connected' | 'partial' | 'disconnected';
+    message: string;
+  };
+}
+
+export async function checkSupabaseConnection(): Promise<{
+  connected: boolean;
+  url: string;
+  error?: string;
+  user?: any;
+}> {
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    
+    if (!supabaseUrl) {
+      return {
+        connected: false,
+        url: 'Not configured',
+        error: 'VITE_SUPABASE_URL not found in environment variables'
+      };
+    }
+
+    // Check authentication
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      return {
+        connected: false,
+        url: supabaseUrl,
+        error: sessionError.message
+      };
+    }
+
+    if (!session) {
+      return {
+        connected: false,
+        url: supabaseUrl,
+        error: 'No active session. Please log in.'
+      };
+    }
+
+    // Test database connection
+    const { data, error } = await supabase
+      .from('patients')
+      .select('id')
+      .limit(1);
+
+    if (error) {
+      return {
+        connected: false,
+        url: supabaseUrl,
+        error: `Database error: ${error.message}`,
+        user: session.user
+      };
+    }
+
+    return {
+      connected: true,
+      url: supabaseUrl,
+      user: session.user
+    };
+  } catch (error: any) {
+    return {
+      connected: false,
+      url: import.meta.env.VITE_SUPABASE_URL || 'Unknown',
+      error: error?.message || 'Unknown error'
+    };
+  }
+}
+
+export async function checkPowerSyncConnection(): Promise<{
+  connected: boolean;
+  endpoint?: string;
+  error?: string;
+  lastSyncedAt?: Date;
+}> {
+  try {
+    const endpoint = import.meta.env.VITE_POWERSYNC_URL;
+    
+    if (!endpoint) {
+      return {
+        connected: false,
+        error: 'VITE_POWERSYNC_URL not found in environment variables'
+      };
+    }
+
+    // Try to query PowerSync database
+    try {
+      const testQuery = await powerSyncDb.getAll('SELECT 1 as test');
+      
+      // Check connection status via useStatus hook would need to be called from component
+      // For now, we'll check if we can query
+      return {
+        connected: true,
+        endpoint: endpoint
+      };
+    } catch (dbError: any) {
+      return {
+        connected: false,
+        endpoint: endpoint,
+        error: `Database query failed: ${dbError?.message}`
+      };
+    }
+  } catch (error: any) {
+    return {
+      connected: false,
+      error: error?.message || 'Unknown error'
+    };
+  }
+}
+
+export async function getSyncDiagnostics(): Promise<SyncDiagnostics> {
+  try {
+    const pendingOperations = await powerSyncDb.getAll(
+      'SELECT id, table_name as table, op, op_data as opData FROM ps_crud ORDER BY created_at DESC LIMIT 100'
+    );
+
+    const countResult = await powerSyncDb.getOptional(
+      'SELECT COUNT(*) as count FROM ps_crud'
+    );
+
+    return {
+      uploadQueueSize: countResult?.count || 0,
+      pendingOperations: pendingOperations as CrudOperation[],
+      lastUploadError: uploadDiagnostics.lastUploadError,
+      lastUploadErrorAt: uploadDiagnostics.lastUploadErrorAt,
+      successfulUploads: uploadDiagnostics.successfulUploads
+    };
+  } catch (error: any) {
+    console.warn('⚠️ Could not fetch ps_crud diagnostics:', error?.message);
+    return {
+      uploadQueueSize: 0,
+      pendingOperations: [],
+      lastUploadError: uploadDiagnostics.lastUploadError,
+      lastUploadErrorAt: uploadDiagnostics.lastUploadErrorAt,
+      successfulUploads: uploadDiagnostics.successfulUploads
+    };
+  }
+}
+
+export async function getFullConnectionStatus(): Promise<ConnectionStatus> {
+  const [supabaseStatus, powerSyncStatus, syncDiags] = await Promise.all([
+    checkSupabaseConnection(),
+    checkPowerSyncConnection(),
+    getSyncDiagnostics()
+  ]);
+
+  // Determine overall status
+  let overallStatus: 'connected' | 'partial' | 'disconnected';
+  let message: string;
+
+  if (supabaseStatus.connected && powerSyncStatus.connected) {
+    overallStatus = 'connected';
+    message = '✅ جميع الاتصالات تعمل بشكل صحيح';
+  } else if (supabaseStatus.connected) {
+    overallStatus = 'partial';
+    message = '⚠️ Supabase متصل، لكن PowerSync غير متصل - البيانات متاحة من Supabase مباشرة';
+  } else if (powerSyncStatus.connected) {
+    overallStatus = 'partial';
+    message = '⚠️ PowerSync متصل، لكن Supabase غير متصل';
+  } else {
+    overallStatus = 'disconnected';
+    message = '❌ جميع الاتصالات فاشلة - يرجى التحقق من الإعدادات';
+  }
+
+  return {
+    supabase: supabaseStatus,
+    powerSync: powerSyncStatus,
+    sync: syncDiags,
+    overall: {
+      status: overallStatus,
+      message: message
+    }
+  };
+}
+
+export async function printSyncDiagnostics(): Promise<void> {
+  console.group('🔍 POWERSYNC SYNC DIAGNOSTICS');
+  
+  const status = await getFullConnectionStatus();
+  
+  console.group('📡 Connection Status');
+  console.log(`Overall: ${status.overall.status.toUpperCase()} - ${status.overall.message}`);
+  console.log(`Supabase: ${status.supabase.connected ? '✅ Connected' : '❌ Disconnected'}`);
+  if (status.supabase.user) console.log(`  User: ${status.supabase.user.email}`);
+  if (status.supabase.error) console.error(`  Error: ${status.supabase.error}`);
+  console.log(`PowerSync: ${status.powerSync.connected ? '✅ Connected' : '❌ Disconnected'}`);
+  if (status.powerSync.error) console.error(`  Error: ${status.powerSync.error}`);
+  console.groupEnd();
+  
+  console.group('📊 Upload Queue Status');
+  console.log(`Pending operations: ${status.sync.uploadQueueSize}`);
+  console.log(`Successful uploads: ${status.sync.successfulUploads}`);
+  
+  if (status.sync.lastUploadError) {
+    console.group('❌ Last Upload Error');
+    console.error(`Message: ${status.sync.lastUploadError}`);
+    if (status.sync.lastUploadErrorAt) {
+      console.error(`Time: ${new Date(status.sync.lastUploadErrorAt).toLocaleString()}`);
+    }
+    console.groupEnd();
+  } else {
+    console.log('✅ No recent upload errors');
+  }
+  console.groupEnd();
+  
+  if (status.sync.pendingOperations.length > 0) {
+    console.group(`📋 Pending Operations (${status.sync.pendingOperations.length})`);
+    status.sync.pendingOperations.slice(0, 10).forEach((op, idx) => {
+      const opTypeMap = { 1: 'INSERT', 2: 'UPDATE', 3: 'DELETE' };
+      const opType = opTypeMap[op.op as keyof typeof opTypeMap] || `Unknown(${op.op})`;
+      console.log(`${idx + 1}. ${op.table} [${op.id}] - ${opType}`);
+    });
+    if (status.sync.pendingOperations.length > 10) {
+      console.log(`... and ${status.sync.pendingOperations.length - 10} more`);
+    }
+    console.groupEnd();
+  }
+  
+  console.groupEnd();
+}
+
+export async function diagnoseSync(): Promise<void> {
+  const status = await getFullConnectionStatus();
+  
+  console.clear();
+  console.log('%c🔧 SYNC DIAGNOSTICS REPORT', 'font-size: 16px; font-weight: bold; color: #2563eb;');
+  console.log('');
+  
+  if (status.overall.status === 'disconnected') {
+    console.log('%c❌ NOT CONNECTED', 'font-size: 14px; color: #dc2626;');
+    if (status.supabase.error) console.log(`  Supabase: ${status.supabase.error}`);
+    if (status.powerSync.error) console.log(`  PowerSync: ${status.powerSync.error}`);
+  } else if (status.overall.status === 'partial') {
+    console.log('%c⚠️ PARTIAL CONNECTION', 'font-size: 14px; color: #ea580c;');
+  } else {
+    console.log('%c✅ FULLY CONNECTED', 'font-size: 14px; color: #16a34a;');
+  }
+  
+  console.log('');
+  
+  if (status.sync.uploadQueueSize > 0) {
+    console.log('%c📤 UPLOAD QUEUE HAS PENDING DATA', 'font-size: 13px; color: #ea580c; font-weight: bold;');
+    console.log(`  Queue size: ${status.sync.uploadQueueSize} operations`);
+    
+    if (status.sync.lastUploadError) {
+      console.log(`  Last error: ${status.sync.lastUploadError}`);
+      console.log('  Status: ⏸️  PAUSED (will retry when online)');
+    } else {
+      console.log('  Status: 📤 UPLOADING or queued for next sync');
+    }
+  } else {
+    console.log('%c✅ NO PENDING UPLOADS', 'font-size: 13px; color: #16a34a;');
+  }
+  
+  console.log('');
+  console.log('%cPossible issues & solutions:', 'font-weight: bold;');
+  
+  if (!status.powerSync.connected) {
+    console.log('  1. PowerSync not connected → Check internet connection');
+    console.log('     2. Verify VITE_POWERSYNC_URL is configured');
+    console.log('     3. Check browser console for auth errors');
+  }
+  
+  if (!status.supabase.connected && status.sync.uploadQueueSize > 0) {
+    console.log('  4. Supabase not connected but data pending → No way to upload yet');
+    console.log('     Check: Is RLS enabled? Are permissions correct?');
+  }
+  
+  if (status.sync.lastUploadError) {
+    console.log('  5. Upload failing → Check error message above');
+    console.log('     Common: UNIQUE constraint (duplicate doctor), RLS violation, missing table');
+  }
+  
+  console.log('');
+  console.log('💡 Next step: Run diagnoseSync() again after fixing, or check ps_crud table');
 }
 </file>
 
@@ -32128,167 +33220,334 @@ self.addEventListener('notificationclick', (event) => {
 });
 </file>
 
-<file path="services/authService.ts">
+<file path="services/dbService.ts">
 import { supabase } from './supabaseClient';
+import { authService } from './authService';
+import { Patient, IvfCycle, StimulationLog } from '../types';
 import { powerSyncDb } from '../src/powersync/client';
 
-export const authService = {
-  login: async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    if (error) throw error;
-    return data;
-  },
+// PowerSync handles retries and offline queuing automatically
 
-  signup: async (email: string, password: string, doctorData: { name: string; specialization?: string; phone?: string }) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    
-    if (error) throw error;
-
-    if (data.user) {
-      try {
-        const id = crypto.randomUUID();
-        const now = new Date().toISOString();
-        await powerSyncDb.execute(
-          `INSERT INTO doctors (id, user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [id, data.user.id, email, doctorData.name, doctorData.specialization || null, doctorData.phone || null,
-           null, null, null, null, now, now]
-        );
-
-        console.log('✅ Doctor record created in PowerSync');
-      } catch (dbError: any) {
-        console.error('❌ Failed to create doctor record:', dbError);
-        throw new Error(`فشل إنشاء ملف الطبيب: ${dbError.message || 'خطأ في قاعدة البيانات'}`);
-      }
-    }
-
-    return data;
-  },
-
-  logout: async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-  },
-
-  getCurrentUser: async () => {
+export const dbService = {
+  // --- Patients ---
+  getPatients: async (): Promise<Patient[]> => {
     try {
-      // 1. Try strict server verification first (Secure)
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      return user;
+      const user = await authService.getCurrentUser();
+      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
+
+      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
+      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
+
+      const patients = await powerSyncDb.getAll(
+        'SELECT * FROM patients WHERE doctor_id = ? ORDER BY name',
+        [doctor.id]
+      );
+
+      return patients.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        age: p.age || 0,
+        phone: p.phone,
+        husbandName: p.husband_name || '',
+        history: p.history || '',
+        createdAt: p.created_at || new Date().toISOString()
+      })) || [];
     } catch (error: any) {
-      // 2. If Network Error ("Failed to fetch"), Fallback to Local Session
-      if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
-        console.warn('Offline mode: Verifying local session...');
-        const { data: { session } } = await supabase.auth.getSession();
-        // If we have a valid local session, allow access
-        if (session?.user) {
-          return session.user;
-        }
-      }
-      // Real auth error? Re-throw
-      throw error;
+      console.error('❌ getPatients error:', error?.message);
+      throw new Error(`فشل في جلب قائمة المرضى: ${error?.message}`);
     }
   },
 
-  getDoctorProfile: async (userId: string) => {
-    // Read from PowerSync (offline-first)
-    const result = await powerSyncDb.execute(
-      'SELECT * FROM doctors WHERE user_id = ?',
-      [userId]
-    );
+  savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
 
-    const doctors = result.rows?._array || [];
-    if (doctors.length === 0) {
-      throw new Error('Doctor profile not found');
+      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
+      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
+
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      // Write to PowerSync (offline-first)
+      await powerSyncDb.execute(
+        `INSERT INTO patients (id, name, age, phone, husband_name, history, doctor_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, patient.name, patient.age, patient.phone, patient.husbandName, patient.history, doctor.id, now, now]
+      );
+
+      console.log('✅ Patient saved to PowerSync:', id);
+      return { id, ...patient, createdAt: now };
+    } catch (error: any) {
+      console.error('❌ savePatient error:', error?.message);
+      throw new Error(`فشل في حفظ بيانات المريض: ${error?.message}`);
     }
-
-    return doctors[0];
   },
 
-  onAuthStateChange: (callback: (user: any) => void) => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      callback(session?.user || null);
-    });
+  // --- Cycles ---
+  getCycles: async (): Promise<IvfCycle[]> => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
 
-    return subscription;
-  },
+      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
+      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
 
-  updateDoctorProfile: async (userId: string, updates: any) => {
-    // Build dynamic UPDATE query
-    const updateData = { ...updates, updated_at: new Date().toISOString() };
-    const setParts = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
-    const values = Object.values(updateData);
-    values.push(userId); // Add userId at the end
+      const cycles = await powerSyncDb.getAll(
+        'SELECT * FROM ivf_cycles WHERE doctor_id = ? ORDER BY start_date DESC',
+        [doctor.id]
+      );
 
-    await powerSyncDb.execute(
-      `UPDATE doctors SET ${setParts} WHERE user_id = ?`,
-      values
-    );
+      const logs = await powerSyncDb.getAll(
+        'SELECT * FROM stimulation_logs ORDER BY date DESC'
+      );
 
-    console.log('✅ Doctor profile updated in PowerSync');
-    return updateData;
-  },
+      const parseJSON = (str: string) => {
+        try { return str ? JSON.parse(str) : undefined; } catch (e) { return undefined; }
+      };
 
-  updatePassword: async (newPassword: string) => {
-    const { data, error } = await supabase.auth.updateUser({
-      password: newPassword
-    });
-
-    if (error) throw error;
-    return data;
-  },
-
-  uploadImage: async (userId: string, file: File, folder: 'doctor_images' | 'clinic_images') => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}_${Date.now()}.${fileExt}`;
-    const filePath = `${folder}/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('doctor-files')
-      .upload(filePath, file, { upsert: true });
-
-    if (uploadError) throw uploadError;
-
-    const { data } = supabase.storage
-      .from('doctor-files')
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
-  },
-
-  ensureDoctorRecord: async (userId: string, email: string) => {
-    // Check if doctor exists in PowerSync
-    const result = await powerSyncDb.execute(
-      'SELECT id FROM doctors WHERE user_id = ?',
-      [userId]
-    );
-
-    const doctors = result.rows?._array || [];
-    if (doctors.length > 0) {
-      return doctors[0];
+      return cycles.map((c: any) => ({
+        id: c.id,
+        patientId: c.patient_id,
+        protocol: c.protocol,
+        startDate: c.start_date,
+        status: c.status,
+        logs: logs
+          .filter((l: any) => l.cycle_id === c.id)
+          .map((l: any) => ({
+            id: l.id,
+            date: l.date,
+            cycleDay: l.cycle_day,
+            fsh: l.fsh,
+            hmg: l.hmg,
+            e2: l.e2,
+            lh: l.lh,
+            rtFollicles: l.rt_follicles,
+            ltFollicles: l.lt_follicles,
+            endometriumThickness: l.endometrium_thickness
+          })),
+        lab: parseJSON(c.lab_data),
+        transfer: parseJSON(c.transfer_data),
+        outcome: parseJSON(c.outcome_data),
+        assessment: parseJSON(c.assessment_data)
+      }));
+    } catch (error: any) {
+      console.error('❌ getCycles error:', error?.message);
+      throw new Error(`فشل في جلب دورات الحقن المجهري: ${error?.message}`);
     }
+  },
 
-    // Create new doctor record in PowerSync
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-    await powerSyncDb.execute(
-      `INSERT INTO doctors (id, user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, userId, email, 'الطبيب', null, null, null, null, null, null, now, now]
-    );
+  saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
 
-    console.log('✅ Doctor record ensured in PowerSync');
-    return { id };
+      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
+      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
+
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      // Write to PowerSync (offline-first)
+      await powerSyncDb.execute(
+        `INSERT INTO ivf_cycles (id, patient_id, doctor_id, protocol, status, start_date, assessment_data, lab_data, transfer_data, outcome_data, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, cycle.patientId, doctor.id, cycle.protocol, cycle.status || 'Active', cycle.startDate,
+         JSON.stringify(cycle.assessment || {}), JSON.stringify(cycle.lab || {}),
+         JSON.stringify(cycle.transfer || {}), JSON.stringify(cycle.outcome || {}), now, now]
+      );
+
+      console.log('✅ IVF Cycle saved to PowerSync:', id);
+      return { id, ...cycle };
+    } catch (error: any) {
+      console.error('❌ saveCycle error:', error?.message);
+      throw new Error(`فشل في حفظ دورة الحقن المجهري: ${error?.message}`);
+    }
+  },
+
+  // --- Logs ---
+  addLog: async (cycleId: string, log: Partial<StimulationLog>) => {
+    try {
+      if (!cycleId) throw new Error('معرف الدورة مطلوب');
+      if (!log.date || !log.cycleDay) throw new Error('التاريخ ورقم اليوم مطلوب');
+
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      // Write to PowerSync (offline-first)
+      await powerSyncDb.execute(
+        `INSERT INTO stimulation_logs (id, cycle_id, cycle_day, date, fsh, hmg, e2, lh, rt_follicles, lt_follicles, endometrium_thickness, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, cycleId, log.cycleDay, log.date, log.fsh || '', log.hmg || '', log.e2 || '',
+         log.lh || '', log.rtFollicles || '', log.ltFollicles || '', log.endometriumThickness || '', now, now]
+      );
+
+      console.log('✅ Stimulation log saved to PowerSync:', id);
+      return { id, ...log };
+    } catch (error: any) {
+      console.error('❌ addLog error:', error?.message);
+      throw new Error(`فشل في إضافة سجل التحفيز: ${error?.message}`);
+    }
+  },
+
+  updateLog: async (logId: string, updates: Partial<StimulationLog>) => {
+    try {
+      if (!logId) throw new Error('معرف السجل مطلوب');
+
+      const updateData: any = {};
+      if (updates.fsh !== undefined) updateData.fsh = updates.fsh;
+      if (updates.hmg !== undefined) updateData.hmg = updates.hmg;
+      if (updates.e2 !== undefined) updateData.e2 = updates.e2;
+      if (updates.lh !== undefined) updateData.lh = updates.lh;
+      if (updates.rtFollicles !== undefined) updateData.rt_follicles = updates.rtFollicles;
+      if (updates.ltFollicles !== undefined) updateData.lt_follicles = updates.ltFollicles;
+      if (updates.endometriumThickness !== undefined) updateData.endometrium_thickness = updates.endometriumThickness;
+
+      if (Object.keys(updateData).length === 0) throw new Error('لا توجد تحديثات للتطبيق');
+
+      updateData.updated_at = new Date().toISOString();
+
+      // Build dynamic UPDATE query
+      const setParts = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
+      const values = Object.values(updateData);
+      values.push(logId); // Add logId at the end
+
+      await powerSyncDb.execute(
+        `UPDATE stimulation_logs SET ${setParts} WHERE id = ?`,
+        values
+      );
+
+      console.log('✅ Stimulation log updated in PowerSync:', logId);
+    } catch (error: any) {
+      console.error('❌ updateLog error:', error?.message);
+      throw new Error(`فشل في تحديث سجل التحفيز: ${error?.message}`);
+    }
+  },
+
+  updateCycleAssessment: async (cycleId: string, assessment: any) => {
+    try {
+      if (!cycleId) throw new Error('معرف الدورة مطلوب');
+      if (!assessment) throw new Error('بيانات التقييم مطلوبة');
+
+      const now = new Date().toISOString();
+      await powerSyncDb.execute(
+        `UPDATE ivf_cycles SET assessment_data = ?, updated_at = ? WHERE id = ?`,
+        [JSON.stringify(assessment), now, cycleId]
+      );
+
+      console.log('✅ Cycle assessment updated in PowerSync:', cycleId);
+    } catch (error: any) {
+      console.error('❌ updateCycleAssessment error:', error?.message);
+      throw new Error(`فشل في حفظ التقييم: ${error?.message}`);
+    }
+  },
+
+  updateCycleLabData: async (cycleId: string, labData: any) => {
+    try {
+      if (!cycleId) throw new Error('معرف الدورة مطلوب');
+      if (!labData) throw new Error('بيانات المختبر مطلوبة');
+
+      const now = new Date().toISOString();
+      await powerSyncDb.execute(
+        `UPDATE ivf_cycles SET lab_data = ?, updated_at = ? WHERE id = ?`,
+        [JSON.stringify(labData), now, cycleId]
+      );
+
+      console.log('✅ Cycle lab data updated in PowerSync:', cycleId);
+    } catch (error: any) {
+      console.error('❌ updateCycleLabData error:', error?.message);
+      throw new Error(`فشل في حفظ بيانات المختبر: ${error?.message}`);
+    }
+  },
+
+  updateCycleTransfer: async (cycleId: string, transferData: any) => {
+    try {
+      if (!cycleId) throw new Error('معرف الدورة مطلوب');
+      if (!transferData) throw new Error('بيانات النقل مطلوبة');
+
+      const now = new Date().toISOString();
+      await powerSyncDb.execute(
+        `UPDATE ivf_cycles SET transfer_data = ?, updated_at = ? WHERE id = ?`,
+        [JSON.stringify(transferData), now, cycleId]
+      );
+
+      console.log('✅ Cycle transfer data updated in PowerSync:', cycleId);
+    } catch (error: any) {
+      console.error('❌ updateCycleTransfer error:', error?.message);
+      throw new Error(`فشل في حفظ بيانات النقل: ${error?.message}`);
+    }
+  },
+
+  updateCycleOutcome: async (cycleId: string, outcomeData: any) => {
+    try {
+      if (!cycleId) throw new Error('معرف الدورة مطلوب');
+      if (!outcomeData) throw new Error('بيانات النتيجة مطلوبة');
+
+      const now = new Date().toISOString();
+      await powerSyncDb.execute(
+        `UPDATE ivf_cycles SET outcome_data = ?, status = ?, updated_at = ? WHERE id = ?`,
+        [JSON.stringify(outcomeData), 'Completed', now, cycleId]
+      );
+
+      console.log('✅ Cycle outcome updated in PowerSync:', cycleId);
+    } catch (error: any) {
+      console.error('❌ updateCycleOutcome error:', error?.message);
+      throw new Error(`فشل في حفظ نتيجة الدورة: ${error?.message}`);
+    }
   }
 };
+</file>
+
+<file path="services/ivfService.ts">
+import { dbService } from './dbService';
+import { Patient, IvfCycle, Visit, StimulationLog } from '../types';
+
+export const calculateBMI = (weightKg: number, heightCm: number): { bmi: number; alert: boolean } => {
+  if (!weightKg || !heightCm) return { bmi: 0, alert: false };
+  const heightM = heightCm / 100;
+  const bmi = parseFloat((weightKg / (heightM * heightM)).toFixed(1));
+  return { bmi, alert: bmi > 30 };
+};
+
+export const calculateTMSC = (volume: number, concentration: number, motility: number): number => {
+  if (!volume || !concentration || !motility) return 0;
+  return parseFloat(((volume * concentration * motility) / 100).toFixed(2));
+};
+
+export const analyzeSemenAnalysis = (vol: number, conc: number, motility: number, morph: number): string => {
+  const findings: string[] = [];
+  if (vol < 1.5) findings.push("Hypospermia");
+  if (conc < 15) findings.push("Oligozoospermia");
+  if (motility < 40) findings.push("Asthenozoospermia");
+  if (morph < 4) findings.push("Teratozoospermia");
+  
+  if (findings.length === 0) return "Normozoospermia (WHO 2021)";
+  return findings.join(" + ");
+};
+
+export const classifyOvarianReserve = (amh?: number, afc?: number): 'Poor Responder' | 'Normal' | 'High Responder' => {
+  if (!amh && !afc) return 'Normal';
+  
+  if ((amh && amh < 0.4) || (afc && afc < 5)) {
+    return 'Poor Responder';
+  }
+  if ((amh && amh > 4.5) || (afc && afc > 25)) {
+    return 'High Responder';
+  }
+  return 'Normal';
+};
+
+export const calculateMaturationRate = (totalOocytes: number, mii: number): number => {
+  if (!totalOocytes || totalOocytes === 0) return 0;
+  return parseFloat(((mii / totalOocytes) * 100).toFixed(1));
+};
+
+export const calculateFertilizationRate = (fertilized: number, mii: number): number => {
+  if (!mii || mii === 0) return 0;
+  return parseFloat(((fertilized / mii) * 100).toFixed(1));
+};
+
+export const db = dbService;
 </file>
 
 <file path="src/components/SyncStatus.tsx">
@@ -34264,56 +35523,184 @@ const Reception: React.FC = () => {
 export default Reception;
 </file>
 
-<file path="services/ivfService.ts">
-import { dbService } from './dbService';
-import { Patient, IvfCycle, Visit, StimulationLog } from '../types';
+<file path="services/authService.ts">
+import { supabase } from './supabaseClient';
+import { powerSyncDb } from '../src/powersync/client';
 
-export const calculateBMI = (weightKg: number, heightCm: number): { bmi: number; alert: boolean } => {
-  if (!weightKg || !heightCm) return { bmi: 0, alert: false };
-  const heightM = heightCm / 100;
-  const bmi = parseFloat((weightKg / (heightM * heightM)).toFixed(1));
-  return { bmi, alert: bmi > 30 };
-};
+export const authService = {
+  login: async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (error) throw error;
+    return data;
+  },
 
-export const calculateTMSC = (volume: number, concentration: number, motility: number): number => {
-  if (!volume || !concentration || !motility) return 0;
-  return parseFloat(((volume * concentration * motility) / 100).toFixed(2));
-};
+  signup: async (email: string, password: string, doctorData: { name: string; specialization?: string; phone?: string }) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+    
+    if (error) throw error;
 
-export const analyzeSemenAnalysis = (vol: number, conc: number, motility: number, morph: number): string => {
-  const findings: string[] = [];
-  if (vol < 1.5) findings.push("Hypospermia");
-  if (conc < 15) findings.push("Oligozoospermia");
-  if (motility < 40) findings.push("Asthenozoospermia");
-  if (morph < 4) findings.push("Teratozoospermia");
-  
-  if (findings.length === 0) return "Normozoospermia (WHO 2021)";
-  return findings.join(" + ");
-};
+    if (data.user) {
+      try {
+        const id = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await powerSyncDb.execute(
+          `INSERT INTO doctors (id, user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [id, data.user.id, email, doctorData.name, doctorData.specialization || null, doctorData.phone || null,
+           null, null, null, null, now, now]
+        );
 
-export const classifyOvarianReserve = (amh?: number, afc?: number): 'Poor Responder' | 'Normal' | 'High Responder' => {
-  if (!amh && !afc) return 'Normal';
-  
-  if ((amh && amh < 0.4) || (afc && afc < 5)) {
-    return 'Poor Responder';
+        console.log('✅ Doctor record created in PowerSync');
+      } catch (dbError: any) {
+        console.error('❌ Failed to create doctor record:', dbError);
+        throw new Error(`فشل إنشاء ملف الطبيب: ${dbError.message || 'خطأ في قاعدة البيانات'}`);
+      }
+    }
+
+    return data;
+  },
+
+  logout: async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  },
+
+  getCurrentUser: async () => {
+    try {
+      // 1. Try strict server verification first (Secure)
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      return user;
+    } catch (error: any) {
+      // 2. If Network Error ("Failed to fetch"), Fallback to Local Session
+      if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
+        console.warn('Offline mode: Verifying local session...');
+        const { data: { session } } = await supabase.auth.getSession();
+        // If we have a valid local session, allow access
+        if (session?.user) {
+          return session.user;
+        }
+      }
+      // Real auth error? Re-throw
+      throw error;
+    }
+  },
+
+  getDoctorProfile: async (userId: string) => {
+    const doctor = await powerSyncDb.getOptional(
+      'SELECT * FROM doctors WHERE user_id = ?',
+      [userId]
+    );
+
+    if (!doctor) {
+      throw new Error('Doctor profile not found');
+    }
+
+    return doctor;
+  },
+
+  onAuthStateChange: (callback: (user: any) => void) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      callback(session?.user || null);
+    });
+
+    return subscription;
+  },
+
+  updateDoctorProfile: async (userId: string, updates: any) => {
+    // Build dynamic UPDATE query
+    const updateData = { ...updates, updated_at: new Date().toISOString() };
+    const setParts = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
+    const values = Object.values(updateData);
+    values.push(userId); // Add userId at the end
+
+    await powerSyncDb.execute(
+      `UPDATE doctors SET ${setParts} WHERE user_id = ?`,
+      values
+    );
+
+    console.log('✅ Doctor profile updated in PowerSync');
+    return updateData;
+  },
+
+  updatePassword: async (newPassword: string) => {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
+  uploadImage: async (userId: string, file: File, folder: 'doctor_images' | 'clinic_images') => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}_${Date.now()}.${fileExt}`;
+    const filePath = `${folder}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('doctor-files')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('doctor-files')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  },
+
+  ensureDoctorRecord: async (userId: string, email: string) => {
+    // Check if doctor already exists
+    const existingDoctor = await powerSyncDb.getOptional(
+      'SELECT id FROM doctors WHERE user_id = ?',
+      [userId]
+    );
+
+    if (existingDoctor) {
+      console.log('✅ Doctor record already exists:', existingDoctor.id);
+      return existingDoctor;
+    }
+
+    // Create new doctor record only if it doesn't exist
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    
+    try {
+      await powerSyncDb.execute(
+        `INSERT INTO doctors (id, user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, userId, email, 'الطبيب', null, null, null, null, null, null, now, now]
+      );
+      console.log('✅ Doctor record created in PowerSync:', id);
+    } catch (error: any) {
+      // Handle UNIQUE constraint violation (doctor was created by another process)
+      if (error?.message?.includes('UNIQUE') || error?.code === 'SQLITE_CONSTRAINT') {
+        console.warn('⚠️ Doctor record UNIQUE constraint: retrying lookup');
+        // Retry the lookup in case another process just created it
+        const retryDoctor = await powerSyncDb.getOptional(
+          'SELECT id FROM doctors WHERE user_id = ?',
+          [userId]
+        );
+        if (retryDoctor) {
+          console.log('✅ Doctor record found after retry:', retryDoctor.id);
+          return retryDoctor;
+        }
+      }
+      console.error('❌ Failed to ensure doctor record:', error?.message);
+      throw error;
+    }
+
+    return { id };
   }
-  if ((amh && amh > 4.5) || (afc && afc > 25)) {
-    return 'High Responder';
-  }
-  return 'Normal';
 };
-
-export const calculateMaturationRate = (totalOocytes: number, mii: number): number => {
-  if (!totalOocytes || totalOocytes === 0) return 0;
-  return parseFloat(((mii / totalOocytes) * 100).toFixed(1));
-};
-
-export const calculateFertilizationRate = (fertilized: number, mii: number): number => {
-  if (!mii || mii === 0) return 0;
-  return parseFloat(((fertilized / mii) * 100).toFixed(1));
-};
-
-export const db = dbService;
 </file>
 
 <file path="pages/Dashboard.tsx">
@@ -34789,76 +36176,6 @@ const Dashboard: React.FC = () => {
 export default Dashboard;
 </file>
 
-<file path="POWERSYNC_SYNC_RULES.yaml">
-# PowerSync Sync Rules for IVF & OB/GYN Center
-# SECURED: All rules filter by auth.uid() to prevent data leaks
-# Copy this content to your PowerSync Dashboard under "Sync Rules"
-
-bucket_definitions:
-  global:
-    data:
-      # Doctors: Only their own profile
-      - SELECT id, user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone FROM doctors
-        WHERE user_id = auth.uid()
-      
-      # Patients: Only their assigned patients
-      - SELECT id, name, age, phone, husband_name, history, doctor_id FROM patients
-        WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
-      
-      # Visits: Only visits of their patients
-      - SELECT id, patient_id, date, department, diagnosis, prescription, notes, clinical_data FROM visits
-        WHERE patient_id IN (
-          SELECT id FROM patients 
-          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
-        )
-      
-      # IVF Cycles: Only their cycles
-      - SELECT id, patient_id, doctor_id, protocol, status, start_date, assessment_data, lab_data, transfer_data, outcome_data FROM ivf_cycles
-        WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
-      
-      # Stimulation Logs: Only logs for their cycles
-      - SELECT id, cycle_id, cycle_day, date, fsh, hmg, e2, lh, rt_follicles, lt_follicles FROM stimulation_logs
-        WHERE cycle_id IN (
-          SELECT id FROM ivf_cycles 
-          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
-        )
-      
-      # Pregnancies: Only their pregnancies
-      - SELECT id, patient_id, doctor_id, lmp_date, edd_date, edd_by_scan, risk_level, risk_factors, aspirin_prescribed, thromboprophylaxis_needed FROM pregnancies
-        WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
-      
-      # Antenatal Visits: Only visits for their pregnancies
-      - SELECT id, pregnancy_id, visit_date, gestational_age_weeks, gestational_age_days, weight_kg, systolic_bp, diastolic_bp, urine_albuminuria, urine_glycosuria, fetal_heart_sound, fundal_height_cm, edema, edema_grade, notes, next_visit_date FROM antenatal_visits
-        WHERE pregnancy_id IN (
-          SELECT id FROM pregnancies 
-          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
-        )
-      
-      # Biometry Scans: Only scans for their pregnancies
-      - SELECT id, pregnancy_id, scan_date, efw_grams, percentile, bpd_mm, hc_mm, ac_mm, fl_mm, notes FROM biometry_scans
-        WHERE pregnancy_id IN (
-          SELECT id FROM pregnancies 
-          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
-        )
-      
-      # Patient Files: Only files for their patients
-      - SELECT id, patient_id, file_url, file_type, file_name FROM patient_files
-        WHERE patient_id IN (
-          SELECT id FROM patients 
-          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
-        )
-      
-      # Infertility Workups: Only workups for their patients
-      - SELECT id, patient_id, amh, cycle_regularity, sperm_count, motility, morphology, left_tube, right_tube, cavity_status, diagnosis, plan FROM infertility_workups
-        WHERE patient_id IN (
-          SELECT id FROM patients 
-          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
-        )
-      
-      # App Settings: Public, read-only (no WHERE clause needed)
-      - SELECT id, clinic_name, logo_url, clinic_address, clinic_phone, primary_color, secondary_color, accent_color FROM app_settings
-</file>
-
 <file path="services/visitsService.ts">
 import { powerSyncDb } from '../src/powersync/client';
 import { Visit } from '../types';
@@ -35310,146 +36627,6 @@ export const AppSchema = new Schema({
 });
 
 export type Database = (typeof AppSchema)['types'];
-</file>
-
-<file path="src/hooks/usePatients.ts">
-import { usePowerSync } from '@powersync/react';
-import { usePowerSyncQuery } from './usePowerSync';
-import { useStatus } from '@powersync/react';
-
-export interface Patient {
-    id: string;
-    name: string;
-    age: number;
-    phone: string;
-    husband_name: string;
-    history: string;
-    doctor_id: string;
-    created_at?: string;
-    updated_at?: string;
-    remoteId?: string; // For compatibility with existing code
-}
-
-export function usePatients() {
-    const powerSync = usePowerSync();
-    const powerSyncStatus = useStatus() as any;
-
-    // Live query for all patients from PowerSync
-    const { data: powerSyncData = [], isLoading: isLoadingPowerSync, error: powerSyncError } = usePowerSyncQuery<Patient>(
-        'SELECT * FROM patients ORDER BY created_at DESC'
-    );
-
-    // PowerSync-only
-    const patients = powerSyncData;
-
-    // While syncing, keep UI in loading state
-    const isLoading = isLoadingPowerSync || powerSyncStatus.connecting || powerSyncStatus.downloading || powerSyncStatus.uploading;
-    const error = powerSyncError;
-
-    console.log('🔄 usePatients hook:', {
-        patients: patients.length,
-        isLoading,
-        error,
-        powerSyncConnected: powerSyncStatus.connected,
-        source: 'PowerSync'
-    });
-
-    const addPatient = async (patient: Omit<Patient, 'id' | 'created_at' | 'updated_at'>) => {
-        const id = crypto.randomUUID();
-        const now = new Date().toISOString();
-        await powerSync.execute(
-            'INSERT INTO patients (id, name, age, phone, husband_name, history, doctor_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, patient.name, patient.age, patient.phone, patient.husband_name, patient.history, patient.doctor_id, now, now]
-        );
-        return id;
-    };
-
-    const updatePatient = async (id: string, patient: Partial<Patient>) => {
-        // Construct dynamic update query
-        const updates: string[] = [];
-        const values: any[] = [];
-
-        Object.entries(patient).forEach(([key, value]) => {
-            if (key !== 'id' && key !== 'created_at' && key !== 'updated_at' && key !== 'remoteId') {
-                updates.push(`${key} = ?`);
-                values.push(value);
-            }
-        });
-
-        if (updates.length === 0) return;
-
-        updates.push('updated_at = ?');
-        values.push(new Date().toISOString());
-        values.push(id);
-
-        await powerSync.execute(
-            `UPDATE patients SET ${updates.join(', ')} WHERE id = ?`,
-            values
-        );
-    };
-
-    const deletePatient = async (id: string) => {
-        await powerSync.execute('DELETE FROM patients WHERE id = ?', [id]);
-    };
-
-    return {
-        patients,
-        isLoading,
-        error,
-        addPatient,
-        updatePatient,
-        deletePatient
-    };
-}
-</file>
-
-<file path="src/hooks/usePowerSync.ts">
-import { useQuery, useStatus } from '@powersync/react';
-import { useMemo } from 'react';
-import { getDb } from '../powersync/client';
-
-export type PowerSyncUiStatus = 'OFFLINE' | 'SYNCING' | 'READY';
-
-function mapUiStatus(status: any): PowerSyncUiStatus {
-    if (!status?.connected) return 'OFFLINE';
-    if (status?.uploading || status?.downloading || status?.connecting) return 'SYNCING';
-    return 'READY';
-}
-
-// Hook for querying PowerSync data (PowerSync-only; no Supabase fallback)
-export function usePowerSyncQuery<T = any>(sql: string, parameters: any[] = []) {
-    const status = useStatus() as any;
-    const uiStatus = useMemo(() => mapUiStatus(status), [status?.connected, status?.uploading, status?.downloading, status?.connecting]);
-
-    const { data = [], isLoading: queryLoading, error } = useQuery<T>(sql, parameters);
-
-    // While PowerSync is syncing, keep UI in loading state to avoid showing empty placeholders.
-    const isLoading = queryLoading || uiStatus === 'SYNCING';
-
-    return { data, isLoading, error, status: uiStatus };
-}
-
-// Helper hooks for common queries
-export function usePowerSyncPatients() {
-    return usePowerSyncQuery('SELECT * FROM patients ORDER BY name');
-}
-
-export function usePowerSyncVisits(patientId?: string) {
-    if (patientId) {
-        return usePowerSyncQuery('SELECT * FROM visits WHERE patient_id = ? ORDER BY date DESC', [patientId]);
-    }
-    return usePowerSyncQuery('SELECT * FROM visits ORDER BY date DESC');
-}
-
-export function usePowerSyncCycles(patientId?: string) {
-    if (patientId) {
-        return usePowerSyncQuery('SELECT * FROM ivf_cycles WHERE patient_id = ? ORDER BY start_date DESC', [patientId]);
-    }
-    return usePowerSyncQuery('SELECT * FROM ivf_cycles ORDER BY start_date DESC');
-}
-
-// Direct database access for writes
-export const db = getDb();
 </file>
 
 <file path="pages/PatientMasterRecord.tsx">
@@ -35916,6 +37093,222 @@ const PatientMasterRecord: React.FC = () => {
 };
 
 export default PatientMasterRecord;
+</file>
+
+<file path="POWERSYNC_SYNC_RULES.yaml">
+# PowerSync Sync Rules for IVF & OB/GYN Center
+# SECURED: All rules filter by auth.uid() to prevent data leaks
+# Copy this content to your PowerSync Dashboard under "Sync Rules"
+#
+# UUID Handling:
+# - No CAST(... AS uuid) or ::uuid casts used
+# - PowerSync handles UUID values as text in comparisons
+# - user_id and doctor_id compared directly to auth.uid() without type conversion
+# - All subqueries return id fields (text type) for safe comparison
+
+bucket_definitions:
+  global:
+    data:
+      # Doctors: Only their own profile
+      - SELECT id, user_id, email, name, specialization, phone, doctor_image, clinic_name, clinic_address, clinic_phone FROM doctors
+        WHERE user_id = auth.uid()
+      
+      # Patients: Only their assigned patients
+      - SELECT id, name, age, phone, husband_name, history, doctor_id FROM patients
+        WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+      
+      # Visits: Only visits of their patients
+      - SELECT id, patient_id, date, department, diagnosis, prescription, notes, clinical_data FROM visits
+        WHERE patient_id IN (
+          SELECT id FROM patients 
+          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+        )
+      
+      # IVF Cycles: Only their cycles
+      - SELECT id, patient_id, doctor_id, protocol, status, start_date, assessment_data, lab_data, transfer_data, outcome_data FROM ivf_cycles
+        WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+      
+      # Stimulation Logs: Only logs for their cycles
+      - SELECT id, cycle_id, cycle_day, date, fsh, hmg, e2, lh, rt_follicles, lt_follicles FROM stimulation_logs
+        WHERE cycle_id IN (
+          SELECT id FROM ivf_cycles 
+          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+        )
+      
+      # Pregnancies: Only their pregnancies
+      - SELECT id, patient_id, doctor_id, lmp_date, edd_date, edd_by_scan, risk_level, risk_factors, aspirin_prescribed, thromboprophylaxis_needed FROM pregnancies
+        WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+      
+      # Antenatal Visits: Only visits for their pregnancies
+      - SELECT id, pregnancy_id, visit_date, gestational_age_weeks, gestational_age_days, weight_kg, systolic_bp, diastolic_bp, urine_albuminuria, urine_glycosuria, fetal_heart_sound, fundal_height_cm, edema, edema_grade, notes, next_visit_date FROM antenatal_visits
+        WHERE pregnancy_id IN (
+          SELECT id FROM pregnancies 
+          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+        )
+      
+      # Biometry Scans: Only scans for their pregnancies
+      - SELECT id, pregnancy_id, scan_date, efw_grams, percentile, bpd_mm, hc_mm, ac_mm, fl_mm, notes FROM biometry_scans
+        WHERE pregnancy_id IN (
+          SELECT id FROM pregnancies 
+          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+        )
+      
+      # Patient Files: Only files for their patients
+      - SELECT id, patient_id, file_url, file_type, file_name FROM patient_files
+        WHERE patient_id IN (
+          SELECT id FROM patients 
+          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+        )
+      
+      # Infertility Workups: Only workups for their patients
+      - SELECT id, patient_id, amh, cycle_regularity, sperm_count, motility, morphology, left_tube, right_tube, cavity_status, diagnosis, plan FROM infertility_workups
+        WHERE patient_id IN (
+          SELECT id FROM patients 
+          WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid() LIMIT 1)
+        )
+      
+      # App Settings: Public, read-only (no WHERE clause needed)
+      - SELECT id, clinic_name, logo_url, clinic_address, clinic_phone, primary_color, secondary_color, accent_color FROM app_settings
+</file>
+
+<file path="src/hooks/usePatients.ts">
+import { usePowerSync } from '@powersync/react';
+import { usePowerSyncQuery } from './usePowerSync';
+import { useStatus } from '@powersync/react';
+
+export interface Patient {
+    id: string;
+    name: string;
+    age: number;
+    phone: string;
+    husband_name: string;
+    history: string;
+    doctor_id: string;
+    created_at?: string;
+    updated_at?: string;
+    remoteId?: string; // For compatibility with existing code
+}
+
+export function usePatients() {
+    const powerSync = usePowerSync();
+    const powerSyncStatus = useStatus() as any;
+
+    // Live query for all patients from PowerSync
+    const { data: powerSyncData = [], isLoading: isLoadingPowerSync, error: powerSyncError } = usePowerSyncQuery<Patient>(
+        'SELECT * FROM patients ORDER BY created_at DESC'
+    );
+
+    // PowerSync-only
+    const patients = powerSyncData;
+
+    // While syncing, keep UI in loading state
+    const isLoading = isLoadingPowerSync || powerSyncStatus.connecting || powerSyncStatus.downloading || powerSyncStatus.uploading;
+    const error = powerSyncError;
+
+    console.log('🔄 usePatients hook:', {
+        patients: patients.length,
+        isLoading,
+        error,
+        powerSyncConnected: powerSyncStatus.connected,
+        source: 'PowerSync'
+    });
+
+    const addPatient = async (patient: Omit<Patient, 'id' | 'created_at' | 'updated_at'>) => {
+        const id = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await powerSync.execute(
+            'INSERT INTO patients (id, name, age, phone, husband_name, history, doctor_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, patient.name, patient.age, patient.phone, patient.husband_name, patient.history, patient.doctor_id, now, now]
+        );
+        return id;
+    };
+
+    const updatePatient = async (id: string, patient: Partial<Patient>) => {
+        // Construct dynamic update query
+        const updates: string[] = [];
+        const values: any[] = [];
+
+        Object.entries(patient).forEach(([key, value]) => {
+            if (key !== 'id' && key !== 'created_at' && key !== 'updated_at' && key !== 'remoteId') {
+                updates.push(`${key} = ?`);
+                values.push(value);
+            }
+        });
+
+        if (updates.length === 0) return;
+
+        updates.push('updated_at = ?');
+        values.push(new Date().toISOString());
+        values.push(id);
+
+        await powerSync.execute(
+            `UPDATE patients SET ${updates.join(', ')} WHERE id = ?`,
+            values
+        );
+    };
+
+    const deletePatient = async (id: string) => {
+        await powerSync.execute('DELETE FROM patients WHERE id = ?', [id]);
+    };
+
+    return {
+        patients,
+        isLoading,
+        error,
+        addPatient,
+        updatePatient,
+        deletePatient
+    };
+}
+</file>
+
+<file path="src/hooks/usePowerSync.ts">
+import { useQuery, useStatus } from '@powersync/react';
+import { useMemo } from 'react';
+import { getDb } from '../powersync/client';
+
+export type PowerSyncUiStatus = 'OFFLINE' | 'SYNCING' | 'READY';
+
+function mapUiStatus(status: any): PowerSyncUiStatus {
+    if (!status?.connected) return 'OFFLINE';
+    if (status?.uploading || status?.downloading || status?.connecting) return 'SYNCING';
+    return 'READY';
+}
+
+// Hook for querying PowerSync data (PowerSync-only; no Supabase fallback)
+export function usePowerSyncQuery<T = any>(sql: string, parameters: any[] = []) {
+    const status = useStatus() as any;
+    const uiStatus = useMemo(() => mapUiStatus(status), [status?.connected, status?.uploading, status?.downloading, status?.connecting]);
+
+    const { data = [], isLoading: queryLoading, error } = useQuery<T>(sql, parameters);
+
+    // While PowerSync is syncing, keep UI in loading state to avoid showing empty placeholders.
+    const isLoading = queryLoading || uiStatus === 'SYNCING';
+
+    return { data, isLoading, error, status: uiStatus };
+}
+
+// Helper hooks for common queries
+export function usePowerSyncPatients() {
+    return usePowerSyncQuery('SELECT * FROM patients ORDER BY name');
+}
+
+export function usePowerSyncVisits(patientId?: string) {
+    if (patientId) {
+        return usePowerSyncQuery('SELECT * FROM visits WHERE patient_id = ? ORDER BY date DESC', [patientId]);
+    }
+    return usePowerSyncQuery('SELECT * FROM visits ORDER BY date DESC');
+}
+
+export function usePowerSyncCycles(patientId?: string) {
+    if (patientId) {
+        return usePowerSyncQuery('SELECT * FROM ivf_cycles WHERE patient_id = ? ORDER BY start_date DESC', [patientId]);
+    }
+    return usePowerSyncQuery('SELECT * FROM ivf_cycles ORDER BY start_date DESC');
+}
+
+// Direct database access for writes
+export const db = getDb();
 </file>
 
 <file path="package.json">
@@ -36448,6 +37841,181 @@ export const obstetricsService = {
 };
 </file>
 
+<file path="src/powersync/client.ts">
+/**
+ * Legacy client exports.
+ *
+ * NOTE: The app should use `src/powersync/powersyncClient.ts` for singleton init/connect/db.
+ * This file is kept as a compatibility shim to minimize changes.
+ */
+
+import { connectPowerSync, getDb, initPowerSyncOnce } from './powersyncClient';
+
+// Backwards-compatible exports used across the app
+export const powerSyncDb = getDb();
+export const initPowerSync = initPowerSyncOnce;
+export { connectPowerSync, getDb };
+
+// Backwards compat alias used in some older imports
+export const connector = undefined as any;
+</file>
+
+<file path="vite.config.ts">
+import { defineConfig } from 'vite';
+// @ts-ignore
+import react from '@vitejs/plugin-react';
+
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: 'auto', // Use VitePWA's auto-registration (better for offline WASM)
+      devOptions: {
+        enabled: false,
+        type: 'module',
+      },
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      manifest: {
+        name: 'Nile IVF Center',
+        short_name: 'Nile IVF',
+        description: 'Comprehensive IVF and Obstetrics Management System',
+        start_url: '/',
+        display: 'standalone',
+        background_color: '#ffffff',
+        theme_color: '#00838f',
+        orientation: 'portrait',
+        scope: '/',
+        lang: 'ar-EG',
+        dir: 'ltr',
+        icons: [
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ],
+        categories: ['medical', 'health', 'productivity']
+      },
+      workbox: {
+        // CRITICAL: Offline-first WASM/Worker asset caching
+        // PowerSync/wa-sqlite load WASM bundles + worker threads from /assets at runtime.
+        // Without proper precaching, offline reload crashes: ERR_INTERNET_DISCONNECTED
+        // Solution: Precache all assets including large WASM binaries
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,wasm}'],
+        // wa-sqlite-async WASM is ~4.5 MiB (exceeds default 2 MiB Workbox limit)
+        // Increase limit to ensure WASM is precached on first install
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6 MiB for safety margin
+        // Prevent service worker from caching API requests
+        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/],
+        runtimeCaching: [
+          // WASM binaries: CacheFirst (precached on install, rarely change)
+          {
+            urlPattern: /\/assets\/.*\.wasm$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'wasm-binaries-cache',
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+              }
+            }
+          },
+          // Web worker chunks: CacheFirst (needed for offline SQLite operations)
+          {
+            urlPattern: /\/assets\/.*\.worker[.-].*\.js$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'web-workers-cache',
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+              }
+            }
+          },
+          // Main app bundles (JS/CSS): StaleWhileRevalidate (prefer cache, update in bg)
+          {
+            urlPattern: /\/assets\/.*\.(js|css)$/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'app-bundles-cache',
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 1 week
+              }
+            }
+          },
+          // Google Fonts CSS: CacheFirst
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          // Google Fonts assets (woff2): CacheFirst
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-assets-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
+      }
+    })
+  ],
+  optimizeDeps: {
+    exclude: ['@journeyapps/wa-sqlite', '@powersync/web'],
+    include: ['@powersync/web > uuid', '@powersync/web > event-iterator', '@powersync/web > js-logger']
+  },
+  worker: {
+    format: 'es',
+    plugins: () => [react()]
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    },
+    target: 'esnext'
+  }
+});
+</file>
+
 <file path="pages/Settings.tsx">
 import React, { useState, useEffect } from 'react';
 import { User, Palette, FileText, Lock, Upload, Save, AlertCircle, CheckCircle, Facebook, MessageCircle, Loader, Database, RefreshCw, Wifi, WifiOff, Server } from 'lucide-react';
@@ -36587,8 +38155,8 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     const counts: Record<string, number | string> = {};
     for (const table of tables) {
       try {
-        const result = await powerSyncDb.execute(`SELECT COUNT(*) as count FROM ${table}`);
-        counts[table] = result.rows[0].count;
+        const result = await powerSyncDb.getOptional(`SELECT COUNT(*) as count FROM ${table}`);
+        counts[table] = result?.count || 0;
       } catch (e) {
         counts[table] = 'error';
       }
@@ -37503,181 +39071,6 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 export default Settings;
 </file>
 
-<file path="src/powersync/client.ts">
-/**
- * Legacy client exports.
- *
- * NOTE: The app should use `src/powersync/powersyncClient.ts` for singleton init/connect/db.
- * This file is kept as a compatibility shim to minimize changes.
- */
-
-import { connectPowerSync, getDb, initPowerSyncOnce } from './powersyncClient';
-
-// Backwards-compatible exports used across the app
-export const powerSyncDb = getDb();
-export const initPowerSync = initPowerSyncOnce;
-export { connectPowerSync, getDb };
-
-// Backwards compat alias used in some older imports
-export const connector = undefined as any;
-</file>
-
-<file path="vite.config.ts">
-import { defineConfig } from 'vite';
-// @ts-ignore
-import react from '@vitejs/plugin-react';
-
-import { VitePWA } from 'vite-plugin-pwa';
-
-export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto', // Use VitePWA's auto-registration (better for offline WASM)
-      devOptions: {
-        enabled: false,
-        type: 'module',
-      },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
-      manifest: {
-        name: 'Nile IVF Center',
-        short_name: 'Nile IVF',
-        description: 'Comprehensive IVF and Obstetrics Management System',
-        start_url: '/',
-        display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#00838f',
-        orientation: 'portrait',
-        scope: '/',
-        lang: 'ar-EG',
-        dir: 'ltr',
-        icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ],
-        categories: ['medical', 'health', 'productivity']
-      },
-      workbox: {
-        // CRITICAL: Offline-first WASM/Worker asset caching
-        // PowerSync/wa-sqlite load WASM bundles + worker threads from /assets at runtime.
-        // Without proper precaching, offline reload crashes: ERR_INTERNET_DISCONNECTED
-        // Solution: Precache all assets including large WASM binaries
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,wasm}'],
-        // wa-sqlite-async WASM is ~4.5 MiB (exceeds default 2 MiB Workbox limit)
-        // Increase limit to ensure WASM is precached on first install
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6 MiB for safety margin
-        // Prevent service worker from caching API requests
-        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/],
-        runtimeCaching: [
-          // WASM binaries: CacheFirst (precached on install, rarely change)
-          {
-            urlPattern: /\/assets\/.*\.wasm$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'wasm-binaries-cache',
-              cacheableResponse: {
-                statuses: [0, 200]
-              },
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-              }
-            }
-          },
-          // Web worker chunks: CacheFirst (needed for offline SQLite operations)
-          {
-            urlPattern: /\/assets\/.*\.worker[.-].*\.js$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'web-workers-cache',
-              cacheableResponse: {
-                statuses: [0, 200]
-              },
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-              }
-            }
-          },
-          // Main app bundles (JS/CSS): StaleWhileRevalidate (prefer cache, update in bg)
-          {
-            urlPattern: /\/assets\/.*\.(js|css)$/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'app-bundles-cache',
-              cacheableResponse: {
-                statuses: [0, 200]
-              },
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 1 week
-              }
-            }
-          },
-          // Google Fonts CSS: CacheFirst
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*$/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-          // Google Fonts assets (woff2): CacheFirst
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*$/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-assets-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ]
-      }
-    })
-  ],
-  optimizeDeps: {
-    exclude: ['@journeyapps/wa-sqlite', '@powersync/web'],
-    include: ['@powersync/web > uuid', '@powersync/web > event-iterator', '@powersync/web > js-logger']
-  },
-  worker: {
-    format: 'es',
-    plugins: () => [react()]
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: undefined
-      }
-    },
-    target: 'esnext'
-  }
-});
-</file>
-
 <file path="src/powersync/SupabaseConnector.ts">
 /// <reference types="vite/client" />
 import { PowerSyncBackendConnector, UpdateType } from '@powersync/web';
@@ -37835,21 +39228,28 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
     const uploadWithRetry = async (op: any): Promise<{ success: boolean; error?: string; recordId?: string }> => {
       const { table, opData } = op;
-      const recordId = opData?.id || 'unknown';
+      const recordId = op.id;
+
+      if (!recordId) {
+        const error = `[${table}] Missing op.id (canonical record id)`;
+        console.error(`❌ ${error}`);
+        return { success: false, error, recordId: 'undefined' };
+      }
+
+      const operationType = 
+        op.op === UpdateType.PUT ? 'PUT (upsert)' : 
+        op.op === UpdateType.PATCH ? 'PATCH (update)' : 
+        op.op === UpdateType.DELETE ? 'DELETE' : 'UNKNOWN';
 
       for (let attempt = 1; attempt <= UPLOAD_RETRIES; attempt++) {
         try {
           let result;
-          const operationType = 
-            op.op === UpdateType.PUT ? 'PUT (upsert)' : 
-            op.op === UpdateType.PATCH ? 'PATCH (update)' : 
-            op.op === UpdateType.DELETE ? 'DELETE' : 'UNKNOWN';
 
           if (op.op === UpdateType.PUT) {
-            result = await supabase.from(table).upsert(opData, { onConflict: 'id' });
+            result = await supabase.from(table).upsert({ ...opData, id: recordId }, { onConflict: 'id' });
           } else if (op.op === UpdateType.PATCH) {
             const { id, ...updateData } = opData;
-            result = await supabase.from(table).update(updateData).eq('id', id);
+            result = await supabase.from(table).update(updateData).eq('id', recordId);
           } else if (op.op === UpdateType.DELETE) {
             result = await supabase.from(table).delete().eq('id', recordId);
           } else {
@@ -37858,26 +39258,28 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
           if (result.error) {
             const statusCode = result.error?.code;
+            const errorMessage = result.error?.message || 'Unknown error';
             const isRetryable = ['PGRST116', 'PGRST301', 'Connection'].some(c => statusCode?.includes(c));
             
             if (attempt < UPLOAD_RETRIES && isRetryable) {
               const delayMs = RETRY_DELAY * attempt;
-              console.warn(`⚠️ [${table}:${recordId}] ${operationType} retry ${attempt}/${UPLOAD_RETRIES} in ${delayMs}ms: ${result.error.message}`);
+              console.warn(`⚠️ [${table}:${recordId}] ${operationType} retry ${attempt}/${UPLOAD_RETRIES} in ${delayMs}ms. Code: ${statusCode}. Message: ${errorMessage}`);
               await new Promise(resolve => setTimeout(resolve, delayMs));
               continue;
             }
 
-            return { success: false, error: `[${table}:${recordId}] ${result.error.message}`, recordId };
+            return { success: false, error: `[${table}:${recordId}] ${operationType} failed. Code: ${statusCode}. ${errorMessage}`, recordId };
           }
 
           console.log(`✅ [${table}:${recordId}] ${operationType} success (attempt ${attempt})`);
           return { success: true, recordId };
         } catch (error: any) {
           const isLastAttempt = attempt === UPLOAD_RETRIES;
-          console.error(`❌ [${table}:${recordId}] Upload error (attempt ${attempt}/${UPLOAD_RETRIES}): ${error?.message}`);
+          const errorMessage = error?.message || 'Unknown error';
+          console.error(`❌ [${table}:${recordId}] ${operationType} error (attempt ${attempt}/${UPLOAD_RETRIES}): ${errorMessage}`);
 
           if (isLastAttempt) {
-            return { success: false, error: `[${table}:${recordId}] ${error?.message}`, recordId };
+            return { success: false, error: `[${table}:${recordId}] ${operationType} failed: ${errorMessage}`, recordId };
           }
 
           const delayMs = RETRY_DELAY * attempt;
