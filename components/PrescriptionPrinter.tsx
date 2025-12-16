@@ -41,7 +41,7 @@ const PrescriptionPrinter: React.FC<PrescriptionPrinterProps> = ({
       }
     } catch (error) {
       console.error('Error fetching doctor info:', error);
-      toast.error('فشل تحميل بيانات الطبيب');
+      // No toast.error - using default profile silently
     }
   };
 

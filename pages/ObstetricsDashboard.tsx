@@ -87,7 +87,7 @@ const ObstetricsDashboard: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching doctor profile:', error);
-      toast.error('فشل تحميل بيانات الطبيب');
+      // No toast.error - using default profile silently
     }
   };
 

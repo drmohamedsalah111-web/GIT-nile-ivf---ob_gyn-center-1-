@@ -61,7 +61,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
         }
       } catch (error) {
         console.error('Failed to fetch doctor profile:', error);
-        toast.error('فشل تحميل البيانات');
+        // No toast.error - using default profile silently
       } finally {
         setLoading(false);
       }
