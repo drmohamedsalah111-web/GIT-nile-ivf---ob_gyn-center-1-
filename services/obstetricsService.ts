@@ -1,4 +1,4 @@
-import { powerSyncDb } from '../src/powersync/client';
+import { supabase } from './supabaseClient';
 import { authService } from './authService';
 import { Pregnancy, AntenatalVisit, BiometryScan } from '../types';
 
@@ -281,7 +281,6 @@ export const getDueActions = (gaWeeks: number): string[] => {
 // ============================================================================
 
 export const obstetricsService = {
-  // PREGNANCIES
   createPregnancy: async (pregnancy: Omit<Pregnancy, 'id' | 'created_at' | 'updated_at'>) => {
     const user = await authService.getCurrentUser();
     if (!user) throw new Error('Not authenticated');
@@ -292,195 +291,229 @@ export const obstetricsService = {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    await powerSyncDb.execute(
-      `INSERT INTO pregnancies (id, patient_id, doctor_id, lmp_date, edd_date, edd_by_scan, risk_level, risk_factors, aspirin_prescribed, thromboprophylaxis_needed, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
+    const { error } = await supabase
+      .from('pregnancies')
+      .insert([{
         id,
-        pregnancy.patient_id,
-        doctor.id,
-        pregnancy.lmp_date,
-        pregnancy.edd_date,
-        pregnancy.edd_by_scan,
-        pregnancy.risk_level,
-        JSON.stringify(pregnancy.risk_factors || []),
-        pregnancy.aspirin_prescribed ? 1 : 0,
-        pregnancy.thromboprophylaxis_needed ? 1 : 0,
-        now,
-        now
-      ]
-    );
+        patient_id: pregnancy.patient_id,
+        doctor_id: doctor.id,
+        lmp_date: pregnancy.lmp_date,
+        edd_date: pregnancy.edd_date,
+        edd_by_scan: pregnancy.edd_by_scan,
+        risk_level: pregnancy.risk_level,
+        risk_factors: JSON.stringify(pregnancy.risk_factors || []),
+        aspirin_prescribed: pregnancy.aspirin_prescribed ? true : false,
+        thromboprophylaxis_needed: pregnancy.thromboprophylaxis_needed ? true : false,
+        created_at: now,
+        updated_at: now
+      }]);
+
+    if (error) throw error;
 
     return { id, ...pregnancy, created_at: now, updated_at: now };
   },
 
   getPregnancyByPatient: async (patientId: string) => {
-    const pregnancies = await powerSyncDb.getAll(
-      'SELECT * FROM pregnancies WHERE patient_id = ? ORDER BY created_at DESC',
-      [patientId]
-    ) as any[];
+    const { data: pregnancies, error } = await supabase
+      .from('pregnancies')
+      .select('*')
+      .eq('patient_id', patientId)
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-    if (pregnancies.length === 0) return null;
+    if (error) throw error;
+    if (!pregnancies || pregnancies.length === 0) return null;
 
     const p = pregnancies[0];
     return {
       ...p,
       risk_factors: p.risk_factors ? JSON.parse(p.risk_factors) : [],
-      aspirin_prescribed: p.aspirin_prescribed === 1,
-      thromboprophylaxis_needed: p.thromboprophylaxis_needed === 1
+      aspirin_prescribed: p.aspirin_prescribed === true,
+      thromboprophylaxis_needed: p.thromboprophylaxis_needed === true
     };
   },
 
   updatePregnancy: async (pregnancyId: string, updates: Partial<Pregnancy>) => {
-    const setClauses = [];
-    const values = [];
+    const updateData: any = {};
     const now = new Date().toISOString();
 
-    if (updates.lmp_date !== undefined) { setClauses.push('lmp_date = ?'); values.push(updates.lmp_date); }
-    if (updates.edd_date !== undefined) { setClauses.push('edd_date = ?'); values.push(updates.edd_date); }
-    if (updates.edd_by_scan !== undefined) { setClauses.push('edd_by_scan = ?'); values.push(updates.edd_by_scan); }
-    if (updates.risk_level !== undefined) { setClauses.push('risk_level = ?'); values.push(updates.risk_level); }
-    if (updates.risk_factors !== undefined) { setClauses.push('risk_factors = ?'); values.push(JSON.stringify(updates.risk_factors)); }
-    if (updates.aspirin_prescribed !== undefined) { setClauses.push('aspirin_prescribed = ?'); values.push(updates.aspirin_prescribed ? 1 : 0); }
-    if (updates.thromboprophylaxis_needed !== undefined) { setClauses.push('thromboprophylaxis_needed = ?'); values.push(updates.thromboprophylaxis_needed ? 1 : 0); }
+    if (updates.lmp_date !== undefined) updateData.lmp_date = updates.lmp_date;
+    if (updates.edd_date !== undefined) updateData.edd_date = updates.edd_date;
+    if (updates.edd_by_scan !== undefined) updateData.edd_by_scan = updates.edd_by_scan;
+    if (updates.risk_level !== undefined) updateData.risk_level = updates.risk_level;
+    if (updates.risk_factors !== undefined) updateData.risk_factors = JSON.stringify(updates.risk_factors);
+    if (updates.aspirin_prescribed !== undefined) updateData.aspirin_prescribed = updates.aspirin_prescribed;
+    if (updates.thromboprophylaxis_needed !== undefined) updateData.thromboprophylaxis_needed = updates.thromboprophylaxis_needed;
 
-    setClauses.push('updated_at = ?');
-    values.push(now);
-    values.push(pregnancyId);
+    updateData.updated_at = now;
 
-    await powerSyncDb.execute(
-      `UPDATE pregnancies SET ${setClauses.join(', ')} WHERE id = ?`,
-      values
-    );
+    const { error } = await supabase
+      .from('pregnancies')
+      .update(updateData)
+      .eq('id', pregnancyId);
+
+    if (error) throw error;
   },
 
-  // ANTENATAL VISITS
   createANCVisit: async (visit: Omit<AntenatalVisit, 'id' | 'created_at'>) => {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    await powerSyncDb.execute(
-      `INSERT INTO antenatal_visits (id, pregnancy_id, visit_date, gestational_age_weeks, gestational_age_days, systolic_bp, diastolic_bp, weight_kg, urine_albuminuria, urine_glycosuria, fetal_heart_sound, fundal_height_cm, edema, edema_grade, notes, next_visit_date, prescription, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
+    const { error } = await supabase
+      .from('antenatal_visits')
+      .insert([{
         id,
-        visit.pregnancy_id,
-        visit.visit_date,
-        visit.gestational_age_weeks,
-        visit.gestational_age_days,
-        visit.systolic_bp,
-        visit.diastolic_bp,
-        visit.weight_kg,
-        visit.urine_albuminuria,
-        visit.urine_glycosuria,
-        visit.fetal_heart_sound,
-        visit.fundal_height_cm,
-        visit.edema ? 1 : 0,
-        visit.edema_grade,
-        visit.notes,
-        visit.next_visit_date,
-        JSON.stringify(visit.prescription || []),
-        now,
-        now
-      ]
-    );
+        pregnancy_id: visit.pregnancy_id,
+        visit_date: visit.visit_date,
+        gestational_age_weeks: visit.gestational_age_weeks,
+        gestational_age_days: visit.gestational_age_days,
+        systolic_bp: visit.systolic_bp,
+        diastolic_bp: visit.diastolic_bp,
+        weight_kg: visit.weight_kg,
+        urine_albuminuria: visit.urine_albuminuria,
+        urine_glycosuria: visit.urine_glycosuria,
+        fetal_heart_sound: visit.fetal_heart_sound,
+        fundal_height_cm: visit.fundal_height_cm,
+        edema: visit.edema ? true : false,
+        edema_grade: visit.edema_grade,
+        notes: visit.notes,
+        next_visit_date: visit.next_visit_date,
+        prescription: JSON.stringify(visit.prescription || []),
+        created_at: now,
+        updated_at: now
+      }]);
+
+    if (error) throw error;
 
     return { id, ...visit, created_at: now };
   },
 
   getANCVisits: async (pregnancyId: string) => {
-    const visits = await powerSyncDb.getAll(
-      'SELECT * FROM antenatal_visits WHERE pregnancy_id = ? ORDER BY visit_date DESC',
-      [pregnancyId]
-    );
+    const { data: visits, error } = await supabase
+      .from('antenatal_visits')
+      .select('*')
+      .eq('pregnancy_id', pregnancyId)
+      .order('visit_date', { ascending: false });
 
-    return visits.map((v: any) => ({
+    if (error) throw error;
+
+    return (visits || []).map((v: any) => ({
       ...v,
-      edema: v.edema === 1,
+      edema: v.edema === true,
       prescription: v.prescription ? JSON.parse(v.prescription) : []
     }));
   },
 
   updateANCVisit: async (visitId: string, updates: Partial<AntenatalVisit>) => {
-    const setClauses = [];
-    const values = [];
+    const updateData: any = {};
     const now = new Date().toISOString();
 
-    // Add fields to update... (simplified for brevity, add all fields as needed)
-    if (updates.visit_date !== undefined) { setClauses.push('visit_date = ?'); values.push(updates.visit_date); }
-    if (updates.notes !== undefined) { setClauses.push('notes = ?'); values.push(updates.notes); }
-    // ... add other fields
+    if (updates.visit_date !== undefined) updateData.visit_date = updates.visit_date;
+    if (updates.notes !== undefined) updateData.notes = updates.notes;
+    if (updates.systolic_bp !== undefined) updateData.systolic_bp = updates.systolic_bp;
+    if (updates.diastolic_bp !== undefined) updateData.diastolic_bp = updates.diastolic_bp;
+    if (updates.weight_kg !== undefined) updateData.weight_kg = updates.weight_kg;
+    if (updates.urine_albuminuria !== undefined) updateData.urine_albuminuria = updates.urine_albuminuria;
+    if (updates.urine_glycosuria !== undefined) updateData.urine_glycosuria = updates.urine_glycosuria;
+    if (updates.fetal_heart_sound !== undefined) updateData.fetal_heart_sound = updates.fetal_heart_sound;
+    if (updates.fundal_height_cm !== undefined) updateData.fundal_height_cm = updates.fundal_height_cm;
+    if (updates.edema !== undefined) updateData.edema = updates.edema;
+    if (updates.edema_grade !== undefined) updateData.edema_grade = updates.edema_grade;
+    if (updates.next_visit_date !== undefined) updateData.next_visit_date = updates.next_visit_date;
+    if (updates.prescription !== undefined) updateData.prescription = JSON.stringify(updates.prescription);
+    if (updates.gestational_age_weeks !== undefined) updateData.gestational_age_weeks = updates.gestational_age_weeks;
+    if (updates.gestational_age_days !== undefined) updateData.gestational_age_days = updates.gestational_age_days;
 
-    setClauses.push('updated_at = ?');
-    values.push(now);
-    values.push(visitId);
+    updateData.updated_at = now;
 
-    await powerSyncDb.execute(
-      `UPDATE antenatal_visits SET ${setClauses.join(', ')} WHERE id = ?`,
-      values
-    );
+    const { error } = await supabase
+      .from('antenatal_visits')
+      .update(updateData)
+      .eq('id', visitId);
+
+    if (error) throw error;
   },
 
   deleteANCVisit: async (visitId: string) => {
-    await powerSyncDb.execute('DELETE FROM antenatal_visits WHERE id = ?', [visitId]);
+    const { error } = await supabase
+      .from('antenatal_visits')
+      .delete()
+      .eq('id', visitId);
+
+    if (error) throw error;
   },
 
-  // BIOMETRY SCANS
   createBiometryScan: async (scan: Omit<BiometryScan, 'id' | 'created_at'>) => {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    await powerSyncDb.execute(
-      `INSERT INTO biometry_scans (id, pregnancy_id, scan_date, gestational_age_weeks, gestational_age_days, bpd_mm, hc_mm, ac_mm, fl_mm, efw_grams, percentile, notes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
+    const { error } = await supabase
+      .from('biometry_scans')
+      .insert([{
         id,
-        scan.pregnancy_id,
-        scan.scan_date,
-        scan.gestational_age_weeks,
-        scan.gestational_age_days,
-        scan.bpd_mm,
-        scan.hc_mm,
-        scan.ac_mm,
-        scan.fl_mm,
-        scan.efw_grams,
-        scan.percentile,
-        scan.notes,
-        now,
-        now
-      ]
-    );
+        pregnancy_id: scan.pregnancy_id,
+        scan_date: scan.scan_date,
+        gestational_age_weeks: scan.gestational_age_weeks,
+        gestational_age_days: scan.gestational_age_days,
+        bpd_mm: scan.bpd_mm,
+        hc_mm: scan.hc_mm,
+        ac_mm: scan.ac_mm,
+        fl_mm: scan.fl_mm,
+        efw_grams: scan.efw_grams,
+        percentile: scan.percentile,
+        notes: scan.notes,
+        created_at: now,
+        updated_at: now
+      }]);
+
+    if (error) throw error;
 
     return { id, ...scan, created_at: now };
   },
 
   getBiometryScans: async (pregnancyId: string) => {
-    return (await powerSyncDb.getAll(
-      'SELECT * FROM biometry_scans WHERE pregnancy_id = ? ORDER BY scan_date DESC',
-      [pregnancyId]
-    )) as BiometryScan[];
+    const { data: scans, error } = await supabase
+      .from('biometry_scans')
+      .select('*')
+      .eq('pregnancy_id', pregnancyId)
+      .order('scan_date', { ascending: false });
+
+    if (error) throw error;
+
+    return scans as BiometryScan[];
   },
 
   updateBiometryScan: async (scanId: string, updates: Partial<BiometryScan>) => {
-    const setClauses = [];
-    const values = [];
+    const updateData: any = {};
     const now = new Date().toISOString();
 
-    if (updates.scan_date !== undefined) { setClauses.push('scan_date = ?'); values.push(updates.scan_date); }
-    if (updates.notes !== undefined) { setClauses.push('notes = ?'); values.push(updates.notes); }
-    // ... add other fields
+    if (updates.scan_date !== undefined) updateData.scan_date = updates.scan_date;
+    if (updates.notes !== undefined) updateData.notes = updates.notes;
+    if (updates.gestational_age_weeks !== undefined) updateData.gestational_age_weeks = updates.gestational_age_weeks;
+    if (updates.gestational_age_days !== undefined) updateData.gestational_age_days = updates.gestational_age_days;
+    if (updates.bpd_mm !== undefined) updateData.bpd_mm = updates.bpd_mm;
+    if (updates.hc_mm !== undefined) updateData.hc_mm = updates.hc_mm;
+    if (updates.ac_mm !== undefined) updateData.ac_mm = updates.ac_mm;
+    if (updates.fl_mm !== undefined) updateData.fl_mm = updates.fl_mm;
+    if (updates.efw_grams !== undefined) updateData.efw_grams = updates.efw_grams;
+    if (updates.percentile !== undefined) updateData.percentile = updates.percentile;
 
-    setClauses.push('updated_at = ?');
-    values.push(now);
-    values.push(scanId);
+    updateData.updated_at = now;
 
-    await powerSyncDb.execute(
-      `UPDATE biometry_scans SET ${setClauses.join(', ')} WHERE id = ?`,
-      values
-    );
+    const { error } = await supabase
+      .from('biometry_scans')
+      .update(updateData)
+      .eq('id', scanId);
+
+    if (error) throw error;
   },
 
   deleteBiometryScan: async (scanId: string) => {
-    await powerSyncDb.execute('DELETE FROM biometry_scans WHERE id = ?', [scanId]);
+    const { error } = await supabase
+      .from('biometry_scans')
+      .delete()
+      .eq('id', scanId);
+
+    if (error) throw error;
   },
 };

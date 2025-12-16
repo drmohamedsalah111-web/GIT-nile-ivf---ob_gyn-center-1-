@@ -1,4 +1,4 @@
-import { powerSyncDb } from '../src/powersync/client';
+import { supabase } from './supabaseClient';
 import { Visit } from '../types';
 
 // Helper to map DB format to App format
@@ -31,33 +31,36 @@ const mapToAppFormat = (v: any): Visit => {
 };
 
 export const visitsService = {
-  // 1. Get all visits for a patient from PowerSync
   getVisitsByPatient: async (patientId: string) => {
     try {
       console.log(`🔍 Fetching history for Patient ID: ${patientId}`);
 
-      // Parallel queries for all data sources
-      const [generalVisits, pregnancies, ivfCycles] = await Promise.all([
-        // 1. General/Gynecology Visits
-        powerSyncDb.getAll('SELECT * FROM visits WHERE patient_id = ?', [patientId]) as Promise<any[]>,
-
-        // 2. Pregnancies (for ANC visits)
-        powerSyncDb.getAll('SELECT * FROM pregnancies WHERE patient_id = ?', [patientId]) as Promise<any[]>,
-
-        // 3. IVF Cycles
-        powerSyncDb.getAll('SELECT * FROM ivf_cycles WHERE patient_id = ?', [patientId]) as Promise<any[]>
+      const [{ data: generalVisits, error: visitsError },
+        { data: pregnancies, error: pregnanciesError },
+        { data: ivfCycles, error: cyclesError }] = await Promise.all([
+        supabase.from('visits').select('*').eq('patient_id', patientId),
+        supabase.from('pregnancies').select('*').eq('patient_id', patientId),
+        supabase.from('ivf_cycles').select('*').eq('patient_id', patientId)
       ]);
 
-      console.log(`📊 Found: ${generalVisits.length} general visits, ${pregnancies.length} pregnancies, ${ivfCycles.length} IVF cycles`);
+      if (visitsError) throw visitsError;
+      if (pregnanciesError) throw pregnanciesError;
+      if (cyclesError) throw cyclesError;
 
-      // Process ANC visits from pregnancies
-      const ancVisitsPromises = pregnancies.map(async (pregnancy) => {
-        const ancVisits = await powerSyncDb.getAll(
-          'SELECT * FROM antenatal_visits WHERE pregnancy_id = ?',
-          [pregnancy.id]
-        ) as any[];
+      console.log(`📊 Found: ${generalVisits?.length || 0} general visits, ${pregnancies?.length || 0} pregnancies, ${ivfCycles?.length || 0} IVF cycles`);
 
-        return ancVisits.map((visit: any) => ({
+      const ancVisitsPromises = (pregnancies || []).map(async (pregnancy) => {
+        const { data: ancVisits, error: ancError } = await supabase
+          .from('antenatal_visits')
+          .select('*')
+          .eq('pregnancy_id', pregnancy.id);
+
+        if (ancError) {
+          console.error('Error fetching ANC visits:', ancError);
+          return [];
+        }
+
+        return (ancVisits || []).map((visit: any) => ({
           id: visit.id,
           patientId: patientId,
           date: visit.visit_date,
@@ -83,8 +86,7 @@ export const visitsService = {
       const ancVisitsArrays = await Promise.all(ancVisitsPromises);
       const allAncVisits = ancVisitsArrays.flat();
 
-      // Create pregnancy start visits
-      const pregnancyStartVisits = pregnancies.map((pregnancy) => ({
+      const pregnancyStartVisits = (pregnancies || []).map((pregnancy) => ({
         id: `pregnancy_${pregnancy.id}`,
         patientId: patientId,
         date: pregnancy.lmp_date || pregnancy.created_at,
@@ -98,8 +100,7 @@ export const visitsService = {
         }
       }));
 
-      // Map IVF cycles to visits
-      const ivfVisits = ivfCycles.map((cycle) => {
+      const ivfVisits = (ivfCycles || []).map((cycle) => {
         let cycleData = {};
         try {
           cycleData = cycle.assessment_data ? JSON.parse(cycle.assessment_data) : {};
@@ -117,9 +118,8 @@ export const visitsService = {
         };
       });
 
-      // Combine all visits
       const allVisits = [
-        ...generalVisits.map(mapToAppFormat),
+        ...(generalVisits || []).map(mapToAppFormat),
         ...allAncVisits,
         ...pregnancyStartVisits,
         ...ivfVisits
@@ -127,7 +127,6 @@ export const visitsService = {
 
       console.log(`✅ Total combined history: ${allVisits.length} items`);
 
-      // Sort by date descending (newest first)
       return allVisits.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     } catch (error) {
@@ -136,7 +135,6 @@ export const visitsService = {
     }
   },
 
-  // 2. Save Visit
   saveVisit: async (params: {
     patientId: string;
     department: string;
@@ -151,32 +149,42 @@ export const visitsService = {
     const now = new Date().toISOString();
     const visitDate = now.split('T')[0];
 
-    await powerSyncDb.execute(
-      `INSERT INTO visits (id, patient_id, date, department, diagnosis, prescription, notes, clinical_data, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
+    const { error } = await supabase
+      .from('visits')
+      .insert([{
         id,
-        params.patientId,
-        visitDate,
-        params.department,
-        params.diagnosis || '',
-        JSON.stringify(params.prescription || []),
-        params.notes || '',
-        JSON.stringify(params.clinicalData || {}),
-        now,
-        now
-      ]
-    );
+        patient_id: params.patientId,
+        date: visitDate,
+        department: params.department,
+        diagnosis: params.diagnosis || '',
+        prescription: JSON.stringify(params.prescription || []),
+        notes: params.notes || '',
+        clinical_data: JSON.stringify(params.clinicalData || {}),
+        created_at: now,
+        updated_at: now
+      }]);
+
+    if (error) throw error;
 
     return id;
   },
 
   getAllVisits: async () => {
-    const visits = await powerSyncDb.getAll('SELECT * FROM visits');
-    return visits.map(mapToAppFormat);
+    const { data: visits, error } = await supabase
+      .from('visits')
+      .select('*');
+
+    if (error) throw error;
+
+    return (visits || []).map(mapToAppFormat);
   },
 
   deleteVisit: async (id: string) => {
-    await powerSyncDb.execute('DELETE FROM visits WHERE id = ?', [id]);
+    const { error } = await supabase
+      .from('visits')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   }
 };

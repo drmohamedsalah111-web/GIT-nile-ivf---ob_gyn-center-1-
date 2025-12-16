@@ -1,4 +1,4 @@
-import { powerSyncDb } from '../src/powersync/client';
+import { supabase } from './supabaseClient';
 
 // Database schema interface (snake_case for Supabase)
 export interface WorkupData {
@@ -82,19 +82,20 @@ const stateToDb = (state: WorkupState): Omit<WorkupData, 'id' | 'created_at' | '
   cavity_status: state.uterineFactor.cavityStatus,
 });
 
-// Get workup data for a patient
 export const getWorkup = async (patientId: string): Promise<WorkupState> => {
   try {
-    const data = await powerSyncDb.getAll(
-      'SELECT * FROM infertility_workups WHERE patient_id = ?',
-      [patientId]
-    ) as any[];
+    const { data, error } = await supabase
+      .from('infertility_workups')
+      .select('*')
+      .eq('patient_id', patientId)
+      .limit(1);
 
-    if (data.length > 0) {
+    if (error) throw error;
+
+    if (data && data.length > 0) {
       return dbToState(data[0]);
     }
 
-    // Return default empty object if no data exists
     return {
       patientId,
       ovarianFactor: {},
@@ -108,67 +109,61 @@ export const getWorkup = async (patientId: string): Promise<WorkupState> => {
   }
 };
 
-// Save workup data (upsert)
 export const saveWorkup = async (data: WorkupState): Promise<void> => {
   try {
     const dbData = stateToDb(data);
     const diagnosis = generateDiagnosis(data);
     const now = new Date().toISOString();
 
-    // Check if record exists
-    const existing = await powerSyncDb.getAll(
-      'SELECT id FROM infertility_workups WHERE patient_id = ?',
-      [data.patientId]
-    ) as any[];
+    const { data: existing, error: checkError } = await supabase
+      .from('infertility_workups')
+      .select('id')
+      .eq('patient_id', data.patientId)
+      .limit(1);
 
-    if (existing.length > 0) {
-      // Update existing record
-      await powerSyncDb.execute(
-        `UPDATE infertility_workups SET 
-          amh = ?, cycle_regularity = ?, sperm_count = ?, motility = ?, 
-          morphology = ?, left_tube = ?, right_tube = ?, cavity_status = ?, 
-          diagnosis = ?, plan = ?, updated_at = ?
-         WHERE patient_id = ?`,
-        [
-          dbData.amh,
-          dbData.cycle_regularity,
-          dbData.sperm_count,
-          dbData.motility,
-          dbData.morphology,
-          dbData.left_tube,
-          dbData.right_tube,
-          dbData.cavity_status,
-          diagnosis.diagnosis,
-          diagnosis.plan,
-          now,
-          data.patientId
-        ]
-      );
+    if (checkError) throw checkError;
+
+    if (existing && existing.length > 0) {
+      const { error: updateError } = await supabase
+        .from('infertility_workups')
+        .update({
+          amh: dbData.amh,
+          cycle_regularity: dbData.cycle_regularity,
+          sperm_count: dbData.sperm_count,
+          motility: dbData.motility,
+          morphology: dbData.morphology,
+          left_tube: dbData.left_tube,
+          right_tube: dbData.right_tube,
+          cavity_status: dbData.cavity_status,
+          diagnosis: diagnosis.diagnosis,
+          plan: diagnosis.plan,
+          updated_at: now
+        })
+        .eq('patient_id', data.patientId);
+
+      if (updateError) throw updateError;
     } else {
-      // Insert new record
       const id = crypto.randomUUID();
-      await powerSyncDb.execute(
-        `INSERT INTO infertility_workups 
-          (id, patient_id, amh, cycle_regularity, sperm_count, motility, 
-           morphology, left_tube, right_tube, cavity_status, diagnosis, plan, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
+      const { error: insertError } = await supabase
+        .from('infertility_workups')
+        .insert([{
           id,
-          data.patientId,
-          dbData.amh,
-          dbData.cycle_regularity,
-          dbData.sperm_count,
-          dbData.motility,
-          dbData.morphology,
-          dbData.left_tube,
-          dbData.right_tube,
-          dbData.cavity_status,
-          diagnosis.diagnosis,
-          diagnosis.plan,
-          now,
-          now
-        ]
-      );
+          patient_id: data.patientId,
+          amh: dbData.amh,
+          cycle_regularity: dbData.cycle_regularity,
+          sperm_count: dbData.sperm_count,
+          motility: dbData.motility,
+          morphology: dbData.morphology,
+          left_tube: dbData.left_tube,
+          right_tube: dbData.right_tube,
+          cavity_status: dbData.cavity_status,
+          diagnosis: diagnosis.diagnosis,
+          plan: diagnosis.plan,
+          created_at: now,
+          updated_at: now
+        }]);
+
+      if (insertError) throw insertError;
     }
   } catch (error) {
     console.error('Error saving workup data:', error);
