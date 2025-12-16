@@ -33,7 +33,6 @@ export function validateEnvironment(): EnvValidationResult {
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  const powerSyncUrl = import.meta.env.VITE_POWERSYNC_URL;
 
   if (!supabaseUrl) {
     result.errors.push('VITE_SUPABASE_URL is missing');
@@ -55,18 +54,6 @@ export function validateEnvironment(): EnvValidationResult {
     result.isValid = false;
   }
 
-  if (!powerSyncUrl) {
-    result.warnings.push('VITE_POWERSYNC_URL is missing (offline sync will not work)');
-    result.missingKeys.push('VITE_POWERSYNC_URL');
-  } else {
-    try {
-      new URL(powerSyncUrl);
-    } catch {
-      result.errors.push(`VITE_POWERSYNC_URL format is invalid: ${powerSyncUrl}`);
-      result.isValid = false;
-    }
-  }
-
   return result;
 }
 
@@ -75,7 +62,7 @@ export function logEnvironmentStatus(): void {
 
   if (validation.isValid) {
     console.log('✅ Environment variables configured correctly');
-    console.log('🔑 Configured keys: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY' + (import.meta.env.VITE_POWERSYNC_URL ? ', VITE_POWERSYNC_URL' : ''));
+    console.log('🔑 Configured keys: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY');
   } else {
     console.error('❌ Environment configuration errors:');
     validation.errors.forEach(err => console.error(`   • ${err}`));

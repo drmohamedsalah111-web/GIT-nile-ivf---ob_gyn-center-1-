@@ -5,32 +5,50 @@ import { Patient, IvfCycle, StimulationLog } from '../types';
 export const dbService = {
   // --- Patients ---
   getPatients: async (): Promise<Patient[]> => {
-    console.log('🚀 Fetching patients...');
+    console.log('🚀 Fetching patients from Supabase...');
     
-    const { data, error } = await supabase.from('patients').select('*');
+    const { data, error } = await supabase
+      .from('patients')
+      .select('*')
+      .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('❌ Supabase Error:', error);
-    } else {
-      console.log('✅ Supabase Raw Data:', data);
-      console.log('📊 Row Count:', data?.length);
+      console.error('❌ Supabase Query Error:', error);
+      console.error('   Error Code:', error.code);
+      console.error('   Error Message:', error.message);
+      return [];
     }
 
-    if (!data || data.length === 0) return [];
+    console.log('✅ Patients fetched:', data?.length);
+    if (data && data.length > 0) {
+      console.log('📄 First Patient Sample:', data[0]);
+    }
+
+    if (!data || data.length === 0) {
+      console.warn('⚠️ No patients found in database');
+      return [];
+    }
 
     try {
-      return data.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        age: p.age,
-        phone: p.phone || p.mobile,
-        husbandName: p.husband_name,
-        history: p.history,
-        createdAt: p.created_at
-      }));
+      const mappedPatients = data.map((p: any) => {
+        console.log(`📍 Mapping patient:`, p.id, p.name);
+        return {
+          id: p.id,
+          name: p.name,
+          age: p.age || 0,
+          phone: p.phone || p.mobile || '',
+          husbandName: p.husband_name || '',
+          history: p.history || '',
+          createdAt: p.created_at || new Date().toISOString()
+        };
+      });
+      
+      console.log(`✅ Successfully mapped ${mappedPatients.length} patients`);
+      return mappedPatients;
     } catch (mappingError: any) {
-      console.error('❌ Mapping Error:', mappingError?.message);
-      console.error('❌ Failed to map data:', data);
+      console.error('❌ Data Mapping Error:', mappingError?.message);
+      console.error('   Stack:', mappingError?.stack);
+      console.error('   Failed Data Sample:', data?.[0]);
       return [];
     }
   },
@@ -72,56 +90,82 @@ export const dbService = {
 
   // --- Cycles ---
   getCycles: async (): Promise<IvfCycle[]> => {
+    console.log('🚀 Fetching IVF cycles from Supabase...');
+    
+    const { data: cycles, error: cyclesError } = await supabase
+      .from('ivf_cycles')
+      .select('*')
+      .order('start_date', { ascending: false });
+
+    if (cyclesError) {
+      console.error('❌ Error fetching cycles:', cyclesError);
+      console.error('   Error Code:', cyclesError.code);
+      console.error('   Error Message:', cyclesError.message);
+      return [];
+    }
+
+    console.log('✅ Cycles fetched:', cycles?.length);
+    if (cycles && cycles.length > 0) {
+      console.log('📄 First Cycle Sample:', cycles[0]);
+    }
+
+    if (!cycles || cycles.length === 0) {
+      console.warn('⚠️ No cycles found in database');
+      return [];
+    }
+
+    const { data: logs, error: logsError } = await supabase
+      .from('stimulation_logs')
+      .select('*')
+      .order('date', { ascending: false });
+
+    if (logsError) {
+      console.error('❌ Error fetching logs:', logsError);
+    } else {
+      console.log('✅ Stimulation logs fetched:', logs?.length);
+    }
+
     try {
-      const user = await authService.getCurrentUser();
-      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
-
-      const { data: cycles, error: cyclesError } = await supabase
-        .from('ivf_cycles')
-        .select('*')
-        .order('start_date', { ascending: false });
-
-      if (cyclesError) throw cyclesError;
-
-      const { data: logs, error: logsError } = await supabase
-        .from('stimulation_logs')
-        .select('*')
-        .order('date', { ascending: false });
-
-      if (logsError) throw logsError;
-
       const parseJSON = (str: string) => {
         try { return str ? JSON.parse(str) : undefined; } catch (e) { return undefined; }
       };
 
-      return (cycles || []).map((c: any) => ({
-        id: c.id,
-        patientId: c.patient_id,
-        protocol: c.protocol,
-        startDate: c.start_date,
-        status: c.status,
-        logs: (logs || [])
-          .filter((l: any) => l.cycle_id === c.id)
-          .map((l: any) => ({
-            id: l.id,
-            date: l.date,
-            cycleDay: l.cycle_day,
-            fsh: l.fsh,
-            hmg: l.hmg,
-            e2: l.e2,
-            lh: l.lh,
-            rtFollicles: l.rt_follicles,
-            ltFollicles: l.lt_follicles,
-            endometriumThickness: l.endometrium_thickness
-          })),
-        lab: parseJSON(c.lab_data),
-        transfer: parseJSON(c.transfer_data),
-        outcome: parseJSON(c.outcome_data),
-        assessment: parseJSON(c.assessment_data)
-      }));
-    } catch (error: any) {
-      console.error('❌ getCycles error:', error?.message);
-      throw new Error(`فشل في جلب دورات الحقن المجهري: ${error?.message}`);
+      const mappedCycles = (cycles || []).map((c: any) => {
+        console.log(`📍 Mapping cycle:`, c.id, `Patient: ${c.patient_id}`);
+        return {
+          id: c.id,
+          patientId: c.patient_id,
+          protocol: c.protocol,
+          startDate: c.start_date,
+          status: c.status,
+          logs: (logs || [])
+            .filter((l: any) => l.cycle_id === c.id)
+            .map((l: any) => ({
+              id: l.id,
+              date: l.date,
+              cycleDay: l.cycle_day,
+              fsh: l.fsh,
+              hmg: l.hmg,
+              e2: l.e2,
+              lh: l.lh,
+              rtFollicles: l.rt_follicles,
+              ltFollicles: l.lt_follicles,
+              endometriumThickness: l.endometrium_thickness
+            })),
+          lab: parseJSON(c.lab_data),
+          transfer: parseJSON(c.transfer_data),
+          outcome: parseJSON(c.outcome_data),
+          assessment: parseJSON(c.assessment_data)
+        };
+      });
+
+      console.log(`✅ Successfully mapped ${mappedCycles.length} cycles`);
+      return mappedCycles;
+    } catch (mappingError: any) {
+      console.error('❌ Data Mapping Error:', mappingError?.message);
+      console.error('   Stack:', mappingError?.stack);
+      console.error('   Failed Data Sample:', cycles?.[0]);
+      return [];
     }
   },
 
