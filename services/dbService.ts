@@ -12,8 +12,8 @@ export const dbService = {
     if (error) {
       console.error('❌ Supabase Error:', error);
     } else {
-      console.log('✅ Raw Data Length:', data?.length);
-      console.log('📄 First Patient Sample:', data?.[0]);
+      console.log('✅ Supabase Raw Data:', data);
+      console.log('📊 Row Count:', data?.length);
     }
 
     if (!data || data.length === 0) return [];
