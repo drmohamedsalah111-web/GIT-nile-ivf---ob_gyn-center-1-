@@ -70,7 +70,6 @@ DEPLOYMENT_QUICK_START.md
 docs/sync-smoke-test.md
 electron/main.js
 electron/preload.js
-env.env
 index.html
 index.tsx
 INFERTILITY_WORKUPS_SETUP.sql
@@ -1393,98 +1392,72 @@ const PrescriptionPrinter: React.FC<PrescriptionPrinterProps> = ({
 export default PrescriptionPrinter;
 </file>
 
-<file path="components/Sidebar.tsx">
-import React from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText } from 'lucide-react';
-import { Page } from '../types';
-import { useBranding } from '../context/BrandingContext';
-import SyncStatus from '../src/components/SyncStatus';
+<file path="components/RefreshButton.tsx">
+import React, { useState } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { syncManager } from '../src/services/syncService';
+import toast from 'react-hot-toast';
 
-interface SidebarProps {
-  activePage: Page;
-  setPage: (page: Page) => void;
-  onLogout: () => void;
+interface RefreshButtonProps {
+  onRefreshComplete?: () => void;
+  showLabel?: boolean;
+  size?: 'sm' | 'md' | 'lg';
+  variant?: 'primary' | 'secondary';
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout }) => {
-  const { branding } = useBranding();
+const RefreshButton: React.FC<RefreshButtonProps> = ({
+  onRefreshComplete,
+  showLabel = true,
+  size = 'md',
+  variant = 'primary'
+}) => {
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const menuItems = [
-    { id: Page.HOME, label: 'Dashboard', arLabel: 'الرئيسية', icon: LayoutDashboard },
-    { id: Page.RECEPTION, label: 'Reception', arLabel: 'الاستقبال', icon: Users },
-    { id: Page.GYNECOLOGY, label: 'Gynecology', arLabel: 'عيادة النساء', icon: Activity },
-    { id: Page.OBSTETRICS, label: 'Obstetrics', arLabel: 'متابعة الحمل', icon: Heart },
-    { id: Page.IVF, label: 'IVF Center', arLabel: 'مركز الخصوبة', icon: Baby },
-    { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: FileText },
-    { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
-  ];
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await syncManager.forceSync();
+      toast.success('Data refreshed successfully');
+      onRefreshComplete?.();
+    } catch (error) {
+      console.error('Failed to refresh data:', error);
+      toast.error('Failed to refresh data');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const sizeClasses = {
+    sm: 'px-2 py-1 text-sm gap-1',
+    md: 'px-4 py-2 gap-2',
+    lg: 'px-6 py-3 gap-2'
+  };
+
+  const iconSizes = {
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5',
+    lg: 'w-6 h-6'
+  };
+
+  const variantClasses = {
+    primary: 'bg-teal-600 text-white hover:bg-teal-700',
+    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+  };
 
   return (
-    // Hidden on mobile, visible from md and up
-    <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 no-print">
-      <div className="p-6 border-b border-gray-100 flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          {branding?.logo_url ? (
-            <img src={branding.logo_url} alt="Logo" className="w-12 h-12 rounded-full mb-2 object-cover" />
-          ) : (
-            <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mb-2">
-              <Baby className="text-teal-700 w-8 h-8" />
-            </div>
-          )}
-          <h1 className="text-sm font-bold text-gray-800 text-center">{branding?.clinic_name || 'Nile IVF Center'}</h1>
-          <p className="text-xs text-gray-400 uppercase tracking-wider">EMR System</p>
-        </div>
-      </div>
-      
-      <nav className="flex-1 overflow-y-auto py-4">
-        <ul className="space-y-2 px-4">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activePage === item.id;
-            return (
-              <li key={item.id}>
-                <button
-                  onClick={() => setPage(item.id)}
-                  className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${
-                    isActive 
-                      ? 'bg-teal-50 text-teal-700 font-bold shadow-sm' 
-                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-teal-700' : 'text-gray-400'}`} />
-                  <span>{item.arLabel || item.label}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      <div className="p-4 border-t border-gray-100">
-        {/* Sync Status Indicator */}
-        <div className="mb-4">
-          <SyncStatus />
-        </div>
-
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Sign Out</span>
-        </button>
-
-        {/* Developer Credits */}
-        <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-          <p className="text-xs text-gray-400 font-[Tajawal] leading-tight">
-            برمجة وتطوير<br />
-            د. محمد صلاح جبر
-          </p>
-        </div>
-      </div>
-    </div>
+    <button
+      onClick={handleRefresh}
+      disabled={isRefreshing}
+      className={`flex items-center ${sizeClasses[size]} ${variantClasses[variant]} rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
+      title="Refresh data from server"
+    >
+      <RefreshCw className={`${iconSizes[size]} ${isRefreshing ? 'animate-spin' : ''}`} />
+      {showLabel && <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>}
+    </button>
   );
 };
+
+export default RefreshButton;
 </file>
 
 <file path="components/ui/SearchableSelect.tsx">
@@ -2436,75 +2409,6 @@ export const TREATMENT_PLANS = [
   'Physical Therapy',
   'Pelvic Floor Exercises',
 ];
-</file>
-
-<file path="electron/main.js">
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
-
-// منع التطبيق من التوقف عند إغلاق النوافذ (في ماك)
-let mainWindow;
-
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 1024,
-    minHeight: 768,
-    title: "Nile IVF Center EMR",
-    webPreferences: {
-      nodeIntegration: false, // للأمان
-      contextIsolation: true, // للأمان
-      preload: path.join(__dirname, 'preload.js')
-    },
-    // إخفاء شريط القوائم العلوي لمظهر أكثر احترافية
-    autoHideMenuBar: true 
-  });
-
-  // في وضع التطوير، قم بتحميل السيرفر المحلي
-  // في وضع الإنتاج (بعد التسطيب)، قم بتحميل ملف index.html
-  const isDev = !app.isPackaged;
-  
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
-    // فتح أدوات المطور للمساعدة في التصحيح
-    // mainWindow.webContents.openDevTools();
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-  }
-}
-
-app.whenReady().then(() => {
-  createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
-});
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-// هنا سنضيف لاحقاً (IPC Handlers) للتعامل مع قاعدة البيانات والطباعة
-// مثال:
-// ipcMain.handle('save-patient', async (event, data) => { ... })
-</file>
-
-<file path="electron/preload.js">
-const { contextBridge, ipcRenderer } = require('electron');
-
-// نحن نكشف فقط وظائف محددة للواجهة الأمامية لحماية النظام
-contextBridge.exposeInMainWorld('electronAPI', {
-  // مثال لوظائف مستقبلية
-  print: () => ipcRenderer.send('print-document'),
-  saveToDb: (data) => ipcRenderer.invoke('db-save', data),
-  getFromDb: (query) => ipcRenderer.invoke('db-get', query)
-});
 </file>
 
 <file path="IVF_CYCLES_SETUP.sql">
@@ -6653,72 +6557,92 @@ const PreviewWarningBanner: React.FC = () => {
 export default PreviewWarningBanner;
 </file>
 
-<file path="components/RefreshButton.tsx">
-import React, { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
-import { syncManager } from '../src/services/syncService';
-import toast from 'react-hot-toast';
+<file path="components/Sidebar.tsx">
+import React from 'react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText } from 'lucide-react';
+import { Page } from '../types';
+import { useBranding } from '../context/BrandingContext';
 
-interface RefreshButtonProps {
-  onRefreshComplete?: () => void;
-  showLabel?: boolean;
-  size?: 'sm' | 'md' | 'lg';
-  variant?: 'primary' | 'secondary';
+interface SidebarProps {
+  activePage: Page;
+  setPage: (page: Page) => void;
+  onLogout: () => void;
 }
 
-const RefreshButton: React.FC<RefreshButtonProps> = ({
-  onRefreshComplete,
-  showLabel = true,
-  size = 'md',
-  variant = 'primary'
-}) => {
-  const [isRefreshing, setIsRefreshing] = useState(false);
+export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout }) => {
+  const { branding } = useBranding();
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await syncManager.forceSync();
-      toast.success('Data refreshed successfully');
-      onRefreshComplete?.();
-    } catch (error) {
-      console.error('Failed to refresh data:', error);
-      toast.error('Failed to refresh data');
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const sizeClasses = {
-    sm: 'px-2 py-1 text-sm gap-1',
-    md: 'px-4 py-2 gap-2',
-    lg: 'px-6 py-3 gap-2'
-  };
-
-  const iconSizes = {
-    sm: 'w-4 h-4',
-    md: 'w-5 h-5',
-    lg: 'w-6 h-6'
-  };
-
-  const variantClasses = {
-    primary: 'bg-teal-600 text-white hover:bg-teal-700',
-    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-  };
+  const menuItems = [
+    { id: Page.HOME, label: 'Dashboard', arLabel: 'الرئيسية', icon: LayoutDashboard },
+    { id: Page.RECEPTION, label: 'Reception', arLabel: 'الاستقبال', icon: Users },
+    { id: Page.GYNECOLOGY, label: 'Gynecology', arLabel: 'عيادة النساء', icon: Activity },
+    { id: Page.OBSTETRICS, label: 'Obstetrics', arLabel: 'متابعة الحمل', icon: Heart },
+    { id: Page.IVF, label: 'IVF Center', arLabel: 'مركز الخصوبة', icon: Baby },
+    { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: FileText },
+    { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
+  ];
 
   return (
-    <button
-      onClick={handleRefresh}
-      disabled={isRefreshing}
-      className={`flex items-center ${sizeClasses[size]} ${variantClasses[variant]} rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
-      title="Refresh data from server"
-    >
-      <RefreshCw className={`${iconSizes[size]} ${isRefreshing ? 'animate-spin' : ''}`} />
-      {showLabel && <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>}
-    </button>
+    // Hidden on mobile, visible from md and up
+    <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 no-print">
+      <div className="p-6 border-b border-gray-100 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          {branding?.logo_url ? (
+            <img src={branding.logo_url} alt="Logo" className="w-12 h-12 rounded-full mb-2 object-cover" />
+          ) : (
+            <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mb-2">
+              <Baby className="text-teal-700 w-8 h-8" />
+            </div>
+          )}
+          <h1 className="text-sm font-bold text-gray-800 text-center">{branding?.clinic_name || 'Nile IVF Center'}</h1>
+          <p className="text-xs text-gray-400 uppercase tracking-wider">EMR System</p>
+        </div>
+      </div>
+      
+      <nav className="flex-1 overflow-y-auto py-4">
+        <ul className="space-y-2 px-4">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activePage === item.id;
+            return (
+              <li key={item.id}>
+                <button
+                  onClick={() => setPage(item.id)}
+                  className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-teal-50 text-teal-700 font-bold shadow-sm' 
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-teal-700' : 'text-gray-400'}`} />
+                  <span>{item.arLabel || item.label}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <div className="p-4 border-t border-gray-100">
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Sign Out</span>
+        </button>
+
+        {/* Developer Credits */}
+        <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+          <p className="text-xs text-gray-400 font-[Tajawal] leading-tight">
+            برمجة وتطوير<br />
+            د. محمد صلاح جبر
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
-
-export default RefreshButton;
 </file>
 
 <file path="context/BrandingContext.tsx">
@@ -7890,10 +7814,55 @@ Branch: ___________
 - Check `SYNC_DIAGNOSTICS.md` for advanced troubleshooting
 </file>
 
-<file path="env.env">
-VITE_SUPABASE_URL=https://yprekwnaxbbvfwbyvfnw.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwcmVrd25heGJidmZ3Ynl2Zm53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MDcyNjUsImV4cCI6MjA4MTE4MzI2NX0.ItLezDqUkv-93s5G56iQgYdke4_T0FgHR20mg1cfz2U
-VITE_POWERSYNC_URL=https://6938cd7948645822f36663c8.powersync.journeyapps.com
+<file path="electron/main.js">
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+
+let mainWindow;
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    minWidth: 1024,
+    minHeight: 768,
+    title: "Nile IVF Center EMR",
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
+    },
+    autoHideMenuBar: true 
+  });
+
+  const isDev = !app.isPackaged;
+  
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:5173');
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+  }
+}
+
+app.whenReady().then(() => {
+  createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+</file>
+
+<file path="electron/preload.js">
+
 </file>
 
 <file path="INFERTILITY_WORKUPS_SETUP.sql">
@@ -7993,7 +7962,6 @@ import { db, calculateBMI, analyzeSemenAnalysis } from '../services/ivfService';
 import { EGYPTIAN_DRUGS } from '../constants';
 import { PrescriptionItem, Patient } from '../types';
 import { AlertTriangle, Plus, Trash2, Printer, FileText, Activity, Microscope, Info } from 'lucide-react';
-import RefreshButton from '../components/RefreshButton';
 
 interface FemaleFactor {
   // Hormones
@@ -8120,11 +8088,7 @@ const ClinicalStation: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header with Refresh */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold text-gray-900">Clinical Station</h1>
-        <RefreshButton />
-      </div>
+      <h1 className="text-4xl font-bold text-gray-900">Clinical Station</h1>
 
       {/* Patient Selector */}
       <div className="bg-white p-3 md:p-6 rounded-2xl shadow-sm border border-gray-100 no-print">
@@ -30397,7 +30361,7 @@ import { useBranding } from '../context/BrandingContext';
 import { supabase } from '../services/supabaseClient';
 import { powerSyncDb } from '../src/powersync/client';
 import { EGYPTIAN_DRUGS } from '../constants';
-import RefreshButton from '../components/RefreshButton';
+
 
 interface TabState {
   active: 'branding' | 'prescription' | 'records';
@@ -30529,17 +30493,14 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 mb-8">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-indigo-100 rounded-lg">
-            <Settings className="w-8 h-8 text-indigo-600" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">لوحة تحكم الإدارة</h1>
-            <p className="text-gray-600">إدارة إعدادات التطبيق والعلامة التجارية والسجلات</p>
-          </div>
+      <div className="flex items-center gap-3 mb-8">
+        <div className="p-3 bg-indigo-100 rounded-lg">
+          <Settings className="w-8 h-8 text-indigo-600" />
         </div>
-        <RefreshButton />
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">لوحة تحكم الإدارة</h1>
+          <p className="text-gray-600">إدارة إعدادات التطبيق والعلامة التجارية والسجلات</p>
+        </div>
       </div>
 
       {/* Tab Navigation */}
@@ -31400,52 +31361,6 @@ export const PowerSyncProvider = ({ children }: { children: ReactNode }) => {
 };
 </file>
 
-<file path="src/hooks/useSyncStatus.ts">
-import { useEffect, useState } from 'react';
-import { useStatus } from '@powersync/react';
-
-export type PowerSyncUiStatus = 'OFFLINE' | 'SYNCING' | 'READY';
-
-export interface SyncStatus {
-  uiStatus: PowerSyncUiStatus;
-  lastSyncTime?: Date;
-}
-
-function mapUiStatus(status: any): PowerSyncUiStatus {
-  if (!status?.connected) return 'OFFLINE';
-  if (status?.uploading || status?.downloading || status?.connecting) return 'SYNCING';
-  return 'READY';
-}
-
-export const useSyncStatus = (): SyncStatus => {
-  const status = useStatus() as any;
-
-  return {
-    uiStatus: mapUiStatus(status),
-    lastSyncTime: status.lastSyncedAt
-  };
-};
-
-export const useNetworkStatus = () => {
-  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  return isOnline;
-};
-</file>
-
 <file path="src/lib/powerSyncHelpers.ts">
 // PowerSync Query Helpers
 // Use these instead of Dexie queries
@@ -32227,143 +32142,477 @@ export async function diagnoseSync(): Promise<void> {
 }
 </file>
 
-<file path="components/SyncStatus.tsx">
-import React, { useState, useEffect } from 'react';
-import { Cloud, CloudOff, RotateCw } from 'lucide-react';
-import { useSyncStatus } from '../src/hooks/useSyncStatus';
-import { connectPowerSync } from '../src/powersync/client';
+<file path="pages/Dashboard.tsx">
+import React, { useEffect, useState, useMemo } from 'react';
+import {
+  Users, Activity, Calendar, TrendingUp, AlertTriangle, CheckCircle,
+  Clock, Search, Filter, Plus, Eye, Edit, Phone, MapPin,
+  BarChart3, PieChart, CalendarDays, Bell, Download, RefreshCw,
+  Stethoscope, Baby, Microscope, UserCheck, Loader2
+} from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, LineChart, Line
+} from 'recharts';
+import { usePowerSyncQuery } from '../src/hooks/usePowerSync';
+import { db as ivfService } from '../services/ivfService';
+import { obstetricsService } from '../services/obstetricsService';
+import { Patient, IvfCycle, Pregnancy } from '../types';
+import { useBranding } from '../context/BrandingContext';
+
 import toast from 'react-hot-toast';
 
+const Dashboard: React.FC = () => {
+  const { branding } = useBranding();
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
 
-const SyncStatus: React.FC = () => {
-  // Use PowerSync status as single source of truth
-  const { uiStatus, lastSyncTime } = useSyncStatus();
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [isRetrying, setIsRetrying] = useState(false);
 
-  // Debug logging for PowerSync status
-  console.log('🔌 PowerSync Status:', { uiStatus, lastSyncTime });
+  // Live queries for real-time data
+  const { data: patients = [] } = usePowerSyncQuery<Patient>('SELECT * FROM patients');
+  const { data: cycles = [] } = usePowerSyncQuery<any>('SELECT * FROM ivf_cycles');
+  const { data: pregnancies = [] } = usePowerSyncQuery<any>('SELECT * FROM pregnancies');
 
-  useEffect(() => {
-    // Listen for network changes and show toasts
-    const handleOnline = () => {
-      toast.success('🔄 Connection restored - PowerSync will sync automatically');
-    };
+  // Calculate comprehensive stats
+  const stats = useMemo(() => {
+    if (!patients || !cycles || !pregnancies) return null;
 
-    const handleOffline = () => {
-      toast.error('📴 Connection lost - working offline');
-    };
+    const activeCycles = cycles.filter((c: any) => c.status === 'Active').length;
+    const completedCycles = cycles.filter((c: any) => c.status === 'Completed').length;
+    const highRiskPregnancies = pregnancies.filter((p: any) => p.risk_level === 'high').length;
+    const totalPregnancies = pregnancies.length;
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    // Mock today's visits (would come from visits table)
+    const todayVisits = Math.floor(Math.random() * 15) + 5;
 
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  const handleRetrySync = async () => {
-    setIsRetrying(true);
-    try {
-      await connectPowerSync({ force: true });
-      toast.success('✅ PowerSync reconnected');
-    } catch (error) {
-      toast.error('❌ Reconnection failed - check your connection');
-    } finally {
-      setIsRetrying(false);
-    }
-  };
-
-  // Determine status color and icon based on PowerSync status
-  const getStatusDisplay = () => {
-    if (uiStatus === 'OFFLINE') {
-      return {
-        color: 'text-gray-400',
-        bgColor: 'bg-gray-100 hover:bg-gray-200',
-        icon: <CloudOff className="w-5 h-5" />,
-        label: 'OFFLINE',
-        description: 'Data available locally'
-      };
-    }
-
-    if (uiStatus === 'SYNCING') {
-      return {
-        color: 'text-amber-500',
-        bgColor: 'bg-amber-100 hover:bg-amber-200',
-        icon: <Cloud className="w-5 h-5 animate-pulse" />,
-        label: 'SYNCING',
-        description: 'Synchronizing data...'
-      };
-    }
+    // Calculate success rates
+    const successfulCycles = cycles.filter((c: any) => {
+      try {
+        const outcome = c.outcome_data ? JSON.parse(c.outcome_data) : {};
+        return outcome.clinicalPregnancy;
+      } catch (e) {
+        return false;
+      }
+    }).length;
+    const successRate = cycles.length > 0 ? Math.round((successfulCycles / cycles.length) * 100) : 0;
 
     return {
-      color: 'text-green-500',
-      bgColor: 'bg-green-100 hover:bg-green-200',
-      icon: <Cloud className="w-5 h-5" />,
-      label: 'READY',
-      description: lastSyncTime ? `Synced: ${new Date(lastSyncTime).toLocaleTimeString()}` : 'All synced'
+      totalPatients: patients.length,
+      activeCycles,
+      completedCycles,
+      totalPregnancies,
+      highRiskPregnancies,
+      todayVisits,
+      successRate,
+      pendingLabs: Math.floor(Math.random() * 8) + 2, // Mock
+      upcomingAppointments: Math.floor(Math.random() * 12) + 3 // Mock
     };
+  }, [patients, cycles, pregnancies]);
+
+  // Filter patients based on search and department
+  const filteredPatients = useMemo(() => {
+    if (!patients) return [];
+
+    return patients.filter(patient => {
+      const matchesSearch = searchTerm === '' ||
+        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.phone.includes(searchTerm);
+
+      const matchesDepartment = selectedDepartment === 'all' ||
+        (selectedDepartment === 'ivf' && cycles.some((c: any) => c.patient_id === patient.id || c.patient_id === String(patient.id))) ||
+        (selectedDepartment === 'ob' && pregnancies.some((p: any) => p.patient_id === patient.id || p.patient_id === String(patient.id)));
+
+      return matchesSearch && matchesDepartment;
+    }).slice(0, 10); // Show top 10
+  }, [patients, cycles, pregnancies, searchTerm, selectedDepartment]);
+
+  // Mock data for charts
+  const monthlyGrowth = [
+    { month: 'Jan', patients: 45, cycles: 12, pregnancies: 8 },
+    { month: 'Feb', patients: 52, cycles: 15, pregnancies: 10 },
+    { month: 'Mar', patients: 61, cycles: 18, pregnancies: 12 },
+    { month: 'Apr', patients: 78, cycles: 22, pregnancies: 15 },
+    { month: 'May', patients: 89, cycles: 25, pregnancies: 18 },
+    { month: 'Jun', patients: 95, cycles: 28, pregnancies: 20 },
+  ];
+
+  const cycleOutcomes = [
+    { name: 'Successful', value: stats?.successRate || 0, color: '#10B981' },
+    { name: 'Ongoing', value: 100 - (stats?.successRate || 0), color: '#3B82F6' },
+  ];
+
+  const departmentStats = [
+    { name: 'IVF', patients: cycles?.length || 0, color: '#8B5CF6' },
+    { name: 'Obstetrics', patients: pregnancies?.length || 0, color: '#F59E0B' },
+    { name: 'Gynecology', patients: Math.floor((patients?.length || 0) * 0.6), color: '#EF4444' },
+  ];
+
+  // Set loading to false once we have data
+  useEffect(() => {
+    if (patients !== undefined && cycles !== undefined && pregnancies !== undefined) {
+      setLoading(false);
+    }
+  }, [patients, cycles, pregnancies]);
+
+  const handleRefresh = async () => {
+    try {
+      // Refresh logic if needed, or just toast
+      toast.success('Data refreshed');
+    } catch (error) {
+      toast.error('Failed to refresh data');
+    }
   };
 
-  const display = getStatusDisplay();
-  const isError = false;
+  const getPatientStatus = (patient: Patient) => {
+    const patientId = patient.id?.toString();
+    const hasActiveCycle = cycles?.some((c: any) => c.patient_id === patientId && c.status === 'Active');
+    const hasPregnancy = pregnancies?.some((p: any) => p.patient_id === patientId);
+
+    if (hasActiveCycle) return { status: 'IVF Active', color: 'bg-purple-100 text-purple-800' };
+    if (hasPregnancy) return { status: 'Pregnancy Care', color: 'bg-pink-100 text-pink-800' };
+    return { status: 'General Care', color: 'bg-gray-100 text-gray-800' };
+  };
+
+  if (loading || patients === undefined || cycles === undefined || pregnancies === undefined) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-teal-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => {
-          setShowTooltip(!showTooltip);
-          if (isError) handleRetrySync();
-        }}
-        disabled={isRetrying}
-        className={`${display.bgColor} ${display.color} p-2 rounded-full transition-all duration-200 relative group cursor-pointer disabled:opacity-50`}
-        title={display.label}
-      >
-        {isRetrying ? (
-          <RotateCw className="w-5 h-5 animate-spin" />
-        ) : (
-          display.icon
-        )}
-      </button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-4 py-6 md:px-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 font-[Tajawal]">
+              {branding?.clinic_name || 'Nile IVF & OB/GYN Center'}
+            </h1>
+            <p className="text-gray-600 mt-1">Professional Clinic Management Dashboard</p>
+          </div>
 
-      {/* Tooltip */}
-      {showTooltip && (
-        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg p-3 z-50 border border-gray-200">
-          <div className="text-sm font-semibold text-gray-900 mb-1">
-            {display.label}
+          <div className="flex items-center gap-3">
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
           </div>
-          <div className="text-xs text-gray-600 mb-2">
-            {display.description}
-          </div>
-          
-          {/* Status indicators */}
-          <div className="space-y-1 text-xs">
-            <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${uiStatus === 'OFFLINE' ? 'bg-gray-400' : 'bg-green-500'}`}></span>
-              <span className="text-gray-700">
-                {uiStatus}
-              </span>
+        </div>
+      </div>
+
+      <div className="px-4 py-6 md:px-8 space-y-6">
+        {/* Advanced KPI Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Total Patients</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalPatients}</p>
+              </div>
+              <Users className="w-8 h-8 text-blue-600" />
             </div>
           </div>
 
-          {/* Retry button */}
-          {isError && (
-            <button
-              onClick={handleRetrySync}
-              disabled={isRetrying}
-              className="mt-3 w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-medium py-1 rounded transition-colors"
-            >
-              {isRetrying ? 'Retrying...' : 'Retry Sync'}
-            </button>
-          )}
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Active IVF Cycles</p>
+                <p className="text-2xl font-bold text-purple-600">{stats.activeCycles}</p>
+              </div>
+              <Microscope className="w-8 h-8 text-purple-600" />
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Pregnancy Care</p>
+                <p className="text-2xl font-bold text-pink-600">{stats.totalPregnancies}</p>
+              </div>
+              <Baby className="w-8 h-8 text-pink-600" />
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Success Rate</p>
+                <p className="text-2xl font-bold text-green-600">{stats.successRate}%</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Today's Visits</p>
+                <p className="text-2xl font-bold text-orange-600">{stats.todayVisits}</p>
+              </div>
+              <Calendar className="w-8 h-8 text-orange-600" />
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">High Risk Cases</p>
+                <p className="text-2xl font-bold text-red-600">{stats.highRiskPregnancies}</p>
+              </div>
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Patient Overview */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Search and Filters */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                <div className="flex-1 relative">
+                  <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search patients by name or phone..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  />
+                </div>
+                <select
+                  value={selectedDepartment}
+                  onChange={(e) => setSelectedDepartment(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                >
+                  <option value="all">All Departments</option>
+                  <option value="ivf">IVF Patients</option>
+                  <option value="ob">Obstetrics</option>
+                  <option value="gyn">Gynecology</option>
+                </select>
+              </div>
+
+              {/* Patient List */}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {filteredPatients.map((patient) => {
+                  const status = getPatientStatus(patient);
+                  return (
+                    <div key={patient.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
+                          <span className="text-teal-700 font-semibold">{patient.name.charAt(0)}</span>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900">{patient.name}</h4>
+                          <p className="text-sm text-gray-600">{patient.phone}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
+                          {status.status}
+                        </span>
+                        <div className="flex gap-1">
+                          <button className="p-2 text-gray-400 hover:text-teal-600 transition-colors">
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button className="p-2 text-gray-400 hover:text-teal-600 transition-colors">
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button className="p-2 text-gray-400 hover:text-teal-600 transition-colors">
+                            <Phone className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Growth Chart */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-teal-600" />
+                  Monthly Growth
+                </h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={monthlyGrowth}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="patients" stroke="#00838f" strokeWidth={2} />
+                      <Line type="monotone" dataKey="cycles" stroke="#8B5CF6" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Success Rate */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  IVF Success Rate
+                </h3>
+                <div className="h-64 flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={cycleOutcomes}
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {cycleOutcomes.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="text-center mt-4">
+                  <p className="text-2xl font-bold text-gray-900">{stats.successRate}%</p>
+                  <p className="text-sm text-gray-600">Success Rate</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Department Overview */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-teal-600" />
+                Department Overview
+              </h3>
+              <div className="space-y-4">
+                {departmentStats.map((dept, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dept.color }}></div>
+                      <span className="text-sm font-medium text-gray-700">{dept.name}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">{dept.patients}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Alerts & Notifications */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Bell className="w-5 h-5 text-orange-600" />
+                Alerts & Notifications
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-red-900">High Risk Pregnancy</p>
+                    <p className="text-xs text-red-700">Patient requires immediate attention</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg">
+                  <Clock className="w-5 h-5 text-yellow-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-yellow-900">Pending Lab Results</p>
+                    <p className="text-xs text-yellow-700">{stats.pendingLabs} results awaiting review</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
+                  <Calendar className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">Upcoming Appointments</p>
+                    <p className="text-xs text-blue-700">{stats.upcomingAppointments} scheduled for today</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Today's Schedule */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <CalendarDays className="w-5 h-5 text-teal-600" />
+                Today's Schedule
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                  <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">Dr. Ahmed - IVF Consultation</p>
+                    <p className="text-xs text-blue-700">10:00 AM - 10:30 AM</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
+                  <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+                  <div>
+                    <p className="text-sm font-medium text-purple-900">Ultrasound - Pregnancy Check</p>
+                    <p className="text-xs text-purple-700">11:00 AM - 11:30 AM</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+                  <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                  <div>
+                    <p className="text-sm font-medium text-green-900">Lab Results Review</p>
+                    <p className="text-xs text-green-700">2:00 PM - 2:30 PM</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <div className="space-y-3">
+                <button className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors">
+                  <Plus className="w-5 h-5 text-teal-600" />
+                  <span className="text-sm font-medium text-teal-900">New Patient</span>
+                </button>
+                <button className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
+                  <Microscope className="w-5 h-5 text-purple-600" />
+                  <span className="text-sm font-medium text-purple-900">Start IVF Cycle</span>
+                </button>
+                <button className="w-full flex items-center gap-3 p-3 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors">
+                  <Baby className="w-5 h-5 text-pink-600" />
+                  <span className="text-sm font-medium text-pink-900">Add Pregnancy</span>
+                </button>
+                <button
+                  onClick={() => {
+                    // Mock export functionality
+                    toast.success('Report exported successfully');
+                  }}
+                  className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Download className="w-5 h-5 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-900">Export Report</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default SyncStatus;
+export default Dashboard;
 </file>
 
 <file path="pages/Gynecology.tsx">
@@ -32378,7 +32627,6 @@ import { authService } from '../services/authService';
 import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 import SearchableSelect from '../components/ui/SearchableSelect';
-import RefreshButton from '../components/RefreshButton';
 import HistorySidebar from '../src/components/HistorySidebar';
 import { COMMON_COMPLAINTS, ICD10_DIAGNOSES, PROCEDURE_ORDERS } from '../data/medical_terms';
 
@@ -32640,7 +32888,6 @@ const Gynecology: React.FC = () => {
           >
             📜 السجل السابق
           </button>
-          <RefreshButton />
         </div>
       </div>
 
@@ -33220,284 +33467,6 @@ self.addEventListener('notificationclick', (event) => {
 });
 </file>
 
-<file path="services/dbService.ts">
-import { supabase } from './supabaseClient';
-import { authService } from './authService';
-import { Patient, IvfCycle, StimulationLog } from '../types';
-import { powerSyncDb } from '../src/powersync/client';
-
-// PowerSync handles retries and offline queuing automatically
-
-export const dbService = {
-  // --- Patients ---
-  getPatients: async (): Promise<Patient[]> => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
-
-      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
-
-      const patients = await powerSyncDb.getAll(
-        'SELECT * FROM patients WHERE doctor_id = ? ORDER BY name',
-        [doctor.id]
-      );
-
-      return patients.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        age: p.age || 0,
-        phone: p.phone,
-        husbandName: p.husband_name || '',
-        history: p.history || '',
-        createdAt: p.created_at || new Date().toISOString()
-      })) || [];
-    } catch (error: any) {
-      console.error('❌ getPatients error:', error?.message);
-      throw new Error(`فشل في جلب قائمة المرضى: ${error?.message}`);
-    }
-  },
-
-  savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
-
-      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
-
-      const id = crypto.randomUUID();
-      const now = new Date().toISOString();
-
-      // Write to PowerSync (offline-first)
-      await powerSyncDb.execute(
-        `INSERT INTO patients (id, name, age, phone, husband_name, history, doctor_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, patient.name, patient.age, patient.phone, patient.husbandName, patient.history, doctor.id, now, now]
-      );
-
-      console.log('✅ Patient saved to PowerSync:', id);
-      return { id, ...patient, createdAt: now };
-    } catch (error: any) {
-      console.error('❌ savePatient error:', error?.message);
-      throw new Error(`فشل في حفظ بيانات المريض: ${error?.message}`);
-    }
-  },
-
-  // --- Cycles ---
-  getCycles: async (): Promise<IvfCycle[]> => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
-
-      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
-
-      const cycles = await powerSyncDb.getAll(
-        'SELECT * FROM ivf_cycles WHERE doctor_id = ? ORDER BY start_date DESC',
-        [doctor.id]
-      );
-
-      const logs = await powerSyncDb.getAll(
-        'SELECT * FROM stimulation_logs ORDER BY date DESC'
-      );
-
-      const parseJSON = (str: string) => {
-        try { return str ? JSON.parse(str) : undefined; } catch (e) { return undefined; }
-      };
-
-      return cycles.map((c: any) => ({
-        id: c.id,
-        patientId: c.patient_id,
-        protocol: c.protocol,
-        startDate: c.start_date,
-        status: c.status,
-        logs: logs
-          .filter((l: any) => l.cycle_id === c.id)
-          .map((l: any) => ({
-            id: l.id,
-            date: l.date,
-            cycleDay: l.cycle_day,
-            fsh: l.fsh,
-            hmg: l.hmg,
-            e2: l.e2,
-            lh: l.lh,
-            rtFollicles: l.rt_follicles,
-            ltFollicles: l.lt_follicles,
-            endometriumThickness: l.endometrium_thickness
-          })),
-        lab: parseJSON(c.lab_data),
-        transfer: parseJSON(c.transfer_data),
-        outcome: parseJSON(c.outcome_data),
-        assessment: parseJSON(c.assessment_data)
-      }));
-    } catch (error: any) {
-      console.error('❌ getCycles error:', error?.message);
-      throw new Error(`فشل في جلب دورات الحقن المجهري: ${error?.message}`);
-    }
-  },
-
-  saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
-
-      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
-
-      const id = crypto.randomUUID();
-      const now = new Date().toISOString();
-
-      // Write to PowerSync (offline-first)
-      await powerSyncDb.execute(
-        `INSERT INTO ivf_cycles (id, patient_id, doctor_id, protocol, status, start_date, assessment_data, lab_data, transfer_data, outcome_data, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, cycle.patientId, doctor.id, cycle.protocol, cycle.status || 'Active', cycle.startDate,
-         JSON.stringify(cycle.assessment || {}), JSON.stringify(cycle.lab || {}),
-         JSON.stringify(cycle.transfer || {}), JSON.stringify(cycle.outcome || {}), now, now]
-      );
-
-      console.log('✅ IVF Cycle saved to PowerSync:', id);
-      return { id, ...cycle };
-    } catch (error: any) {
-      console.error('❌ saveCycle error:', error?.message);
-      throw new Error(`فشل في حفظ دورة الحقن المجهري: ${error?.message}`);
-    }
-  },
-
-  // --- Logs ---
-  addLog: async (cycleId: string, log: Partial<StimulationLog>) => {
-    try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!log.date || !log.cycleDay) throw new Error('التاريخ ورقم اليوم مطلوب');
-
-      const id = crypto.randomUUID();
-      const now = new Date().toISOString();
-
-      // Write to PowerSync (offline-first)
-      await powerSyncDb.execute(
-        `INSERT INTO stimulation_logs (id, cycle_id, cycle_day, date, fsh, hmg, e2, lh, rt_follicles, lt_follicles, endometrium_thickness, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, cycleId, log.cycleDay, log.date, log.fsh || '', log.hmg || '', log.e2 || '',
-         log.lh || '', log.rtFollicles || '', log.ltFollicles || '', log.endometriumThickness || '', now, now]
-      );
-
-      console.log('✅ Stimulation log saved to PowerSync:', id);
-      return { id, ...log };
-    } catch (error: any) {
-      console.error('❌ addLog error:', error?.message);
-      throw new Error(`فشل في إضافة سجل التحفيز: ${error?.message}`);
-    }
-  },
-
-  updateLog: async (logId: string, updates: Partial<StimulationLog>) => {
-    try {
-      if (!logId) throw new Error('معرف السجل مطلوب');
-
-      const updateData: any = {};
-      if (updates.fsh !== undefined) updateData.fsh = updates.fsh;
-      if (updates.hmg !== undefined) updateData.hmg = updates.hmg;
-      if (updates.e2 !== undefined) updateData.e2 = updates.e2;
-      if (updates.lh !== undefined) updateData.lh = updates.lh;
-      if (updates.rtFollicles !== undefined) updateData.rt_follicles = updates.rtFollicles;
-      if (updates.ltFollicles !== undefined) updateData.lt_follicles = updates.ltFollicles;
-      if (updates.endometriumThickness !== undefined) updateData.endometrium_thickness = updates.endometriumThickness;
-
-      if (Object.keys(updateData).length === 0) throw new Error('لا توجد تحديثات للتطبيق');
-
-      updateData.updated_at = new Date().toISOString();
-
-      // Build dynamic UPDATE query
-      const setParts = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
-      const values = Object.values(updateData);
-      values.push(logId); // Add logId at the end
-
-      await powerSyncDb.execute(
-        `UPDATE stimulation_logs SET ${setParts} WHERE id = ?`,
-        values
-      );
-
-      console.log('✅ Stimulation log updated in PowerSync:', logId);
-    } catch (error: any) {
-      console.error('❌ updateLog error:', error?.message);
-      throw new Error(`فشل في تحديث سجل التحفيز: ${error?.message}`);
-    }
-  },
-
-  updateCycleAssessment: async (cycleId: string, assessment: any) => {
-    try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!assessment) throw new Error('بيانات التقييم مطلوبة');
-
-      const now = new Date().toISOString();
-      await powerSyncDb.execute(
-        `UPDATE ivf_cycles SET assessment_data = ?, updated_at = ? WHERE id = ?`,
-        [JSON.stringify(assessment), now, cycleId]
-      );
-
-      console.log('✅ Cycle assessment updated in PowerSync:', cycleId);
-    } catch (error: any) {
-      console.error('❌ updateCycleAssessment error:', error?.message);
-      throw new Error(`فشل في حفظ التقييم: ${error?.message}`);
-    }
-  },
-
-  updateCycleLabData: async (cycleId: string, labData: any) => {
-    try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!labData) throw new Error('بيانات المختبر مطلوبة');
-
-      const now = new Date().toISOString();
-      await powerSyncDb.execute(
-        `UPDATE ivf_cycles SET lab_data = ?, updated_at = ? WHERE id = ?`,
-        [JSON.stringify(labData), now, cycleId]
-      );
-
-      console.log('✅ Cycle lab data updated in PowerSync:', cycleId);
-    } catch (error: any) {
-      console.error('❌ updateCycleLabData error:', error?.message);
-      throw new Error(`فشل في حفظ بيانات المختبر: ${error?.message}`);
-    }
-  },
-
-  updateCycleTransfer: async (cycleId: string, transferData: any) => {
-    try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!transferData) throw new Error('بيانات النقل مطلوبة');
-
-      const now = new Date().toISOString();
-      await powerSyncDb.execute(
-        `UPDATE ivf_cycles SET transfer_data = ?, updated_at = ? WHERE id = ?`,
-        [JSON.stringify(transferData), now, cycleId]
-      );
-
-      console.log('✅ Cycle transfer data updated in PowerSync:', cycleId);
-    } catch (error: any) {
-      console.error('❌ updateCycleTransfer error:', error?.message);
-      throw new Error(`فشل في حفظ بيانات النقل: ${error?.message}`);
-    }
-  },
-
-  updateCycleOutcome: async (cycleId: string, outcomeData: any) => {
-    try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!outcomeData) throw new Error('بيانات النتيجة مطلوبة');
-
-      const now = new Date().toISOString();
-      await powerSyncDb.execute(
-        `UPDATE ivf_cycles SET outcome_data = ?, status = ?, updated_at = ? WHERE id = ?`,
-        [JSON.stringify(outcomeData), 'Completed', now, cycleId]
-      );
-
-      console.log('✅ Cycle outcome updated in PowerSync:', cycleId);
-    } catch (error: any) {
-      console.error('❌ updateCycleOutcome error:', error?.message);
-      throw new Error(`فشل في حفظ نتيجة الدورة: ${error?.message}`);
-    }
-  }
-};
-</file>
-
 <file path="services/ivfService.ts">
 import { dbService } from './dbService';
 import { Patient, IvfCycle, Visit, StimulationLog } from '../types';
@@ -33550,80 +33519,8 @@ export const calculateFertilizationRate = (fertilized: number, mii: number): num
 export const db = dbService;
 </file>
 
-<file path="src/components/SyncStatus.tsx">
-import React from 'react';
-import { Cloud, CloudOff, RefreshCw } from 'lucide-react';
-import { useSyncStatus } from '../hooks/useSyncStatus';
+<file path="src/hooks/useSyncStatus.ts">
 
-interface SyncStatusProps {
-  className?: string;
-}
-
-const SyncStatus: React.FC<SyncStatusProps> = ({ className = '' }) => {
-  const { uiStatus, lastSyncTime } = useSyncStatus();
-
-  const getStatusInfo = () => {
-    if (uiStatus === 'OFFLINE') {
-      return {
-        icon: CloudOff,
-        color: 'text-gray-500',
-        bgColor: 'bg-gray-100',
-        text: 'OFFLINE',
-        description: 'All data saved locally',
-        spin: false
-      };
-    }
-
-    if (uiStatus === 'SYNCING') {
-      return {
-        icon: RefreshCw,
-        color: 'text-yellow-600',
-        bgColor: 'bg-yellow-100',
-        text: 'SYNCING',
-        description: 'Synchronizing data...',
-        spin: true
-      };
-    }
-
-    return {
-      icon: Cloud,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100',
-      text: 'READY',
-      description: lastSyncTime ? `Last synced: ${new Date(lastSyncTime).toLocaleTimeString()}` : 'Synced',
-      spin: false
-    };
-  };
-
-  const statusInfo = getStatusInfo();
-  const Icon = statusInfo.icon;
-
-  return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${statusInfo.bgColor}`}>
-        <Icon
-          className={`w-4 h-4 ${statusInfo.color} ${statusInfo.spin ? 'animate-spin' : ''}`}
-        />
-        <div className="flex flex-col">
-          <span className={`text-sm font-medium ${statusInfo.color}`}>
-            {statusInfo.text}
-          </span>
-          <span className="text-xs text-gray-600">
-            {statusInfo.description}
-          </span>
-        </div>
-      </div>
-
-      {uiStatus === 'SYNCING' && (
-        <div className="text-xs text-yellow-600">
-          Auto-sync in progress...
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default SyncStatus;
 </file>
 
 <file path="src/powersync/AppSchema.ts">
@@ -33778,6 +33675,10 @@ export const AppSchema = new Schema({
 }
 </file>
 
+<file path="components/SyncStatus.tsx">
+
+</file>
+
 <file path="pages/IvfJourney.tsx">
 import React, { useState, useEffect } from 'react';
 import { usePatients } from '../src/hooks/usePatients';
@@ -33787,7 +33688,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer, Microscope, Activity, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
-import RefreshButton from '../components/RefreshButton';
 import HistorySidebar from '../src/components/HistorySidebar';
 
 const PROTOCOL_OPTIONS = ['Long', 'Antagonist', 'Flare-up', 'Mini-IVF'];
@@ -34237,7 +34137,6 @@ const IvfJourney: React.FC = () => {
             >
               📜 السجل السابق
             </button>
-            <RefreshButton variant="secondary" showLabel={false} />
             <TestTube className="w-16 h-16 opacity-20" />
           </div>
         </div>
@@ -34832,7 +34731,6 @@ import ANCFlowSheet from './components/obstetrics/ANCFlowSheet';
 import FetalGrowthChart from './components/obstetrics/FetalGrowthChart';
 import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
-import RefreshButton from '../components/RefreshButton';
 import HistorySidebar from '../src/components/HistorySidebar';
 
 const ObstetricsDashboard: React.FC = () => {
@@ -35101,11 +34999,6 @@ const ObstetricsDashboard: React.FC = () => {
           >
             📜 السجل السابق
           </button>
-          <RefreshButton onRefreshComplete={() => {
-            if (selectedPatientId) {
-              fetchPregnancy(selectedPatientId);
-            }
-          }} />
         </div>
       </div>
 
@@ -35280,7 +35173,6 @@ import { UserPlus, Search, Phone, User, History } from 'lucide-react';
 import { usePatients } from '../src/hooks/usePatients';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
-import RefreshButton from '../components/RefreshButton';
 
 const Reception: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'register' | 'directory'>('register');
@@ -35343,10 +35235,7 @@ const Reception: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold text-gray-900">Reception & Patient Directory</h1>
-        <RefreshButton />
-      </div>
+      <h1 className="text-4xl font-bold text-gray-900">Reception & Patient Directory</h1>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[600px]">
         <div className="flex border-b border-gray-100">
@@ -35703,477 +35592,341 @@ export const authService = {
 };
 </file>
 
-<file path="pages/Dashboard.tsx">
-import React, { useEffect, useState, useMemo } from 'react';
-import {
-  Users, Activity, Calendar, TrendingUp, AlertTriangle, CheckCircle,
-  Clock, Search, Filter, Plus, Eye, Edit, Phone, MapPin,
-  BarChart3, PieChart, CalendarDays, Bell, Download, RefreshCw,
-  Stethoscope, Baby, Microscope, UserCheck, Loader2
-} from 'lucide-react';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, LineChart, Line
-} from 'recharts';
-import { usePowerSyncQuery } from '../src/hooks/usePowerSync';
-import { db as ivfService } from '../services/ivfService';
-import { obstetricsService } from '../services/obstetricsService';
-import { Patient, IvfCycle, Pregnancy } from '../types';
-import { useBranding } from '../context/BrandingContext';
+<file path="services/dbService.ts">
+import { supabase } from './supabaseClient';
+import { authService } from './authService';
+import { Patient, IvfCycle, StimulationLog } from '../types';
 
-import toast from 'react-hot-toast';
-
-const Dashboard: React.FC = () => {
-  const { branding } = useBranding();
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
-
-
-  // Live queries for real-time data
-  const { data: patients = [] } = usePowerSyncQuery<Patient>('SELECT * FROM patients');
-  const { data: cycles = [] } = usePowerSyncQuery<any>('SELECT * FROM ivf_cycles');
-  const { data: pregnancies = [] } = usePowerSyncQuery<any>('SELECT * FROM pregnancies');
-
-  // Calculate comprehensive stats
-  const stats = useMemo(() => {
-    if (!patients || !cycles || !pregnancies) return null;
-
-    const activeCycles = cycles.filter((c: any) => c.status === 'Active').length;
-    const completedCycles = cycles.filter((c: any) => c.status === 'Completed').length;
-    const highRiskPregnancies = pregnancies.filter((p: any) => p.risk_level === 'high').length;
-    const totalPregnancies = pregnancies.length;
-
-    // Mock today's visits (would come from visits table)
-    const todayVisits = Math.floor(Math.random() * 15) + 5;
-
-    // Calculate success rates
-    const successfulCycles = cycles.filter((c: any) => {
-      try {
-        const outcome = c.outcome_data ? JSON.parse(c.outcome_data) : {};
-        return outcome.clinicalPregnancy;
-      } catch (e) {
-        return false;
-      }
-    }).length;
-    const successRate = cycles.length > 0 ? Math.round((successfulCycles / cycles.length) * 100) : 0;
-
-    return {
-      totalPatients: patients.length,
-      activeCycles,
-      completedCycles,
-      totalPregnancies,
-      highRiskPregnancies,
-      todayVisits,
-      successRate,
-      pendingLabs: Math.floor(Math.random() * 8) + 2, // Mock
-      upcomingAppointments: Math.floor(Math.random() * 12) + 3 // Mock
-    };
-  }, [patients, cycles, pregnancies]);
-
-  // Filter patients based on search and department
-  const filteredPatients = useMemo(() => {
-    if (!patients) return [];
-
-    return patients.filter(patient => {
-      const matchesSearch = searchTerm === '' ||
-        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.phone.includes(searchTerm);
-
-      const matchesDepartment = selectedDepartment === 'all' ||
-        (selectedDepartment === 'ivf' && cycles.some((c: any) => c.patient_id === patient.id || c.patient_id === String(patient.id))) ||
-        (selectedDepartment === 'ob' && pregnancies.some((p: any) => p.patient_id === patient.id || p.patient_id === String(patient.id)));
-
-      return matchesSearch && matchesDepartment;
-    }).slice(0, 10); // Show top 10
-  }, [patients, cycles, pregnancies, searchTerm, selectedDepartment]);
-
-  // Mock data for charts
-  const monthlyGrowth = [
-    { month: 'Jan', patients: 45, cycles: 12, pregnancies: 8 },
-    { month: 'Feb', patients: 52, cycles: 15, pregnancies: 10 },
-    { month: 'Mar', patients: 61, cycles: 18, pregnancies: 12 },
-    { month: 'Apr', patients: 78, cycles: 22, pregnancies: 15 },
-    { month: 'May', patients: 89, cycles: 25, pregnancies: 18 },
-    { month: 'Jun', patients: 95, cycles: 28, pregnancies: 20 },
-  ];
-
-  const cycleOutcomes = [
-    { name: 'Successful', value: stats?.successRate || 0, color: '#10B981' },
-    { name: 'Ongoing', value: 100 - (stats?.successRate || 0), color: '#3B82F6' },
-  ];
-
-  const departmentStats = [
-    { name: 'IVF', patients: cycles?.length || 0, color: '#8B5CF6' },
-    { name: 'Obstetrics', patients: pregnancies?.length || 0, color: '#F59E0B' },
-    { name: 'Gynecology', patients: Math.floor((patients?.length || 0) * 0.6), color: '#EF4444' },
-  ];
-
-  // Set loading to false once we have data
-  useEffect(() => {
-    if (patients !== undefined && cycles !== undefined && pregnancies !== undefined) {
-      setLoading(false);
-    }
-  }, [patients, cycles, pregnancies]);
-
-  const handleRefresh = async () => {
+export const dbService = {
+  // --- Patients ---
+  getPatients: async (): Promise<Patient[]> => {
     try {
-      // Refresh logic if needed, or just toast
-      toast.success('Data refreshed');
-    } catch (error) {
-      toast.error('Failed to refresh data');
+      const user = await authService.getCurrentUser();
+      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
+
+      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
+      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
+
+      const { data, error } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('doctor_id', doctor.id)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        age: p.age || 0,
+        phone: p.phone,
+        husbandName: p.husband_name || '',
+        history: p.history || '',
+        createdAt: p.created_at || new Date().toISOString()
+      }));
+    } catch (error: any) {
+      console.error('❌ getPatients error:', error?.message);
+      throw new Error(`فشل في جلب قائمة المرضى: ${error?.message}`);
     }
-  };
+  },
 
-  const getPatientStatus = (patient: Patient) => {
-    const patientId = patient.id?.toString();
-    const hasActiveCycle = cycles?.some((c: any) => c.patient_id === patientId && c.status === 'Active');
-    const hasPregnancy = pregnancies?.some((p: any) => p.patient_id === patientId);
+  savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
 
-    if (hasActiveCycle) return { status: 'IVF Active', color: 'bg-purple-100 text-purple-800' };
-    if (hasPregnancy) return { status: 'Pregnancy Care', color: 'bg-pink-100 text-pink-800' };
-    return { status: 'General Care', color: 'bg-gray-100 text-gray-800' };
-  };
+      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
+      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
 
-  if (loading || patients === undefined || cycles === undefined || pregnancies === undefined) {
-    return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-teal-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading dashboard...</p>
-        </div>
-      </div>
-    );
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      const { error } = await supabase
+        .from('patients')
+        .insert([{
+          id,
+          name: patient.name,
+          age: patient.age,
+          phone: patient.phone,
+          husband_name: patient.husbandName,
+          history: patient.history,
+          doctor_id: doctor.id,
+          created_at: now,
+          updated_at: now
+        }]);
+
+      if (error) throw error;
+
+      console.log('✅ Patient saved to Supabase:', id);
+      return { id, ...patient, createdAt: now };
+    } catch (error: any) {
+      console.error('❌ savePatient error:', error?.message);
+      throw new Error(`فشل في حفظ بيانات المريض: ${error?.message}`);
+    }
+  },
+
+  // --- Cycles ---
+  getCycles: async (): Promise<IvfCycle[]> => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
+
+      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
+      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
+
+      const { data: cycles, error: cyclesError } = await supabase
+        .from('ivf_cycles')
+        .select('*')
+        .eq('doctor_id', doctor.id)
+        .order('start_date', { ascending: false });
+
+      if (cyclesError) throw cyclesError;
+
+      const { data: logs, error: logsError } = await supabase
+        .from('stimulation_logs')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (logsError) throw logsError;
+
+      const parseJSON = (str: string) => {
+        try { return str ? JSON.parse(str) : undefined; } catch (e) { return undefined; }
+      };
+
+      return (cycles || []).map((c: any) => ({
+        id: c.id,
+        patientId: c.patient_id,
+        protocol: c.protocol,
+        startDate: c.start_date,
+        status: c.status,
+        logs: (logs || [])
+          .filter((l: any) => l.cycle_id === c.id)
+          .map((l: any) => ({
+            id: l.id,
+            date: l.date,
+            cycleDay: l.cycle_day,
+            fsh: l.fsh,
+            hmg: l.hmg,
+            e2: l.e2,
+            lh: l.lh,
+            rtFollicles: l.rt_follicles,
+            ltFollicles: l.lt_follicles,
+            endometriumThickness: l.endometrium_thickness
+          })),
+        lab: parseJSON(c.lab_data),
+        transfer: parseJSON(c.transfer_data),
+        outcome: parseJSON(c.outcome_data),
+        assessment: parseJSON(c.assessment_data)
+      }));
+    } catch (error: any) {
+      console.error('❌ getCycles error:', error?.message);
+      throw new Error(`فشل في جلب دورات الحقن المجهري: ${error?.message}`);
+    }
+  },
+
+  saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
+
+      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
+      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
+
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .insert([{
+          id,
+          patient_id: cycle.patientId,
+          doctor_id: doctor.id,
+          protocol: cycle.protocol,
+          status: cycle.status || 'Active',
+          start_date: cycle.startDate,
+          assessment_data: JSON.stringify(cycle.assessment || {}),
+          lab_data: JSON.stringify(cycle.lab || {}),
+          transfer_data: JSON.stringify(cycle.transfer || {}),
+          outcome_data: JSON.stringify(cycle.outcome || {}),
+          created_at: now,
+          updated_at: now
+        }]);
+
+      if (error) throw error;
+
+      console.log('✅ IVF Cycle saved to Supabase:', id);
+      return { id, ...cycle };
+    } catch (error: any) {
+      console.error('❌ saveCycle error:', error?.message);
+      throw new Error(`فشل في حفظ دورة الحقن المجهري: ${error?.message}`);
+    }
+  },
+
+  // --- Logs ---
+  addLog: async (cycleId: string, log: Partial<StimulationLog>) => {
+    try {
+      if (!cycleId) throw new Error('معرف الدورة مطلوب');
+      if (!log.date || !log.cycleDay) throw new Error('التاريخ ورقم اليوم مطلوب');
+
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      const { error } = await supabase
+        .from('stimulation_logs')
+        .insert([{
+          id,
+          cycle_id: cycleId,
+          cycle_day: log.cycleDay,
+          date: log.date,
+          fsh: log.fsh || '',
+          hmg: log.hmg || '',
+          e2: log.e2 || '',
+          lh: log.lh || '',
+          rt_follicles: log.rtFollicles || '',
+          lt_follicles: log.ltFollicles || '',
+          endometrium_thickness: log.endometriumThickness || '',
+          created_at: now,
+          updated_at: now
+        }]);
+
+      if (error) throw error;
+
+      console.log('✅ Stimulation log saved to Supabase:', id);
+      return { id, ...log };
+    } catch (error: any) {
+      console.error('❌ addLog error:', error?.message);
+      throw new Error(`فشل في إضافة سجل التحفيز: ${error?.message}`);
+    }
+  },
+
+  updateLog: async (logId: string, updates: Partial<StimulationLog>) => {
+    try {
+      if (!logId) throw new Error('معرف السجل مطلوب');
+
+      const updateData: any = {};
+      if (updates.fsh !== undefined) updateData.fsh = updates.fsh;
+      if (updates.hmg !== undefined) updateData.hmg = updates.hmg;
+      if (updates.e2 !== undefined) updateData.e2 = updates.e2;
+      if (updates.lh !== undefined) updateData.lh = updates.lh;
+      if (updates.rtFollicles !== undefined) updateData.rt_follicles = updates.rtFollicles;
+      if (updates.ltFollicles !== undefined) updateData.lt_follicles = updates.ltFollicles;
+      if (updates.endometriumThickness !== undefined) updateData.endometrium_thickness = updates.endometriumThickness;
+
+      if (Object.keys(updateData).length === 0) throw new Error('لا توجد تحديثات للتطبيق');
+
+      updateData.updated_at = new Date().toISOString();
+
+      const { error } = await supabase
+        .from('stimulation_logs')
+        .update(updateData)
+        .eq('id', logId);
+
+      if (error) throw error;
+
+      console.log('✅ Stimulation log updated in Supabase:', logId);
+    } catch (error: any) {
+      console.error('❌ updateLog error:', error?.message);
+      throw new Error(`فشل في تحديث سجل التحفيز: ${error?.message}`);
+    }
+  },
+
+  updateCycleAssessment: async (cycleId: string, assessment: any) => {
+    try {
+      if (!cycleId) throw new Error('معرف الدورة مطلوب');
+      if (!assessment) throw new Error('بيانات التقييم مطلوبة');
+
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .update({
+          assessment_data: JSON.stringify(assessment),
+          updated_at: now
+        })
+        .eq('id', cycleId);
+
+      if (error) throw error;
+
+      console.log('✅ Cycle assessment updated in Supabase:', cycleId);
+    } catch (error: any) {
+      console.error('❌ updateCycleAssessment error:', error?.message);
+      throw new Error(`فشل في حفظ التقييم: ${error?.message}`);
+    }
+  },
+
+  updateCycleLabData: async (cycleId: string, labData: any) => {
+    try {
+      if (!cycleId) throw new Error('معرف الدورة مطلوب');
+      if (!labData) throw new Error('بيانات المختبر مطلوبة');
+
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .update({
+          lab_data: JSON.stringify(labData),
+          updated_at: now
+        })
+        .eq('id', cycleId);
+
+      if (error) throw error;
+
+      console.log('✅ Cycle lab data updated in Supabase:', cycleId);
+    } catch (error: any) {
+      console.error('❌ updateCycleLabData error:', error?.message);
+      throw new Error(`فشل في حفظ بيانات المختبر: ${error?.message}`);
+    }
+  },
+
+  updateCycleTransfer: async (cycleId: string, transferData: any) => {
+    try {
+      if (!cycleId) throw new Error('معرف الدورة مطلوب');
+      if (!transferData) throw new Error('بيانات النقل مطلوبة');
+
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .update({
+          transfer_data: JSON.stringify(transferData),
+          updated_at: now
+        })
+        .eq('id', cycleId);
+
+      if (error) throw error;
+
+      console.log('✅ Cycle transfer data updated in Supabase:', cycleId);
+    } catch (error: any) {
+      console.error('❌ updateCycleTransfer error:', error?.message);
+      throw new Error(`فشل في حفظ بيانات النقل: ${error?.message}`);
+    }
+  },
+
+  updateCycleOutcome: async (cycleId: string, outcomeData: any) => {
+    try {
+      if (!cycleId) throw new Error('معرف الدورة مطلوب');
+      if (!outcomeData) throw new Error('بيانات النتيجة مطلوبة');
+
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('ivf_cycles')
+        .update({
+          outcome_data: JSON.stringify(outcomeData),
+          status: 'Completed',
+          updated_at: now
+        })
+        .eq('id', cycleId);
+
+      if (error) throw error;
+
+      console.log('✅ Cycle outcome updated in Supabase:', cycleId);
+    } catch (error: any) {
+      console.error('❌ updateCycleOutcome error:', error?.message);
+      throw new Error(`فشل في حفظ نتيجة الدورة: ${error?.message}`);
+    }
   }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-6 md:px-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 font-[Tajawal]">
-              {branding?.clinic_name || 'Nile IVF & OB/GYN Center'}
-            </h1>
-            <p className="text-gray-600 mt-1">Professional Clinic Management Dashboard</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Refresh Button */}
-            <button
-              onClick={handleRefresh}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-4 py-6 md:px-8 space-y-6">
-        {/* Advanced KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Total Patients</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalPatients}</p>
-              </div>
-              <Users className="w-8 h-8 text-blue-600" />
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Active IVF Cycles</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.activeCycles}</p>
-              </div>
-              <Microscope className="w-8 h-8 text-purple-600" />
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Pregnancy Care</p>
-                <p className="text-2xl font-bold text-pink-600">{stats.totalPregnancies}</p>
-              </div>
-              <Baby className="w-8 h-8 text-pink-600" />
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Success Rate</p>
-                <p className="text-2xl font-bold text-green-600">{stats.successRate}%</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Today's Visits</p>
-                <p className="text-2xl font-bold text-orange-600">{stats.todayVisits}</p>
-              </div>
-              <Calendar className="w-8 h-8 text-orange-600" />
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">High Risk Cases</p>
-                <p className="text-2xl font-bold text-red-600">{stats.highRiskPregnancies}</p>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-red-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Patient Overview */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Search and Filters */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                <div className="flex-1 relative">
-                  <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search patients by name or phone..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  />
-                </div>
-                <select
-                  value={selectedDepartment}
-                  onChange={(e) => setSelectedDepartment(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                >
-                  <option value="all">All Departments</option>
-                  <option value="ivf">IVF Patients</option>
-                  <option value="ob">Obstetrics</option>
-                  <option value="gyn">Gynecology</option>
-                </select>
-              </div>
-
-              {/* Patient List */}
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {filteredPatients.map((patient) => {
-                  const status = getPatientStatus(patient);
-                  return (
-                    <div key={patient.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
-                          <span className="text-teal-700 font-semibold">{patient.name.charAt(0)}</span>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-900">{patient.name}</h4>
-                          <p className="text-sm text-gray-600">{patient.phone}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
-                          {status.status}
-                        </span>
-                        <div className="flex gap-1">
-                          <button className="p-2 text-gray-400 hover:text-teal-600 transition-colors">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button className="p-2 text-gray-400 hover:text-teal-600 transition-colors">
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button className="p-2 text-gray-400 hover:text-teal-600 transition-colors">
-                            <Phone className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Growth Chart */}
-              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-teal-600" />
-                  Monthly Growth
-                </h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={monthlyGrowth}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="patients" stroke="#00838f" strokeWidth={2} />
-                      <Line type="monotone" dataKey="cycles" stroke="#8B5CF6" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Success Rate */}
-              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                  IVF Success Rate
-                </h3>
-                <div className="h-64 flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsPieChart>
-                      <Pie
-                        data={cycleOutcomes}
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {cycleOutcomes.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </RechartsPieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="text-center mt-4">
-                  <p className="text-2xl font-bold text-gray-900">{stats.successRate}%</p>
-                  <p className="text-sm text-gray-600">Success Rate</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Department Overview */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-teal-600" />
-                Department Overview
-              </h3>
-              <div className="space-y-4">
-                {departmentStats.map((dept, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dept.color }}></div>
-                      <span className="text-sm font-medium text-gray-700">{dept.name}</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{dept.patients}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Alerts & Notifications */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Bell className="w-5 h-5 text-orange-600" />
-                Alerts & Notifications
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg">
-                  <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-red-900">High Risk Pregnancy</p>
-                    <p className="text-xs text-red-700">Patient requires immediate attention</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg">
-                  <Clock className="w-5 h-5 text-yellow-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-yellow-900">Pending Lab Results</p>
-                    <p className="text-xs text-yellow-700">{stats.pendingLabs} results awaiting review</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-                  <Calendar className="w-5 h-5 text-blue-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-900">Upcoming Appointments</p>
-                    <p className="text-xs text-blue-700">{stats.upcomingAppointments} scheduled for today</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Today's Schedule */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <CalendarDays className="w-5 h-5 text-teal-600" />
-                Today's Schedule
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium text-blue-900">Dr. Ahmed - IVF Consultation</p>
-                    <p className="text-xs text-blue-700">10:00 AM - 10:30 AM</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
-                  <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium text-purple-900">Ultrasound - Pregnancy Check</p>
-                    <p className="text-xs text-purple-700">11:00 AM - 11:30 AM</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                  <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium text-green-900">Lab Results Review</p>
-                    <p className="text-xs text-green-700">2:00 PM - 2:30 PM</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <button className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors">
-                  <Plus className="w-5 h-5 text-teal-600" />
-                  <span className="text-sm font-medium text-teal-900">New Patient</span>
-                </button>
-                <button className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
-                  <Microscope className="w-5 h-5 text-purple-600" />
-                  <span className="text-sm font-medium text-purple-900">Start IVF Cycle</span>
-                </button>
-                <button className="w-full flex items-center gap-3 p-3 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors">
-                  <Baby className="w-5 h-5 text-pink-600" />
-                  <span className="text-sm font-medium text-pink-900">Add Pregnancy</span>
-                </button>
-                <button
-                  onClick={() => {
-                    // Mock export functionality
-                    toast.success('Report exported successfully');
-                  }}
-                  className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <Download className="w-5 h-5 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-900">Export Report</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 };
+</file>
 
-export default Dashboard;
+<file path="src/components/SyncStatus.tsx">
+
 </file>
 
 <file path="services/visitsService.ts">
@@ -36642,7 +36395,6 @@ import { powerSyncDb } from '../src/powersync/client';
 import { visitsService } from '../services/visitsService';
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
-import RefreshButton from '../components/RefreshButton';
 
 const PatientMasterRecord: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
@@ -36864,12 +36616,6 @@ const PatientMasterRecord: React.FC = () => {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Patient Master Record</h1>
             <p className="text-gray-600">Comprehensive Medical Timeline & Archive</p>
           </div>
-          <RefreshButton onRefreshComplete={() => {
-            if (selectedPatientId) {
-              fetchPatientVisits(selectedPatientId);
-              fetchPatientFiles(selectedPatientId);
-            }
-          }} />
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">
@@ -37309,47 +37055,6 @@ export function usePowerSyncCycles(patientId?: string) {
 
 // Direct database access for writes
 export const db = getDb();
-</file>
-
-<file path="package.json">
-{
-  "name": "dr-salah-ivf-center",
-  "private": true,
-  "version": "1.0.0",
-  "author": "Dr. Mohamed Salah Gabr",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@journeyapps/wa-sqlite": "^1.4.1",
-    "@powersync/react": "^1.8.2",
-    "@powersync/web": "^1.29.1",
-    "@supabase/supabase-js": "^2.39.7",
-    "clsx": "^2.1.0",
-    "lucide-react": "^0.344.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-hot-toast": "^2.4.1",
-    "recharts": "^2.12.2",
-    "tailwind-merge": "^2.2.1",
-    "wa-sqlite": "^1.0.0"
-  },
-  "devDependencies": {
-    "@types/react": "^18.2.64",
-    "@types/react-dom": "^18.2.21",
-    "@vitejs/plugin-react": "^4.7.0",
-    "autoprefixer": "^10.4.18",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5.9.3",
-    "vite": "^7.2.7",
-    "vite-plugin-pwa": "^1.2.0"
-  }
-}
 </file>
 
 <file path="services/obstetricsService.ts">
@@ -37841,6 +37546,48 @@ export const obstetricsService = {
 };
 </file>
 
+<file path="package.json">
+{
+  "name": "dr-salah-ivf-center",
+  "private": true,
+  "version": "1.0.0",
+  "author": "Dr. Mohamed Salah Gabr",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@journeyapps/wa-sqlite": "^1.4.1",
+    "@powersync/react": "^1.8.2",
+    "@powersync/web": "^1.29.1",
+    "@supabase/supabase-js": "^2.39.7",
+    "clsx": "^2.1.0",
+    "lucide-react": "^0.344.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
+    "recharts": "^2.12.2",
+    "tailwind-merge": "^2.2.1",
+    "wa-sqlite": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.2",
+    "@types/react": "^18.2.64",
+    "@types/react-dom": "^18.2.21",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.18",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.7",
+    "vite-plugin-pwa": "^1.2.0"
+  }
+}
+</file>
+
 <file path="src/powersync/client.ts">
 /**
  * Legacy client exports.
@@ -38018,16 +37765,11 @@ export default defineConfig({
 
 <file path="pages/Settings.tsx">
 import React, { useState, useEffect } from 'react';
-import { User, Palette, FileText, Lock, Upload, Save, AlertCircle, CheckCircle, Facebook, MessageCircle, Loader, Database, RefreshCw, Wifi, WifiOff, Server } from 'lucide-react';
+import { User, Palette, FileText, Lock, Upload, Save, AlertCircle, CheckCircle, Facebook, MessageCircle, Loader, Database } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
 import { Doctor } from '../types';
-import { powerSyncDb } from '../src/powersync/client';
-import RefreshButton from '../components/RefreshButton';
-import { useStatus } from '@powersync/react';
-import { supabase } from '../services/supabaseClient';
-import { connectPowerSync } from '../src/powersync/client';
 
 interface SettingsProps {
   user: any;
@@ -38038,7 +37780,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
-  const [activeTab, setActiveTab] = useState<'branding' | 'prescription' | 'profile' | 'password' | 'data' | 'connection' | 'debug'>('branding');
+  const [activeTab, setActiveTab] = useState<'branding' | 'prescription' | 'profile' | 'password' | 'data'>('branding');
 
   const [brandingFormData, setBrandingFormData] = useState({
     clinic_name: '',
@@ -38067,18 +37809,6 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploadLoading, setLogoUploadLoading] = useState(false);
-  const [hardResetLoading, setHardResetLoading] = useState(false);
-  const [rowCounts, setRowCounts] = useState<Record<string, number | string>>({});
-  
-  // Connection status
-  const powerSyncStatus = useStatus();
-  const [supabaseStatus, setSupabaseStatus] = useState<{
-    connected: boolean;
-    url: string;
-    error?: string;
-    user?: any;
-  }>({ connected: false, url: '' });
-  const [checkingConnection, setCheckingConnection] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38104,94 +37834,9 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     };
 
     fetchData();
-    checkConnections();
-    if (import.meta.env.DEV) {
-      fetchRowCounts();
-    }
   }, [user]);
 
-  const checkConnections = async () => {
-    setCheckingConnection(true);
-    try {
-      // Check Supabase
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      if (!supabaseUrl) {
-        setSupabaseStatus({
-          connected: false,
-          url: 'Not configured',
-          error: 'VITE_SUPABASE_URL not found'
-        });
-      } else {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !session) {
-          setSupabaseStatus({
-            connected: false,
-            url: supabaseUrl,
-            error: sessionError?.message || 'No active session'
-          });
-        } else {
-          // In PowerSync-only dev mode, Supabase is used ONLY for auth/token.
-          // Do not query Supabase tables from the UI.
-          setSupabaseStatus({
-            connected: true,
-            url: supabaseUrl,
-            user: session.user
-          });
-        }
-      }
-    } catch (error: any) {
-      setSupabaseStatus({
-        connected: false,
-        url: import.meta.env.VITE_SUPABASE_URL || 'Unknown',
-        error: error?.message || 'Unknown error'
-      });
-    } finally {
-      setCheckingConnection(false);
-    }
-  };
 
-  const fetchRowCounts = async () => {
-    const tables = ['patients', 'visits', 'clinical_stations', 'obstetrics', 'ivf_cycles', 'doctors'];
-    const counts: Record<string, number | string> = {};
-    for (const table of tables) {
-      try {
-        const result = await powerSyncDb.getOptional(`SELECT COUNT(*) as count FROM ${table}`);
-        counts[table] = result?.count || 0;
-      } catch (e) {
-        counts[table] = 'error';
-      }
-    }
-    setRowCounts(counts);
-  };
-
-  const handleReconnectPowerSync = async () => {
-    try {
-      setCheckingConnection(true);
-      toast.loading('جاري إعادة الاتصال...', { id: 'reconnect' });
-      
-      // Force reconnection
-      await connectPowerSync({ force: true });
-      
-      // Wait a bit for status to update
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check if connected now
-      if (powerSyncStatus.connected) {
-        toast.success('✅ تم الاتصال بنجاح!', { id: 'reconnect' });
-      } else {
-        toast.error('⚠️ فشل الاتصال - تحقق من Console للتفاصيل', { id: 'reconnect', duration: 5000 });
-      }
-    } catch (error: any) {
-      console.error('❌ Reconnection error:', error);
-      toast.error(`❌ فشل الاتصال: ${error?.message || 'خطأ غير معروف'}`, { id: 'reconnect', duration: 5000 });
-    } finally {
-      setCheckingConnection(false);
-      // Refresh connection status
-      setTimeout(() => checkConnections(), 2000);
-    }
-  };
-
-  // Legacy sync stats effects removed
 
   useEffect(() => {
     if (branding) {
@@ -38326,93 +37971,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
   // Unused handlers removed
 
-  const handleHardReset = async () => {
-    const confirmed = window.confirm('⚠️ تحذير: سيتم حذف جميع البيانات المحلية وإعادة تحميلها من السيرفر. هل أنت متأكد؟');
-    if (!confirmed) return;
 
-    try {
-      setHardResetLoading(true);
-      toast.loading('جاري حذف قاعدة البيانات المحلية...', { id: 'hard-reset' });
-
-      // TODO: Implement PowerSync database reset
-      // await db.delete();
-
-      toast.loading('جاري إعادة إنشاء قاعدة البيانات...', { id: 'hard-reset' });
-
-      // TODO: Implement PowerSync database initialization
-      // await initLocalDB();
-
-      toast.loading('جاري تحميل البيانات من السيرفر...', { id: 'hard-reset' });
-
-      // Disconnect to allow clean reconnection (data preserved for offline-first)
-      await powerSyncDb.disconnect();
-
-      toast.success('تم إعادة تحميل البيانات بنجاح! سيتم إعادة تحميل الصفحة...', { id: 'hard-reset' });
-
-      // Reload page
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-
-    } catch (error) {
-      console.error('Hard reset error:', error);
-      toast.error('فشل إعادة تحميل البيانات. تحقق من اتصال الإنترنت وحاول مرة أخرى.', { id: 'hard-reset' });
-    } finally {
-      setHardResetLoading(false);
-    }
-  };
-
-  const handleClearLocalDB = async () => {
-    const currentHost = window.location.host;
-    const confirmed = window.confirm(
-      `⚠️ تحذير: سيتم حذف جميع البيانات المحلية لهذا الموقع فقط (${currentHost}).\n\n` +
-      'لن يؤثر على بيانات المواقع الأخرى أو الخادم. هل أنت متأكد؟'
-    );
-    if (!confirmed) return;
-
-    try {
-      setHardResetLoading(true);
-      toast.loading('جاري حذف قاعدة البيانات المحلية...', { id: 'clear-db' });
-
-      // Get all IndexedDB database names
-      const dbs = await (window.indexedDB as any).databases?.() || [];
-      
-      // Delete PowerSync database
-      const powerSyncDbNames = ['powersync', 'powersync.db'];
-      for (const dbName of [...dbs.map((db: any) => db.name), ...powerSyncDbNames]) {
-        try {
-          await new Promise<void>((resolve, reject) => {
-            const request = window.indexedDB.deleteDatabase(dbName);
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-          });
-          console.log(`✅ Deleted database: ${dbName}`);
-        } catch (error) {
-          console.warn(`⚠️ Could not delete database ${dbName}:`, error);
-        }
-      }
-
-      // Clear LocalStorage for this origin
-      localStorage.clear();
-      console.log('✅ Cleared localStorage');
-
-      // Clear SessionStorage for this origin
-      sessionStorage.clear();
-      console.log('✅ Cleared sessionStorage');
-
-      toast.success('تم حذف البيانات المحلية بنجاح! سيتم إعادة تحميل الصفحة...', { id: 'clear-db' });
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-
-    } catch (error) {
-      console.error('Clear local DB error:', error);
-      toast.error('فشل حذف البيانات المحلية. قد تحتاج إلى إعادة فتح المتصفح.', { id: 'clear-db' });
-    } finally {
-      setHardResetLoading(false);
-    }
-  };
 
   if (loading || brandingLoading) {
     return (
@@ -38424,12 +37983,9 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">لوحة التحكم الإدارية</h1>
-          <p className="text-gray-600 font-[Tajawal]">تحكم في إعدادات التطبيق والهوية البصرية والروشتات الطبية</p>
-        </div>
-        <RefreshButton />
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">لوحة التحكم الإدارية</h1>
+        <p className="text-gray-600 font-[Tajawal]">تحكم في إعدادات التطبيق والهوية البصرية والروشتات الطبية</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-8 border-b border-gray-200">
@@ -38483,28 +38039,6 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
           <Database size={20} />
           إدارة البيانات
         </button>
-        <button
-          onClick={() => setActiveTab('connection')}
-          className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${activeTab === 'connection'
-            ? 'border-teal-600 text-teal-600'
-            : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-        >
-          <Server size={20} />
-          حالة الاتصال
-        </button>
-        {import.meta.env.DEV && (
-          <button
-            onClick={() => setActiveTab('debug')}
-            className={`flex items-center gap-2 px-4 py-3 font-[Tajawal] font-semibold border-b-2 transition-colors ${activeTab === 'debug'
-              ? 'border-teal-600 text-teal-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-          >
-            <Database size={20} />
-            Debug (DEV)
-          </button>
-        )}
       </div>
 
       {activeTab === 'branding' && (
@@ -38783,286 +38317,23 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
         </div>
       )}
 
-      {activeTab === 'connection' && (
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-gray-900 font-[Tajawal]">حالة الاتصال</h3>
-            <button
-              onClick={checkConnections}
-              disabled={checkingConnection}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white rounded-lg font-[Tajawal] transition-colors"
-            >
-              <RefreshCw size={18} className={checkingConnection ? 'animate-spin' : ''} />
-              تحديث
-            </button>
-          </div>
 
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
-            {/* Supabase Status */}
-            <div className={`border-2 rounded-lg p-6 ${supabaseStatus.connected ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-semibold text-gray-900 font-[Tajawal]">Supabase</h4>
-                {supabaseStatus.connected ? (
-                  <CheckCircle className="text-green-600" size={24} />
-                ) : (
-                  <AlertCircle className="text-red-600" size={24} />
-                )}
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700 font-[Tajawal]">الحالة:</span>
-                  <span className={`text-sm font-bold ${supabaseStatus.connected ? 'text-green-700' : 'text-red-700'} font-[Tajawal]`}>
-                    {supabaseStatus.connected ? '✅ متصل' : '❌ غير متصل'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700 font-[Tajawal]">الرابط:</span>
-                  <span className="text-xs text-gray-600 font-mono break-all">{supabaseStatus.url}</span>
-                </div>
-                {supabaseStatus.user && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700 font-[Tajawal]">المستخدم:</span>
-                    <span className="text-sm text-gray-600">{supabaseStatus.user.email}</span>
-                  </div>
-                )}
-                {supabaseStatus.error && (
-                  <div className="mt-2 p-2 bg-red-100 rounded text-xs text-red-700 font-[Tajawal]">
-                    {supabaseStatus.error}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* PowerSync Status */}
-            <div className={`border-2 rounded-lg p-6 ${powerSyncStatus.connected ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-semibold text-gray-900 font-[Tajawal]">PowerSync</h4>
-                {powerSyncStatus.connected ? (
-                  <CheckCircle className="text-green-600" size={24} />
-                ) : (
-                  <AlertCircle className="text-red-600" size={24} />
-                )}
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700 font-[Tajawal]">الحالة:</span>
-                  <span className={`text-sm font-bold ${powerSyncStatus.connected ? 'text-green-700' : 'text-red-700'} font-[Tajawal]`}>
-                    {powerSyncStatus.connected ? '✅ متصل' : powerSyncStatus.connecting ? '🔄 جاري الاتصال...' : '❌ غير متصل'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700 font-[Tajawal]">الرابط:</span>
-                  <span className="text-xs text-gray-600 font-mono break-all">
-                    {import.meta.env.VITE_POWERSYNC_URL || 'Not configured'}
-                  </span>
-                </div>
-                {powerSyncStatus.lastSyncedAt && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700 font-[Tajawal]">آخر مزامنة:</span>
-                    <span className="text-sm text-gray-600">
-                      {new Date(powerSyncStatus.lastSyncedAt).toLocaleString('ar-EG')}
-                    </span>
-                  </div>
-                )}
-                {!powerSyncStatus.connected && (
-                  <div className="mt-3 space-y-2">
-                    <button
-                      onClick={handleReconnectPowerSync}
-                      disabled={checkingConnection || powerSyncStatus.connecting}
-                      className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-[Tajawal] transition-colors"
-                    >
-                      <RefreshCw size={16} className={checkingConnection ? 'animate-spin' : ''} />
-                      {checkingConnection ? 'جاري الاتصال...' : 'إعادة الاتصال'}
-                    </button>
-                    <p className="text-xs text-gray-600 text-center font-[Tajawal]">
-                      اضغط F12 وافتح Console لرؤية تفاصيل الخطأ
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Overall Status */}
-          <div className={`border-2 rounded-lg p-6 ${
-            supabaseStatus.connected && powerSyncStatus.connected
-              ? 'border-green-300 bg-green-50'
-              : supabaseStatus.connected || powerSyncStatus.connected
-              ? 'border-yellow-300 bg-yellow-50'
-              : 'border-red-300 bg-red-50'
-          }`}>
-            <h4 className="text-lg font-semibold text-gray-900 mb-3 font-[Tajawal]">الحالة العامة</h4>
-            <p className={`text-sm font-[Tajawal] ${
-              supabaseStatus.connected && powerSyncStatus.connected
-                ? 'text-green-800'
-                : supabaseStatus.connected || powerSyncStatus.connected
-                ? 'text-yellow-800'
-                : 'text-red-800'
-            }`}>
-              {supabaseStatus.connected && powerSyncStatus.connected
-                ? '✅ جميع الاتصالات تعمل بشكل صحيح - البيانات متزامنة'
-                : supabaseStatus.connected
-                ? '⚠️ Supabase متصل، لكن PowerSync غير متصل'
-                : powerSyncStatus.connected
-                ? '⚠️ PowerSync متصل، لكن Supabase غير متصل'
-                : '❌ جميع الاتصالات فاشلة - يرجى التحقق من الإعدادات'}
-            </p>
-          </div>
-
-          {/* Environment Variables Check */}
-          <div className="mt-6 border border-gray-200 rounded-lg p-6">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4 font-[Tajawal]">متغيرات البيئة</h4>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 font-[Tajawal]">VITE_SUPABASE_URL:</span>
-                <span className={`text-xs font-mono ${import.meta.env.VITE_SUPABASE_URL ? 'text-green-600' : 'text-red-600'}`}>
-                  {import.meta.env.VITE_SUPABASE_URL ? '✓ موجود' : '✗ غير موجود'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 font-[Tajawal]">VITE_SUPABASE_ANON_KEY:</span>
-                <span className={`text-xs font-mono ${import.meta.env.VITE_SUPABASE_ANON_KEY ? 'text-green-600' : 'text-red-600'}`}>
-                  {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✓ موجود' : '✗ غير موجود'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 font-[Tajawal]">VITE_POWERSYNC_URL:</span>
-                <span className={`text-xs font-mono ${import.meta.env.VITE_POWERSYNC_URL ? 'text-green-600' : 'text-red-600'}`}>
-                  {import.meta.env.VITE_POWERSYNC_URL ? '✓ موجود' : '✗ غير موجود'}
-                </span>
-              </div>
-            </div>
-            
-            {/* Troubleshooting Tips */}
-            {!powerSyncStatus.connected && (
-              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <h5 className="text-sm font-semibold text-yellow-900 mb-2 font-[Tajawal]">نصائح لحل المشكلة:</h5>
-                <ul className="text-xs text-yellow-800 space-y-1 list-disc list-inside font-[Tajawal]">
-                  <li>تأكد من وجود جميع متغيرات البيئة في ملف .env</li>
-                  <li>أعد تشغيل سيرفر التطوير بعد تعديل .env</li>
-                  <li>تحقق من Console (F12) لرؤية تفاصيل الخطأ</li>
-                  <li>تأكد من أن PowerSync URL صحيح من Dashboard</li>
-                  <li>تأكد من أنك مسجل دخول بشكل صحيح</li>
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {activeTab === 'data' && (
         <div className="bg-white rounded-lg shadow-md p-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">إدارة البيانات والمزامنة</h3>
+          <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">إدارة البيانات</h3>
 
-          <div className="grid md:grid-cols-1 gap-8 mb-8">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="text-lg font-semibold text-blue-900 mb-2 font-[Tajawal]">حالة المزامنة</h4>
-              <p className="text-sm text-blue-800 font-[Tajawal]">
-                يتم مزامنة البيانات تلقائياً مع السيرفر باستخدام PowerSync.
-                تعمل هذه التقنية في الخلفية لضمان توفر بياناتك دائماً، حتى بدون اتصال بالإنترنت.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 mb-4 font-[Tajawal]">أدوات المطور</h4>
-              <p className="text-sm text-gray-600 mb-4 font-[Tajawal]">
-                استخدم هذه الأداة عندما تكون البيانات المحلية غير متزامنة مع السيرفر أو عند وجود مشاكل في العرض.
-              </p>
-              <button
-                onClick={handleHardReset}
-                disabled={hardResetLoading}
-                className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
-              >
-                {hardResetLoading ? (
-                  <>
-                    <Loader size={18} className="animate-spin" />
-                    جاري إعادة التحميل...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw size={18} />
-                    إعادة تحميل قاعدة البيانات (Hard Reset)
-                  </>
-                )}
-              </button>
-              <p className="text-xs text-red-600 mt-2 font-[Tajawal]">
-                تحذير: سيتم حذف جميع البيانات المحلية وإعادة تحميلها من السيرفر
-              </p>
-
-              <button
-                onClick={handleClearLocalDB}
-                disabled={hardResetLoading}
-                className="w-full flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors mt-4"
-              >
-                {hardResetLoading ? (
-                  <>
-                    <Loader size={18} className="animate-spin" />
-                    جاري المسح...
-                  </>
-                ) : (
-                  <>
-                    <Database size={18} />
-                    مسح البيانات المحلية فقط (لهذا الموقع)
-                  </>
-                )}
-              </button>
-              <p className="text-xs text-orange-600 mt-2 font-[Tajawal]">
-                تحذير: سيتم حذف جميع البيانات المحلية لهذا الموقع فقط (IndexedDB, LocalStorage). لن يؤثر على الخادم أو مواقع أخرى.
-              </p>
-            </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="text-lg font-semibold text-blue-900 mb-2 font-[Tajawal]">البيانات السحابية</h4>
+            <p className="text-sm text-blue-800 font-[Tajawal]">
+              جميع بيانات التطبيق مخزنة بشكل آمن في Supabase ويتم الوصول إليها عبر الإنترنت.
+              يتم حفظ كل التغييرات مباشرة على السيرفر.
+            </p>
           </div>
         </div>
       )}
 
-      {activeTab === 'debug' && import.meta.env.DEV && (
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">Debug Panel (DEV Only)</h3>
 
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
-            {/* PowerSync Status */}
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h4 className="font-semibold mb-2 font-[Tajawal]">PowerSync Status</h4>
-              <div className="space-y-1 text-sm">
-                <div>Connected: {powerSyncStatus.connected ? 'Yes' : 'No'}</div>
-                <div>Connecting: {powerSyncStatus.connecting ? 'Yes' : 'No'}</div>
-                <div>Last Synced: {powerSyncStatus.lastSyncedAt ? new Date(powerSyncStatus.lastSyncedAt).toLocaleString() : 'Never'}</div>
-              </div>
-            </div>
-
-            {/* Row Counts */}
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h4 className="font-semibold mb-2 font-[Tajawal]">Local Row Counts</h4>
-              <div className="space-y-1 text-sm">
-                {Object.entries(rowCounts).map(([table, count]) => (
-                  <div key={table}>{table}: {count}</div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <h4 className="font-semibold mb-2 font-[Tajawal]">Profile</h4>
-            <div className="text-sm">
-              <div>Doctor ID: {doctor?.id}</div>
-              <div>Clinic ID: Not available</div>
-            </div>
-          </div>
-
-          <button
-            onClick={async () => {
-              try {
-                await connectPowerSync({ force: true });
-                toast.success('Force resync initiated');
-              } catch (e) {
-                toast.error('Force resync failed');
-              }
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-[Tajawal] transition-colors"
-          >
-            Force Resync
-          </button>
-        </div>
-      )}
     </div>
 
   );
@@ -39421,10 +38692,9 @@ export const syncManager = syncService;
 </file>
 
 <file path="App.tsx">
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import BottomNav from './components/BottomNav';
-// import SyncStatus from './components/SyncStatus';
 import EnvErrorBanner from './components/EnvErrorBanner';
 import PreviewWarningBanner from './components/PreviewWarningBanner';
 import { Page } from './types';
@@ -39439,157 +38709,41 @@ import AdminDashboard from './pages/AdminDashboard';
 import { Login } from './pages/Login';
 import { Toaster } from 'react-hot-toast';
 import { authService } from './services/authService';
-import { LogOut, WifiOff, Wifi } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { BrandingProvider } from './context/BrandingContext';
 import { initPWA } from './src/lib/pwa';
-import { connectPowerSync } from './src/powersync/client';
-import { useStatus } from '@powersync/react';
-import { checkOfflineReadiness } from './src/lib/offlineReadinessCheck';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
-  const powerSyncStatus = useStatus();
-
-  useEffect(() => {
-    const handleStatusChange = () => setIsOffline(!navigator.onLine);
-    window.addEventListener('online', handleStatusChange);
-    window.addEventListener('offline', handleStatusChange);
-    return () => {
-      window.removeEventListener('online', handleStatusChange);
-      window.removeEventListener('offline', handleStatusChange);
-    };
-  }, []);
-
-  // PowerSync initialization is handled once per session in auth state change
-
-  useEffect(() => {
-    // Only log status changes in development
-    if (import.meta.env.DEV) {
-      console.log('🔌 PowerSync Status Change:', JSON.stringify(powerSyncStatus, null, 2));
-      console.log('🔌 Connected:', powerSyncStatus.connected);
-      console.log('🔌 Connecting:', powerSyncStatus.connecting);
-    }
-
-    // Log connection status for debugging (no auto-retry loops)
-    if (powerSyncStatus.connected) {
-      console.log('✅ PowerSync is connected - offline data available');
-    } else if (!powerSyncStatus.connecting) {
-      console.log('⚠️ PowerSync disconnected - working in offline mode');
-    }
-  }, [powerSyncStatus]);
 
   useEffect(() => {
     const initializeApp = async () => {
       try {
         setLoading(true);
-        setConnectionError(null);
 
-        // 1. Initialize PWA
         initPWA().catch(console.warn);
 
-        // 2. Check user authentication
         let currentUser;
         try {
           currentUser = await authService.getCurrentUser();
         } catch (authError: any) {
-          console.warn('⚠️ Auth check failed (offline mode):', authError?.message);
-          // Continue without auth error - offline mode may still work
+          console.error('❌ Auth check failed:', authError?.message);
+          throw authError;
         }
         setUser(currentUser);
 
-        // PowerSync initialization is handled in auth state change listener
-
       } catch (error: any) {
-        console.error('❌ Critical App Initialization Error:', error?.message);
-        // Only set error if it's truly critical (auth failure with online)
-        if (navigator.onLine && error?.message?.includes('auth')) {
-          setConnectionError('Authentication failed. Please check your connection and reload.');
-        }
+        console.error('❌ App Initialization Error:', error?.message);
       } finally {
         setLoading(false);
       }
     };
 
-    const run = async () => {
-      await initializeApp();
-      await checkOfflineReadiness();
-    };
+    initializeApp();
 
-    console.log('🚀 App useEffect: Starting initialization...');
-    console.log('📱 Browser online status:', navigator.onLine);
-
-    // Suppress manifest.json 401 errors (non-critical, browser will use manifest.webmanifest)
-    const suppressManifestErrors = () => {
-      const originalError = window.console.error;
-      window.console.error = (...args: any[]) => {
-        const message = args[0]?.toString() || '';
-        if (message.includes('manifest.json') && (message.includes('401') || message.includes('Failed to load'))) {
-          // Suppress - non-critical error, manifest.webmanifest will be used instead
-          return;
-        }
-        originalError.apply(console, args);
-      };
-      
-      // Restore after 5 seconds
-      setTimeout(() => {
-        window.console.error = originalError;
-      }, 5000);
-    };
-    suppressManifestErrors();
-
-    // Check if worker file exists (non-blocking)
-    if (navigator.onLine) {
-      fetch('/powersync.worker.js')
-        .then(res => {
-          console.log('👷 Worker file check:', res.status, res.statusText);
-          if (!res.ok) console.warn('⚠️ Worker file might not be accessible');
-        })
-        .catch(err => console.warn('⚠️ Could not check worker file:', err?.message));
-    }
-
-    run();
-
-    let lastUserId: string | null = null;
-    let isPowerSyncInitialized = false;
-    
-    const subscription = authService.onAuthStateChange(async (user) => {
-      const currentUserId = user?.id || null;
-      
-      // Only initialize PowerSync if user actually changed (not just auth state refresh)
-      if (user && currentUserId !== lastUserId) {
-        lastUserId = currentUserId;
-
-        // Only initialize once per user session
-        if (!isPowerSyncInitialized) {
-          isPowerSyncInitialized = true;
-          console.log('📱 App: Auth state changed (new user), initializing PowerSync...');
-          try {
-            await connectPowerSync();
-            setConnectionError(null);
-          } catch (err: any) {
-            console.warn('⚠️ PowerSync connection failed (offline mode will be used):', err?.message);
-            // No reconnect loops here; keep failure non-fatal.
-            // Manual reconnect can be triggered from Settings / debug tools.
-          }
-        } else {
-          console.log('📱 App: Auth state changed but PowerSync already initialized, skipping...');
-        }
-      } else if (!user) {
-        // Reset flags on logout
-        lastUserId = null;
-        isPowerSyncInitialized = false;
-      } else {
-        // Same user, just auth state refresh - don't reinitialize
-        // Only log occasionally to reduce spam
-        if (Math.random() < 0.1) {
-          console.log('📱 App: Auth state refresh (same user), skipping PowerSync init...');
-        }
-      }
-      
+    const subscription = authService.onAuthStateChange((user) => {
       setUser(user);
     });
 
@@ -39618,9 +38772,7 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-[Tajawal]">
-            {isOffline ? 'جاري التحميل في وضع عدم الاتصال...' : 'جاري التحميل...'}
-          </p>
+          <p className="text-gray-600 font-[Tajawal]">جاري التحميل...</p>
         </div>
       </div>
     );
@@ -39662,69 +38814,23 @@ const App: React.FC = () => {
           <div className="max-w-7xl mx-auto">
             {/* Desktop Header */}
             <div className="hidden md:flex justify-between items-center mb-6">
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-gray-900">
-                  مرحباً، {user?.email}
-                </h1>
-                {isOffline && (
-                  <span className="flex items-center gap-1 px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-bold">
-                    <WifiOff size={14} />
-                    المتصفح أوفلاين
-                  </span>
-                )}
-                {powerSyncStatus.connecting && (
-                  <span className="flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold animate-pulse" title="جاري الاتصال بالسيرفر...">
-                    <Wifi size={14} className="animate-spin" />
-                    جاري الاتصال...
-                  </span>
-                )}
-                {!powerSyncStatus.connected && !powerSyncStatus.connecting && (
-                  <span 
-                    className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold cursor-help" 
-                    title={`غير متصل بالسيرفر${!navigator.onLine ? ' - المتصفح أوفلاين' : ' - جاري إعادة المحاولة تلقائياً'}`}
-                    onClick={async () => {
-                      if (navigator.onLine) {
-                        try {
-                          await connectPowerSync({ force: true });
-                        } catch (error: any) {
-                          console.error('❌ Manual retry failed:', error?.message);
-                        }
-                      }
-                    }}
-                  >
-                    <WifiOff size={14} />
-                    غير متصل بالسيرفر
-                  </span>
-                )}
-                {powerSyncStatus.connected && (
-                  <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold" title={`متصل بالسيرفر${powerSyncStatus.lastSyncedAt ? ` - آخر مزامنة: ${new Date(powerSyncStatus.lastSyncedAt).toLocaleTimeString('ar-EG')}` : ''}`}>
-                    <Wifi size={14} />
-                    متصل
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-4">
-                {/* <SyncStatus /> */}
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200 font-[Tajawal]"
-                >
-                  <LogOut size={18} />
-                  تسجيل الخروج
-                </button>
-              </div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                مرحباً، {user?.email}
+              </h1>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200 font-[Tajawal]"
+              >
+                <LogOut size={18} />
+                تسجيل الخروج
+              </button>
             </div>
 
             {/* Mobile Header */}
-            <div className="md:hidden mb-4 flex justify-between items-center">
-              {/* <SyncStatus /> */}
-              <div className="text-center flex-1">
-                <h1 className="text-xl font-bold text-gray-900">
-                  مرحباً، {user?.email?.split('@')[0]}
-                </h1>
-                {isOffline && <p className="text-xs text-gray-500 flex justify-center items-center gap-1"><WifiOff size={10} /> وضع أوفلاين</p>}
-              </div>
-              <div className="w-5"></div>
+            <div className="md:hidden mb-4 text-center">
+              <h1 className="text-xl font-bold text-gray-900">
+                مرحباً، {user?.email?.split('@')[0]}
+              </h1>
             </div>
 
             {renderContent()}
