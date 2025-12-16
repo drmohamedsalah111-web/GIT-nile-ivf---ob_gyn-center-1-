@@ -120,7 +120,7 @@ const Gynecology: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching doctor profile:', error);
-      toast.error('Failed to load doctor profile');
+      // No toast.error - using default profile silently
     }
   };
 

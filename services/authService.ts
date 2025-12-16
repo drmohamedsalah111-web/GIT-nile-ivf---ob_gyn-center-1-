@@ -80,20 +80,23 @@ export const authService = {
         .eq('user_id', userId)
         .single();
 
-      if (error || !data) throw error;
+      if (error || !data) {
+        console.warn('Failed to load doctor profile from database, using default profile');
+        return {
+          id: 'default-profile',
+          full_name: 'Dr. Mohamed Salah',
+          specialty: 'IVF & OB/GYN Consultant',
+          avatar_url: null
+        };
+      }
       return data;
     } catch (err: any) {
-      console.log('ℹ️ No doctor profile found in Supabase, using default fallback.');
+      console.warn('Failed to load doctor profile from database, using default profile');
       return {
-        id: 'default-id',
-        user_id: userId,
-        email: 'unknown@example.com',
-        name: 'Dr. Mohamed',
-        specialization: 'Obstetrics & Gynecology (IVF)',
-        phone: null,
-        doctor_image: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        id: 'default-profile',
+        full_name: 'Dr. Mohamed Salah',
+        specialty: 'IVF & OB/GYN Consultant',
+        avatar_url: null
       };
     }
   },
