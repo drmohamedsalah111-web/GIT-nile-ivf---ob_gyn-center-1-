@@ -17,7 +17,6 @@ import { Toaster } from 'react-hot-toast';
 import { authService } from './services/authService';
 import { LogOut } from 'lucide-react';
 import { BrandingProvider } from './context/BrandingContext';
-import { initPWA } from './src/lib/pwa';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
@@ -28,8 +27,6 @@ const App: React.FC = () => {
     const initializeApp = async () => {
       try {
         setLoading(true);
-
-        initPWA().catch(console.warn);
 
         let currentUser;
         try {
