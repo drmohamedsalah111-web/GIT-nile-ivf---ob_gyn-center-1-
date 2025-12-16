@@ -5,30 +5,32 @@ import { Patient, IvfCycle, StimulationLog } from '../types';
 export const dbService = {
   // --- Patients ---
   getPatients: async (): Promise<Patient[]> => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
+    console.log("🚀 Starting fetch patients...");
+    
+    const { data, error } = await supabase
+      .from('patients')
+      .select('*');
 
-      const { data, error } = await supabase
-        .from('patients')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-
-      return (data || []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        age: p.age || 0,
-        phone: p.phone,
-        husbandName: p.husband_name || '',
-        history: p.history || '',
-        createdAt: p.created_at || new Date().toISOString()
-      }));
-    } catch (error: any) {
-      console.error('❌ getPatients error:', error?.message);
-      throw new Error(`فشل في جلب قائمة المرضى: ${error?.message}`);
+    if (error) {
+      console.error("❌ Supabase Error:", error);
+      console.error("❌ Error Details:", error.message, error.details);
+      return [];
     }
+
+    console.log("✅ Supabase Success. Rows found:", data?.length);
+    console.log("📄 Raw Data Sample:", data ? data[0] : 'No data');
+
+    if (!data || data.length === 0) return [];
+
+    return data.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      age: p.age,
+      phone: p.phone || p.mobile,
+      husbandName: p.husband_name,
+      history: p.history,
+      createdAt: p.created_at
+    }));
   },
 
   savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
