@@ -7,7 +7,7 @@ import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, Alert
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 import HistorySidebar from '../src/components/HistorySidebar';
-import LabOrderManager from './components/LabOrderManager';
+import IvfLabManager from './components/IvfLabManager';
 
 const PROTOCOL_OPTIONS = ['Long', 'Antagonist', 'Flare-up', 'Mini-IVF'];
 
@@ -775,7 +775,18 @@ const IvfJourney: React.FC = () => {
 
             {/* Lab Tab */}
             {activeTab === 'lab' && (
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                {/* IVF Smart Lab Manager */}
+                <IvfLabManager
+                  patientId={selectedPatientId}
+                  patientName={selectedPatient?.name}
+                  cycleStatus={cycleData.status as any}
+                  protocol={cycleData.protocol}
+                  stimulationDay={cycleData.stimulationLogs.length}
+                  triggerDate={cycleData.triggerDate}
+                  opuDate={cycleData.opuDate}
+                />
+
                 {/* OPU Data */}
                 <div className="bg-pink-50 p-4 rounded-lg">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
