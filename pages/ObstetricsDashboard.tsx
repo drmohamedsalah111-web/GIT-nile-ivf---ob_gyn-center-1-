@@ -13,6 +13,7 @@ import FetalGrowthChart from './components/obstetrics/FetalGrowthChart';
 import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 import HistorySidebar from '../src/components/HistorySidebar';
+import LabOrderManager from './components/LabOrderManager';
 
 const ObstetricsDashboard: React.FC = () => {
   const { patients } = usePatients();
@@ -25,6 +26,7 @@ const ObstetricsDashboard: React.FC = () => {
   const [prescription, setPrescription] = useState<PrescriptionItem[]>([]);
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [activeView, setActiveView] = useState<'overview' | 'labs'>('overview');
 
   const [formData, setFormData] = useState({
     lmp_date: '',
@@ -327,14 +329,23 @@ const ObstetricsDashboard: React.FC = () => {
           <ANCFlowSheet pregnancyId={pregnancy.id} lmpDate={pregnancy.lmp_date || undefined} />
           <FetalGrowthChart pregnancyId={pregnancy.id} lmpDate={pregnancy.lmp_date || undefined} />
 
-          {/* Prescription Section */}
-          <div className="bg-white rounded-lg shadow-md p-6 mt-6">
-            <PrescriptionComponent
-              prescriptions={prescription}
-              onPrescriptionsChange={setPrescription}
-              onPrint={() => setIsPrinterOpen(true)}
-              showPrintButton={true}
+          {/* Lab Tests & Prescription Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            {/* Lab Tests */}
+            <LabOrderManager
+              patientId={selectedPatientId || undefined}
+              patientName={currentPatient?.name}
             />
+
+            {/* Prescription */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <PrescriptionComponent
+                prescriptions={prescription}
+                onPrescriptionsChange={setPrescription}
+                onPrint={() => setIsPrinterOpen(true)}
+                showPrintButton={true}
+              />
+            </div>
           </div>
 
           {/* Save Visit Button */}

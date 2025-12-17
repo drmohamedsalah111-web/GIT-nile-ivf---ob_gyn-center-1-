@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Save, Stethoscope, ClipboardList, Pill } from 'lucide-react';
+import { Save, Stethoscope, ClipboardList, Pill, Beaker } from 'lucide-react';
 import { usePatients } from '../src/hooks/usePatients';
 import toast from 'react-hot-toast';
 import { Patient, PrescriptionItem } from '../types';
@@ -10,6 +10,7 @@ import PrescriptionComponent from '../components/PrescriptionComponent';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 import SearchableSelect from '../components/ui/SearchableSelect';
 import HistorySidebar from '../src/components/HistorySidebar';
+import LabOrderManager from './components/LabOrderManager';
 import { COMMON_COMPLAINTS, ICD10_DIAGNOSES, PROCEDURE_ORDERS } from '../data/medical_terms';
 
 interface GynecologyData {
@@ -62,7 +63,7 @@ const Gynecology: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'assessment' | 'diagnosis' | 'rx'>('assessment');
+  const [activeTab, setActiveTab] = useState<'assessment' | 'diagnosis' | 'rx' | 'labs'>('assessment');
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -331,6 +332,16 @@ const Gynecology: React.FC = () => {
               >
                 <Pill className="w-5 h-5 inline mr-2" />
                 Prescription
+              </button>
+              <button
+                onClick={() => setActiveTab('labs')}
+                className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${activeTab === 'labs'
+                  ? 'border-b-2 border-purple-500 text-purple-600 bg-purple-50'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                <Beaker className="w-5 h-5 inline mr-2" />
+                Lab Tests
               </button>
             </nav>
           </div>
@@ -638,6 +649,14 @@ const Gynecology: React.FC = () => {
                   />
                 </div>
               </div>
+            )}
+
+            {/* Labs Tab */}
+            {activeTab === 'labs' && (
+              <LabOrderManager
+                patientId={selectedPatientId}
+                patientName={selectedPatient?.name}
+              />
             )}
 
             {/* Rx Tab */}

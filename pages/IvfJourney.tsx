@@ -3,10 +3,11 @@ import { usePatients } from '../src/hooks/usePatients';
 import { calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate, db } from '../services/ivfService';
 import { Patient } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer, Microscope, Activity, Plus, X } from 'lucide-react';
+import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, AlertCircle, CheckCircle, Pill, Printer, Microscope, Activity, Plus, X, Beaker } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 import HistorySidebar from '../src/components/HistorySidebar';
+import LabOrderManager from './components/LabOrderManager';
 
 const PROTOCOL_OPTIONS = ['Long', 'Antagonist', 'Flare-up', 'Mini-IVF'];
 
