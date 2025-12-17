@@ -267,10 +267,10 @@ const ObstetricsDashboard: React.FC = () => {
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">
-            ðŸ¤° ÙˆØ­Ø¯Ø© Ø·Ø¨ Ø§Ù„ØªÙˆÙ„ÙŠØ¯ ÙˆØ§Ù„Ù†Ø³Ø§Ø¦ÙŠØ©
+            dY U^O-O_Oc OO" OU,OU^U,USO_ U^OU,U+O3OOUSOc
           </h1>
           <p className="text-gray-600 font-[Tajawal]">
-            Ù…ØªØ§Ø¨Ø¹Ø© Ø´Ø§Ù…Ù„Ø© Ù„Ù„Ø­Ù…Ù„ ÙˆØ§Ù„ÙˆÙ„Ø§Ø¯Ø© Ù…Ø¹ ØªÙ‚ÙŠÙŠÙ… Ø§Ù„Ù…Ø®Ø§Ø·Ø± ÙˆØ§Ù„Ù…Ø³Ø­ Ø§Ù„Ø¨ÙŠÙˆÙ…ÙŠØªØ±ÙŠ
+            U.OdOO"O1Oc O'OU.U,Oc U,U,O-U.U, U^OU,U^U,OO_Oc U.O1 O5U,USUSU. OU,U.OrOOO U^OU,U.O3O- OU,O"USU^U.USOOUS
           </p>
         </div>
         <div className="flex gap-2">
@@ -282,6 +282,7 @@ const ObstetricsDashboard: React.FC = () => {
             📜 السجل السابق
           </button>
         </div>
+      </div>
 
       <div className="grid md:grid-cols-4 gap-4 mb-6">
         <div className="md:col-span-3">
@@ -446,3 +447,5 @@ const ObstetricsDashboard: React.FC = () => {
 };
 
 export default ObstetricsDashboard;
+
+
