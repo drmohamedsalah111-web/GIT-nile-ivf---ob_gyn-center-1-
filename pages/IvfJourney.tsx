@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { usePatients } from '../src/hooks/usePatients';
 import { calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate, db } from '../services/ivfService';
 import { Patient } from '../types';
@@ -20,7 +20,7 @@ const LOCAL_IVF_DRUGS = {
 const PROTOCOL_INFO: any = {
   'Long': {
     name: 'Long Agonist Protocol',
-    arabicName: 'بروتوكول الناهضات الطويلة',
+    arabicName: 'Ø¨Ø±ÙˆØªÙˆÙƒÙˆÙ„ Ø§Ù„Ù†Ø§Ù‡Ø¶Ø§Øª Ø§Ù„Ø·ÙˆÙŠÙ„Ø©',
     bestFor: ['Normal responders', 'Regular cycles', 'PCO patients'],
     duration: '35-42 days',
     stimDays: '10-12 days',
@@ -30,7 +30,7 @@ const PROTOCOL_INFO: any = {
   },
   'Antagonist': {
     name: 'Antagonist Protocol',
-    arabicName: 'بروتوكول المضادات',
+    arabicName: 'Ø¨Ø±ÙˆØªÙˆÙƒÙˆÙ„ Ø§Ù„Ù…Ø¶Ø§Ø¯Ø§Øª',
     bestFor: ['Poor responders', 'Previous low response'],
     duration: '14-16 days',
     stimDays: '8-10 days',
@@ -40,7 +40,7 @@ const PROTOCOL_INFO: any = {
   },
   'Flare-up': {
     name: 'Flare-up Protocol',
-    arabicName: 'بروتوكول التنشيط الحاد',
+    arabicName: 'Ø¨Ø±ÙˆØªÙˆÙƒÙˆÙ„ Ø§Ù„ØªÙ†Ø´ÙŠØ· Ø§Ù„Ø­Ø§Ø¯',
     bestFor: ['Poor responders', 'Diminished ovarian reserve'],
     duration: '10-12 days',
     stimDays: '8-9 days',
@@ -50,7 +50,7 @@ const PROTOCOL_INFO: any = {
   },
   'Mini-IVF': {
     name: 'Mini-IVF Protocol',
-    arabicName: 'بروتوكول الحقن المجهري الخفيف',
+    arabicName: 'Ø¨Ø±ÙˆØªÙˆÙƒÙˆÙ„ Ø§Ù„Ø­Ù‚Ù† Ø§Ù„Ù…Ø¬Ù‡Ø±ÙŠ Ø§Ù„Ø®ÙÙŠÙ',
     bestFor: ['Poor responders', 'Previous OHSS'],
     duration: '10-14 days',
     stimDays: '7-8 days',
@@ -445,13 +445,14 @@ const IvfJourney: React.FC = () => {
       <div className="bg-gradient-to-r from-teal-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">🔬 IVF Journey</h1>
+            <h1 className="text-3xl font-bold mb-2">dY"ª IVF Journey</h1>
             <p className="text-teal-100">Comprehensive IVF Cycle Management & Tracking</p>
           </div>
           <div className="flex items-center gap-4">
             <button
               onClick={() => setShowHistory(true)}
-              className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+              disabled={!selectedPatientId}
+              className="bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
             >
               📜 السجل السابق
             </button>
@@ -459,8 +460,6 @@ const IvfJourney: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Patient Selector */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <label className="block text-sm font-semibold text-gray-700 mb-2">Select Patient</label>
         <select
@@ -532,7 +531,7 @@ const IvfJourney: React.FC = () => {
                         value={cycleData.coupleBMI || ''}
                         onChange={(e) => setCycleData(prev => ({ ...prev, coupleBMI: parseFloat(e.target.value) || undefined }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="kg/m²"
+                        placeholder="kg/mÂ²"
                       />
                     </div>
                     <div className="flex items-center gap-2">

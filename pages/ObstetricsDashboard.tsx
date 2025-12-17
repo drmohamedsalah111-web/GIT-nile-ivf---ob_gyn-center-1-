@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Plus, Save } from 'lucide-react';
 import { usePatients } from '../src/hooks/usePatients';
 import toast from 'react-hot-toast';
@@ -94,12 +94,12 @@ const ObstetricsDashboard: React.FC = () => {
   const handleCreatePregnancy = async () => {
     try {
       if (!selectedPatientId) {
-        toast.error('اختر مريضة أولاً');
+        toast.error('Ø§Ø®ØªØ± Ù…Ø±ÙŠØ¶Ø© Ø£ÙˆÙ„Ø§Ù‹');
         return;
       }
 
       if (!doctorId) {
-        toast.error('فشل تحميل بيانات الطبيب');
+        toast.error('ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø·Ø¨ÙŠØ¨');
         return;
       }
 
@@ -107,7 +107,7 @@ const ObstetricsDashboard: React.FC = () => {
       const eddByScan = formData.edd_by_scan?.trim() || null;
 
       if (!lmpDate && !eddByScan) {
-        toast.error('أدخل تاريخ آخر دورة أو تاريخ الولادة المتوقع');
+        toast.error('Ø£Ø¯Ø®Ù„ ØªØ§Ø±ÙŠØ® Ø¢Ø®Ø± Ø¯ÙˆØ±Ø© Ø£Ùˆ ØªØ§Ø±ÙŠØ® Ø§Ù„ÙˆÙ„Ø§Ø¯Ø© Ø§Ù„Ù…ØªÙˆÙ‚Ø¹');
         return;
       }
 
@@ -160,7 +160,7 @@ const ObstetricsDashboard: React.FC = () => {
       setPregnancy(newPregnancy);
       setShowNewPregnancyForm(false);
       setFormData({ lmp_date: '', edd_by_scan: '' });
-      toast.success('تم إنشاء ملف الحمل بنجاح');
+      toast.success('ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ù…Ù„Ù Ø§Ù„Ø­Ù…Ù„ Ø¨Ù†Ø¬Ø§Ø­');
     } catch (error: any) {
       console.error('Error creating pregnancy:', error);
       console.error('Error details:', {
@@ -170,7 +170,7 @@ const ObstetricsDashboard: React.FC = () => {
         details: error?.details,
         hint: error?.hint,
       });
-      toast.error(`فشل إنشاء ملف الحمل: ${error?.message || 'خطأ غير معروف'}`);
+      toast.error(`ÙØ´Ù„ Ø¥Ù†Ø´Ø§Ø¡ Ù…Ù„Ù Ø§Ù„Ø­Ù…Ù„: ${error?.message || 'Ø®Ø·Ø£ ØºÙŠØ± Ù…Ø¹Ø±ÙˆÙ'}`);
     } finally {
       setIsSaving(false);
     }
@@ -179,7 +179,7 @@ const ObstetricsDashboard: React.FC = () => {
   const handleUpdatePregnancy = async (updates: Partial<Pregnancy>) => {
     if (!pregnancy || !pregnancy.id) {
       console.error('Cannot update pregnancy: pregnancy data is invalid');
-      toast.error('فشل تحديث ملف الحمل: البيانات غير صحيحة');
+      toast.error('ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ù…Ù„Ù Ø§Ù„Ø­Ù…Ù„: Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª ØºÙŠØ± ØµØ­ÙŠØ­Ø©');
       return;
     }
 
@@ -204,7 +204,7 @@ const ObstetricsDashboard: React.FC = () => {
       setPregnancy(updated);
     } catch (error) {
       console.error('Error updating pregnancy:', error);
-      toast.error('فشل تحديث ملف الحمل');
+      toast.error('ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ù…Ù„Ù Ø§Ù„Ø­Ù…Ù„');
       throw error;
     }
   };
@@ -267,33 +267,33 @@ const ObstetricsDashboard: React.FC = () => {
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">
-            🤰 وحدة طب التوليد والنسائية
+            ðŸ¤° ÙˆØ­Ø¯Ø© Ø·Ø¨ Ø§Ù„ØªÙˆÙ„ÙŠØ¯ ÙˆØ§Ù„Ù†Ø³Ø§Ø¦ÙŠØ©
           </h1>
           <p className="text-gray-600 font-[Tajawal]">
-            متابعة شاملة للحمل والولادة مع تقييم المخاطر والمسح البيوميتري
+            Ù…ØªØ§Ø¨Ø¹Ø© Ø´Ø§Ù…Ù„Ø© Ù„Ù„Ø­Ù…Ù„ ÙˆØ§Ù„ÙˆÙ„Ø§Ø¯Ø© Ù…Ø¹ ØªÙ‚ÙŠÙŠÙ… Ø§Ù„Ù…Ø®Ø§Ø·Ø± ÙˆØ§Ù„Ù…Ø³Ø­ Ø§Ù„Ø¨ÙŠÙˆÙ…ÙŠØªØ±ÙŠ
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowHistory(true)}
-            className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+            disabled={!selectedPatientId}
+            className="bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
           >
             📜 السجل السابق
           </button>
         </div>
-      </div>
 
       <div className="grid md:grid-cols-4 gap-4 mb-6">
         <div className="md:col-span-3">
           <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-            اختر المريضة
+            Ø§Ø®ØªØ± Ø§Ù„Ù…Ø±ÙŠØ¶Ø©
           </label>
           <select
             value={selectedPatientId || ''}
             onChange={(e) => setSelectedPatientId(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
           >
-            <option value="">-- اختر مريضة --</option>
+            <option value="">-- Ø§Ø®ØªØ± Ù…Ø±ÙŠØ¶Ø© --</option>
             {patients.map(patient => (
               <option key={patient.id} value={patient.id.toString()}>
                 {patient.name} - {patient.phone}
@@ -310,7 +310,7 @@ const ObstetricsDashboard: React.FC = () => {
             onClick={() => window.location.reload()}
             className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-[Tajawal] font-semibold transition-colors"
           >
-            🔄 تحديث
+            ðŸ”„ ØªØ­Ø¯ÙŠØ«
           </button>
         </div>
       </div>
@@ -354,10 +354,10 @@ const ObstetricsDashboard: React.FC = () => {
             <Plus size={32} className="text-teal-600" />
           </div>
           <h3 className="text-xl font-bold text-gray-900 mb-2 font-[Tajawal]">
-            لا يوجد ملف حمل لـ {currentPatient.name}
+            Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ù„Ù Ø­Ù…Ù„ Ù„Ù€ {currentPatient.name}
           </h3>
           <p className="text-gray-600 mb-6 font-[Tajawal]">
-            إنشاء ملف حمل جديد لبدء المتابعة الشاملة
+            Ø¥Ù†Ø´Ø§Ø¡ Ù…Ù„Ù Ø­Ù…Ù„ Ø¬Ø¯ÙŠØ¯ Ù„Ø¨Ø¯Ø¡ Ø§Ù„Ù…ØªØ§Ø¨Ø¹Ø© Ø§Ù„Ø´Ø§Ù…Ù„Ø©
           </p>
 
           {!showNewPregnancyForm ? (
@@ -366,13 +366,13 @@ const ObstetricsDashboard: React.FC = () => {
               className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
             >
               <Plus size={20} />
-              إنشاء ملف حمل جديد
+              Ø¥Ù†Ø´Ø§Ø¡ Ù…Ù„Ù Ø­Ù…Ù„ Ø¬Ø¯ÙŠØ¯
             </button>
           ) : (
             <div className="bg-gray-50 p-6 rounded-lg border-2 border-teal-200 max-w-md mx-auto">
               <div className="mb-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-                  آخر دورة شهرية (LMP)
+                  Ø¢Ø®Ø± Ø¯ÙˆØ±Ø© Ø´Ù‡Ø±ÙŠØ© (LMP)
                 </label>
                 <input
                   type="date"
@@ -384,7 +384,7 @@ const ObstetricsDashboard: React.FC = () => {
 
               <div className="mb-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-                  أو تاريخ الولادة المتوقع بالمسح (EDD by Ultrasound)
+                  Ø£Ùˆ ØªØ§Ø±ÙŠØ® Ø§Ù„ÙˆÙ„Ø§Ø¯Ø© Ø§Ù„Ù…ØªÙˆÙ‚Ø¹ Ø¨Ø§Ù„Ù…Ø³Ø­ (EDD by Ultrasound)
                 </label>
                 <input
                   type="date"
@@ -400,13 +400,13 @@ const ObstetricsDashboard: React.FC = () => {
                   disabled={isSaving}
                   className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-[Tajawal] font-semibold transition-colors"
                 >
-                  {isSaving ? 'جاري...' : 'إنشاء'}
+                  {isSaving ? 'Ø¬Ø§Ø±ÙŠ...' : 'Ø¥Ù†Ø´Ø§Ø¡'}
                 </button>
                 <button
                   onClick={() => setShowNewPregnancyForm(false)}
                   className="flex-1 bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg font-[Tajawal] font-semibold transition-colors"
                 >
-                  إلغاء
+                  Ø¥Ù„ØºØ§Ø¡
                 </button>
               </div>
             </div>
@@ -414,7 +414,7 @@ const ObstetricsDashboard: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <p className="text-gray-600 font-[Tajawal]">اختر مريضة لبدء المتابعة</p>
+          <p className="text-gray-600 font-[Tajawal]">Ø§Ø®ØªØ± Ù…Ø±ÙŠØ¶Ø© Ù„Ø¨Ø¯Ø¡ Ø§Ù„Ù…ØªØ§Ø¨Ø¹Ø©</p>
         </div>
       )}
 

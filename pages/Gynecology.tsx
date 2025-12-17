@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Save, Stethoscope, ClipboardList, Pill } from 'lucide-react';
 import { usePatients } from '../src/hooks/usePatients';
 import toast from 'react-hot-toast';
@@ -257,7 +257,7 @@ const Gynecology: React.FC = () => {
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">
-            عيادة النساء
+            Ø¹ÙŠØ§Ø¯Ø© Ø§Ù„Ù†Ø³Ø§Ø¡
           </h1>
           <p className="text-gray-600 font-[Tajawal]">
             Gynecology Station - Diagnosis & Medical Management of Benign Conditions
@@ -266,8 +266,8 @@ const Gynecology: React.FC = () => {
         <div className="flex gap-2">
           <button
             onClick={() => setShowHistory(true)}
-            className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
-          >
+            disabled={!selectedPatientId}
+            className="bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2">
             📜 السجل السابق
           </button>
         </div>
@@ -369,7 +369,7 @@ const Gynecology: React.FC = () => {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Temp (°C)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Temp (Â°C)</label>
                         <input
                           type="number"
                           value={gynecologyData.vitals.temperature || ''}
@@ -412,7 +412,7 @@ const Gynecology: React.FC = () => {
                         ...prev,
                         complaints: Array.isArray(value) ? value : [value]
                       }))}
-                      placeholder="ابحث عن الشكوى أو أضف شكوى جديدة"
+                      placeholder="Ø§Ø¨Ø­Ø« Ø¹Ù† Ø§Ù„Ø´ÙƒÙˆÙ‰ Ø£Ùˆ Ø£Ø¶Ù Ø´ÙƒÙˆÙ‰ Ø¬Ø¯ÙŠØ¯Ø©"
                       multi={true}
                       allowCustom={true}
                     />
@@ -580,20 +580,20 @@ const Gynecology: React.FC = () => {
                 {/* Diagnosis */}
                 <div className="text-left">
                   <SearchableSelect
-                    label="ICD-10 التشخيص (اختر متعدد)"
+                    label="ICD-10 Ø§Ù„ØªØ´Ø®ÙŠØµ (Ø§Ø®ØªØ± Ù…ØªØ¹Ø¯Ø¯)"
                     options={ICD10_DIAGNOSES}
                     value={gynecologyData.diagnosis}
                     onChange={(value) => setGynecologyData(prev => ({
                       ...prev,
                       diagnosis: Array.isArray(value) ? value : [value]
                     }))}
-                    placeholder="ابحث عن التشخيص أو أضف تشخيص جديد"
+                    placeholder="Ø§Ø¨Ø­Ø« Ø¹Ù† Ø§Ù„ØªØ´Ø®ÙŠØµ Ø£Ùˆ Ø£Ø¶Ù ØªØ´Ø®ÙŠØµ Ø¬Ø¯ÙŠØ¯"
                     multi={true}
                     allowCustom={true}
                   />
                   {gynecologyData.diagnosis.length > 0 && (
                     <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-sm text-amber-800 font-medium font-[Tajawal]">التشخيصات المحددة:</p>
+                      <p className="text-sm text-amber-800 font-medium font-[Tajawal]">Ø§Ù„ØªØ´Ø®ÙŠØµØ§Øª Ø§Ù„Ù…Ø­Ø¯Ø¯Ø©:</p>
                       <p className="text-sm text-amber-700 mt-1 font-[Tajawal]">{gynecologyData.diagnosis.join('; ')}</p>
                     </div>
                   )}
@@ -602,20 +602,20 @@ const Gynecology: React.FC = () => {
                 {/* Procedure Order */}
                 <div className="text-left">
                   <SearchableSelect
-                    label="خطة العلاج / الإجراءات (اختر متعدد)"
+                    label="Ø®Ø·Ø© Ø§Ù„Ø¹Ù„Ø§Ø¬ / Ø§Ù„Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª (Ø§Ø®ØªØ± Ù…ØªØ¹Ø¯Ø¯)"
                     options={PROCEDURE_ORDERS}
                     value={gynecologyData.procedureOrder}
                     onChange={(value) => setGynecologyData(prev => ({
                       ...prev,
                       procedureOrder: Array.isArray(value) ? value : [value]
                     }))}
-                    placeholder="ابحث عن إجراء أو أضف إجراء جديد"
+                    placeholder="Ø§Ø¨Ø­Ø« Ø¹Ù† Ø¥Ø¬Ø±Ø§Ø¡ Ø£Ùˆ Ø£Ø¶Ù Ø¥Ø¬Ø±Ø§Ø¡ Ø¬Ø¯ÙŠØ¯"
                     multi={true}
                     allowCustom={true}
                   />
                   {gynecologyData.procedureOrder.length > 0 && (
                     <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800 font-medium font-[Tajawal]">الإجراءات المحددة:</p>
+                      <p className="text-sm text-blue-800 font-medium font-[Tajawal]">Ø§Ù„Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª Ø§Ù„Ù…Ø­Ø¯Ø¯Ø©:</p>
                       <p className="text-sm text-blue-700 mt-1 font-[Tajawal]">{gynecologyData.procedureOrder.join('; ')}</p>
                     </div>
                   )}
