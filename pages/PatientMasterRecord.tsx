@@ -40,6 +40,7 @@ const PatientMasterRecord: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'timeline' | 'gallery'>('timeline');
   const [selectedFilter, setSelectedFilter] = useState<'All' | 'Visit' | 'Pregnancy' | 'IVF'>('All');
   const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<HistoryItem | null>(null);
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
 
   const { patients: powerSyncPatients } = usePatients();
@@ -192,6 +193,11 @@ const PatientMasterRecord: React.FC = () => {
     return history.filter(h => h.type === selectedFilter);
   };
 
+  const handleSelectDetail = (item: HistoryItem, isExpanded: boolean) => {
+    setExpandedVisitId(isExpanded ? null : item.id);
+    setSelectedDetail(isExpanded ? null : item);
+  };
+
   const groupFilesByDate = (files: any[]) => {
     const grouped: { [key: string]: any[] } = {};
     files.forEach(file => {
@@ -317,94 +323,143 @@ const PatientMasterRecord: React.FC = () => {
                   {isLoading ? (
                     <div className="text-center py-12 text-gray-500">Loading history...</div>
                   ) : getFilteredHistory().length > 0 ? (
-                    <div className="overflow-x-auto border border-gray-100 rounded-lg shadow-sm">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Event Type</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Summary / Diagnosis</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Department</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-100">
-                          {getFilteredHistory().map((h) => {
-                            const colors = getDepartmentColor(h.department);
-                            const isExpanded = expandedVisitId === h.id;
+                    <div className="grid md:grid-cols-3 gap-6">
+                      <div className="md:col-span-2 overflow-x-auto border border-gray-100 rounded-lg shadow-sm">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Event Type</th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Summary / Diagnosis</th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Department</th>
+                              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-100">
+                            {getFilteredHistory().map((h) => {
+                              const colors = getDepartmentColor(h.department);
+                              const isExpanded = expandedVisitId === h.id;
 
-                            return (
-                              <React.Fragment key={h.id}>
-                                <tr className="hover:bg-gray-50">
-                                  <td className="px-4 py-3 text-sm text-gray-700">{formatDate(h.date)}</td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex items-center gap-2">
-                                      {getDepartmentIcon(h.department)}
-                                      <div>
-                                        <div className="text-sm font-semibold text-gray-900">{h.type}</div>
-                                        <div className="text-xs text-gray-500">{getDepartmentName(h.department)}</div>
+                              return (
+                                <React.Fragment key={h.id}>
+                                  <tr className="hover:bg-gray-50">
+                                    <td className="px-4 py-3 text-sm text-gray-700">{formatDate(h.date)}</td>
+                                    <td className="px-4 py-3">
+                                      <div className="flex items-center gap-2">
+                                        {getDepartmentIcon(h.department)}
+                                        <div>
+                                          <div className="text-sm font-semibold text-gray-900">{h.type}</div>
+                                          <div className="text-xs text-gray-500">{getDepartmentName(h.department)}</div>
+                                        </div>
                                       </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-800">{h.summary || h.diagnosis || 'No summary'}</td>
-                                  <td className="px-4 py-3 text-sm">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${colors.bg} ${colors.border}`}>
-                                      {h.department || 'N/A'}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-right">
-                                    <button
-                                      onClick={() => setExpandedVisitId(isExpanded ? null : h.id)}
-                                      className="inline-flex items-center gap-2 text-teal-600 hover:text-teal-700 font-medium"
-                                    >
-                                      <FileText className="w-4 h-4" />
-                                      {isExpanded ? 'Hide' : 'View'} Details
-                                    </button>
-                                  </td>
-                                </tr>
-                                {isExpanded && (
-                                  <tr>
-                                    <td colSpan={5} className="bg-gray-50 px-6 pb-6 pt-3">
-                                      <div className="grid md:grid-cols-2 gap-4">
-                                        <div className="bg-white rounded border border-gray-200 p-4">
-                                          <p className="text-xs font-semibold text-gray-500 mb-2">Clinical Data</p>
-                                          {h.type === 'Visit' ? renderClinicalData(h.clinical_data, h.department) : (
-                                            <div className="text-sm text-gray-700">
-                                              <pre className="whitespace-pre-wrap">{JSON.stringify(h.clinical_data, null, 2)}</pre>
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-800">{h.summary || h.diagnosis || 'No summary'}</td>
+                                    <td className="px-4 py-3 text-sm">
+                                      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${colors.bg} ${colors.border}`}>
+                                        {h.department || 'N/A'}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-right">
+                                      <button
+                                        onClick={() => handleSelectDetail(h, isExpanded)}
+                                        className="inline-flex items-center gap-2 text-teal-600 hover:text-teal-700 font-medium"
+                                      >
+                                        <FileText className="w-4 h-4" />
+                                        {isExpanded ? 'Hide' : 'View'} Details
+                                      </button>
+                                    </td>
+                                  </tr>
+                                  {isExpanded && (
+                                    <tr>
+                                      <td colSpan={5} className="bg-gray-50 px-6 pb-6 pt-3">
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                          <div className="bg-white rounded border border-gray-200 p-4">
+                                            <p className="text-xs font-semibold text-gray-500 mb-2">Clinical Data</p>
+                                            {h.type === 'Visit' ? renderClinicalData(h.clinical_data, h.department) : (
+                                              <div className="text-sm text-gray-700">
+                                                <pre className="whitespace-pre-wrap">{JSON.stringify(h.clinical_data, null, 2)}</pre>
+                                              </div>
+                                            )}
+                                          </div>
+                                          {(h.notes || (h.prescription && h.prescription.length > 0)) && (
+                                            <div className="bg-white rounded border border-gray-200 p-4 space-y-3">
+                                              {h.notes && (
+                                                <div>
+                                                  <p className="text-xs font-semibold text-gray-500 mb-1">Notes</p>
+                                                  <p className="text-sm text-gray-700 italic">{h.notes}</p>
+                                                </div>
+                                              )}
+                                              {h.prescription && h.prescription.length > 0 && (
+                                                <button
+                                                  onClick={() => {
+                                                    setSelectedVisit(h);
+                                                    setIsPrinterOpen(true);
+                                                  }}
+                                                  className="flex items-center gap-2 text-sm text-teal-600 hover:text-teal-700 font-medium"
+                                                >
+                                                  <Printer className="w-4 h-4" />
+                                                  Print Prescription
+                                                </button>
+                                              )}
                                             </div>
                                           )}
                                         </div>
-                                        {(h.notes || (h.prescription && h.prescription.length > 0)) && (
-                                          <div className="bg-white rounded border border-gray-200 p-4 space-y-3">
-                                            {h.notes && (
-                                              <div>
-                                                <p className="text-xs font-semibold text-gray-500 mb-1">Notes</p>
-                                                <p className="text-sm text-gray-700 italic">{h.notes}</p>
-                                              </div>
-                                            )}
-                                            {h.prescription && h.prescription.length > 0 && (
-                                              <button
-                                                onClick={() => {
-                                                  setSelectedVisit(h);
-                                                  setIsPrinterOpen(true);
-                                                }}
-                                                className="flex items-center gap-2 text-sm text-teal-600 hover:text-teal-700 font-medium"
-                                              >
-                                                <Printer className="w-4 h-4" />
-                                                Print Prescription
-                                              </button>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="md:col-span-1">
+                        <div className="h-full bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <p className="text-xs uppercase text-gray-500 font-semibold">تفاصيل الحدث</p>
+                              <h3 className="text-lg font-bold text-gray-900">التاريخ الطبي المسجل</h3>
+                            </div>
+                          </div>
+                          {selectedDetail ? (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-3">
+                                {getDepartmentIcon(selectedDetail.department)}
+                                <div>
+                                  <p className="text-sm text-gray-500">{formatDate(selectedDetail.date)}</p>
+                                  <p className="text-lg font-semibold text-gray-900">{selectedDetail.type}</p>
+                                  <p className="text-xs text-gray-600">{getDepartmentName(selectedDetail.department)}</p>
+                                </div>
+                              </div>
+                              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                <p className="text-xs uppercase text-gray-500 font-semibold mb-1">الملخص / التشخيص</p>
+                                <p className="text-sm text-gray-800">{selectedDetail.summary || selectedDetail.diagnosis || 'No summary'}</p>
+                              </div>
+                              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                <p className="text-xs uppercase text-gray-500 font-semibold mb-1">البيانات المسجلة</p>
+                                {selectedDetail.type === 'Visit'
+                                  ? renderClinicalData(selectedDetail.clinical_data, selectedDetail.department)
+                                  : (
+                                    <div className="text-sm text-gray-700">
+                                      <pre className="whitespace-pre-wrap">{JSON.stringify(selectedDetail.clinical_data, null, 2)}</pre>
+                                    </div>
+                                  )}
+                              </div>
+                              {selectedDetail.notes && (
+                                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                  <p className="text-xs uppercase text-gray-500 font-semibold mb-1">الملاحظات</p>
+                                  <p className="text-sm text-gray-800 italic">{selectedDetail.notes}</p>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500">
+                              اختر حدثًا من الجدول لعرض التفاصيل الكاملة المسجلة مسبقًا.
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-12 text-gray-500">
