@@ -111,18 +111,38 @@ export const labService = {
     if (requestError) throw requestError;
 
     // Add request items
-    const items = testIds.map(testId => ({
+    const itemsWithPriority = testIds.map(testId => ({
       id: crypto.randomUUID(),
       request_id: id,
       test_id: testId,
       priority: 'Normal'
     }));
 
-    const { error: itemsError } = await supabase
-      .from('lab_request_items')
-      .insert(items);
+    const insertItems = async (items: any[]) => {
+      const { error } = await supabase
+        .from('lab_request_items')
+        .insert(items);
+      return error;
+    };
 
-    if (itemsError) throw itemsError;
+    // Some databases may not have `priority` column yet (schema mismatch / cache).
+    // Try with priority, then retry without it if needed.
+    const itemsError = await insertItems(itemsWithPriority);
+    if (itemsError) {
+      const message = String(itemsError.message || '').toLowerCase();
+      const missingPriority = itemsError.code === '42703' || message.includes('priority');
+      if (missingPriority) {
+        const itemsWithoutPriority = testIds.map(testId => ({
+          id: crypto.randomUUID(),
+          request_id: id,
+          test_id: testId
+        }));
+        const retryError = await insertItems(itemsWithoutPriority);
+        if (retryError) throw retryError;
+      } else {
+        throw itemsError;
+      }
+    }
 
     return id;
   },
@@ -136,17 +156,44 @@ export const labService = {
 
     if (reqError) throw reqError;
 
-    const { data: items, error: itemError } = await supabase
-      .from('lab_request_items')
-      .select(`
-        id,
-        request_id,
-        test_id,
-        priority,
-        notes,
-        lab_tests_catalog(name, unit)
-      `)
-      .in('request_id', requests?.map(r => r.id) || []);
+    const requestIds = requests?.map(r => r.id) || [];
+
+    const selectItems = async (withPriority: boolean) => {
+      const select = withPriority
+        ? `
+          id,
+          request_id,
+          test_id,
+          priority,
+          notes,
+          lab_tests_catalog(name, unit)
+        `
+        : `
+          id,
+          request_id,
+          test_id,
+          notes,
+          lab_tests_catalog(name, unit)
+        `;
+
+      const { data, error } = await supabase
+        .from('lab_request_items')
+        .select(select)
+        .in('request_id', requestIds);
+
+      return { data, error };
+    };
+
+    let { data: items, error: itemError } = await selectItems(true);
+    if (itemError) {
+      const message = String(itemError.message || '').toLowerCase();
+      const missingPriority = itemError.code === '42703' || message.includes('priority');
+      if (missingPriority) {
+        const retry = await selectItems(false);
+        items = retry.data;
+        itemError = retry.error;
+      }
+    }
 
     if (itemError) throw itemError;
 
@@ -164,7 +211,7 @@ export const labService = {
           id: i.id,
           requestId: i.request_id,
           testId: i.test_id,
-          priority: i.priority,
+          priority: i.priority || 'Normal',
           notes: i.notes,
           testName: i.lab_tests_catalog?.name,
           testUnit: i.lab_tests_catalog?.unit
