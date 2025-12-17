@@ -1,44 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Toaster } from 'react-hot-toast';
+import { BookOpen, LogOut } from 'lucide-react';
+
 import { Sidebar } from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import EnvErrorBanner from './components/EnvErrorBanner';
 import PreviewWarningBanner from './components/PreviewWarningBanner';
+import { BrandingProvider } from './context/BrandingContext';
+
 import { Page } from './types';
+import { authService } from './services/authService';
+
 import Dashboard from './pages/Dashboard';
 import Reception from './pages/Reception';
 import Gynecology from './pages/Gynecology';
 import IvfJourney from './pages/IvfJourney';
+import ObstetricsDashboard from './pages/ObstetricsDashboard';
 import PatientMasterRecord from './pages/PatientMasterRecord';
 import Settings from './pages/Settings';
-import ObstetricsDashboard from './pages/ObstetricsDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import { Login } from './pages/Login';
-import { Toaster } from 'react-hot-toast';
-import { authService } from './services/authService';
-import { LogOut } from 'lucide-react';
-import { BrandingProvider } from './context/BrandingContext';
+
+import LabReferencesModal from './src/components/LabReferencesModal';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showLabReferences, setShowLabReferences] = useState(false);
 
   useEffect(() => {
     const initializeApp = async () => {
       try {
         setLoading(true);
-
-        let currentUser;
-        try {
-          currentUser = await authService.getCurrentUser();
-        } catch (authError: any) {
-          console.error('❌ Auth check failed:', authError?.message);
-          throw authError;
-        }
+        const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
-
       } catch (error: any) {
-        console.error('❌ App Initialization Error:', error?.message);
+        console.error('App init error:', error?.message || error);
       } finally {
         setLoading(false);
       }
@@ -46,13 +44,13 @@ const App: React.FC = () => {
 
     initializeApp();
 
-    const subscription = authService.onAuthStateChange((user) => {
-      setUser(user);
+    const subscription = authService.onAuthStateChange((nextUser) => {
+      setUser(nextUser);
     });
 
     return () => {
-      if (subscription && typeof subscription.unsubscribe === 'function') {
-        subscription.unsubscribe();
+      if (subscription && typeof (subscription as any).unsubscribe === 'function') {
+        (subscription as any).unsubscribe();
       }
     };
   }, []);
@@ -64,7 +62,6 @@ const App: React.FC = () => {
       setActivePage(Page.HOME);
     } catch (error) {
       console.error('Logout error:', error);
-      // Force logout locally even if server fails
       setUser(null);
       localStorage.clear();
     }
@@ -72,10 +69,10 @@ const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center font-[Tajawal]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-[Tajawal]">جاري التحميل...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4" />
+          <p className="text-gray-600">جاري التحميل...</p>
         </div>
       </div>
     );
@@ -92,15 +89,24 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (activePage) {
-      case Page.HOME: return <Dashboard />;
-      case Page.RECEPTION: return <Reception />;
-      case Page.GYNECOLOGY: return <Gynecology />;
-      case Page.IVF: return <IvfJourney />;
-      case Page.OBSTETRICS: return <ObstetricsDashboard />;
-      case Page.PATIENT_RECORD: return <PatientMasterRecord />;
-      case Page.SETTINGS: return <Settings user={user} />;
-      case Page.ADMIN: return <AdminDashboard />;
-      default: return <Dashboard />;
+      case Page.HOME:
+        return <Dashboard />;
+      case Page.RECEPTION:
+        return <Reception />;
+      case Page.GYNECOLOGY:
+        return <Gynecology />;
+      case Page.IVF:
+        return <IvfJourney />;
+      case Page.OBSTETRICS:
+        return <ObstetricsDashboard />;
+      case Page.PATIENT_RECORD:
+        return <PatientMasterRecord />;
+      case Page.SETTINGS:
+        return <Settings user={user} />;
+      case Page.ADMIN:
+        return <AdminDashboard />;
+      default:
+        return <Dashboard />;
     }
   };
 
@@ -115,25 +121,41 @@ const App: React.FC = () => {
 
         <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">
           <div className="max-w-7xl mx-auto">
-            {/* Desktop Header */}
             <div className="hidden md:flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-gray-900">
                 مرحباً، {user?.email}
               </h1>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200 font-[Tajawal]"
-              >
-                <LogOut size={18} />
-                تسجيل الخروج
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowLabReferences(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg transition duration-200"
+                >
+                  <BookOpen size={18} />
+                  مرجع التحاليل
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200"
+                >
+                  <LogOut size={18} />
+                  تسجيل الخروج
+                </button>
+              </div>
             </div>
 
-            {/* Mobile Header */}
             <div className="md:hidden mb-4 text-center">
               <h1 className="text-xl font-bold text-gray-900">
                 مرحباً، {user?.email?.split('@')[0]}
               </h1>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setShowLabReferences(true)}
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg transition duration-200"
+                >
+                  <BookOpen size={16} />
+                  مرجع التحاليل
+                </button>
+              </div>
             </div>
 
             {renderContent()}
@@ -142,6 +164,8 @@ const App: React.FC = () => {
 
         <BottomNav activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
 
+        <LabReferencesModal isOpen={showLabReferences} onClose={() => setShowLabReferences(false)} />
+
         <Toaster position="top-center" reverseOrder={false} />
       </div>
     </BrandingProvider>
@@ -149,3 +173,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+

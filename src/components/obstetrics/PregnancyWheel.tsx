@@ -178,7 +178,7 @@ const PregnancyWheel: React.FC<PregnancyWheelProps> = ({ initialLmp, initialEdd 
               <div className="mt-1 text-2xl font-extrabold text-gray-900 font-[Tajawal]">
                 {snapshot.gaWeeks}w + {snapshot.gaDaysRemainder}d
               </div>
-              <div className="mt-2 inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold font-[Tajawal] ${meta?.badgeClass || ''}">
+              <div className={`mt-2 inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold font-[Tajawal] ${meta?.badgeClass || ''}`}>
                 {meta?.labelAr}
               </div>
             </div>
@@ -250,4 +250,3 @@ const PregnancyWheel: React.FC<PregnancyWheelProps> = ({ initialLmp, initialEdd 
 };
 
 export default PregnancyWheel;
-
