@@ -30,6 +30,9 @@ export interface LabRequestItem {
   notes?: string;
   testName?: string;
   testUnit?: string;
+  referenceRangeMin?: number;
+  referenceRangeMax?: number;
+  referenceRangeText?: string;
 }
 
 export interface LabResult {
@@ -166,14 +169,14 @@ export const labService = {
           test_id,
           priority,
           notes,
-          lab_tests_catalog(name, unit)
+          lab_tests_catalog(name, unit, reference_range_min, reference_range_max, reference_range_text)
         `
         : `
           id,
           request_id,
           test_id,
           notes,
-          lab_tests_catalog(name, unit)
+          lab_tests_catalog(name, unit, reference_range_min, reference_range_max, reference_range_text)
         `;
 
       const { data, error } = await supabase
@@ -214,7 +217,10 @@ export const labService = {
           priority: i.priority || 'Normal',
           notes: i.notes,
           testName: i.lab_tests_catalog?.name,
-          testUnit: i.lab_tests_catalog?.unit
+          testUnit: i.lab_tests_catalog?.unit,
+          referenceRangeMin: i.lab_tests_catalog?.reference_range_min,
+          referenceRangeMax: i.lab_tests_catalog?.reference_range_max,
+          referenceRangeText: i.lab_tests_catalog?.reference_range_text
         }))
     }));
   },
@@ -242,21 +248,23 @@ export const labService = {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    const row = {
+      id,
+      request_item_id: requestItemId,
+      result_value: result.resultValue ?? null,
+      result_text: result.resultText ?? null,
+      result_date: result.resultDate || now,
+      is_abnormal: result.isAbnormal || false,
+      abnormal_type: result.abnormalType || null,
+      interpretation: result.interpretation || null,
+      notes: result.notes || null,
+      created_at: now,
+      updated_at: now
+    };
+
     const { error } = await supabase
       .from('lab_results')
-      .insert([{
-        id,
-        request_item_id: requestItemId,
-        result_value: result.resultValue || null,
-        result_text: result.resultText || null,
-        result_date: result.resultDate || now,
-        is_abnormal: result.isAbnormal || false,
-        abnormal_type: result.abnormalType || null,
-        interpretation: result.interpretation || null,
-        notes: result.notes || null,
-        created_at: now,
-        updated_at: now
-      }]);
+      .upsert([row], { onConflict: 'request_item_id' });
 
     if (error) throw error;
     return id;

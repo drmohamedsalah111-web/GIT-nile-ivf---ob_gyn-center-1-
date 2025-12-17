@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS lab_results (
   updated_at TIMESTAMP DEFAULT now()
 );
 
+-- Ensure a single result row per requested test (enables upsert by request_item_id)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_lab_results_request_item_unique ON lab_results(request_item_id);
+
 -- If tables already exist, ensure missing columns are added (safe re-run)
 ALTER TABLE lab_requests ADD COLUMN IF NOT EXISTS clinical_indication TEXT;
 ALTER TABLE lab_requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT now();
