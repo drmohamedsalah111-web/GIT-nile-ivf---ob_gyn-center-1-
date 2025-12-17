@@ -63,20 +63,15 @@ export const getPatientFullHistory = async (patientId: string) => {
       supabase.from('ivf_cycles').select('*').eq('patient_id', patientId)
     ]);
 
-    if (visitsResult.error) {
-      console.error('Error fetching general visits:', visitsResult.error);
-      throw visitsResult.error;
-    }
-    if (pregnanciesResult.error) {
-      console.error('Error fetching pregnancies:', pregnanciesResult.error);
-      throw pregnanciesResult.error;
-    }
-    if (ivfCyclesResult.error) {
-      console.error('Error fetching IVF cycles:', ivfCyclesResult.error);
-      throw ivfCyclesResult.error;
-    }
+    if (visitsResult.error) console.error('Error fetching visits:', visitsResult.error);
+    if (pregnanciesResult.error) console.error('Error fetching pregnancies:', pregnanciesResult.error);
+    if (ivfCyclesResult.error) console.error('Error fetching IVF cycles:', ivfCyclesResult.error);
 
-    const parsedVisits = (visitsResult.data || []).map((visit: any) => ({
+    const visits = visitsResult.error ? [] : (visitsResult.data || []);
+    const pregnancies = pregnanciesResult.error ? [] : (pregnanciesResult.data || []);
+    const ivfCycles = ivfCyclesResult.error ? [] : (ivfCyclesResult.data || []);
+
+    const parsedVisits = visits.map((visit: any) => ({
       id: visit.id,
       date: visit.date || visit.visit_date || visit.created_at,
       type: 'Visit' as const,
@@ -88,7 +83,7 @@ export const getPatientFullHistory = async (patientId: string) => {
       notes: visit.notes || ''
     }));
 
-    const parsedPregnancies = (pregnanciesResult.data || []).map((pregnancy: any) => ({
+    const parsedPregnancies = pregnancies.map((pregnancy: any) => ({
       id: pregnancy.id,
       date: pregnancy.lmp_date || pregnancy.created_at,
       type: 'Pregnancy' as const,
@@ -103,7 +98,7 @@ export const getPatientFullHistory = async (patientId: string) => {
       notes: ''
     }));
 
-    const parsedIvfCycles = (ivfCyclesResult.data || []).map((cycle: any) => ({
+    const parsedIvfCycles = ivfCycles.map((cycle: any) => ({
       id: cycle.id,
       date: cycle.start_date || cycle.created_at,
       type: 'IVF' as const,
@@ -115,9 +110,47 @@ export const getPatientFullHistory = async (patientId: string) => {
       notes: ''
     }));
 
+    const ancVisitsPromises = pregnancies.map(async (pregnancy: any) => {
+      const { data: ancVisits, error: ancError } = await supabase
+        .from('antenatal_visits')
+        .select('*')
+        .eq('pregnancy_id', pregnancy.id);
+
+      if (ancError) {
+        console.error('Error fetching ANC visits:', ancError);
+        return [];
+      }
+
+      return (ancVisits || []).map((visit: any) => ({
+        id: visit.id,
+        date: visit.visit_date,
+        type: 'Visit' as const,
+        department: 'OBS',
+        diagnosis: `ANC Visit - GA ${visit.gestational_age_weeks}w+${visit.gestational_age_days}d`,
+        summary: visit.notes || `ANC Visit - GA ${visit.gestational_age_weeks}w+${visit.gestational_age_days}d`,
+        clinical_data: {
+          systolic_bp: visit.systolic_bp,
+          diastolic_bp: visit.diastolic_bp,
+          weight_kg: visit.weight_kg,
+          urine_albuminuria: visit.urine_albuminuria,
+          urine_glycosuria: visit.urine_glycosuria,
+          fetal_heart_sound: visit.fetal_heart_sound,
+          fundal_height_cm: visit.fundal_height_cm,
+          edema: visit.edema,
+          edema_grade: visit.edema_grade,
+          next_visit_date: visit.next_visit_date
+        },
+        prescription: parseJsonSafe(visit.prescription, []),
+        notes: visit.notes || ''
+      }));
+    });
+
+    const parsedAncVisits = (await Promise.all(ancVisitsPromises)).flat();
+
     const unifiedHistory = [
       ...parsedVisits,
       ...parsedPregnancies,
+      ...parsedAncVisits,
       ...parsedIvfCycles
     ].filter(item => item.date);
 

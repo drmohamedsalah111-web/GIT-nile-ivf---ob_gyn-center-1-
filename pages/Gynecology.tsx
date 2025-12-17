@@ -68,6 +68,12 @@ const Gynecology: React.FC = () => {
 
   const { patients } = usePatients();
 
+  useEffect(() => {
+    if (patients.length > 0 && !selectedPatientId) {
+      setSelectedPatientId(patients[0].id.toString());
+    }
+  }, [patients, selectedPatientId]);
+
   const [gynecologyData, setGynecologyData] = useState<GynecologyData>({
     vitals: {
       weight: undefined,
@@ -257,7 +263,7 @@ const Gynecology: React.FC = () => {
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">
-            Ø¹ÙŠØ§Ø¯Ø© Ø§Ù„Ù†Ø³Ø§Ø¡
+            عيادة أمراض النساء
           </h1>
           <p className="text-gray-600 font-[Tajawal]">
             Gynecology Station - Diagnosis & Medical Management of Benign Conditions
@@ -682,3 +688,4 @@ const Gynecology: React.FC = () => {
 };
 
 export default Gynecology;
+

@@ -267,10 +267,10 @@ const ObstetricsDashboard: React.FC = () => {
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">
-            dY U^O-O_Oc OO" OU,OU^U,USO_ U^OU,U+O3OOUSOc
+            متابعة الحمل
           </h1>
           <p className="text-gray-600 font-[Tajawal]">
-            U.OdOO"O1Oc O'OU.U,Oc U,U,O-U.U, U^OU,U^U,OO_Oc U.O1 O5U,USUSU. OU,U.OrOOO U^OU,U.O3O- OU,O"USU^U.USOOUS
+            متابعة شاملة للحمل والزيارات السابقة والتقارير.
           </p>
         </div>
         <div className="flex gap-2">
@@ -447,5 +447,6 @@ const ObstetricsDashboard: React.FC = () => {
 };
 
 export default ObstetricsDashboard;
+
 
 

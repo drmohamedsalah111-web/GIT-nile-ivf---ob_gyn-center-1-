@@ -161,6 +161,12 @@ const IvfJourney: React.FC = () => {
   const selectedPatient = patients.find(p => String(p.id) === selectedPatientId);
 
   useEffect(() => {
+    if (patients.length > 0 && !selectedPatientId) {
+      setSelectedPatientId(String(patients[0].id));
+    }
+  }, [patients, selectedPatientId]);
+
+  useEffect(() => {
     if (selectedPatientId) {
       loadExistingCycle(selectedPatientId);
     }
@@ -445,7 +451,7 @@ const IvfJourney: React.FC = () => {
       <div className="bg-gradient-to-r from-teal-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">dY"ª IVF Journey</h1>
+            <h1 className="text-3xl font-bold mb-2">مركز الخصوبة (IVF)</h1>
             <p className="text-teal-100">Comprehensive IVF Cycle Management & Tracking</p>
           </div>
           <div className="flex items-center gap-4">

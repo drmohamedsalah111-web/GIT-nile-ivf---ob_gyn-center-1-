@@ -198,11 +198,12 @@ const PatientMasterRecord: React.FC = () => {
     setSelectedDetail(isExpanded ? null : item);
   };
 
-  const getSameTypeHistory = (item: HistoryItem | null) => {
+  const getRelatedHistory = (item: HistoryItem | null) => {
     if (!item) return [];
-    return [...history.filter(h => h.type === item.type)].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    const filtered = item.department
+      ? history.filter(h => h.department === item.department)
+      : history.filter(h => h.type === item.type);
+    return [...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
 
   const groupFilesByDate = (files: any[]) => {
@@ -464,10 +465,10 @@ const PatientMasterRecord: React.FC = () => {
                               <div className="mt-6 border-t pt-4">
                                 <div className="flex items-center justify-between mb-2">
                                   <p className="text-xs uppercase text-gray-500 font-semibold">سجل هذا القسم</p>
-                                  <span className="text-xs text-gray-600">({getSameTypeHistory(selectedDetail).length})</span>
+                                  <span className="text-xs text-gray-600">({getRelatedHistory(selectedDetail).length})</span>
                                 </div>
                                 <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
-                                  {getSameTypeHistory(selectedDetail).map((event) => (
+                                  {getRelatedHistory(selectedDetail).map((event) => (
                                     <div
                                       key={event.id}
                                       className={`p-3 rounded-lg border ${event.id === selectedDetail.id ? 'border-teal-300 bg-teal-50' : 'border-gray-200 bg-gray-50'}`}
