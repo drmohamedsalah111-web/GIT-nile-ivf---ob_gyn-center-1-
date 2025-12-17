@@ -36,7 +36,9 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
       const allVisits = await visitsService.getVisitsByPatient(patientId);
       const filteredVisits = category === 'ALL'
         ? allVisits
-        : allVisits.filter(visit => visit.department === category);
+        : category === 'IVF'
+          ? allVisits.filter(visit => visit.department?.startsWith('IVF'))
+          : allVisits.filter(visit => visit.department === category);
       setVisits(filteredVisits);
     } catch (error) {
       console.error('Error fetching history:', error);
@@ -47,13 +49,9 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
   };
 
   const toggleExpanded = (visitId: string) => {
-    const newExpanded = new Set(expandedItems);
-    if (newExpanded.has(visitId)) {
-      newExpanded.delete(visitId);
-    } else {
-      newExpanded.add(visitId);
-    }
-    setExpandedItems(newExpanded);
+    const next = new Set(expandedItems);
+    if (next.has(visitId)) next.delete(visitId); else next.add(visitId);
+    setExpandedItems(next);
   };
 
   const getRelativeTime = (dateString: string) => {
@@ -64,10 +62,10 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
 
     if (diffDays === 0) return 'اليوم';
     if (diffDays === 1) return 'أمس';
-    if (diffDays < 7) return `منذ ${diffDays} أيام`;
-    if (diffDays < 30) return `منذ ${Math.floor(diffDays / 7)} أسابيع`;
-    if (diffDays < 365) return `منذ ${Math.floor(diffDays / 30)} أشهر`;
-    return `منذ ${Math.floor(diffDays / 365)} سنوات`;
+    if (diffDays < 7) return `منذ ${diffDays} يوم`;
+    if (diffDays < 30) return `منذ ${Math.floor(diffDays / 7)} أسبوع`;
+    if (diffDays < 365) return `منذ ${Math.floor(diffDays / 30)} شهر`;
+    return `منذ ${Math.floor(diffDays / 365)} سنة`;
   };
 
   const renderVisitSummary = (visit: Visit) => {
@@ -118,7 +116,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
       );
     }
 
-    if (department === 'IVF') {
+    if (department?.startsWith('IVF')) {
       const protocol = clinical_data?.protocol || 'Protocol';
       const e2 = clinical_data?.e2 ? `${clinical_data.e2} pg/mL` : null;
       const follicleCount = clinical_data?.follicle_count ? `${clinical_data.follicle_count} follicles` : null;
@@ -146,19 +144,16 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40"
         onClick={onClose}
       />
 
-      {/* Sidebar */}
       <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
         <div className="flex flex-col h-full">
-          {/* Header */}
           <div className="flex items-center justify-between p-4 border-b bg-teal-50">
             <h2 className="text-lg font-bold text-gray-900 font-[Tajawal]">
-              📜 السجل السابق - {category === 'GYNA' ? 'طب النساء' : category === 'OBS' ? 'الحمل' : category === 'IVF' ? 'التلقيح الاصطناعي' : 'الكل'}
+              السجل السابق - {category === 'GYNA' ? 'طب النساء' : category === 'OBS' ? 'الحمل' : category === 'IVF' ? 'التلقيح الاصطناعي' : 'الكل'}
             </h2>
             <button
               onClick={onClose}
@@ -168,7 +163,6 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
             </button>
           </div>
 
-          {/* Content */}
           <div className="flex-1 overflow-y-auto p-4">
             {loading ? (
               <div className="flex justify-center items-center py-8">
@@ -182,7 +176,6 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
               <div className="space-y-4">
                 {visits.map((visit) => (
                   <div key={visit.id} className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-                    {/* Header */}
                     <div className="p-3 border-b border-gray-200">
                       <div className="flex items-center justify-between">
                         <div className="text-sm font-bold text-gray-900">
@@ -194,12 +187,10 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                       </div>
                     </div>
 
-                    {/* Always Visible Summary Body */}
                     <div className="p-3 bg-gray-100 border-b border-gray-200">
                       {renderVisitSummary(visit)}
                     </div>
 
-                    {/* Expand/Collapse Button */}
                     <div className="p-3 flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         {onCopyData && (
@@ -207,6 +198,15 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                             onClick={() => onCopyData(visit)}
                             className="p-1 text-teal-600 hover:bg-teal-100 rounded transition-colors"
                             title="نسخ البيانات"
+                          >
+                            <Copy size={14} />
+                          </button>
+                        )}
+                        {onCopyRx && visit.prescription?.length > 0 && (
+                          <button
+                            onClick={() => onCopyRx(visit.prescription || [])}
+                            className="p-1 text-teal-600 hover:bg-teal-100 rounded transition-colors"
+                            title="نسخ الوصفة"
                           >
                             <Copy size={14} />
                           </button>
@@ -220,19 +220,18 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                       </button>
                     </div>
 
-                    {/* Expanded Content */}
                     {expandedItems.has(visit.id) && (
                       <div className="p-3 bg-white">
                         {visit.notes && (
                           <div className="mb-3">
-                            <h4 className="text-sm font-medium text-gray-900 mb-1">ملاحظات:</h4>
+                            <h4 className="text-sm font-medium text-gray-900 mb-1">الملاحظات:</h4>
                             <p className="text-sm text-gray-700">{visit.notes}</p>
                           </div>
                         )}
 
                         {visit.prescription && visit.prescription.length > 0 && (
                           <div className="mb-3">
-                            <h4 className="text-sm font-medium text-gray-900 mb-1">الوصفة الطبية:</h4>
+                            <h4 className="text-sm font-medium text-gray-900 mb-1">الوصفات:</h4>
                             <div className="space-y-1">
                               {visit.prescription.map((item, idx) => (
                                 <div key={idx} className="text-sm text-gray-700 bg-gray-100 p-2 rounded">
