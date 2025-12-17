@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { X, Copy, ChevronDown, ChevronUp, Activity, Scale, Baby } from 'lucide-react';
 import { visitsService } from '../../services/visitsService';
 import { Visit, PrescriptionItem } from '../../types';
@@ -24,34 +24,63 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
   const [loading, setLoading] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (isOpen && patientId) {
-      fetchHistory();
-    }
-  }, [isOpen, patientId]);
+  const headerTitle = useMemo(() => {
+    const section =
+      category === 'GYNA'
+        ? 'أمراض النساء'
+        : category === 'OBS'
+          ? 'متابعة الحمل'
+          : category === 'IVF'
+            ? 'تأخر الإنجاب / IVF'
+            : 'كل الأقسام';
+    return `السجل السابق - ${section}`;
+  }, [category]);
 
-  const fetchHistory = async () => {
-    setLoading(true);
-    try {
-      const allVisits = await visitsService.getVisitsByPatient(patientId);
-      const filteredVisits = category === 'ALL'
-        ? allVisits
-        : category === 'IVF'
-          ? allVisits.filter(visit => visit.department?.startsWith('IVF'))
-          : allVisits.filter(visit => visit.department === category);
-      setVisits(filteredVisits);
-    } catch (error) {
-      console.error('Error fetching history:', error);
-      setVisits([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    if (!isOpen || !patientId) return;
+
+    const fetchHistory = async () => {
+      setLoading(true);
+      try {
+        const allVisits = await visitsService.getVisitsByPatient(patientId);
+        const filteredVisits =
+          category === 'ALL'
+            ? allVisits
+            : allVisits.filter((visit) => {
+                const dept = String(visit.department || '').trim();
+                const deptUpper = dept.toUpperCase();
+
+                if (category === 'IVF') return deptUpper.startsWith('IVF');
+                if (category === 'OBS') return deptUpper === 'OBS' || deptUpper.startsWith('OBS') || deptUpper === 'OBSTETRICS';
+                if (category === 'GYNA') {
+                  return (
+                    deptUpper === 'GYNA' ||
+                    deptUpper === 'GYN' ||
+                    deptUpper === 'GENERAL' ||
+                    deptUpper === 'VISIT' ||
+                    deptUpper === ''
+                  );
+                }
+                return deptUpper === category;
+              });
+        setVisits(filteredVisits);
+      } catch (error) {
+        console.error('Error fetching history:', error);
+        setVisits([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [isOpen, patientId, category]);
 
   const toggleExpanded = (visitId: string) => {
-    const next = new Set(expandedItems);
-    if (next.has(visitId)) next.delete(visitId); else next.add(visitId);
-    setExpandedItems(next);
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(visitId)) next.delete(visitId); else next.add(visitId);
+      return next;
+    });
   };
 
   const getRelativeTime = (dateString: string) => {
@@ -106,11 +135,11 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
     if (department === 'GYNA') {
       return (
         <div className="space-y-2">
-          <div className="text-sm font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded">
-            {diagnosis || 'Diagnosis'}
+          <div className="text-sm font-medium text-purple-700 bg-purple-50 px-2 py-1 rounded">
+            {diagnosis || 'التشخيص'}
           </div>
           <div className="text-xs text-gray-600">
-            {clinical_data?.complaint || 'Complaint'}
+            {clinical_data?.complaint || 'الشكوى'}
           </div>
         </div>
       );
@@ -123,7 +152,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
 
       return (
         <div className="space-y-2">
-          <div className="text-sm font-medium text-green-600">
+          <div className="text-sm font-medium text-green-700">
             {protocol}
           </div>
           <div className="text-xs text-gray-600">
@@ -135,7 +164,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
 
     return (
       <div className="text-sm text-gray-600">
-        {diagnosis || 'Medical Visit'}
+        {diagnosis || 'زيارة'}
       </div>
     );
   };
@@ -150,14 +179,13 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
       />
 
       <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full" dir="rtl">
           <div className="flex items-center justify-between p-4 border-b bg-teal-50">
-            <h2 className="text-lg font-bold text-gray-900 font-[Tajawal]">
-              السجل السابق - {category === 'GYNA' ? 'طب النساء' : category === 'OBS' ? 'الحمل' : category === 'IVF' ? 'التلقيح الاصطناعي' : 'الكل'}
-            </h2>
+            <h2 className="text-lg font-bold text-gray-900 font-[Tajawal]">{headerTitle}</h2>
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+              aria-label="Close"
             >
               <X size={20} />
             </button>
@@ -169,7 +197,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
               </div>
             ) : visits.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 font-[Tajawal]">
                 لا توجد سجلات سابقة
               </div>
             ) : (
@@ -196,8 +224,9 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                         {onCopyData && (
                           <button
                             onClick={() => onCopyData(visit)}
-                            className="p-1 text-teal-600 hover:bg-teal-100 rounded transition-colors"
+                            className="p-1 text-teal-700 hover:bg-teal-100 rounded transition-colors"
                             title="نسخ البيانات"
+                            aria-label="Copy data"
                           >
                             <Copy size={14} />
                           </button>
@@ -205,8 +234,9 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                         {onCopyRx && visit.prescription?.length > 0 && (
                           <button
                             onClick={() => onCopyRx(visit.prescription || [])}
-                            className="p-1 text-teal-600 hover:bg-teal-100 rounded transition-colors"
-                            title="نسخ الوصفة"
+                            className="p-1 text-teal-700 hover:bg-teal-100 rounded transition-colors"
+                            title="نسخ الروشتة"
+                            aria-label="Copy prescription"
                           >
                             <Copy size={14} />
                           </button>
@@ -215,6 +245,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                       <button
                         onClick={() => toggleExpanded(visit.id)}
                         className="p-1 text-gray-600 hover:bg-gray-200 rounded transition-colors"
+                        aria-label="Toggle details"
                       >
                         {expandedItems.has(visit.id) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       </button>
@@ -224,14 +255,14 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                       <div className="p-3 bg-white">
                         {visit.notes && (
                           <div className="mb-3">
-                            <h4 className="text-sm font-medium text-gray-900 mb-1">الملاحظات:</h4>
-                            <p className="text-sm text-gray-700">{visit.notes}</p>
+                            <h4 className="text-sm font-medium text-gray-900 mb-1 font-[Tajawal]">الملاحظات:</h4>
+                            <p className="text-sm text-gray-700 font-[Tajawal] whitespace-pre-line">{visit.notes}</p>
                           </div>
                         )}
 
                         {visit.prescription && visit.prescription.length > 0 && (
                           <div className="mb-3">
-                            <h4 className="text-sm font-medium text-gray-900 mb-1">الوصفات:</h4>
+                            <h4 className="text-sm font-medium text-gray-900 mb-1 font-[Tajawal]">الروشتة:</h4>
                             <div className="space-y-1">
                               {visit.prescription.map((item, idx) => (
                                 <div key={idx} className="text-sm text-gray-700 bg-gray-100 p-2 rounded">
@@ -242,18 +273,8 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                           </div>
                         )}
 
-                        {visit.clinical_data && Object.keys(visit.clinical_data).length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-900 mb-1">البيانات السريرية:</h4>
-                            <div className="text-sm text-gray-700">
-                              {Object.entries(visit.clinical_data).map(([key, value]) => (
-                                <div key={key} className="flex justify-between py-1 border-b border-gray-100 last:border-b-0">
-                                  <span className="capitalize">{key.replace(/_/g, ' ')}:</span>
-                                  <span>{String(value)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
+                        {!visit.notes && (!visit.prescription || visit.prescription.length === 0) && (
+                          <div className="text-sm text-gray-500 font-[Tajawal]">لا توجد تفاصيل إضافية</div>
                         )}
                       </div>
                     )}

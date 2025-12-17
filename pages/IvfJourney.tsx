@@ -20,7 +20,7 @@ const LOCAL_IVF_DRUGS = {
 const PROTOCOL_INFO: any = {
   'Long': {
     name: 'Long Agonist Protocol',
-    arabicName: 'Ø¨Ø±ÙˆØªÙˆÙƒÙˆÙ„ Ø§Ù„Ù†Ø§Ù‡Ø¶Ø§Øª Ø§Ù„Ø·ÙˆÙŠÙ„Ø©',
+    arabicName: 'بروتوكول الناهضات الطويلة',
     bestFor: ['Normal responders', 'Regular cycles', 'PCO patients'],
     duration: '35-42 days',
     stimDays: '10-12 days',
@@ -30,7 +30,7 @@ const PROTOCOL_INFO: any = {
   },
   'Antagonist': {
     name: 'Antagonist Protocol',
-    arabicName: 'Ø¨Ø±ÙˆØªÙˆÙƒÙˆÙ„ Ø§Ù„Ù…Ø¶Ø§Ø¯Ø§Øª',
+    arabicName: 'بروتوكول المضادات',
     bestFor: ['Poor responders', 'Previous low response'],
     duration: '14-16 days',
     stimDays: '8-10 days',
@@ -40,7 +40,7 @@ const PROTOCOL_INFO: any = {
   },
   'Flare-up': {
     name: 'Flare-up Protocol',
-    arabicName: 'Ø¨Ø±ÙˆØªÙˆÙƒÙˆÙ„ Ø§Ù„ØªÙ†Ø´ÙŠØ· Ø§Ù„Ø­Ø§Ø¯',
+    arabicName: 'بروتوكول التنشيط الحاد',
     bestFor: ['Poor responders', 'Diminished ovarian reserve'],
     duration: '10-12 days',
     stimDays: '8-9 days',
@@ -50,7 +50,7 @@ const PROTOCOL_INFO: any = {
   },
   'Mini-IVF': {
     name: 'Mini-IVF Protocol',
-    arabicName: 'Ø¨Ø±ÙˆØªÙˆÙƒÙˆÙ„ Ø§Ù„Ø­Ù‚Ù† Ø§Ù„Ù…Ø¬Ù‡Ø±ÙŠ Ø§Ù„Ø®ÙÙŠÙ',
+    arabicName: 'بروتوكول الحقن المجهري الخفيف',
     bestFor: ['Poor responders', 'Previous OHSS'],
     duration: '10-14 days',
     stimDays: '7-8 days',
@@ -244,6 +244,7 @@ const IvfJourney: React.FC = () => {
   };
 
   const handleStartCycle = async () => {
+    if (isLoading) return;
     if (!selectedPatientId) {
       toast.error('Please select a patient');
       return;
@@ -284,10 +285,10 @@ const IvfJourney: React.FC = () => {
         startDate: new Date().toISOString().split('T')[0]
       }));
 
-      toast.success('New IVF cycle started and saved');
+      toast.success('New IVF cycle started and saved', { id: 'ivf-start-cycle' });
     } catch (error) {
       console.error('Error starting cycle:', error);
-      toast.error('Failed to start cycle');
+      toast.error('Failed to start cycle', { id: 'ivf-start-cycle' });
     } finally {
       setIsLoading(false);
     }
@@ -537,7 +538,7 @@ const IvfJourney: React.FC = () => {
                         value={cycleData.coupleBMI || ''}
                         onChange={(e) => setCycleData(prev => ({ ...prev, coupleBMI: parseFloat(e.target.value) || undefined }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="kg/mÂ²"
+                        placeholder="kg/m²"
                       />
                     </div>
                     <div className="flex items-center gap-2">
@@ -1037,4 +1038,3 @@ const IvfJourney: React.FC = () => {
 };
 
 export default IvfJourney;
-

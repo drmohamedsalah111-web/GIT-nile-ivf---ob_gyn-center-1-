@@ -374,7 +374,7 @@ const Gynecology: React.FC = () => {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Temp (Â°C)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Temp (°C)</label>
                         <input
                           type="number"
                           value={gynecologyData.vitals.temperature || ''}
@@ -417,7 +417,7 @@ const Gynecology: React.FC = () => {
                         ...prev,
                         complaints: Array.isArray(value) ? value : [value]
                       }))}
-                      placeholder="Ø§Ø¨Ø­Ø« Ø¹Ù† Ø§Ù„Ø´ÙƒÙˆÙ‰ Ø£Ùˆ Ø£Ø¶Ù Ø´ÙƒÙˆÙ‰ Ø¬Ø¯ÙŠØ¯Ø©"
+                      placeholder="ابحث عن الشكوى أو أضف شكوى جديدة"
                       multi={true}
                       allowCustom={true}
                     />
@@ -585,20 +585,20 @@ const Gynecology: React.FC = () => {
                 {/* Diagnosis */}
                 <div className="text-left">
                   <SearchableSelect
-                    label="ICD-10 Ø§Ù„ØªØ´Ø®ÙŠØµ (Ø§Ø®ØªØ± Ù…ØªØ¹Ø¯Ø¯)"
+                    label="ICD-10 التشخيص (اختر متعدد)"
                     options={ICD10_DIAGNOSES}
                     value={gynecologyData.diagnosis}
                     onChange={(value) => setGynecologyData(prev => ({
                       ...prev,
                       diagnosis: Array.isArray(value) ? value : [value]
                     }))}
-                    placeholder="Ø§Ø¨Ø­Ø« Ø¹Ù† Ø§Ù„ØªØ´Ø®ÙŠØµ Ø£Ùˆ Ø£Ø¶Ù ØªØ´Ø®ÙŠØµ Ø¬Ø¯ÙŠØ¯"
+                    placeholder="ابحث عن التشخيص أو أضف تشخيص جديد"
                     multi={true}
                     allowCustom={true}
                   />
                   {gynecologyData.diagnosis.length > 0 && (
                     <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-sm text-amber-800 font-medium font-[Tajawal]">Ø§Ù„ØªØ´Ø®ÙŠØµØ§Øª Ø§Ù„Ù…Ø­Ø¯Ø¯Ø©:</p>
+                      <p className="text-sm text-amber-800 font-medium font-[Tajawal]">التشخيصات المحددة:</p>
                       <p className="text-sm text-amber-700 mt-1 font-[Tajawal]">{gynecologyData.diagnosis.join('; ')}</p>
                     </div>
                   )}
@@ -607,20 +607,20 @@ const Gynecology: React.FC = () => {
                 {/* Procedure Order */}
                 <div className="text-left">
                   <SearchableSelect
-                    label="Ø®Ø·Ø© Ø§Ù„Ø¹Ù„Ø§Ø¬ / Ø§Ù„Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª (Ø§Ø®ØªØ± Ù…ØªØ¹Ø¯Ø¯)"
+                    label="خطة العلاج / الإجراءات (اختر متعدد)"
                     options={PROCEDURE_ORDERS}
                     value={gynecologyData.procedureOrder}
                     onChange={(value) => setGynecologyData(prev => ({
                       ...prev,
                       procedureOrder: Array.isArray(value) ? value : [value]
                     }))}
-                    placeholder="Ø§Ø¨Ø­Ø« Ø¹Ù† Ø¥Ø¬Ø±Ø§Ø¡ Ø£Ùˆ Ø£Ø¶Ù Ø¥Ø¬Ø±Ø§Ø¡ Ø¬Ø¯ÙŠØ¯"
+                    placeholder="ابحث عن إجراء أو أضف إجراء جديد"
                     multi={true}
                     allowCustom={true}
                   />
                   {gynecologyData.procedureOrder.length > 0 && (
                     <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800 font-medium font-[Tajawal]">Ø§Ù„Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª Ø§Ù„Ù…Ø­Ø¯Ø¯Ø©:</p>
+                      <p className="text-sm text-blue-800 font-medium font-[Tajawal]">الإجراءات المحددة:</p>
                       <p className="text-sm text-blue-700 mt-1 font-[Tajawal]">{gynecologyData.procedureOrder.join('; ')}</p>
                     </div>
                   )}
@@ -687,4 +687,3 @@ const Gynecology: React.FC = () => {
 };
 
 export default Gynecology;
-

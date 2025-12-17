@@ -94,12 +94,12 @@ const ObstetricsDashboard: React.FC = () => {
   const handleCreatePregnancy = async () => {
     try {
       if (!selectedPatientId) {
-        toast.error('Ø§Ø®ØªØ± Ù…Ø±ÙŠØ¶Ø© Ø£ÙˆÙ„Ø§Ù‹');
+        toast.error('اختر مريضة أولاً');
         return;
       }
 
       if (!doctorId) {
-        toast.error('ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø·Ø¨ÙŠØ¨');
+        toast.error('فشل تحميل بيانات الطبيب');
         return;
       }
 
@@ -107,7 +107,7 @@ const ObstetricsDashboard: React.FC = () => {
       const eddByScan = formData.edd_by_scan?.trim() || null;
 
       if (!lmpDate && !eddByScan) {
-        toast.error('Ø£Ø¯Ø®Ù„ ØªØ§Ø±ÙŠØ® Ø¢Ø®Ø± Ø¯ÙˆØ±Ø© Ø£Ùˆ ØªØ§Ø±ÙŠØ® Ø§Ù„ÙˆÙ„Ø§Ø¯Ø© Ø§Ù„Ù…ØªÙˆÙ‚Ø¹');
+        toast.error('أدخل تاريخ آخر دورة أو تاريخ الولادة المتوقع');
         return;
       }
 
@@ -160,7 +160,7 @@ const ObstetricsDashboard: React.FC = () => {
       setPregnancy(newPregnancy);
       setShowNewPregnancyForm(false);
       setFormData({ lmp_date: '', edd_by_scan: '' });
-      toast.success('ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ù…Ù„Ù Ø§Ù„Ø­Ù…Ù„ Ø¨Ù†Ø¬Ø§Ø­');
+      toast.success('تم إنشاء ملف الحمل بنجاح');
     } catch (error: any) {
       console.error('Error creating pregnancy:', error);
       console.error('Error details:', {
@@ -170,7 +170,7 @@ const ObstetricsDashboard: React.FC = () => {
         details: error?.details,
         hint: error?.hint,
       });
-      toast.error(`ÙØ´Ù„ Ø¥Ù†Ø´Ø§Ø¡ Ù…Ù„Ù Ø§Ù„Ø­Ù…Ù„: ${error?.message || 'Ø®Ø·Ø£ ØºÙŠØ± Ù…Ø¹Ø±ÙˆÙ'}`);
+      toast.error(`فشل إنشاء ملف الحمل: ${error?.message || 'خطأ غير معروف'}`);
     } finally {
       setIsSaving(false);
     }
@@ -179,7 +179,7 @@ const ObstetricsDashboard: React.FC = () => {
   const handleUpdatePregnancy = async (updates: Partial<Pregnancy>) => {
     if (!pregnancy || !pregnancy.id) {
       console.error('Cannot update pregnancy: pregnancy data is invalid');
-      toast.error('ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ù…Ù„Ù Ø§Ù„Ø­Ù…Ù„: Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª ØºÙŠØ± ØµØ­ÙŠØ­Ø©');
+      toast.error('فشل تحديث ملف الحمل: البيانات غير صحيحة');
       return;
     }
 
@@ -204,7 +204,7 @@ const ObstetricsDashboard: React.FC = () => {
       setPregnancy(updated);
     } catch (error) {
       console.error('Error updating pregnancy:', error);
-      toast.error('ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ù…Ù„Ù Ø§Ù„Ø­Ù…Ù„');
+      toast.error('فشل تحديث ملف الحمل');
       throw error;
     }
   };
@@ -447,6 +447,5 @@ const ObstetricsDashboard: React.FC = () => {
 };
 
 export default ObstetricsDashboard;
-
 
 
