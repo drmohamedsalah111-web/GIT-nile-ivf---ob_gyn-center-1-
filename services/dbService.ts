@@ -2,11 +2,47 @@ import { supabase } from './supabaseClient';
 import { authService } from './authService';
 import { Patient, IvfCycle, StimulationLog } from '../types';
 
+const parseAnyJson = <T,>(value: any, fallback: T): T => {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string') {
+    try {
+      return (value ? JSON.parse(value) : fallback) as T;
+    } catch {
+      return fallback;
+    }
+  }
+  return value as T;
+};
+
+const getDoctorIdOrThrow = async (): Promise<{ userId: string; doctorId: string }> => {
+  const user = await authService.getCurrentUser();
+  if (!user) throw new Error('غير مسجل الدخول');
+
+  const { data: existingDoctor, error: doctorError } = await supabase
+    .from('doctors')
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (doctorError) {
+    throw doctorError;
+  }
+
+  if (existingDoctor?.id) {
+    return { userId: user.id, doctorId: existingDoctor.id };
+  }
+
+  const created = await authService.ensureDoctorRecord(user.id, user.email || '');
+  if (created?.id && !String(created.id).startsWith('fallback-')) {
+    return { userId: user.id, doctorId: created.id };
+  }
+
+  throw new Error('ملف الطبيب غير موجود. من فضلك أنشئ/فعّل ملف الطبيب أولاً');
+};
+
 export const dbService = {
   // --- Patients ---
   getPatients: async (searchQuery?: string): Promise<Patient[]> => {
-    console.log('🚀 Fetching patients from Supabase...');
-    
     const query = (searchQuery || '').trim();
     const escapedQuery = query.replace(/,/g, '\\,');
 
@@ -20,56 +56,22 @@ export const dbService = {
     }
 
     const { data, error } = await supabaseQuery.order('created_at', { ascending: false });
+    if (error) throw error;
 
-    if (error) {
-      console.error('❌ Supabase Query Error:', error);
-      console.error('   Error Code:', error.code);
-      console.error('   Error Message:', error.message);
-      return [];
-    }
-
-    console.log('✅ Patients fetched:', data?.length);
-    if (data && data.length > 0) {
-      console.log('📄 First Patient Sample:', data[0]);
-    }
-
-    if (!data || data.length === 0) {
-      console.warn('⚠️ No patients found in database');
-      return [];
-    }
-
-    try {
-      const mappedPatients = data.map((p: any) => {
-        console.log(`📍 Mapping patient:`, p.id, p.name);
-        return {
-          id: p.id,
-          name: p.name,
-          age: p.age || 0,
-          phone: p.phone || p.mobile || '',
-          husbandName: p.husband_name || '',
-          history: p.history || '',
-          createdAt: p.created_at || new Date().toISOString()
-        };
-      });
-      
-      console.log(`✅ Successfully mapped ${mappedPatients.length} patients`);
-      return mappedPatients;
-    } catch (mappingError: any) {
-      console.error('❌ Data Mapping Error:', mappingError?.message);
-      console.error('   Stack:', mappingError?.stack);
-      console.error('   Failed Data Sample:', data?.[0]);
-      return [];
-    }
+    return (data || []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      age: p.age || 0,
+      phone: p.phone || p.mobile || '',
+      husbandName: p.husband_name || '',
+      history: p.history || '',
+      createdAt: p.created_at || new Date().toISOString()
+    }));
   },
 
   savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
     try {
-      const user = await authService.getCurrentUser();
-      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
-
-      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
-
+      const { doctorId } = await getDoctorIdOrThrow();
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
 
@@ -80,112 +82,67 @@ export const dbService = {
           name: patient.name,
           age: patient.age,
           phone: patient.phone,
-          husband_name: patient.husbandName,
-          history: patient.history,
-          doctor_id: doctor.id,
+          husband_name: patient.husbandName || null,
+          history: patient.history || null,
+          doctor_id: doctorId,
           created_at: now,
           updated_at: now
         }]);
 
       if (error) throw error;
-
-      console.log('✅ Patient saved to Supabase:', id);
       return { id, ...patient, createdAt: now };
     } catch (error: any) {
-      console.error('❌ savePatient error:', error?.message);
-      throw new Error(`فشل في حفظ بيانات المريض: ${error?.message}`);
+      const details = error?.message ? `: ${error.message}` : '';
+      throw new Error(`فشل حفظ بيانات المريضة${details}`);
     }
   },
 
   // --- Cycles ---
   getCycles: async (): Promise<IvfCycle[]> => {
-    console.log('🚀 Fetching IVF cycles from Supabase...');
-    
     const { data: cycles, error: cyclesError } = await supabase
       .from('ivf_cycles')
       .select('*')
       .order('start_date', { ascending: false });
 
-    if (cyclesError) {
-      console.error('❌ Error fetching cycles:', cyclesError);
-      console.error('   Error Code:', cyclesError.code);
-      console.error('   Error Message:', cyclesError.message);
-      return [];
-    }
-
-    console.log('✅ Cycles fetched:', cycles?.length);
-    if (cycles && cycles.length > 0) {
-      console.log('📄 First Cycle Sample:', cycles[0]);
-    }
-
-    if (!cycles || cycles.length === 0) {
-      console.warn('⚠️ No cycles found in database');
-      return [];
-    }
+    if (cyclesError) throw cyclesError;
 
     const { data: logs, error: logsError } = await supabase
       .from('stimulation_logs')
       .select('*')
       .order('date', { ascending: false });
 
-    if (logsError) {
-      console.error('❌ Error fetching logs:', logsError);
-    } else {
-      console.log('✅ Stimulation logs fetched:', logs?.length);
-    }
+    if (logsError) throw logsError;
 
-    try {
-      const parseJSON = (str: string) => {
-        try { return str ? JSON.parse(str) : undefined; } catch (e) { return undefined; }
-      };
-
-      const mappedCycles = (cycles || []).map((c: any) => {
-        console.log(`📍 Mapping cycle:`, c.id, `Patient: ${c.patient_id}`);
-        return {
-          id: c.id,
-          patientId: c.patient_id,
-          protocol: c.protocol,
-          startDate: c.start_date,
-          status: c.status,
-          logs: (logs || [])
-            .filter((l: any) => l.cycle_id === c.id)
-            .map((l: any) => ({
-              id: l.id,
-              date: l.date,
-              cycleDay: l.cycle_day,
-              fsh: l.fsh,
-              hmg: l.hmg,
-              e2: l.e2,
-              lh: l.lh,
-              rtFollicles: l.rt_follicles,
-              ltFollicles: l.lt_follicles,
-              endometriumThickness: l.endometrium_thickness
-            })),
-          lab: parseJSON(c.lab_data),
-          transfer: parseJSON(c.transfer_data),
-          outcome: parseJSON(c.outcome_data),
-          assessment: parseJSON(c.assessment_data)
-        };
-      });
-
-      console.log(`✅ Successfully mapped ${mappedCycles.length} cycles`);
-      return mappedCycles;
-    } catch (mappingError: any) {
-      console.error('❌ Data Mapping Error:', mappingError?.message);
-      console.error('   Stack:', mappingError?.stack);
-      console.error('   Failed Data Sample:', cycles?.[0]);
-      return [];
-    }
+    return (cycles || []).map((c: any) => ({
+      id: c.id,
+      patientId: c.patient_id,
+      protocol: c.protocol,
+      startDate: c.start_date,
+      status: c.status,
+      logs: (logs || [])
+        .filter((l: any) => l.cycle_id === c.id)
+        .map((l: any) => ({
+          id: l.id,
+          date: l.date,
+          cycleDay: l.cycle_day,
+          fsh: l.fsh,
+          hmg: l.hmg,
+          e2: l.e2,
+          lh: l.lh,
+          rtFollicles: l.rt_follicles,
+          ltFollicles: l.lt_follicles,
+          endometriumThickness: l.endometrium_thickness
+        })),
+      lab: parseAnyJson<any>(c.lab_data, undefined),
+      transfer: parseAnyJson<any>(c.transfer_data, undefined),
+      outcome: parseAnyJson<any>(c.outcome_data, undefined),
+      assessment: parseAnyJson<any>(c.assessment_data, undefined)
+    }));
   },
 
   saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
     try {
-      const user = await authService.getCurrentUser();
-      if (!user) throw new Error('يجب تسجيل الدخول أولاً');
-
-      const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-      if (!doctor?.id) throw new Error('فشل في العثور على ملف الطبيب');
-
+      const { doctorId } = await getDoctorIdOrThrow();
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
 
@@ -194,7 +151,7 @@ export const dbService = {
         .insert([{
           id,
           patient_id: cycle.patientId,
-          doctor_id: doctor.id,
+          doctor_id: doctorId,
           protocol: cycle.protocol,
           status: cycle.status || 'Active',
           start_date: cycle.startDate,
@@ -207,20 +164,19 @@ export const dbService = {
         }]);
 
       if (error) throw error;
-
-      console.log('✅ IVF Cycle saved to Supabase:', id);
       return { id, ...cycle };
     } catch (error: any) {
-      console.error('❌ saveCycle error:', error?.message);
-      throw new Error(`فشل في حفظ دورة الحقن المجهري: ${error?.message}`);
+      const details = error?.message ? `: ${error.message}` : '';
+      const code = error?.code ? ` (code: ${error.code})` : '';
+      throw new Error(`فشل إنشاء دورة IVF${details}${code}`);
     }
   },
 
   // --- Logs ---
   addLog: async (cycleId: string, log: Partial<StimulationLog>) => {
     try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!log.date || !log.cycleDay) throw new Error('التاريخ ورقم اليوم مطلوب');
+      if (!cycleId) throw new Error('رقم الدورة غير صالح');
+      if (!log.date || !log.cycleDay) throw new Error('من فضلك أدخل اليوم وتاريخ الزيارة');
 
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
@@ -244,18 +200,16 @@ export const dbService = {
         }]);
 
       if (error) throw error;
-
-      console.log('✅ Stimulation log saved to Supabase:', id);
       return { id, ...log };
     } catch (error: any) {
-      console.error('❌ addLog error:', error?.message);
-      throw new Error(`فشل في إضافة سجل التحفيز: ${error?.message}`);
+      const details = error?.message ? `: ${error.message}` : '';
+      throw new Error(`فشل إضافة يوم جديد${details}`);
     }
   },
 
   updateLog: async (logId: string, updates: Partial<StimulationLog>) => {
     try {
-      if (!logId) throw new Error('معرف السجل مطلوب');
+      if (!logId) throw new Error('رقم اليوم غير صالح');
 
       const updateData: any = {};
       if (updates.fsh !== undefined) updateData.fsh = updates.fsh;
@@ -266,8 +220,7 @@ export const dbService = {
       if (updates.ltFollicles !== undefined) updateData.lt_follicles = updates.ltFollicles;
       if (updates.endometriumThickness !== undefined) updateData.endometrium_thickness = updates.endometriumThickness;
 
-      if (Object.keys(updateData).length === 0) throw new Error('لا توجد تحديثات للتطبيق');
-
+      if (Object.keys(updateData).length === 0) return;
       updateData.updated_at = new Date().toISOString();
 
       const { error } = await supabase
@@ -276,104 +229,91 @@ export const dbService = {
         .eq('id', logId);
 
       if (error) throw error;
-
-      console.log('✅ Stimulation log updated in Supabase:', logId);
     } catch (error: any) {
-      console.error('❌ updateLog error:', error?.message);
-      throw new Error(`فشل في تحديث سجل التحفيز: ${error?.message}`);
+      const details = error?.message ? `: ${error.message}` : '';
+      throw new Error(`فشل تحديث بيانات اليوم${details}`);
     }
   },
 
   updateCycleAssessment: async (cycleId: string, assessment: any) => {
     try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!assessment) throw new Error('بيانات التقييم مطلوبة');
+      if (!cycleId) throw new Error('رقم الدورة غير صالح');
 
       const now = new Date().toISOString();
       const { error } = await supabase
         .from('ivf_cycles')
         .update({
-          assessment_data: JSON.stringify(assessment),
+          assessment_data: JSON.stringify(assessment || {}),
           updated_at: now
         })
         .eq('id', cycleId);
 
       if (error) throw error;
-
-      console.log('✅ Cycle assessment updated in Supabase:', cycleId);
     } catch (error: any) {
-      console.error('❌ updateCycleAssessment error:', error?.message);
-      throw new Error(`فشل في حفظ التقييم: ${error?.message}`);
+      const details = error?.message ? `: ${error.message}` : '';
+      throw new Error(`فشل تحديث بيانات التقييم${details}`);
     }
   },
 
   updateCycleLabData: async (cycleId: string, labData: any) => {
     try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!labData) throw new Error('بيانات المختبر مطلوبة');
+      if (!cycleId) throw new Error('رقم الدورة غير صالح');
 
       const now = new Date().toISOString();
       const { error } = await supabase
         .from('ivf_cycles')
         .update({
-          lab_data: JSON.stringify(labData),
+          lab_data: JSON.stringify(labData || {}),
           updated_at: now
         })
         .eq('id', cycleId);
 
       if (error) throw error;
-
-      console.log('✅ Cycle lab data updated in Supabase:', cycleId);
     } catch (error: any) {
-      console.error('❌ updateCycleLabData error:', error?.message);
-      throw new Error(`فشل في حفظ بيانات المختبر: ${error?.message}`);
+      const details = error?.message ? `: ${error.message}` : '';
+      throw new Error(`فشل تحديث بيانات المعمل${details}`);
     }
   },
 
   updateCycleTransfer: async (cycleId: string, transferData: any) => {
     try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!transferData) throw new Error('بيانات النقل مطلوبة');
+      if (!cycleId) throw new Error('رقم الدورة غير صالح');
 
       const now = new Date().toISOString();
       const { error } = await supabase
         .from('ivf_cycles')
         .update({
-          transfer_data: JSON.stringify(transferData),
+          transfer_data: JSON.stringify(transferData || {}),
           updated_at: now
         })
         .eq('id', cycleId);
 
       if (error) throw error;
-
-      console.log('✅ Cycle transfer data updated in Supabase:', cycleId);
     } catch (error: any) {
-      console.error('❌ updateCycleTransfer error:', error?.message);
-      throw new Error(`فشل في حفظ بيانات النقل: ${error?.message}`);
+      const details = error?.message ? `: ${error.message}` : '';
+      throw new Error(`فشل تحديث بيانات النقل${details}`);
     }
   },
 
   updateCycleOutcome: async (cycleId: string, outcomeData: any) => {
     try {
-      if (!cycleId) throw new Error('معرف الدورة مطلوب');
-      if (!outcomeData) throw new Error('بيانات النتيجة مطلوبة');
+      if (!cycleId) throw new Error('رقم الدورة غير صالح');
 
       const now = new Date().toISOString();
       const { error } = await supabase
         .from('ivf_cycles')
         .update({
-          outcome_data: JSON.stringify(outcomeData),
+          outcome_data: JSON.stringify(outcomeData || {}),
           status: 'Completed',
           updated_at: now
         })
         .eq('id', cycleId);
 
       if (error) throw error;
-
-      console.log('✅ Cycle outcome updated in Supabase:', cycleId);
     } catch (error: any) {
-      console.error('❌ updateCycleOutcome error:', error?.message);
-      throw new Error(`فشل في حفظ نتيجة الدورة: ${error?.message}`);
+      const details = error?.message ? `: ${error.message}` : '';
+      throw new Error(`فشل تحديث نتيجة الدورة${details}`);
     }
   }
 };
+

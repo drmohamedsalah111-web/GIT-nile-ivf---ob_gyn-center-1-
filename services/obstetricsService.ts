@@ -359,31 +359,53 @@ export const obstetricsService = {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    const { error } = await supabase
-      .from('antenatal_visits')
-      .insert([{
-        id,
-        pregnancy_id: visit.pregnancy_id,
-        visit_date: visit.visit_date,
-        gestational_age_weeks: visit.gestational_age_weeks,
-        gestational_age_days: visit.gestational_age_days,
-        systolic_bp: visit.systolic_bp,
-        diastolic_bp: visit.diastolic_bp,
-        weight_kg: visit.weight_kg,
-        urine_albuminuria: visit.urine_albuminuria,
-        urine_glycosuria: visit.urine_glycosuria,
-        fetal_heart_sound: visit.fetal_heart_sound,
-        fundal_height_cm: visit.fundal_height_cm,
-        edema: visit.edema ? true : false,
-        edema_grade: visit.edema_grade,
-        notes: visit.notes,
-        next_visit_date: visit.next_visit_date,
-        prescription: JSON.stringify(visit.prescription || []),
-        created_at: now,
-        updated_at: now
-      }]);
+    const baseRow: any = {
+      id,
+      pregnancy_id: visit.pregnancy_id,
+      visit_date: visit.visit_date,
+      gestational_age_weeks: visit.gestational_age_weeks,
+      gestational_age_days: visit.gestational_age_days,
+      systolic_bp: visit.systolic_bp,
+      diastolic_bp: visit.diastolic_bp,
+      weight_kg: visit.weight_kg,
+      urine_albuminuria: visit.urine_albuminuria,
+      urine_glycosuria: visit.urine_glycosuria,
+      fetal_heart_sound: visit.fetal_heart_sound,
+      fundal_height_cm: visit.fundal_height_cm,
+      edema: visit.edema ? true : false,
+      edema_grade: visit.edema_grade,
+      notes: visit.notes,
+      next_visit_date: visit.next_visit_date,
+      created_at: now,
+      updated_at: now
+    };
 
-    if (error) throw error;
+    const tryInsert = async (row: any) => {
+      const { error } = await supabase
+        .from('antenatal_visits')
+        .insert([row]);
+      return error;
+    };
+
+    // Try inserting with prescription if column exists in DB
+    const withPrescription = {
+      ...baseRow,
+      prescription: JSON.stringify(visit.prescription || [])
+    };
+
+    const error = await tryInsert(withPrescription);
+    if (error) {
+      const message = String(error.message || '');
+      const isMissingPrescriptionColumn =
+        error.code === '42703' || message.toLowerCase().includes('prescription');
+
+      if (isMissingPrescriptionColumn) {
+        const retryError = await tryInsert(baseRow);
+        if (retryError) throw retryError;
+      } else {
+        throw error;
+      }
+    }
 
     return { id, ...visit, created_at: now };
   },
@@ -397,11 +419,22 @@ export const obstetricsService = {
 
     if (error) throw error;
 
-    return (visits || []).map((v: any) => ({
-      ...v,
-      edema: v.edema === true,
-      prescription: v.prescription ? JSON.parse(v.prescription) : []
-    }));
+    return (visits || []).map((v: any) => {
+      const parsedPrescription =
+        Array.isArray(v.prescription)
+          ? v.prescription
+          : typeof v.prescription === 'string'
+            ? (() => {
+                try { return JSON.parse(v.prescription); } catch { return []; }
+              })()
+            : [];
+
+      return {
+        ...v,
+        edema: v.edema === true,
+        prescription: parsedPrescription
+      };
+    });
   },
 
   updateANCVisit: async (visitId: string, updates: Partial<AntenatalVisit>) => {

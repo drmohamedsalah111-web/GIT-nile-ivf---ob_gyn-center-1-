@@ -288,7 +288,7 @@ const IvfJourney: React.FC = () => {
       toast.success('New IVF cycle started and saved', { id: 'ivf-start-cycle' });
     } catch (error) {
       console.error('Error starting cycle:', error);
-      toast.error('Failed to start cycle', { id: 'ivf-start-cycle' });
+      toast.error((error as any)?.message || 'Failed to start cycle', { id: 'ivf-start-cycle' });
     } finally {
       setIsLoading(false);
     }

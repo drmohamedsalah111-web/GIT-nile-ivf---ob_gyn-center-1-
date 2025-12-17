@@ -254,7 +254,7 @@ const ObstetricsDashboard: React.FC = () => {
 
     } catch (error: any) {
       console.error('Error saving visit:', error);
-      toast.error(`Failed to save visit: ${error?.message || 'Unknown error'}`);
+      toast.error(`فشل إضافة يوم متابعة: ${error?.message || 'خطأ غير معروف'}`);
     } finally {
       setIsSaving(false);
     }
@@ -447,5 +447,4 @@ const ObstetricsDashboard: React.FC = () => {
 };
 
 export default ObstetricsDashboard;
-
 
