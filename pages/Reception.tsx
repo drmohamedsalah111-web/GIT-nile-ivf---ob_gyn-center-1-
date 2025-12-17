@@ -14,10 +14,9 @@ const Reception: React.FC = () => {
     husbandName: '',
     history: ''
   });
-  const [searchTerm, setSearchTerm] = useState('');
 
   // PowerSync hook
-  const { patients, addPatient } = usePatients();
+  const { patients, addPatient, searchQuery, setSearchQuery, isLoading } = usePatients();
 
 
 
@@ -59,10 +58,7 @@ const Reception: React.FC = () => {
     }
   };
 
-  const filteredPatients = patients.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.phone.includes(searchTerm)
-  );
+  const filteredPatients = patients;
 
   return (
     <div className="space-y-6">
@@ -169,14 +165,17 @@ const Reception: React.FC = () => {
                 <input
                   type="text"
                   className="w-full pl-4 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none shadow-sm"
-                  placeholder="Search by name or phone..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Search by Name or Phone... / بحث بالاسم أو الهاتف"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
                 />
               </div>
 
               {/* Mobile: render cards */}
               <div className="block md:hidden space-y-3">
+                {isLoading && (
+                  <div className="text-center text-gray-400 py-6">Searching...</div>
+                )}
                 {filteredPatients.length > 0 ? filteredPatients.map(patient => (
                   <div key={patient.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
                     <div className="flex items-center justify-between">
@@ -209,7 +208,13 @@ const Reception: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredPatients.length > 0 ? (
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                          Searching...
+                        </td>
+                      </tr>
+                    ) : filteredPatients.length > 0 ? (
                       filteredPatients.map((patient) => (
                         <tr key={patient.id} className="hover:bg-teal-50/30 transition-colors text-sm text-gray-700">
                           <td className="px-6 py-4 font-mono text-xs text-gray-400">

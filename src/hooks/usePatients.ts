@@ -19,6 +19,16 @@ export function usePatients() {
     const [patients, setPatients] = useState<PatientType[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+    useEffect(() => {
+        const handle = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery.trim());
+        }, 500);
+
+        return () => clearTimeout(handle);
+    }, [searchQuery]);
 
     useEffect(() => {
         const fetchPatients = async () => {
@@ -26,7 +36,7 @@ export function usePatients() {
                 setIsLoading(true);
                 setError(null);
                 
-                const data = await dbService.getPatients();
+                const data = await dbService.getPatients(debouncedSearchQuery || undefined);
                 console.log('✅ usePatients hook - Successfully fetched patients:', data.length);
                 setPatients(data);
             } catch (err: any) {
@@ -39,7 +49,7 @@ export function usePatients() {
         };
 
         fetchPatients();
-    }, []);
+    }, [debouncedSearchQuery]);
 
     const addPatient = async (patient: Omit<Patient, 'id' | 'created_at' | 'updated_at'>) => {
         try {
@@ -108,6 +118,8 @@ export function usePatients() {
         patients,
         isLoading,
         error,
+        searchQuery,
+        setSearchQuery,
         addPatient,
         updatePatient,
         deletePatient

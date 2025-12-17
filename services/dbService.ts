@@ -4,13 +4,22 @@ import { Patient, IvfCycle, StimulationLog } from '../types';
 
 export const dbService = {
   // --- Patients ---
-  getPatients: async (): Promise<Patient[]> => {
+  getPatients: async (searchQuery?: string): Promise<Patient[]> => {
     console.log('🚀 Fetching patients from Supabase...');
     
-    const { data, error } = await supabase
+    const query = (searchQuery || '').trim();
+    const escapedQuery = query.replace(/,/g, '\\,');
+
+    let supabaseQuery = supabase
       .from('patients')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*');
+
+    if (escapedQuery) {
+      const like = `%${escapedQuery}%`;
+      supabaseQuery = supabaseQuery.or(`name.ilike.${like},phone.ilike.${like}`);
+    }
+
+    const { data, error } = await supabaseQuery.order('created_at', { ascending: false });
 
     if (error) {
       console.error('❌ Supabase Query Error:', error);
