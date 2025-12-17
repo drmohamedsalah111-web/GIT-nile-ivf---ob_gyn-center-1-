@@ -198,6 +198,13 @@ const PatientMasterRecord: React.FC = () => {
     setSelectedDetail(isExpanded ? null : item);
   };
 
+  const getSameTypeHistory = (item: HistoryItem | null) => {
+    if (!item) return [];
+    return [...history.filter(h => h.type === item.type)].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  };
+
   const groupFilesByDate = (files: any[]) => {
     const grouped: { [key: string]: any[] } = {};
     files.forEach(file => {
@@ -423,36 +430,70 @@ const PatientMasterRecord: React.FC = () => {
                             </div>
                           </div>
                           {selectedDetail ? (
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-3">
-                                {getDepartmentIcon(selectedDetail.department)}
-                                <div>
-                                  <p className="text-sm text-gray-500">{formatDate(selectedDetail.date)}</p>
-                                  <p className="text-lg font-semibold text-gray-900">{selectedDetail.type}</p>
-                                  <p className="text-xs text-gray-600">{getDepartmentName(selectedDetail.department)}</p>
+                            <>
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                  {getDepartmentIcon(selectedDetail.department)}
+                                  <div>
+                                    <p className="text-sm text-gray-500">{formatDate(selectedDetail.date)}</p>
+                                    <p className="text-lg font-semibold text-gray-900">{selectedDetail.type}</p>
+                                    <p className="text-xs text-gray-600">{getDepartmentName(selectedDetail.department)}</p>
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                                <p className="text-xs uppercase text-gray-500 font-semibold mb-1">الملخص / التشخيص</p>
-                                <p className="text-sm text-gray-800">{selectedDetail.summary || selectedDetail.diagnosis || 'No summary'}</p>
-                              </div>
-                              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                                <p className="text-xs uppercase text-gray-500 font-semibold mb-1">البيانات المسجلة</p>
-                                {selectedDetail.type === 'Visit'
-                                  ? renderClinicalData(selectedDetail.clinical_data, selectedDetail.department)
-                                  : (
-                                    <div className="text-sm text-gray-700">
-                                      <pre className="whitespace-pre-wrap">{JSON.stringify(selectedDetail.clinical_data, null, 2)}</pre>
-                                    </div>
-                                  )}
-                              </div>
-                              {selectedDetail.notes && (
                                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                                  <p className="text-xs uppercase text-gray-500 font-semibold mb-1">الملاحظات</p>
-                                  <p className="text-sm text-gray-800 italic">{selectedDetail.notes}</p>
+                                  <p className="text-xs uppercase text-gray-500 font-semibold mb-1">الملخص / التشخيص</p>
+                                  <p className="text-sm text-gray-800">{selectedDetail.summary || selectedDetail.diagnosis || 'No summary'}</p>
                                 </div>
-                              )}
-                            </div>
+                                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                  <p className="text-xs uppercase text-gray-500 font-semibold mb-1">البيانات المسجلة</p>
+                                  {selectedDetail.type === 'Visit'
+                                    ? renderClinicalData(selectedDetail.clinical_data, selectedDetail.department)
+                                    : (
+                                      <div className="text-sm text-gray-700">
+                                        <pre className="whitespace-pre-wrap">{JSON.stringify(selectedDetail.clinical_data, null, 2)}</pre>
+                                      </div>
+                                    )}
+                                </div>
+                                {selectedDetail.notes && (
+                                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                    <p className="text-xs uppercase text-gray-500 font-semibold mb-1">الملاحظات</p>
+                                    <p className="text-sm text-gray-800 italic">{selectedDetail.notes}</p>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="mt-6 border-t pt-4">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs uppercase text-gray-500 font-semibold">سجل هذا القسم</p>
+                                  <span className="text-xs text-gray-600">({getSameTypeHistory(selectedDetail).length})</span>
+                                </div>
+                                <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
+                                  {getSameTypeHistory(selectedDetail).map((event) => (
+                                    <div
+                                      key={event.id}
+                                      className={`p-3 rounded-lg border ${event.id === selectedDetail.id ? 'border-teal-300 bg-teal-50' : 'border-gray-200 bg-gray-50'}`}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <p className="text-xs text-gray-500">{formatDate(event.date)}</p>
+                                          <p className="text-sm font-semibold text-gray-900">{event.summary || event.diagnosis || 'No summary'}</p>
+                                        </div>
+                                        {event.id !== selectedDetail.id && (
+                                          <button
+                                            onClick={() => handleSelectDetail(event, false)}
+                                            className="text-xs text-teal-600 hover:text-teal-700 font-semibold"
+                                          >
+                                            عرض
+                                          </button>
+                                        )}
+                                      </div>
+                                      {event.notes && (
+                                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">{event.notes}</p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </>
                           ) : (
                             <div className="text-sm text-gray-500">
                               اختر حدثًا من الجدول لعرض التفاصيل الكاملة المسجلة مسبقًا.
