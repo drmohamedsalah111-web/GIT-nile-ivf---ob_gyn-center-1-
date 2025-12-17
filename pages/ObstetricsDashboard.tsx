@@ -287,14 +287,14 @@ const ObstetricsDashboard: React.FC = () => {
       <div className="grid md:grid-cols-4 gap-4 mb-6">
         <div className="md:col-span-3">
           <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-            Ø§Ø®ØªØ± Ø§Ù„Ù…Ø±ÙŠØ¶Ø©
+            اختر المريضة
           </label>
           <select
             value={selectedPatientId || ''}
             onChange={(e) => setSelectedPatientId(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
           >
-            <option value="">-- Ø§Ø®ØªØ± Ù…Ø±ÙŠØ¶Ø© --</option>
+            <option value="">-- اختر المريضة --</option>
             {patients.map(patient => (
               <option key={patient.id} value={patient.id.toString()}>
                 {patient.name} - {patient.phone}
@@ -311,7 +311,7 @@ const ObstetricsDashboard: React.FC = () => {
             onClick={() => window.location.reload()}
             className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-[Tajawal] font-semibold transition-colors"
           >
-            ðŸ”„ ØªØ­Ø¯ÙŠØ«
+            إعادة تحميل
           </button>
         </div>
       </div>
@@ -355,10 +355,10 @@ const ObstetricsDashboard: React.FC = () => {
             <Plus size={32} className="text-teal-600" />
           </div>
           <h3 className="text-xl font-bold text-gray-900 mb-2 font-[Tajawal]">
-            Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ù„Ù Ø­Ù…Ù„ Ù„Ù€ {currentPatient.name}
+            لا يوجد حمل مسجل لـ {currentPatient.name}
           </h3>
           <p className="text-gray-600 mb-6 font-[Tajawal]">
-            Ø¥Ù†Ø´Ø§Ø¡ Ù…Ù„Ù Ø­Ù…Ù„ Ø¬Ø¯ÙŠØ¯ Ù„Ø¨Ø¯Ø¡ Ø§Ù„Ù…ØªØ§Ø¨Ø¹Ø© Ø§Ù„Ø´Ø§Ù…Ù„Ø©
+            يمكنك تسجيل بيانات الحمل لبدء المتابعة والزيارات.
           </p>
 
           {!showNewPregnancyForm ? (
@@ -367,13 +367,13 @@ const ObstetricsDashboard: React.FC = () => {
               className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
             >
               <Plus size={20} />
-              Ø¥Ù†Ø´Ø§Ø¡ Ù…Ù„Ù Ø­Ù…Ù„ Ø¬Ø¯ÙŠØ¯
+              تسجيل حمل جديد
             </button>
           ) : (
             <div className="bg-gray-50 p-6 rounded-lg border-2 border-teal-200 max-w-md mx-auto">
               <div className="mb-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-                  Ø¢Ø®Ø± Ø¯ÙˆØ±Ø© Ø´Ù‡Ø±ÙŠØ© (LMP)
+                  تاريخ آخر دورة (LMP)
                 </label>
                 <input
                   type="date"
@@ -385,7 +385,7 @@ const ObstetricsDashboard: React.FC = () => {
 
               <div className="mb-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">
-                  Ø£Ùˆ ØªØ§Ø±ÙŠØ® Ø§Ù„ÙˆÙ„Ø§Ø¯Ø© Ø§Ù„Ù…ØªÙˆÙ‚Ø¹ Ø¨Ø§Ù„Ù…Ø³Ø­ (EDD by Ultrasound)
+                  تاريخ الولادة المتوقع بالسونار (EDD)
                 </label>
                 <input
                   type="date"
@@ -401,13 +401,13 @@ const ObstetricsDashboard: React.FC = () => {
                   disabled={isSaving}
                   className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-[Tajawal] font-semibold transition-colors"
                 >
-                  {isSaving ? 'Ø¬Ø§Ø±ÙŠ...' : 'Ø¥Ù†Ø´Ø§Ø¡'}
+                  {isSaving ? 'جارٍ الحفظ...' : 'حفظ'}
                 </button>
                 <button
                   onClick={() => setShowNewPregnancyForm(false)}
                   className="flex-1 bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg font-[Tajawal] font-semibold transition-colors"
                 >
-                  Ø¥Ù„ØºØ§Ø¡
+                  إلغاء
                 </button>
               </div>
             </div>
@@ -415,7 +415,7 @@ const ObstetricsDashboard: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <p className="text-gray-600 font-[Tajawal]">Ø§Ø®ØªØ± Ù…Ø±ÙŠØ¶Ø© Ù„Ø¨Ø¯Ø¡ Ø§Ù„Ù…ØªØ§Ø¨Ø¹Ø©</p>
+          <p className="text-gray-600 font-[Tajawal]">اختر مريضة لعرض بيانات الحمل.</p>
         </div>
       )}
 

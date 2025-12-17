@@ -257,7 +257,6 @@ const Gynecology: React.FC = () => {
       };
     });
   };
-
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-8 flex items-start justify-between">
@@ -289,7 +288,7 @@ const Gynecology: React.FC = () => {
           onChange={(e) => setSelectedPatientId(e.target.value)}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
         >
-          <option value="">-- Select Patient --</option>
+            📜 السجل السابق
           {patients.map(patient => (
             <option key={patient.id} value={patient.id}>
               {patient.name} - {patient.phone}
