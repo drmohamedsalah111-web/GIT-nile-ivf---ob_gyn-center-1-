@@ -2,6 +2,14 @@ import { dbService } from './dbService';
 import { Patient, IvfCycle, Visit, StimulationLog } from '../types';
 import { supabase } from './supabaseClient';
 
+const parseJsonSafe = (value: any, fallback: any) => {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch (error) {
+    return fallback;
+  }
+};
+
 export const calculateBMI = (weightKg: number, heightCm: number): { bmi: number; alert: boolean } => {
   if (!weightKg || !heightCm) return { bmi: 0, alert: false };
   const heightM = heightCm / 100;
@@ -49,83 +57,71 @@ export const calculateFertilizationRate = (fertilized: number, mii: number): num
 
 export const getPatientFullHistory = async (patientId: string) => {
   try {
-    console.log(`🔍 Fetching full history for Patient ID: ${patientId}`);
-
-    const [{ data: generalVisits, error: visitsError },
-      { data: pregnancies, error: pregnanciesError },
-      { data: ivfCycles, error: cyclesError }] = await Promise.all([
+    const [visitsResult, pregnanciesResult, ivfCyclesResult] = await Promise.all([
       supabase.from('visits').select('*').eq('patient_id', patientId),
       supabase.from('pregnancies').select('*').eq('patient_id', patientId),
       supabase.from('ivf_cycles').select('*').eq('patient_id', patientId)
     ]);
 
-    if (visitsError) {
-      console.error('❌ Error fetching general visits:', visitsError);
-      throw visitsError;
+    if (visitsResult.error) {
+      console.error('Error fetching general visits:', visitsResult.error);
+      throw visitsResult.error;
     }
-    if (pregnanciesError) {
-      console.error('❌ Error fetching pregnancies:', pregnanciesError);
-      throw pregnanciesError;
+    if (pregnanciesResult.error) {
+      console.error('Error fetching pregnancies:', pregnanciesResult.error);
+      throw pregnanciesResult.error;
     }
-    if (cyclesError) {
-      console.error('❌ Error fetching IVF cycles:', cyclesError);
-      throw cyclesError;
+    if (ivfCyclesResult.error) {
+      console.error('Error fetching IVF cycles:', ivfCyclesResult.error);
+      throw ivfCyclesResult.error;
     }
 
-    console.log(`📊 Found: ${generalVisits?.length || 0} general visits, ${pregnancies?.length || 0} pregnancies, ${ivfCycles?.length || 0} IVF cycles`);
-
-    // Map general visits
-    const mappedVisits = (generalVisits || []).map((v: any) => ({
-      id: v.id,
-      date: v.date || new Date().toISOString().split('T')[0],
+    const parsedVisits = (visitsResult.data || []).map((visit: any) => ({
+      id: visit.id,
+      date: visit.date || visit.visit_date || visit.created_at,
       type: 'Visit' as const,
-      department: v.department || 'General',
-      diagnosis: v.diagnosis || '',
-      summary: v.diagnosis || 'General visit',
-      clinical_data: v.clinical_data ? JSON.parse(v.clinical_data) : {},
-      prescription: v.prescription ? JSON.parse(v.prescription) : [],
-      notes: v.notes || ''
+      department: visit.department || 'GYNA',
+      diagnosis: visit.diagnosis || 'Visit',
+      summary: visit.diagnosis || 'General visit',
+      clinical_data: parseJsonSafe(visit.clinical_data, {}),
+      prescription: parseJsonSafe(visit.prescription, []),
+      notes: visit.notes || ''
     }));
 
-    // Map pregnancies
-    const mappedPregnancies = (pregnancies || []).map((p: any) => ({
-      id: p.id,
-      date: p.lmp_date || p.created_at,
+    const parsedPregnancies = (pregnanciesResult.data || []).map((pregnancy: any) => ({
+      id: pregnancy.id,
+      date: pregnancy.lmp_date || pregnancy.created_at,
       type: 'Pregnancy' as const,
       department: 'OBS',
-      diagnosis: 'Pregnancy Started',
-      summary: `EDD: ${p.edd_date || 'Unknown'} - Risk: ${p.risk_level || 'low'}`,
+      diagnosis: 'Pregnancy',
+      summary: `EDD: ${pregnancy.edd_date || 'Unknown'} | Risk: ${pregnancy.risk_level || 'low'}`,
       clinical_data: {
-        risk_level: p.risk_level,
-        risk_factors: p.risk_factors ? JSON.parse(p.risk_factors) : []
+        risk_level: pregnancy.risk_level,
+        risk_factors: parseJsonSafe(pregnancy.risk_factors, [])
       },
       prescription: [],
       notes: ''
     }));
 
-    // Map IVF cycles
-    const mappedIVF = (ivfCycles || []).map((c: any) => ({
-      id: c.id,
-      date: c.start_date,
+    const parsedIvfCycles = (ivfCyclesResult.data || []).map((cycle: any) => ({
+      id: cycle.id,
+      date: cycle.start_date || cycle.created_at,
       type: 'IVF' as const,
       department: 'IVF_STIM',
-      diagnosis: `IVF Cycle - Protocol: ${c.protocol}`,
-      summary: `Status: ${c.status}`,
-      clinical_data: c.assessment_data ? JSON.parse(c.assessment_data) : {},
+      diagnosis: `IVF Cycle - Protocol: ${cycle.protocol}`,
+      summary: `Status: ${cycle.status}`,
+      clinical_data: parseJsonSafe(cycle.assessment_data, {}),
       prescription: [],
       notes: ''
     }));
 
-    // Combine all
-    const allHistory = [
-      ...mappedVisits,
-      ...mappedPregnancies,
-      ...mappedIVF
-    ];
+    const unifiedHistory = [
+      ...parsedVisits,
+      ...parsedPregnancies,
+      ...parsedIvfCycles
+    ].filter(item => item.date);
 
-    console.log(`✅ Total combined history: ${allHistory.length} items`);
-
-    return allHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return unifiedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   } catch (error) {
     console.error('Error fetching patient full history:', error);

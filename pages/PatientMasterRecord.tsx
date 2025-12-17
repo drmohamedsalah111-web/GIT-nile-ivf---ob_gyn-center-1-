@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Calendar, FileText, User, Heart, Baby, TestTube, Download, ChevronDown, ChevronUp,
-  X, Image as ImageIcon, Printer
+  Calendar,
+  FileText,
+  User,
+  Heart,
+  Baby,
+  TestTube,
+  Download,
+  Image as ImageIcon,
+  Printer,
+  X
 } from 'lucide-react';
 import { usePatients } from '../src/hooks/usePatients';
-import { Patient, Visit } from '../types';
+import { Patient } from '../types';
 import { supabase } from '../services/supabaseClient';
-import { visitsService } from '../services/visitsService';
 import { ivfService } from '../services/ivfService';
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
@@ -31,18 +38,18 @@ const PatientMasterRecord: React.FC = () => {
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState<HistoryItem | null>(null);
   const [activeTab, setActiveTab] = useState<'timeline' | 'gallery'>('timeline');
-  const [selectedFilter, setSelectedFilter] = useState<'All' | 'GYNA' | 'OBS' | 'IVF'>('All');
+  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Visit' | 'Pregnancy' | 'IVF'>('All');
   const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
 
-  const { patients: powerSyncPatients, isLoading: isLoadingPatients } = usePatients();
+  const { patients: powerSyncPatients } = usePatients();
 
   const patients: Patient[] = powerSyncPatients.map((p: any) => ({
     id: p.id,
     name: p.name,
     age: p.age,
     phone: p.phone,
-    husbandName: p.husband_name, // Map snake_case to camelCase
+    husbandName: p.husband_name,
     history: p.history,
     createdAt: p.created_at
   }));
@@ -60,11 +67,7 @@ const PatientMasterRecord: React.FC = () => {
   const fetchPatientHistory = async (pId: string) => {
     setIsLoading(true);
     try {
-      console.log('Fetching history for patient:', pId);
-      // Use the unified history service
       const data = await ivfService.getPatientFullHistory(pId);
-      console.log('Fetched history data:', data);
-      console.log('Number of history items:', data.length);
       setHistory(data);
     } catch (error) {
       console.error('Error fetching history:', error);
@@ -76,8 +79,6 @@ const PatientMasterRecord: React.FC = () => {
 
   const fetchPatientFiles = async (patientId: string) => {
     try {
-      console.log('📁 PatientMasterRecord: Fetching files for patient:', patientId);
-      
       const { data, error } = await supabase
         .from('patient_files')
         .select('*')
@@ -85,8 +86,6 @@ const PatientMasterRecord: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
-      console.log('✅ PatientMasterRecord: Fetched', data?.length || 0, 'files');
       setPatientFiles(data || []);
     } catch (error) {
       console.error('Error fetching patient files:', error);
@@ -190,8 +189,7 @@ const PatientMasterRecord: React.FC = () => {
 
   const getFilteredHistory = () => {
     if (selectedFilter === 'All') return history;
-    if (selectedFilter === 'IVF') return history.filter(h => h.type === 'IVF' || h.department?.startsWith('IVF'));
-    return history.filter(h => h.department === selectedFilter);
+    return history.filter(h => h.type === selectedFilter);
   };
 
   const groupFilesByDate = (files: any[]) => {
@@ -302,7 +300,7 @@ const PatientMasterRecord: React.FC = () => {
               {activeTab === 'timeline' && (
                 <div>
                   <div className="flex gap-2 mb-6 flex-wrap">
-                    {(['All', 'GYNA', 'OBS', 'IVF'] as const).map(f => (
+                    {(['All', 'Visit', 'Pregnancy', 'IVF'] as const).map(f => (
                       <button
                         key={f}
                         onClick={() => setSelectedFilter(f)}
@@ -311,79 +309,107 @@ const PatientMasterRecord: React.FC = () => {
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                           }`}
                       >
-                        {f === 'GYNA' ? '♥ Gynecology' : f === 'OBS' ? '👶 Obstetrics' : f === 'IVF' ? '🧬 IVF' : '📋 All'}
+                        {f}
                       </button>
                     ))}
                   </div>
 
-                  {getFilteredHistory().length > 0 ? (
-                    <div className="space-y-4">
-                      {getFilteredHistory().map((h) => {
-                        const colors = getDepartmentColor(h.department);
-                        const isExpanded = expandedVisitId === h.id;
+                  {isLoading ? (
+                    <div className="text-center py-12 text-gray-500">Loading history...</div>
+                  ) : getFilteredHistory().length > 0 ? (
+                    <div className="overflow-x-auto border border-gray-100 rounded-lg shadow-sm">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Event Type</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Summary / Diagnosis</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Department</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-100">
+                          {getFilteredHistory().map((h) => {
+                            const colors = getDepartmentColor(h.department);
+                            const isExpanded = expandedVisitId === h.id;
 
-                        return (
-                          <div key={h.id} className="flex gap-4">
-                            <div className="flex flex-col items-center">
-                              <div className={`w-4 h-4 rounded-full ${colors.dot} border-4 border-white shadow-md`} />
-                              <div className="w-1 bg-gray-300 flex-1 h-12" />
-                            </div>
-
-                            <div
-                              className={`flex-1 ${colors.bg} border-2 ${colors.border} rounded-lg p-4 cursor-pointer transition hover:shadow-md`}
-                              onClick={() => setExpandedVisitId(isExpanded ? null : h.id)}
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    {getDepartmentIcon(h.department)}
-                                    <h3 className="font-semibold text-gray-900">{h.type}: {getDepartmentName(h.department)}</h3>
-                                    <span className="text-xs text-gray-500">{formatDate(h.date)}</span>
-                                  </div>
-                                  <p className="text-sm font-medium text-gray-700">{h.summary || h.diagnosis || 'No summary'}</p>
-                                </div>
-                                {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                              </div>
-
-                              {isExpanded && (
-                                <div className="mt-4 pt-4 border-t border-opacity-30">
-                                  <div className="bg-white bg-opacity-60 p-3 rounded mb-3">
-                                    {h.type === 'Visit' ? renderClinicalData(h.clinical_data, h.department) : (
-                                      <div className="text-sm text-gray-600">
-                                        <pre className="whitespace-pre-wrap">{JSON.stringify(h.clinical_data, null, 2)}</pre>
+                            return (
+                              <React.Fragment key={h.id}>
+                                <tr className="hover:bg-gray-50">
+                                  <td className="px-4 py-3 text-sm text-gray-700">{formatDate(h.date)}</td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center gap-2">
+                                      {getDepartmentIcon(h.department)}
+                                      <div>
+                                        <div className="text-sm font-semibold text-gray-900">{h.type}</div>
+                                        <div className="text-xs text-gray-500">{getDepartmentName(h.department)}</div>
                                       </div>
-                                    )}
-                                  </div>
-                                  {h.notes && (
-                                    <div className="mb-3">
-                                      <p className="text-xs font-medium text-gray-600 mb-1">Notes:</p>
-                                      <p className="text-sm text-gray-700 italic">{h.notes}</p>
                                     </div>
-                                  )}
-                                  {h.prescription && h.prescription.length > 0 && (
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-800">{h.summary || h.diagnosis || 'No summary'}</td>
+                                  <td className="px-4 py-3 text-sm">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${colors.bg} ${colors.border}`}>
+                                      {h.department || 'N/A'}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-right">
                                     <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedVisit(h);
-                                        setIsPrinterOpen(true);
-                                      }}
-                                      className="mt-3 flex items-center gap-2 text-sm text-teal-600 hover:text-teal-700 font-medium"
+                                      onClick={() => setExpandedVisitId(isExpanded ? null : h.id)}
+                                      className="inline-flex items-center gap-2 text-teal-600 hover:text-teal-700 font-medium"
                                     >
-                                      <Printer className="w-4 h-4" />
-                                      Print Prescription
+                                      <FileText className="w-4 h-4" />
+                                      {isExpanded ? 'Hide' : 'View'} Details
                                     </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                                  </td>
+                                </tr>
+                                {isExpanded && (
+                                  <tr>
+                                    <td colSpan={5} className="bg-gray-50 px-6 pb-6 pt-3">
+                                      <div className="grid md:grid-cols-2 gap-4">
+                                        <div className="bg-white rounded border border-gray-200 p-4">
+                                          <p className="text-xs font-semibold text-gray-500 mb-2">Clinical Data</p>
+                                          {h.type === 'Visit' ? renderClinicalData(h.clinical_data, h.department) : (
+                                            <div className="text-sm text-gray-700">
+                                              <pre className="whitespace-pre-wrap">{JSON.stringify(h.clinical_data, null, 2)}</pre>
+                                            </div>
+                                          )}
+                                        </div>
+                                        {(h.notes || (h.prescription && h.prescription.length > 0)) && (
+                                          <div className="bg-white rounded border border-gray-200 p-4 space-y-3">
+                                            {h.notes && (
+                                              <div>
+                                                <p className="text-xs font-semibold text-gray-500 mb-1">Notes</p>
+                                                <p className="text-sm text-gray-700 italic">{h.notes}</p>
+                                              </div>
+                                            )}
+                                            {h.prescription && h.prescription.length > 0 && (
+                                              <button
+                                                onClick={() => {
+                                                  setSelectedVisit(h);
+                                                  setIsPrinterOpen(true);
+                                                }}
+                                                className="flex items-center gap-2 text-sm text-teal-600 hover:text-teal-700 font-medium"
+                                              >
+                                                <Printer className="w-4 h-4" />
+                                                Print Prescription
+                                              </button>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   ) : (
                     <div className="text-center py-12 text-gray-500">
                       <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      No visits found for this filter
+                      No history events found for this filter
                     </div>
                   )}
                 </div>
