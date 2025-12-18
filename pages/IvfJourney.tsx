@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePatients } from '../src/hooks/usePatients';
 import { calculateTMSC, analyzeSemenAnalysis, classifyOvarianReserve, calculateMaturationRate, calculateFertilizationRate, db } from '../services/ivfService';
 import { Patient } from '../types';
@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 import HistorySidebar from '../src/components/HistorySidebar';
 import IvfLabManager from './components/IvfLabManager';
+import AssessmentTab from '../components/assessment/AssessmentTab';
 
 const PROTOCOL_OPTIONS = ['Long', 'Antagonist', 'Flare-up', 'Mini-IVF'];
 
@@ -21,7 +22,7 @@ const LOCAL_IVF_DRUGS = {
 const PROTOCOL_INFO: any = {
   'Long': {
     name: 'Long Agonist Protocol',
-    arabicName: 'بروتوكول الناهضات الطويلة',
+    arabicName: '???????? ???????? ???????',
     bestFor: ['Normal responders', 'Regular cycles', 'PCO patients'],
     duration: '35-42 days',
     stimDays: '10-12 days',
@@ -31,7 +32,7 @@ const PROTOCOL_INFO: any = {
   },
   'Antagonist': {
     name: 'Antagonist Protocol',
-    arabicName: 'بروتوكول المضادات',
+    arabicName: '???????? ????????',
     bestFor: ['Poor responders', 'Previous low response'],
     duration: '14-16 days',
     stimDays: '8-10 days',
@@ -41,7 +42,7 @@ const PROTOCOL_INFO: any = {
   },
   'Flare-up': {
     name: 'Flare-up Protocol',
-    arabicName: 'بروتوكول التنشيط الحاد',
+    arabicName: '???????? ??????? ?????',
     bestFor: ['Poor responders', 'Diminished ovarian reserve'],
     duration: '10-12 days',
     stimDays: '8-9 days',
@@ -51,7 +52,7 @@ const PROTOCOL_INFO: any = {
   },
   'Mini-IVF': {
     name: 'Mini-IVF Protocol',
-    arabicName: 'بروتوكول الحقن المجهري الخفيف',
+    arabicName: '???????? ????? ??????? ??????',
     bestFor: ['Poor responders', 'Previous OHSS'],
     duration: '10-14 days',
     stimDays: '7-8 days',
@@ -453,7 +454,7 @@ const IvfJourney: React.FC = () => {
       <div className="bg-gradient-to-r from-teal-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">مركز الخصوبة (IVF)</h1>
+            <h1 className="text-3xl font-bold mb-2">???? ??????? (IVF)</h1>
             <p className="text-teal-100">Comprehensive IVF Cycle Management & Tracking</p>
           </div>
           <div className="flex items-center gap-4">
@@ -462,7 +463,7 @@ const IvfJourney: React.FC = () => {
               disabled={!selectedPatientId}
               className="bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
             >
-              📜 السجل السابق
+              ?? ????? ??????
             </button>
             <TestTube className="w-16 h-16 opacity-20" />
           </div>
@@ -514,117 +515,19 @@ const IvfJourney: React.FC = () => {
           <div className="p-6">
             {/* Assessment Tab */}
             {activeTab === 'assessment' && (
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Couple Profile */}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Heart className="w-5 h-5 text-blue-600" /> Couple Profile
-                  </h3>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Age (Wife)</label>
-                      <input
-                        type="number"
-                        value={cycleData.coupleAge || ''}
-                        onChange={(e) => setCycleData(prev => ({ ...prev, coupleAge: parseInt(e.target.value) || undefined }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="Years"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">BMI</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={cycleData.coupleBMI || ''}
-                        onChange={(e) => setCycleData(prev => ({ ...prev, coupleBMI: parseFloat(e.target.value) || undefined }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="kg/m²"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="pcosCheckbox"
-                        checked={cycleData.pcosHistory || false}
-                        onChange={(e) => setCycleData(prev => ({ ...prev, pcosHistory: e.target.checked }))}
-                        className="w-4 h-4"
-                      />
-                      <label htmlFor="pcosCheckbox" className="text-sm font-medium text-gray-700">PCOS History</label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ovarian Reserve */}
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Microscope className="w-5 h-5 text-green-600" /> Ovarian Reserve
-                  </h3>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">AMH (ng/mL)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={cycleData.amh || ''}
-                        onChange={(e) => setCycleData(prev => ({ ...prev, amh: parseFloat(e.target.value) || undefined }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                        placeholder="0.0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">AFC</label>
-                      <input
-                        type="number"
-                        value={cycleData.afc || ''}
-                        onChange={(e) => setCycleData(prev => ({ ...prev, afc: parseInt(e.target.value) || undefined }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                        placeholder="Count"
-                      />
-                    </div>
-                    {cycleData.amh !== undefined && cycleData.afc !== undefined && (
-                      <div className="p-3 bg-white rounded border border-green-200 text-sm">
-                        <p className="font-medium text-gray-900">
-                          Classification: <span className="text-green-600 font-bold">{classifyOvarianReserve(cycleData.amh, cycleData.afc)}</span>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Male Factor */}
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Male Factor Analysis</h3>
-                  <textarea
-                    value={cycleData.maleFactorAnalysis || ''}
-                    onChange={(e) => setCycleData(prev => ({ ...prev, maleFactorAnalysis: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                    placeholder="WHO 2021 parameters, TMSC, Morphology..."
-                    rows={3}
-                  />
-                </div>
-
-                {/* Protocol Selection */}
-                <div className="bg-amber-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Protocol Selection</h3>
-                  <select
-                    value={cycleData.protocol}
-                    onChange={(e) => setCycleData(prev => ({ ...prev, protocol: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 mb-3"
-                  >
-                    {PROTOCOL_OPTIONS.map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                  {PROTOCOL_INFO[cycleData.protocol] && (
-                    <div className="p-3 bg-white rounded border border-amber-200 text-sm">
-                      <p className="font-medium text-gray-900">{PROTOCOL_INFO[cycleData.protocol].name}</p>
-                      <p className="text-gray-600 mt-1">Duration: {PROTOCOL_INFO[cycleData.protocol].duration}</p>
-                      <p className="text-gray-600">Stimulation: {PROTOCOL_INFO[cycleData.protocol].stimDays}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <AssessmentTab
+                onAssessmentChange={(assessment, derived) => {
+                  setCycleData(prev => ({
+                    ...prev,
+                    coupleAge: assessment.history.age ?? prev.coupleAge,
+                    coupleBMI: derived.bmi ?? prev.coupleBMI,
+                    afc: assessment.female.pcos.ovarianMorphology.afc ?? prev.afc,
+                    pcosHistory: derived.pcos.highProbability,
+                    maleFactorAnalysis: derived.semen.tags.join(', '),
+                    maleFactorDiagnosis: derived.semen.tags.join(', ')
+                  }));
+                }}
+              />
             )}
 
             {/* Stimulation Tab */}
@@ -1050,3 +953,4 @@ const IvfJourney: React.FC = () => {
 };
 
 export default IvfJourney;
+
