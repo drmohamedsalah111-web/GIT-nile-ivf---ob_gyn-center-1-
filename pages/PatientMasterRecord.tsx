@@ -17,6 +17,7 @@ import { supabase } from '../services/supabaseClient';
 import { ivfService } from '../services/ivfService';
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
+import ClinicalDataDisplay from './components/ClinicalDataDisplay';
 
 interface HistoryItem {
   id: string;
@@ -140,7 +141,7 @@ const PatientMasterRecord: React.FC = () => {
       case 'GYNA': return renderGynecologyData(data);
       case 'OBS': return renderObstetricsData(data);
       case 'IVF_STIM': return renderIVFData(data);
-      default: return <div className="text-sm text-gray-600"><pre className="whitespace-pre-wrap">{JSON.stringify(data, null, 2)}</pre></div>;
+      default: return <ClinicalDataDisplay data={data} department={department} />;
     }
   };
 

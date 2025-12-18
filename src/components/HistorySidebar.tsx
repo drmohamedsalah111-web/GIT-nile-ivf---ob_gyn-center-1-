@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { X, Copy, ChevronDown, ChevronUp, Activity, Scale, Baby } from 'lucide-react';
 import { visitsService } from '../../services/visitsService';
 import { Visit, PrescriptionItem } from '../../types';
+import ClinicalDataDisplay from '../../pages/components/ClinicalDataDisplay';
 
 interface HistorySidebarProps {
   patientId: string;
@@ -252,16 +253,25 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                     </div>
 
                     {expandedItems.has(visit.id) && (
-                      <div className="p-3 bg-white">
+                      <div className="p-3 bg-white space-y-3">
+                        {visit.clinical_data && (
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900 mb-2 font-[Tajawal]">البيانات السريرية:</h4>
+                            <div className="text-sm">
+                              <ClinicalDataDisplay data={visit.clinical_data} department={visit.department} />
+                            </div>
+                          </div>
+                        )}
+
                         {visit.notes && (
-                          <div className="mb-3">
+                          <div>
                             <h4 className="text-sm font-medium text-gray-900 mb-1 font-[Tajawal]">الملاحظات:</h4>
                             <p className="text-sm text-gray-700 font-[Tajawal] whitespace-pre-line">{visit.notes}</p>
                           </div>
                         )}
 
                         {visit.prescription && visit.prescription.length > 0 && (
-                          <div className="mb-3">
+                          <div>
                             <h4 className="text-sm font-medium text-gray-900 mb-1 font-[Tajawal]">الروشتة:</h4>
                             <div className="space-y-1">
                               {visit.prescription.map((item, idx) => (
@@ -273,7 +283,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({
                           </div>
                         )}
 
-                        {!visit.notes && (!visit.prescription || visit.prescription.length === 0) && (
+                        {!visit.clinical_data && !visit.notes && (!visit.prescription || visit.prescription.length === 0) && (
                           <div className="text-sm text-gray-500 font-[Tajawal]">لا توجد تفاصيل إضافية</div>
                         )}
                       </div>
