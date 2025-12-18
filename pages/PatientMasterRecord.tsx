@@ -167,7 +167,12 @@ const PatientMasterRecord: React.FC = () => {
   };
 
   const renderObstetricsData = (data: any) => {
-    const { gestationalAge, riskAssessment, currentStatus } = data;
+    const { gestationalAge, riskAssessment, currentStatus, risk_level, risk_factors, systolic_bp } = data;
+    
+    if (risk_level !== undefined || risk_factors !== undefined || systolic_bp !== undefined) {
+      return <ClinicalDataDisplay data={data} department="OBS" />;
+    }
+    
     return (
       <div className="space-y-2">
         {gestationalAge && <div><span className="font-medium">GA:</span> {gestationalAge.weeks}w {gestationalAge.days}d</div>}
