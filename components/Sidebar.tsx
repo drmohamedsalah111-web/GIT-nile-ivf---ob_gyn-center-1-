@@ -25,17 +25,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
   return (
     // Hidden on mobile, visible from md and up
     <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 no-print">
-      <div className="p-6 border-b border-gray-100 flex items-center justify-center">
+      <div className="p-6 border-b border-gray-100 flex items-center justify-center" style={{ backgroundColor: branding?.background_color || '#ffffff' }}>
         <div className="flex flex-col items-center">
           {branding?.logo_url ? (
-            <img src={branding.logo_url} alt="Logo" className="w-12 h-12 rounded-full mb-2 object-cover" />
+            <img src={branding.logo_url} alt="Logo" className="w-12 h-12 rounded-full mb-2 object-cover border-2" style={{ borderColor: branding?.primary_color || '#2d5a6b' }} />
           ) : (
-            <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mb-2">
-              <Baby className="text-teal-700 w-8 h-8" />
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: `${branding?.primary_color}20` || '#2d5a6b20' }}>
+              <Baby className="w-8 h-8" style={{ color: branding?.primary_color || '#2d5a6b' }} />
             </div>
           )}
-          <h1 className="text-sm font-bold text-gray-800 text-center">{branding?.clinic_name || 'Nile IVF Center'}</h1>
-          <p className="text-xs text-gray-400 uppercase tracking-wider">EMR System</p>
+          <h1 className="text-sm font-bold text-center" style={{ color: branding?.text_color || '#1f2937', fontFamily: branding?.header_font || 'Tajawal' }}>
+            {branding?.clinic_name || 'Nile IVF Center'}
+          </h1>
+          <p className="text-xs uppercase tracking-wider" style={{ color: branding?.text_color || '#1f2937', opacity: 0.6 }}>
+            EMR System
+          </p>
         </div>
       </div>
       
@@ -48,13 +52,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
               <li key={item.id}>
                 <button
                   onClick={() => setPage(item.id)}
-                  className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${
+                  className={`w-full flex items-center gap-4 px-4 py-3 transition-all duration-200 ${
                     isActive 
-                      ? 'bg-teal-50 text-teal-700 font-bold shadow-sm' 
-                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'font-bold shadow-sm' 
+                      : 'hover:opacity-80'
                   }`}
+                  style={{
+                    backgroundColor: isActive ? `${branding?.primary_color}20` || '#2d5a6b20' : 'transparent',
+                    color: isActive ? branding?.primary_color || '#2d5a6b' : branding?.text_color || '#1f2937',
+                    borderRadius: branding?.button_style === 'rounded' ? '0.75rem' : branding?.button_style === 'pill' ? '9999px' : '0.25rem',
+                    fontFamily: branding?.body_font || 'Tajawal'
+                  }}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-teal-700' : 'text-gray-400'}`} />
+                  <Icon className="w-5 h-5" style={{ color: isActive ? branding?.primary_color || '#2d5a6b' : 'currentColor' }} />
                   <span>{item.arLabel || item.label}</span>
                 </button>
               </li>

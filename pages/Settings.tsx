@@ -19,6 +19,14 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   const [brandingFormData, setBrandingFormData] = useState({
     clinic_name: '',
     primary_color: '',
+    secondary_color: '',
+    accent_color: '',
+    background_color: '',
+    text_color: '',
+    header_font: 'Tajawal',
+    body_font: 'Tajawal',
+    button_style: 'rounded',
+    card_style: 'shadow',
     logo_url: '' as string | null,
   });
 
@@ -77,6 +85,14 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
       setBrandingFormData({
         clinic_name: branding.clinic_name || '',
         primary_color: branding.primary_color || '#2d5a6b',
+        secondary_color: branding.secondary_color || '#00838f',
+        accent_color: branding.accent_color || '#00bcd4',
+        background_color: branding.background_color || '#ffffff',
+        text_color: branding.text_color || '#1f2937',
+        header_font: branding.header_font || 'Tajawal',
+        body_font: branding.body_font || 'Tajawal',
+        button_style: branding.button_style || 'rounded',
+        card_style: branding.card_style || 'shadow',
         logo_url: branding.logo_url || null,
       });
       setPrescriptionFormData({
@@ -117,6 +133,14 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
       await updateBranding({
         clinic_name: brandingFormData.clinic_name,
         primary_color: brandingFormData.primary_color,
+        secondary_color: brandingFormData.secondary_color,
+        accent_color: brandingFormData.accent_color,
+        background_color: brandingFormData.background_color,
+        text_color: brandingFormData.text_color,
+        header_font: brandingFormData.header_font,
+        body_font: brandingFormData.body_font,
+        button_style: brandingFormData.button_style,
+        card_style: brandingFormData.card_style,
       });
       toast.success('تم تحديث بيانات الهوية البصرية بنجاح');
     } catch (error) {
@@ -310,6 +334,142 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2 font-[Tajawal]">سيظهر في الأزرار والعناوين والروابط</p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">اللون الثانوي</label>
+                <div className="flex gap-4 items-center">
+                  <input
+                    type="color"
+                    value={brandingFormData.secondary_color}
+                    onChange={(e) => setBrandingFormData(prev => ({ ...prev, secondary_color: e.target.value }))}
+                    className="w-16 h-10 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={brandingFormData.secondary_color}
+                    onChange={(e) => setBrandingFormData(prev => ({ ...prev, secondary_color: e.target.value }))}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                    placeholder="#00838f"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2 font-[Tajawal]">لون مكمل للهوية البصرية</p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">لون التمييز</label>
+                <div className="flex gap-4 items-center">
+                  <input
+                    type="color"
+                    value={brandingFormData.accent_color}
+                    onChange={(e) => setBrandingFormData(prev => ({ ...prev, accent_color: e.target.value }))}
+                    className="w-16 h-10 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={brandingFormData.accent_color}
+                    onChange={(e) => setBrandingFormData(prev => ({ ...prev, accent_color: e.target.value }))}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                    placeholder="#00bcd4"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2 font-[Tajawal]">لون للعناصر البارزة</p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">لون الخلفية</label>
+                <div className="flex gap-4 items-center">
+                  <input
+                    type="color"
+                    value={brandingFormData.background_color}
+                    onChange={(e) => setBrandingFormData(prev => ({ ...prev, background_color: e.target.value }))}
+                    className="w-16 h-10 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={brandingFormData.background_color}
+                    onChange={(e) => setBrandingFormData(prev => ({ ...prev, background_color: e.target.value }))}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                    placeholder="#ffffff"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2 font-[Tajawal]">خلفية التطبيق</p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">لون النص</label>
+                <div className="flex gap-4 items-center">
+                  <input
+                    type="color"
+                    value={brandingFormData.text_color}
+                    onChange={(e) => setBrandingFormData(prev => ({ ...prev, text_color: e.target.value }))}
+                    className="w-16 h-10 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={brandingFormData.text_color}
+                    onChange={(e) => setBrandingFormData(prev => ({ ...prev, text_color: e.target.value }))}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                    placeholder="#1f2937"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2 font-[Tajawal]">لون النصوص الرئيسية</p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">خط العناوين</label>
+                <select
+                  value={brandingFormData.header_font}
+                  onChange={(e) => setBrandingFormData(prev => ({ ...prev, header_font: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                >
+                  <option value="Tajawal">تجهول</option>
+                  <option value="Arial">Arial</option>
+                  <option value="Helvetica">Helvetica</option>
+                  <option value="Times New Roman">Times New Roman</option>
+                  <option value="Georgia">Georgia</option>
+                </select>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">خط النصوص</label>
+                <select
+                  value={brandingFormData.body_font}
+                  onChange={(e) => setBrandingFormData(prev => ({ ...prev, body_font: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                >
+                  <option value="Tajawal">تجهول</option>
+                  <option value="Arial">Arial</option>
+                  <option value="Helvetica">Helvetica</option>
+                  <option value="Times New Roman">Times New Roman</option>
+                  <option value="Georgia">Georgia</option>
+                </select>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">شكل الأزرار</label>
+                <select
+                  value={brandingFormData.button_style}
+                  onChange={(e) => setBrandingFormData(prev => ({ ...prev, button_style: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                >
+                  <option value="rounded">دائرية</option>
+                  <option value="square">مربعة</option>
+                  <option value="pill">حبوية</option>
+                </select>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">شكل البطاقات</label>
+                <select
+                  value={brandingFormData.card_style}
+                  onChange={(e) => setBrandingFormData(prev => ({ ...prev, card_style: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                >
+                  <option value="shadow">مع ظل</option>
+                  <option value="border">مع إطار</option>
+                  <option value="minimal">بسيطة</option>
+                </select>
               </div>
 
               <button

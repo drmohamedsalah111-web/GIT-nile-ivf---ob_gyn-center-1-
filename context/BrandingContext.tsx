@@ -3,31 +3,41 @@ import { supabase } from '../services/supabaseClient';
 import { authService } from '../services/authService';
 import { powerSyncDb } from '../src/powersync/client';
 
-interface BrandingSettings {
-  id: number;
-  clinic_name: string;
+interface DoctorBrandingSettings {
+  id: string;
+  name: string;
+  clinic_name: string | null;
   logo_url: string | null;
   clinic_address: string | null;
   clinic_phone: string | null;
   primary_color: string;
   secondary_color: string;
   accent_color: string;
+  background_color: string;
+  text_color: string;
+  header_font: string;
+  body_font: string;
+  button_style: string;
+  card_style: string;
   default_rx_notes: string | null;
+  prescription_header: string | null;
+  prescription_footer: string | null;
+  clinic_watermark: string | null;
   updated_at: string;
 }
 
 interface BrandingContextType {
-  branding: BrandingSettings | null;
+  branding: DoctorBrandingSettings | null;
   loading: boolean;
   error: string | null;
-  updateBranding: (updates: Partial<BrandingSettings>, logoFile?: File) => Promise<void>;
+  updateBranding: (updates: Partial<DoctorBrandingSettings>, logoFile?: File) => Promise<void>;
   refreshBranding: () => Promise<void>;
 }
 
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
 
 export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [branding, setBranding] = useState<BrandingSettings | null>(null);
+  const [branding, setBranding] = useState<DoctorBrandingSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,25 +46,58 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setLoading(true);
       setError(null);
 
-      // Use PowerSync for offline-first data
-      const results = await powerSyncDb.getAll('SELECT * FROM app_settings');
+      // Get current user and fetch their doctor branding
+      const user = await authService.getCurrentUser();
+      if (!user) {
+        setBranding(getDefaultBranding());
+        return;
+      }
+
+      // Use PowerSync to get doctor-specific branding
+      const results = await powerSyncDb.getAll(
+        'SELECT * FROM doctors WHERE user_id = ?',
+        [user.id]
+      );
 
       if (results.length > 0) {
-        setBranding(results[0] as BrandingSettings);
+        const doctor = results[0] as any;
+        setBranding({
+          id: doctor.id,
+          name: doctor.name || '',
+          clinic_name: doctor.clinic_name || null,
+          logo_url: doctor.clinic_image || null,
+          clinic_address: doctor.clinic_address || null,
+          clinic_phone: doctor.clinic_phone || null,
+          primary_color: doctor.primary_color || '#2d5a6b',
+          secondary_color: doctor.secondary_color || '#00838f',
+          accent_color: doctor.accent_color || '#00bcd4',
+          background_color: doctor.background_color || '#ffffff',
+          text_color: doctor.text_color || '#1f2937',
+          header_font: doctor.header_font || 'Tajawal',
+          body_font: doctor.body_font || 'Tajawal',
+          button_style: doctor.button_style || 'rounded',
+          card_style: doctor.card_style || 'shadow',
+          default_rx_notes: doctor.default_rx_notes || null,
+          prescription_header: doctor.prescription_header || null,
+          prescription_footer: doctor.prescription_footer || null,
+          clinic_watermark: doctor.clinic_watermark || null,
+          updated_at: doctor.updated_at || new Date().toISOString(),
+        });
       } else {
         setBranding(getDefaultBranding());
       }
     } catch (err) {
-      console.error('Failed to fetch branding:', err);
-      setError('فشل تحميل إعدادات العلامة التجارية');
+      console.error('Failed to fetch doctor branding:', err);
+      setError('فشل تحميل إعدادات الهوية البصرية');
       setBranding(getDefaultBranding());
     } finally {
       setLoading(false);
     }
   };
 
-  const getDefaultBranding = (): BrandingSettings => ({
-    id: 1,
+  const getDefaultBranding = (): DoctorBrandingSettings => ({
+    id: '',
+    name: '',
     clinic_name: 'نظام د محمد صلاح جبر',
     logo_url: null,
     clinic_address: null,
@@ -62,39 +105,48 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     primary_color: '#2d5a6b',
     secondary_color: '#00838f',
     accent_color: '#00bcd4',
+    background_color: '#ffffff',
+    text_color: '#1f2937',
+    header_font: 'Tajawal',
+    body_font: 'Tajawal',
+    button_style: 'rounded',
+    card_style: 'shadow',
     default_rx_notes: null,
+    prescription_header: null,
+    prescription_footer: null,
+    clinic_watermark: null,
     updated_at: new Date().toISOString(),
   });
 
   const updateBranding = async (
-    updates: Partial<BrandingSettings>,
+    updates: Partial<DoctorBrandingSettings>,
     logoFile?: File
   ) => {
     try {
       setError(null);
+
+      const user = await authService.getCurrentUser();
+      if (!user) throw new Error('User not authenticated');
 
       let logoUrl = updates.logo_url;
 
       // Image upload still requires online connection to Supabase Storage
       if (logoFile) {
         try {
-          const user = await authService.getCurrentUser();
-          if (!user) throw new Error('User not authenticated');
-
           const fileExt = logoFile.name.split('.').pop();
-          const fileName = `clinic_logo_${Date.now()}.${fileExt}`;
+          const fileName = `${user.id}/clinic_logo_${Date.now()}.${fileExt}`;
 
           const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('branding')
+            .from('doctor-logos')
             .upload(fileName, logoFile, { upsert: true });
 
           if (uploadError) {
             console.error('Upload error:', uploadError);
-            throw new Error('فشل رفع الشعار: تأكد من إنشاء bucket "branding" في Supabase Storage');
+            throw new Error('فشل رفع الشعار: تأكد من إنشاء bucket "doctor-logos" في Supabase Storage');
           }
 
           const { data: urlData } = supabase.storage
-            .from('branding')
+            .from('doctor-logos')
             .getPublicUrl(fileName);
 
           logoUrl = urlData.publicUrl;
@@ -104,59 +156,52 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       }
 
-      const updateData = {
-        clinic_name: updates.clinic_name ?? branding?.clinic_name,
-        clinic_address: updates.clinic_address ?? branding?.clinic_address,
-        clinic_phone: updates.clinic_phone ?? branding?.clinic_phone,
-        primary_color: updates.primary_color ?? branding?.primary_color,
-        secondary_color: updates.secondary_color ?? branding?.secondary_color,
-        accent_color: updates.accent_color ?? branding?.accent_color,
-        default_rx_notes: updates.default_rx_notes ?? branding?.default_rx_notes,
-        ...(logoUrl && { logo_url: logoUrl }),
-        updated_at: new Date().toISOString(),
-      };
-
-      setBranding(prev => prev ? { ...prev, ...updateData } : null);
-
       // Update local PowerSync DB (which will sync to Supabase)
-      // Note: We assume there's only one row in app_settings
-      const existing = await powerSyncDb.getAll('SELECT id FROM app_settings');
+      await powerSyncDb.execute(
+        `UPDATE doctors SET 
+           clinic_name = ?, clinic_address = ?, clinic_phone = ?, 
+           primary_color = ?, secondary_color = ?, accent_color = ?,
+           background_color = ?, text_color = ?, header_font = ?,
+           body_font = ?, button_style = ?, card_style = ?,
+           default_rx_notes = ?, prescription_header = ?, prescription_footer = ?,
+           clinic_watermark = ?, clinic_image = ?, updated_at = ?
+         WHERE user_id = ?`,
+        [
+          updates.clinic_name ?? branding?.clinic_name,
+          updates.clinic_address ?? branding?.clinic_address,
+          updates.clinic_phone ?? branding?.clinic_phone,
+          updates.primary_color ?? branding?.primary_color,
+          updates.secondary_color ?? branding?.secondary_color,
+          updates.accent_color ?? branding?.accent_color,
+          updates.background_color ?? branding?.background_color,
+          updates.text_color ?? branding?.text_color,
+          updates.header_font ?? branding?.header_font,
+          updates.body_font ?? branding?.body_font,
+          updates.button_style ?? branding?.button_style,
+          updates.card_style ?? branding?.card_style,
+          updates.default_rx_notes ?? branding?.default_rx_notes,
+          updates.prescription_header ?? branding?.prescription_header,
+          updates.prescription_footer ?? branding?.prescription_footer,
+          updates.clinic_watermark ?? branding?.clinic_watermark,
+          logoUrl || branding?.logo_url,
+          new Date().toISOString(),
+          user.id
+        ]
+      );
 
-      if (existing.length > 0) {
-        const id = (existing[0] as any).id;
-        await powerSyncDb.execute(
-          `UPDATE app_settings SET 
-             clinic_name = ?, clinic_address = ?, clinic_phone = ?, 
-             primary_color = ?, secondary_color = ?, accent_color = ?, 
-             default_rx_notes = ?, logo_url = ?, updated_at = ? 
-           WHERE id = ?`,
-          [
-            updateData.clinic_name, updateData.clinic_address, updateData.clinic_phone,
-            updateData.primary_color, updateData.secondary_color, updateData.accent_color,
-            updateData.default_rx_notes, updateData.logo_url, updateData.updated_at,
-            id
-          ]
-        );
-      } else {
-        // Insert if not exists (though sync should handle this)
-        await powerSyncDb.execute(
-          `INSERT INTO app_settings (
-             id, clinic_name, clinic_address, clinic_phone, 
-             primary_color, secondary_color, accent_color, 
-             default_rx_notes, logo_url, updated_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            crypto.randomUUID(), // Generate a new UUID if creating locally
-            updateData.clinic_name, updateData.clinic_address, updateData.clinic_phone,
-            updateData.primary_color, updateData.secondary_color, updateData.accent_color,
-            updateData.default_rx_notes, updateData.logo_url, updateData.updated_at
-          ]
-        );
+      // Update local state
+      if (branding) {
+        setBranding({
+          ...branding,
+          ...updates,
+          ...(logoUrl && { logo_url: logoUrl }),
+          updated_at: new Date().toISOString(),
+        });
       }
 
     } catch (err) {
       console.error('Failed to update branding:', err);
-      setError('فشل تحديث إعدادات العلامة التجارية');
+      setError('فشل تحديث إعدادات الهوية البصرية');
       throw err;
     }
   };
