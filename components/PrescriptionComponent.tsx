@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, Pill, Printer, ChevronDown } from 'lucide-react';
 import { PrescriptionItem } from '../types';
 import { EGYPTIAN_MARKET_DRUGS, DrugEntry, searchDrugs, getDrugsByCategory, getAllDrugs } from '../data/egyptian_drugs';
+import { EGYPTIAN_DRUGS_ARABIC } from '../constants';
 
 interface PrescriptionComponentProps {
   prescriptions: PrescriptionItem[];
@@ -100,6 +101,16 @@ const PrescriptionComponent: React.FC<PrescriptionComponentProps> = ({
     setHighlightedIndex(-1);
   };
 
+  const getArabicDosage = (drugName: string): string => {
+    for (const category in EGYPTIAN_DRUGS_ARABIC) {
+      const categoryData = EGYPTIAN_DRUGS_ARABIC[category as keyof typeof EGYPTIAN_DRUGS_ARABIC];
+      if (categoryData && drugName in categoryData) {
+        return categoryData[drugName as keyof typeof categoryData]?.dose || '';
+      }
+    }
+    return '';
+  };
+
   const highlightMatch = (text: string, query: string) => {
     if (!query) return text;
     const regex = new RegExp(`(${query})`, 'gi');
@@ -184,8 +195,13 @@ const PrescriptionComponent: React.FC<PrescriptionComponentProps> = ({
                     {highlightMatch(drug.active, searchQuery)} ({drug.category})
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    {drug.dose}
+                    EN: {drug.dose}
                   </div>
+                  {getArabicDosage(drug.tradeName) && (
+                    <div className="text-xs text-blue-600 mt-1" dir="rtl">
+                      AR: {getArabicDosage(drug.tradeName)}
+                    </div>
+                  )}
                 </div>
               ))
             ) : searchQuery ? (
@@ -234,6 +250,11 @@ const PrescriptionComponent: React.FC<PrescriptionComponentProps> = ({
                   <div className="flex-1">
                     <div className="font-semibold text-gray-900">{prescription.drug}</div>
                     <div className="text-sm text-purple-600 mt-1">{prescription.category}</div>
+                    {getArabicDosage(prescription.drug) && (
+                      <div className="text-xs text-blue-600 mt-1 p-1 bg-blue-50 rounded" dir="rtl">
+                        سيتم طباعته: {getArabicDosage(prescription.drug)}
+                      </div>
+                    )}
                     <input
                       type="text"
                       value={prescription.dose}

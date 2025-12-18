@@ -4,6 +4,7 @@ import { PrescriptionItem, Patient, Doctor } from '../types';
 import { authService } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
 import toast from 'react-hot-toast';
+import { EGYPTIAN_DRUGS_ARABIC } from '../constants';
 
 interface PrescriptionPrinterProps {
   patient: Patient | null;
@@ -122,6 +123,16 @@ const PrescriptionPrinter: React.FC<PrescriptionPrinterProps> = ({
     };
   };
 
+  const getArabicDosage = (drugName: string): string => {
+    for (const category in EGYPTIAN_DRUGS_ARABIC) {
+      const categoryData = EGYPTIAN_DRUGS_ARABIC[category as keyof typeof EGYPTIAN_DRUGS_ARABIC];
+      if (categoryData && drugName in categoryData) {
+        return categoryData[drugName]?.dose || 'الجرعة القياسية';
+      }
+    }
+    return 'الجرعة القياسية';
+  };
+
   const { date, time } = getCurrentDateTime();
 
   if (!isOpen) return null;
@@ -207,7 +218,7 @@ const PrescriptionPrinter: React.FC<PrescriptionPrinterProps> = ({
                       <div className="prescription-content">
                         <div className="drug-name">{prescription.drug}</div>
                         <div className="drug-dose">
-                          {prescription.dose || 'الجرعة القياسية'}
+                          {getArabicDosage(prescription.drug)}
                         </div>
                         <div className="drug-category">التصنيف: {prescription.category}</div>
                       </div>

@@ -119,7 +119,7 @@ const IvfJourney: React.FC = () => {
   const [isPrinterOpen, setIsPrinterOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  const selectedPatient = patients.find(p => String(p.id) === selectedPatientId);
+  const selectedPatient = patients.find(p => String(p.id) === selectedPatientId) || null;
 
   useEffect(() => {
     if (patients.length > 0 && !selectedPatientId) {

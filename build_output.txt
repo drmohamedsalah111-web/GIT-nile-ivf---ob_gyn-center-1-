@@ -1,0 +1,53 @@
+
+> dr-salah-ivf-center@1.0.0 build
+> vite build
+
+[36mvite v7.2.7 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 2267 modules transformed.
+rendering chunks...
+[33m[plugin vite:reporter] 
+(!) D:/GitHub/New folder/GIT-nile-ivf---ob_gyn-center-1-/services/supabaseClient.ts is dynamically imported by D:/GitHub/New folder/GIT-nile-ivf---ob_gyn-center-1-/src/hooks/usePatients.ts, D:/GitHub/New folder/GIT-nile-ivf---ob_gyn-center-1-/src/hooks/usePatients.ts but also statically imported by D:/GitHub/New folder/GIT-nile-ivf---ob_gyn-center-1-/context/BrandingContext.tsx, D:/GitHub/New folder/GIT-nile-ivf---ob_gyn-center-1-/pages/AdminDashboard.tsx, D:/GitHub/New folder/GIT-nile-ivf---ob_gyn-center-1-/pages/PatientMasterRecord.tsx, D:/GitHub/New folder/GIT-nile-ivf---ob_gyn-center-1-/services/authService.ts, D:/GitHub/New folder/GIT-nile-ivf---ob_gyn-center-1-/services/dbService.ts, D:/GitHub/New folder/GIT-nile-ivf---ob_gyn-center-1-/services/ivfService.ts, D:/GitHub/New folder/GIT-nile-ivf---ob_gyn-center-1-/services/labService.ts, D:/GitHub/New folder/GIT-nile-ivf---ob_gyn-center-1-/services/obstetricsService.ts, D:/GitHub/New folder/GIT-nile-ivf---ob_gyn-center-1-/services/visitsService.ts, dynamic import will not move module into another chunk.
+[39m
+computing gzip size...
+[2mdist/[22m[32mregisterSW.js                                       [39m[1m[2m    0.13 kB[22m[1m[22m
+[2mdist/[22m[32mmanifest.webmanifest                                [39m[1m[2m    0.51 kB[22m[1m[22m
+[2mdist/[22m[32mindex.html                                          [39m[1m[2m    1.56 kB[22m[1m[22m[2m │ gzip:   0.70 kB[22m
+[2mdist/[22m[32massets/AccessHandlePoolVFS-CsSYiSuG.js              [39m[1m[2m    3.94 kB[22m[1m[22m
+[2mdist/[22m[32massets/AccessHandlePoolVFS-Ms9oRG59.js              [39m[1m[2m    3.98 kB[22m[1m[22m
+[2mdist/[22m[32massets/FacadeVFS-D4STctPb.js                        [39m[1m[2m    6.30 kB[22m[1m[22m
+[2mdist/[22m[32massets/FacadeVFS-C_uRDmok.js                        [39m[1m[2m    6.68 kB[22m[1m[22m
+[2mdist/[22m[32massets/OPFSCoopSyncVFS-B23rAG0T.js                  [39m[1m[2m    7.82 kB[22m[1m[22m
+[2mdist/[22m[32massets/OPFSCoopSyncVFS-Dpeuvhh8.js                  [39m[1m[2m    7.87 kB[22m[1m[22m
+[2mdist/[22m[32massets/IDBBatchAtomicVFS-Rb8ukz-j.js                [39m[1m[2m   13.44 kB[22m[1m[22m
+[2mdist/[22m[32massets/IDBBatchAtomicVFS-BlTbPbvV.js                [39m[1m[2m   13.48 kB[22m[1m[22m
+[2mdist/[22m[32massets/WASQLiteDB.worker-DBLT50wz.js                [39m[1m[2m  164.27 kB[22m[1m[22m
+[2mdist/[22m[32massets/SharedSyncImplementation.worker-DU1irJQl.js  [39m[1m[2m  201.99 kB[22m[1m[22m
+[2mdist/[22m[32massets/wa-sqlite-ClELCHSd.wasm                      [39m[1m[2m1,103.64 kB[22m[1m[22m[2m │ gzip: 514.36 kB[22m
+[2mdist/[22m[32massets/mc-wa-sqlite-B57hX8An.wasm                   [39m[1m[2m1,291.18 kB[22m[1m[22m[2m │ gzip: 590.10 kB[22m
+[2mdist/[22m[32massets/wa-sqlite-async-CgFfJNGb.wasm                [39m[1m[2m2,215.98 kB[22m[1m[22m[2m │ gzip: 778.14 kB[22m
+[2mdist/[22m[32massets/mc-wa-sqlite-async-BuTS6e7j.wasm             [39m[1m[2m2,438.12 kB[22m[1m[22m[2m │ gzip: 862.04 kB[22m
+[2mdist/[22m[35massets/index-CQ9GIf00.css                           [39m[1m[2m   49.34 kB[22m[1m[22m[2m │ gzip:   8.44 kB[22m
+[2mdist/[22m[36massets/AccessHandlePoolVFS-CX9MiTlB.js              [39m[1m[2m    3.97 kB[22m[1m[22m[2m │ gzip:   1.77 kB[22m
+[2mdist/[22m[36massets/FacadeVFS-DfakPf6L.js                        [39m[1m[2m    6.28 kB[22m[1m[22m[2m │ gzip:   1.88 kB[22m
+[2mdist/[22m[36massets/OPFSCoopSyncVFS-JFU-O7ts.js                  [39m[1m[2m    7.86 kB[22m[1m[22m[2m │ gzip:   2.56 kB[22m
+[2mdist/[22m[36massets/IDBBatchAtomicVFS-Ck28OwTi.js                [39m[1m[2m   13.48 kB[22m[1m[22m[2m │ gzip:   4.34 kB[22m
+[2mdist/[22m[36massets/wa-sqlite-Cj-2WDWH.js                        [39m[1m[2m   60.68 kB[22m[1m[22m[2m │ gzip:  20.25 kB[22m
+[2mdist/[22m[36massets/mc-wa-sqlite-BGCBhaRa.js                     [39m[1m[2m   61.00 kB[22m[1m[22m[2m │ gzip:  20.32 kB[22m
+[2mdist/[22m[36massets/wa-sqlite-async-jo9kWvcp.js                  [39m[1m[2m   63.81 kB[22m[1m[22m[2m │ gzip:  21.33 kB[22m
+[2mdist/[22m[36massets/mc-wa-sqlite-async-BIAsByVn.js               [39m[1m[2m   64.12 kB[22m[1m[22m[2m │ gzip:  21.40 kB[22m
+[2mdist/[22m[36massets/bson-BkvxR-ZB.js                             [39m[1m[2m   73.86 kB[22m[1m[22m[2m │ gzip:  21.61 kB[22m
+[2mdist/[22m[36massets/index-B1WICuvJ.js                            [39m[1m[33m1,370.87 kB[39m[22m[2m │ gzip: 358.14 kB[22m
+[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[32m✓ built in 21.39s[39m
+
+PWA v1.2.0
+mode      generateSW
+precache  37 entries (12009.43 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-d8442629.js
