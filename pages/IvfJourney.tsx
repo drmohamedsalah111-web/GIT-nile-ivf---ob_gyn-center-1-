@@ -10,6 +10,8 @@ import HistorySidebar from '../src/components/HistorySidebar';
 import IvfLabManager from './components/IvfLabManager';
 import AssessmentTab from '../components/assessment/AssessmentTab';
 
+import { PROTOCOL_INFO } from '../constants';
+
 const PROTOCOL_OPTIONS = ['Long', 'Antagonist', 'Flare-up', 'Mini-IVF'];
 
 const LOCAL_IVF_DRUGS = {
@@ -17,49 +19,6 @@ const LOCAL_IVF_DRUGS = {
   'Trigger Shots': ['Ovitrelle 250mcg', 'Choriomon 5000 IU', 'Pregnyl 5000 IU', 'Decapeptyl 0.1mg (Trigger)'],
   'Down-Regulation': ['Cetrotide 0.25mg', 'Orgalutran 0.25mg', 'Decapeptyl 0.1mg Daily', 'Zoladex 3.6mg'],
   'Luteal Support': ['Cyclogest 400mg', 'Cyclogest 200mg', 'Prontogest 100mg', 'Duphaston 10mg', 'Utrogestan 200mg', 'Crinone 8% Gel']
-};
-
-const PROTOCOL_INFO: any = {
-  'Long': {
-    name: 'Long Agonist Protocol',
-    arabicName: '???????? ???????? ???????',
-    bestFor: ['Normal responders', 'Regular cycles', 'PCO patients'],
-    duration: '35-42 days',
-    stimDays: '10-12 days',
-    stimDrugs: ['Gonal-F 75 IU', 'Merional 75 IU', 'Fostimon 75 IU'],
-    trigger: ['Ovitrelle 250mcg', 'Choriomon 5000 IU'],
-    luteal: ['Cyclogest 400mg', 'Utrogestan 200mg']
-  },
-  'Antagonist': {
-    name: 'Antagonist Protocol',
-    arabicName: '???????? ????????',
-    bestFor: ['Poor responders', 'Previous low response'],
-    duration: '14-16 days',
-    stimDays: '8-10 days',
-    stimDrugs: ['Gonal-F 75-150 IU', 'Merional 75 IU', 'Menopur 75 IU'],
-    trigger: ['Ovitrelle 250mcg', 'Decapeptyl 0.1mg (Trigger)'],
-    luteal: ['Cyclogest 400mg', 'Progynova 2mg']
-  },
-  'Flare-up': {
-    name: 'Flare-up Protocol',
-    arabicName: '???????? ??????? ?????',
-    bestFor: ['Poor responders', 'Diminished ovarian reserve'],
-    duration: '10-12 days',
-    stimDays: '8-9 days',
-    stimDrugs: ['Gonal-F 150-300 IU', 'Merional 150 IU'],
-    trigger: ['Ovitrelle 250mcg', 'Choriomon 5000 IU'],
-    luteal: ['Cyclogest 400mg', 'Duphaston 10mg']
-  },
-  'Mini-IVF': {
-    name: 'Mini-IVF Protocol',
-    arabicName: '???????? ????? ??????? ??????',
-    bestFor: ['Poor responders', 'Previous OHSS'],
-    duration: '10-14 days',
-    stimDays: '7-8 days',
-    stimDrugs: ['Clomid 50mg', 'Femara 2.5mg', 'Gonal-F 75 IU'],
-    trigger: ['Ovitrelle 250mcg'],
-    luteal: ['Cyclogest 200mg', 'Utrogestan 200mg']
-  }
 };
 
 interface StimulationLog {
