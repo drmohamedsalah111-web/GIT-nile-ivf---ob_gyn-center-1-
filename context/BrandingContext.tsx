@@ -191,12 +191,13 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       // Update local state
       if (branding) {
-        setBranding({
+        const updatedBranding = {
           ...branding,
           ...updates,
           ...(logoUrl && { logo_url: logoUrl }),
           updated_at: new Date().toISOString(),
-        });
+        };
+        setBranding(updatedBranding);
       }
 
     } catch (err) {
