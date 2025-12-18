@@ -81,7 +81,6 @@ const ClinicalDataDisplay: React.FC<ClinicalDataDisplayProps> = ({ data, departm
   };
 
   const knownFields = {
-    // Obstetrics fields
     gestational_age_weeks: 'Gestational Age (Weeks)',
     gestational_age_days: 'Gestational Age (Days)',
     systolic_bp: 'Systolic BP',
@@ -91,33 +90,29 @@ const ClinicalDataDisplay: React.FC<ClinicalDataDisplayProps> = ({ data, departm
     fetal_heart_rate: 'Fetal Heart Rate',
     risk_level: 'Risk Level',
     risk_factors: 'Risk Factors',
-
-    // Gynecology fields
     complaint: 'Chief Complaint',
     pv_examination: 'PV Examination',
     ultrasound_findings: 'Ultrasound Findings',
     diagnosis: 'Diagnosis',
     treatment_plan: 'Treatment Plan',
     notes: 'Clinical Notes',
-
-    // IVF fields
     protocol: 'Protocol',
     e2: 'Estradiol (E2)',
     lh: 'Luteinizing Hormone (LH)',
     fsh: 'Follicle Stimulating Hormone (FSH)',
     follicle_count: 'Follicle Count',
     endometrium_thickness: 'Endometrium Thickness (mm)',
-
-    // Generic fields
     clinical_indication: 'Clinical Indication',
     observations: 'Observations'
   };
 
-  const renderUnknownFields = (excludedKeys: Set<string>) => {
+  const excludedKeys = new Set<string>(Object.keys(knownFields));
+
+  const renderUnknownFields = (excluded: Set<string>) => {
     const unknownFields: any[] = [];
 
     Object.entries(data).forEach(([key, value]) => {
-      if (!excludedKeys.has(key) && value !== null && value !== undefined) {
+      if (!excluded.has(key) && value !== null && value !== undefined) {
         unknownFields.push({ key, value });
       }
     });
@@ -147,12 +142,8 @@ const ClinicalDataDisplay: React.FC<ClinicalDataDisplayProps> = ({ data, departm
     );
   };
 
-  const excludedKeys = new Set<string>();
-
-  // Render based on available data structure
   return (
     <div className="space-y-4">
-      {/* Risk Assessment Section (Obstetrics focused) */}
       {data.risk_level && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-3">
@@ -161,7 +152,6 @@ const ClinicalDataDisplay: React.FC<ClinicalDataDisplayProps> = ({ data, departm
           </div>
 
           <div className="space-y-3">
-            {/* Risk Level Badge */}
             <div>
               <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Risk Level</span>
               <div className="mt-2 flex items-center gap-2">
@@ -172,7 +162,6 @@ const ClinicalDataDisplay: React.FC<ClinicalDataDisplayProps> = ({ data, departm
               </div>
             </div>
 
-            {/* Risk Factors */}
             {data.risk_factors && (
               <div>
                 <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Risk Factors</span>
@@ -180,65 +169,38 @@ const ClinicalDataDisplay: React.FC<ClinicalDataDisplayProps> = ({ data, departm
               </div>
             )}
           </div>
-          {excludedKeys.add('risk_level')}
-          {excludedKeys.add('risk_factors')}
         </div>
       )}
 
-      {/* Vital Signs Section (Obstetrics) */}
       {(data.systolic_bp || data.weight_kg || data.fundal_height) && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-2">
           <h3 className="text-sm font-semibold text-gray-900">Vital Signs & Measurements</h3>
 
-          {data.systolic_bp && data.diastolic_bp && (
-            <>
-              {renderField(
-                'Blood Pressure',
-                `${data.systolic_bp}/${data.diastolic_bp} mmHg`,
-                data.systolic_bp >= 140 || data.diastolic_bp >= 90
-                  ? <TrendingUp className="w-4 h-4 text-red-600 flex-shrink-0" />
-                  : undefined
-              )}
-              {excludedKeys.add('systolic_bp')}
-              {excludedKeys.add('diastolic_bp')}
-            </>
-          )}
+          {data.systolic_bp && data.diastolic_bp && 
+            renderField(
+              'Blood Pressure',
+              `${data.systolic_bp}/${data.diastolic_bp} mmHg`,
+              data.systolic_bp >= 140 || data.diastolic_bp >= 90
+                ? <TrendingUp className="w-4 h-4 text-red-600 flex-shrink-0" />
+                : undefined
+            )
+          }
 
-          {data.weight_kg && (
-            <>
-              {renderField('Weight', `${data.weight_kg} kg`)}
-              {excludedKeys.add('weight_kg')}
-            </>
-          )}
+          {data.weight_kg && renderField('Weight', `${data.weight_kg} kg`)}
 
-          {data.fundal_height && (
-            <>
-              {renderField('Fundal Height', `${data.fundal_height} cm`)}
-              {excludedKeys.add('fundal_height')}
-            </>
-          )}
+          {data.fundal_height && renderField('Fundal Height', `${data.fundal_height} cm`)}
 
-          {data.fetal_heart_rate && (
-            <>
-              {renderField('Fetal Heart Rate', `${data.fetal_heart_rate} bpm`)}
-              {excludedKeys.add('fetal_heart_rate')}
-            </>
-          )}
+          {data.fetal_heart_rate && renderField('Fetal Heart Rate', `${data.fetal_heart_rate} bpm`)}
 
-          {data.gestational_age_weeks || data.gestational_age_days ? (
-            <>
-              {renderField(
-                'Gestational Age',
-                `${data.gestational_age_weeks || '?'}w + ${data.gestational_age_days || '?'}d`
-              )}
-              {excludedKeys.add('gestational_age_weeks')}
-              {excludedKeys.add('gestational_age_days')}
-            </>
-          ) : null}
+          {(data.gestational_age_weeks || data.gestational_age_days) && 
+            renderField(
+              'Gestational Age',
+              `${data.gestational_age_weeks || '?'}w + ${data.gestational_age_days || '?'}d`
+            )
+          }
         </div>
       )}
 
-      {/* Clinical Findings Section */}
       {(data.complaint || data.diagnosis || data.pv_examination || data.ultrasound_findings) && (
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 space-y-3">
           <div className="flex items-center gap-2">
@@ -247,109 +209,57 @@ const ClinicalDataDisplay: React.FC<ClinicalDataDisplayProps> = ({ data, departm
           </div>
 
           {data.complaint && (
-            <>
-              <div>
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Chief Complaint</span>
-                {renderLongText(data.complaint)}
-              </div>
-              {excludedKeys.add('complaint')}
-            </>
+            <div>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Chief Complaint</span>
+              {renderLongText(data.complaint)}
+            </div>
           )}
 
           {data.pv_examination && (
-            <>
-              <div>
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">PV Examination</span>
-                {renderLongText(data.pv_examination)}
-              </div>
-              {excludedKeys.add('pv_examination')}
-            </>
+            <div>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">PV Examination</span>
+              {renderLongText(data.pv_examination)}
+            </div>
           )}
 
           {data.ultrasound_findings && (
-            <>
-              <div>
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Ultrasound Findings</span>
-                {renderLongText(data.ultrasound_findings)}
-              </div>
-              {excludedKeys.add('ultrasound_findings')}
-            </>
+            <div>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Ultrasound Findings</span>
+              {renderLongText(data.ultrasound_findings)}
+            </div>
           )}
 
           {data.diagnosis && (
-            <>
-              <div>
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Diagnosis</span>
-                <div className="mt-1 bg-white border border-gray-200 rounded px-2 py-1">
-                  <span className="text-sm font-medium text-gray-900">{data.diagnosis}</span>
-                </div>
+            <div>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Diagnosis</span>
+              <div className="mt-1 bg-white border border-gray-200 rounded px-2 py-1">
+                <span className="text-sm font-medium text-gray-900">{data.diagnosis}</span>
               </div>
-              {excludedKeys.add('diagnosis')}
-            </>
+            </div>
           )}
 
           {data.treatment_plan && (
-            <>
-              <div>
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Treatment Plan</span>
-                {renderLongText(data.treatment_plan)}
-              </div>
-              {excludedKeys.add('treatment_plan')}
-            </>
+            <div>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Treatment Plan</span>
+              {renderLongText(data.treatment_plan)}
+            </div>
           )}
         </div>
       )}
 
-      {/* Lab/IVF Specific Section */}
       {(data.protocol || data.e2 || data.lh || data.fsh || data.follicle_count || data.endometrium_thickness) && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
           <h3 className="text-sm font-semibold text-gray-900">Lab/IVF Parameters</h3>
 
-          {data.protocol && (
-            <>
-              {renderField('Protocol', data.protocol)}
-              {excludedKeys.add('protocol')}
-            </>
-          )}
-
-          {data.e2 && (
-            <>
-              {renderField('Estradiol (E2)', `${data.e2} pg/mL`)}
-              {excludedKeys.add('e2')}
-            </>
-          )}
-
-          {data.lh && (
-            <>
-              {renderField('LH', `${data.lh} mIU/mL`)}
-              {excludedKeys.add('lh')}
-            </>
-          )}
-
-          {data.fsh && (
-            <>
-              {renderField('FSH', `${data.fsh} mIU/mL`)}
-              {excludedKeys.add('fsh')}
-            </>
-          )}
-
-          {data.follicle_count && (
-            <>
-              {renderField('Follicle Count', `${data.follicle_count} follicles`)}
-              {excludedKeys.add('follicle_count')}
-            </>
-          )}
-
-          {data.endometrium_thickness && (
-            <>
-              {renderField('Endometrium Thickness', `${data.endometrium_thickness} mm`)}
-              {excludedKeys.add('endometrium_thickness')}
-            </>
-          )}
+          {data.protocol && renderField('Protocol', data.protocol)}
+          {data.e2 && renderField('Estradiol (E2)', `${data.e2} pg/mL`)}
+          {data.lh && renderField('LH', `${data.lh} mIU/mL`)}
+          {data.fsh && renderField('FSH', `${data.fsh} mIU/mL`)}
+          {data.follicle_count && renderField('Follicle Count', `${data.follicle_count} follicles`)}
+          {data.endometrium_thickness && renderField('Endometrium Thickness', `${data.endometrium_thickness} mm`)}
         </div>
       )}
 
-      {/* Clinical Notes Section */}
       {data.notes && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
           <div className="flex items-start gap-2">
@@ -361,11 +271,9 @@ const ClinicalDataDisplay: React.FC<ClinicalDataDisplayProps> = ({ data, departm
               </div>
             </div>
           </div>
-          {excludedKeys.add('notes')}
         </div>
       )}
 
-      {/* Additional/Unknown Fields */}
       {renderUnknownFields(excludedKeys)}
     </div>
   );
