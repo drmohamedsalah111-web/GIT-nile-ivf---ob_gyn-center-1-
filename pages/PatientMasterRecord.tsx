@@ -384,11 +384,7 @@ const PatientMasterRecord: React.FC = () => {
                                         <div className="grid md:grid-cols-2 gap-4">
                                           <div className="bg-white rounded border border-gray-200 p-4">
                                             <p className="text-xs font-semibold text-gray-500 mb-2">Clinical Data</p>
-                                            {h.type === 'Visit' ? renderClinicalData(h.clinical_data, h.department) : (
-                                              <div className="text-sm text-gray-700">
-                                                <pre className="whitespace-pre-wrap">{JSON.stringify(h.clinical_data, null, 2)}</pre>
-                                              </div>
-                                            )}
+                                            {renderClinicalData(h.clinical_data, h.department)}
                                           </div>
                                           {(h.notes || (h.prescription && h.prescription.length > 0)) && (
                                             <div className="bg-white rounded border border-gray-200 p-4 space-y-3">
@@ -448,13 +444,7 @@ const PatientMasterRecord: React.FC = () => {
                                 </div>
                                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                                   <p className="text-xs uppercase text-gray-500 font-semibold mb-1">البيانات المسجلة</p>
-                                  {selectedDetail.type === 'Visit'
-                                    ? renderClinicalData(selectedDetail.clinical_data, selectedDetail.department)
-                                    : (
-                                      <div className="text-sm text-gray-700">
-                                        <pre className="whitespace-pre-wrap">{JSON.stringify(selectedDetail.clinical_data, null, 2)}</pre>
-                                      </div>
-                                    )}
+                                  {renderClinicalData(selectedDetail.clinical_data, selectedDetail.department)}
                                 </div>
                                 {selectedDetail.notes && (
                                   <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
