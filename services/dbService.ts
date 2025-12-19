@@ -214,6 +214,8 @@ export const dbService = {
 
   saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
     try {
+      console.log('🔄 Starting saveCycle...');
+      
       // Ensure we have a valid session before proceeding
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
@@ -224,78 +226,21 @@ export const dbService = {
         }
       }
 
+      // Get or create doctor - this handles everything
+      console.log('📋 Getting doctor ID...');
       const { doctorId } = await getDoctorIdOrThrow();
-      
-      // Verify doctor exists before inserting cycle
-      const { data: doctorExists, error: checkError } = await supabase
-        .from('doctors')
-        .select('id')
-        .eq('id', doctorId)
-        .maybeSingle();
+      console.log('✅ Doctor ID obtained:', doctorId);
 
-      if (checkError) {
-        console.error('❌ Error verifying doctor:', checkError);
-        throw new Error(`فشل التحقق من وجود الطبيب: ${checkError.message}`);
-      }
-
-      if (!doctorExists) {
-        console.warn('⚠️ Doctor not found, attempting to create again...');
-        // Doctor doesn't exist, try creating again with a small delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const newDoctorId = crypto.randomUUID();
-        const user = await authService.getCurrentUser();
-        const now = new Date().toISOString();
-
-        const { data: newDoctor, error: createError } = await supabase
-          .from('doctors')
-          .insert([{
-            id: newDoctorId,
-            user_id: user?.id || '',
-            email: user?.email || '',
-            name: 'الطبيب',
-            created_at: now,
-            updated_at: now
-          }])
-          .select('id')
-          .maybeSingle();
-
-        if (createError) {
-          if (createError.code !== '23505') { // Ignore UNIQUE constraint
-            throw createError;
-          }
-        }
-
-        // Use the new or existing doctor ID
-        const finalDoctorId = newDoctor?.id || doctorId;
-        const id = crypto.randomUUID();
-        const timestamp = new Date().toISOString();
-
-        const { error: insertError } = await supabase
-          .from('ivf_cycles')
-          .insert([{
-            id,
-            patient_id: cycle.patientId,
-            doctor_id: finalDoctorId,
-            protocol: cycle.protocol,
-            status: cycle.status || 'Active',
-            start_date: cycle.startDate,
-            assessment_data: JSON.stringify(cycle.assessment || {}),
-            lab_data: JSON.stringify(cycle.lab || {}),
-            transfer_data: JSON.stringify(cycle.transfer || {}),
-            outcome_data: JSON.stringify(cycle.outcome || {}),
-            created_at: timestamp,
-            updated_at: timestamp
-          }]);
-
-        if (insertError) throw insertError;
-        console.log('✅ Cycle created with recreated doctor:', finalDoctorId);
-        return { id, ...cycle };
-      }
-
-      // Doctor exists, proceed with cycle creation
+      // Create the IVF cycle
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
+
+      console.log('💾 Inserting IVF cycle...', {
+        id,
+        patient_id: cycle.patientId,
+        doctor_id: doctorId,
+        protocol: cycle.protocol
+      });
 
       const { error } = await supabase
         .from('ivf_cycles')
@@ -314,7 +259,11 @@ export const dbService = {
           updated_at: now
         }]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Insert error:', error);
+        throw error;
+      }
+      
       console.log('✅ Cycle created successfully:', id);
       return { id, ...cycle };
     } catch (error: any) {
