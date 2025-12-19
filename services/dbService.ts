@@ -17,7 +17,7 @@ const parseAnyJson = <T,>(value: any, fallback: T): T => {
 const getDoctorIdOrThrow = async (): Promise<{ userId: string; doctorId: string }> => {
   // Get current session directly from Supabase Auth
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  
+
   if (sessionError || !session?.user) {
     console.error('❌ Session error:', sessionError);
     throw new Error('جلستك انتهت. من فضلك سجل دخولك مجدداً');
@@ -215,7 +215,7 @@ export const dbService = {
   saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
     try {
       console.log('🔄 Starting saveCycle...');
-      
+
       // Ensure we have a valid session before proceeding
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
@@ -254,16 +254,14 @@ export const dbService = {
           assessment_data: JSON.stringify(cycle.assessment || {}),
           lab_data: JSON.stringify(cycle.lab || {}),
           transfer_data: JSON.stringify(cycle.transfer || {}),
-          outcome_data: JSON.stringify(cycle.outcome || {}),
-          created_at: now,
-          updated_at: now
+          outcome_data: JSON.stringify(cycle.outcome || {})
         }]);
 
       if (error) {
         console.error('❌ Insert error:', error);
         throw error;
       }
-      
+
       console.log('✅ Cycle created successfully:', id);
       return { id, ...cycle };
     } catch (error: any) {
