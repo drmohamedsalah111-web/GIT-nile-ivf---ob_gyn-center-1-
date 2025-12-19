@@ -29,8 +29,8 @@ export const supabase: SupabaseClient = createClient(
   supabaseKey || '', // Fallback to empty string if not configured
   {
     auth: {
-      // Automatically refresh tokens before they expire
-      autoRefreshToken: !(import.meta.env.DEV || import.meta.env.VITE_OFFLINE_DEV_MODE),
+      // ALWAYS auto-refresh tokens - critical for session persistence
+      autoRefreshToken: true,
       // Persist session in localStorage
       persistSession: true,
       // Detect session from URL hash (for OAuth redirects)
@@ -39,6 +39,8 @@ export const supabase: SupabaseClient = createClient(
       storageKey: 'supabase.auth.token',
       // Storage implementation (defaults to localStorage)
       storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      // Additional session management options
+      flowType: 'pkce' as const,
     },
     // Global fetch options
     global: {
