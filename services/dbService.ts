@@ -18,27 +18,82 @@ const getDoctorIdOrThrow = async (): Promise<{ userId: string; doctorId: string 
   const user = await authService.getCurrentUser();
   if (!user) throw new Error('غير مسجل الدخول');
 
-  const { data: existingDoctor, error: doctorError } = await supabase
-    .from('doctors')
-    .select('id')
-    .eq('user_id', user.id)
-    .maybeSingle();
+  try {
+    // Step 1: Try to get existing doctor
+    const { data: existingDoctor, error: doctorError } = await supabase
+      .from('doctors')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-  if (doctorError) {
-    console.error('Error checking doctor:', doctorError);
-    throw doctorError;
+    if (doctorError) {
+      console.error('Error checking doctor:', doctorError);
+    }
+
+    if (existingDoctor?.id) {
+      console.log('✅ Doctor found:', existingDoctor.id);
+      return { userId: user.id, doctorId: existingDoctor.id };
+    }
+
+    // Step 2: Doctor doesn't exist, create one
+    console.log('ℹ️ Doctor not found, attempting to create...');
+    const doctorId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    const { data: createdData, error: createError } = await supabase
+      .from('doctors')
+      .insert([{
+        id: doctorId,
+        user_id: user.id,
+        email: user.email || '',
+        name: 'الطبيب',
+        created_at: now,
+        updated_at: now
+      }])
+      .select('id')
+      .maybeSingle();
+
+    if (createError) {
+      // If UNIQUE constraint error, retry fetch
+      if (createError.code === '23505') {
+        console.log('ℹ️ Doctor already exists (UNIQUE), retrying fetch...');
+        const { data: retryData } = await supabase
+          .from('doctors')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (retryData?.id) {
+          console.log('✅ Doctor found on retry:', retryData.id);
+          return { userId: user.id, doctorId: retryData.id };
+        }
+      }
+      throw createError;
+    }
+
+    if (createdData?.id) {
+      console.log('✅ Doctor created successfully:', createdData.id);
+      return { userId: user.id, doctorId: createdData.id };
+    }
+
+    // Final fallback - try once more
+    const { data: finalData } = await supabase
+      .from('doctors')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (finalData?.id) {
+      console.log('✅ Doctor found on final check:', finalData.id);
+      return { userId: user.id, doctorId: finalData.id };
+    }
+
+    throw new Error('فشل إنشاء/العثور على ملف الطبيب');
+  } catch (error: any) {
+    const msg = error?.message ? `: ${error.message}` : '';
+    console.error('❌ getDoctorIdOrThrow error', msg);
+    throw new Error(`فشل التحقق من بيانات الطبيب${msg}`);
   }
-
-  if (existingDoctor?.id) {
-    return { userId: user.id, doctorId: existingDoctor.id };
-  }
-
-  const created = await authService.ensureDoctorRecord(user.id, user.email || '');
-  if (created?.id) {
-    return { userId: user.id, doctorId: created.id };
-  }
-
-  throw new Error('فشل إنشاء ملف الطبيب. تأكد من اتصالك بالإنترنت وحاول مرة أخرى');
 };
 
 export const dbService = {
