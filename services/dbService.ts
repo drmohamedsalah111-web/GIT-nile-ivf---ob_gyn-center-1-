@@ -25,6 +25,7 @@ const getDoctorIdOrThrow = async (): Promise<{ userId: string; doctorId: string 
     .maybeSingle();
 
   if (doctorError) {
+    console.error('Error checking doctor:', doctorError);
     throw doctorError;
   }
 
@@ -33,11 +34,11 @@ const getDoctorIdOrThrow = async (): Promise<{ userId: string; doctorId: string 
   }
 
   const created = await authService.ensureDoctorRecord(user.id, user.email || '');
-  if (created?.id && !String(created.id).startsWith('fallback-')) {
+  if (created?.id) {
     return { userId: user.id, doctorId: created.id };
   }
 
-  throw new Error('ملف الطبيب غير موجود. من فضلك أنشئ/فعّل ملف الطبيب أولاً');
+  throw new Error('فشل إنشاء ملف الطبيب. تأكد من اتصالك بالإنترنت وحاول مرة أخرى');
 };
 
 export const dbService = {

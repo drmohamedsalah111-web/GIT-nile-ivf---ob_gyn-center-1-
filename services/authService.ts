@@ -154,58 +154,68 @@ export const authService = {
   },
 
   ensureDoctorRecord: async (userId: string, email: string) => {
-    // Check if doctor already exists
-    const { data: existingDoctor, error: fetchError } = await supabase
-      .from('doctors')
-      .select('id')
-      .eq('user_id', userId)
-      .single();
-
-    if (existingDoctor) {
-      console.log('✅ Doctor record already exists:', existingDoctor.id);
-      return existingDoctor;
-    }
-
-    // Create new doctor record only if it doesn't exist
-    const id = crypto.randomUUID();
     const now = new Date().toISOString();
     
+    // Step 1: Check if doctor already exists
     try {
-      const { error: insertError } = await supabase
+      const { data: existingDoctor, error: fetchError } = await supabase
+        .from('doctors')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (existingDoctor) {
+        console.log('✅ Doctor record already exists:', existingDoctor.id);
+        return existingDoctor;
+      }
+
+      if (fetchError) {
+        console.error('Error fetching doctor:', fetchError);
+      }
+    } catch (fetchErr) {
+      console.warn('Error checking existing doctor:', fetchErr);
+    }
+
+    // Step 2: Create new doctor record
+    const doctorId = crypto.randomUUID();
+    
+    try {
+      const { data: insertData, error: insertError } = await supabase
         .from('doctors')
         .insert([{
-          id,
+          id: doctorId,
           user_id: userId,
           email,
           name: 'الطبيب',
           created_at: now,
           updated_at: now
-        }]);
+        }])
+        .select('id')
+        .single();
 
-      if (insertError) throw insertError;
-      console.log('✅ Doctor record created in Supabase:', id);
-    } catch (error: any) {
-      // Handle UNIQUE constraint violation (doctor was created by another process)
-      if (error?.message?.includes('UNIQUE') || error?.code === '23505') {
-        console.warn('⚠️ Doctor record UNIQUE constraint: retrying lookup');
-        // Retry the lookup in case another process just created it
-        const { data: retryDoctor } = await supabase
-          .from('doctors')
-          .select('id')
-          .eq('user_id', userId)
-          .single();
-        
-        if (retryDoctor) {
-          console.log('✅ Doctor record found after retry:', retryDoctor.id);
-          return retryDoctor;
+      if (insertError) {
+        // Handle UNIQUE constraint - try fetching again
+        if (insertError.code === '23505') {
+          console.warn('⚠️ Doctor record already exists (UNIQUE constraint)');
+          const { data: retryDoctor } = await supabase
+            .from('doctors')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          if (retryDoctor) {
+            console.log('✅ Doctor record found after retry:', retryDoctor.id);
+            return retryDoctor;
+          }
         }
+        throw insertError;
       }
-      console.error('❌ Failed to ensure doctor record:', error?.message);
-      // Return a fallback instead of throwing
-      console.log('ℹ️ Using fallback doctor record');
-      return { id: 'fallback-' + userId };
-    }
 
-    return { id };
+      console.log('✅ Doctor record created in Supabase:', doctorId);
+      return insertData || { id: doctorId };
+    } catch (error: any) {
+      console.error('❌ Failed to create doctor record:', error?.message);
+      throw new Error(`فشل إنشاء ملف الطبيب: ${error?.message || 'خطأ غير معروف'}`);
+    }
   }
 };
