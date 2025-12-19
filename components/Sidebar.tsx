@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText } from 'lucide-react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText, Brain } from 'lucide-react';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
 
@@ -18,6 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
     { id: Page.GYNECOLOGY, label: 'Gynecology', arLabel: 'عيادة النساء', icon: Activity },
     { id: Page.OBSTETRICS, label: 'Obstetrics', arLabel: 'متابعة الحمل', icon: Heart },
     { id: Page.IVF, label: 'IVF Center', arLabel: 'مركز الخصوبة', icon: Baby },
+    { id: Page.SMART_IVF, label: 'Smart IVF', arLabel: '🧬 IVF الذكي', icon: Brain },
     { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: FileText },
     { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
   ];
@@ -42,7 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
           </p>
         </div>
       </div>
-      
+
       <nav className="flex-1 overflow-y-auto py-4">
         <ul className="space-y-2 px-4">
           {menuItems.map((item) => {
@@ -52,11 +53,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
               <li key={item.id}>
                 <button
                   onClick={() => setPage(item.id)}
-                  className={`w-full flex items-center gap-4 px-4 py-3 transition-all duration-200 ${
-                    isActive 
-                      ? 'font-bold shadow-sm' 
+                  className={`w-full flex items-center gap-4 px-4 py-3 transition-all duration-200 ${isActive
+                      ? 'font-bold shadow-sm'
                       : 'hover:opacity-80'
-                  }`}
+                    }`}
                   style={{
                     backgroundColor: isActive ? `${branding?.primary_color}20` || '#2d5a6b20' : 'transparent',
                     color: isActive ? branding?.primary_color || '#2d5a6b' : branding?.text_color || '#1f2937',

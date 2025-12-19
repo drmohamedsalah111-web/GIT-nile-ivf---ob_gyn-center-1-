@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, FileText, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, FileText, LogOut, Brain } from 'lucide-react';
 import { Page } from '../types';
 
 interface Props {
@@ -16,6 +16,7 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage, onLogout }) => {
     { id: Page.GYNECOLOGY, label: 'النساء', icon: Activity, action: null },
     { id: Page.OBSTETRICS, label: 'الحمل', icon: Heart, action: null },
     { id: Page.IVF, label: 'الخصوبة', icon: Baby, action: null },
+    { id: Page.SMART_IVF, label: 'IVF ذكي', icon: Brain, action: null },
     { id: Page.PATIENT_RECORD, label: 'السجلات', icon: FileText, action: null },
     { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings, action: null },
     { id: 'logout', label: 'خروج', icon: LogOut, action: onLogout },
@@ -32,13 +33,12 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage, onLogout }) => {
             setPage(item.id);
           }
         }}
-        className={`flex-none flex flex-col items-center justify-center min-w-[4.5rem] py-2 pb-safe transition-colors duration-200 ${
-          isActive
+        className={`flex-none flex flex-col items-center justify-center min-w-[4.5rem] py-2 pb-safe transition-colors duration-200 ${isActive
             ? 'text-teal-600 bg-teal-50 border-t-4 border-teal-600'
             : item.id === 'logout'
-            ? 'text-red-600 hover:bg-red-50'
-            : 'text-gray-600 hover:bg-gray-50'
-        }`}
+              ? 'text-red-600 hover:bg-red-50'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
         aria-label={item.label}
         aria-current={isActive ? 'page' : undefined}
       >

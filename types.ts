@@ -264,6 +264,7 @@ export enum Page {
   CLINICAL = 'clinical',
   GYNECOLOGY = 'gynecology',
   IVF = 'ivf',
+  SMART_IVF = 'smart_ivf',
   PATIENT_RECORD = 'patient_record',
   SETTINGS = 'settings',
   OBSTETRICS = 'obstetrics',

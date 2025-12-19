@@ -15,6 +15,7 @@ import Dashboard from './pages/Dashboard';
 import Reception from './pages/Reception';
 import Gynecology from './pages/Gynecology';
 import IvfJourney from './pages/IvfJourney';
+import SmartIVFJourney from './pages/SmartIVFJourney';
 import ObstetricsDashboard from './pages/ObstetricsDashboard';
 import PatientMasterRecord from './pages/PatientMasterRecord';
 import Settings from './pages/Settings';
@@ -97,6 +98,8 @@ const App: React.FC = () => {
         return <Gynecology />;
       case Page.IVF:
         return <IvfJourney />;
+      case Page.SMART_IVF:
+        return <SmartIVFJourney />;
       case Page.OBSTETRICS:
         return <ObstetricsDashboard />;
       case Page.PATIENT_RECORD:
