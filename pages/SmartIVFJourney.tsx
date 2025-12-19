@@ -22,7 +22,8 @@ import toast from 'react-hot-toast';
 import { usePatients } from '../src/hooks/usePatients';
 import smartIVFService, { SmartCycleData, SmartVisitData } from '../services/smartIVFService';
 import { dbService } from '../services/dbService';
-import FollicleInputModal from '../components/ivf/FollicleInputModal';
+import { ClinicalEngine, Recommendation } from '../utils/ClinicalEngine';
+import ClinicalInsightsPanel from '../components/ivf/ClinicalInsightsPanel';
 
 // ============================================================================
 // TYPES & INTERFACES (Frontend)
@@ -508,8 +509,8 @@ const SmartIVFJourney: React.FC = () => {
                                 key={p.id}
                                 onClick={() => handlePatientSelect(p.id)}
                                 className={`w-full text-left p-3 rounded-lg transition-colors border ${selectedPatientId === p.id
-                                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                                        : 'hover:bg-gray-50 border-transparent'
+                                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                    : 'hover:bg-gray-50 border-transparent'
                                     }`}
                             >
                                 <div className="font-bold">{p.name}</div>
