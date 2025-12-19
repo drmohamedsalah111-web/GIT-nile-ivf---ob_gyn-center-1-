@@ -65,3 +65,12 @@ This plan guides you through systematic bug resolution. Please update checkboxes
 - **Finding**: Button will appear when no cycle exists for selected patient
 - **Functionality**: `handleStartCycle` function works correctly
 - **Result**: No changes needed - functionality already present
+
+### Issue 4: IVF Title Corruption ✓ FIXED
+- **Problem**: Title showed as "???? ??????? (IVF)" in screenshot
+- **Root Cause**: Corrupted Arabic text in IvfJourney.tsx (line 416, 425)
+- **Solution**: 
+  - Replaced "???? ??????? (IVF)" with "دورة الحقن المجهري (IVF)"
+  - Replaced "?? ????? ??????" with "عرض سجل المريضة"
+  - Fixed `dir="ltr"` to `dir="rtl"` on main container (line 411)
+- **Result**: Title now displays correctly in Arabic

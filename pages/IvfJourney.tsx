@@ -408,12 +408,12 @@ const IvfJourney: React.FC = () => {
   }));
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6" style={{ fontFamily: 'Tajawal, sans-serif' }} dir="ltr">
+    <div className="max-w-7xl mx-auto space-y-6" style={{ fontFamily: 'Tajawal, sans-serif' }} dir="rtl">
       {/* Header */}
       <div className="bg-gradient-to-r from-teal-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">???? ??????? (IVF)</h1>
+            <h1 className="text-3xl font-bold mb-2">دورة الحقن المجهري (IVF)</h1>
             <p className="text-teal-100">Comprehensive IVF Cycle Management & Tracking</p>
           </div>
           <div className="flex items-center gap-4">
@@ -422,7 +422,7 @@ const IvfJourney: React.FC = () => {
               disabled={!selectedPatientId}
               className="bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
             >
-              ?? ????? ??????
+              عرض سجل المريضة
             </button>
             <TestTube className="w-16 h-16 opacity-20" />
           </div>
