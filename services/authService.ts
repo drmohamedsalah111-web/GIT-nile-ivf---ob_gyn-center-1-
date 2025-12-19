@@ -53,12 +53,28 @@ export const authService = {
 
   getCurrentUser: async () => {
     try {
-      // 1. Try strict server verification first (Secure)
+      // 1. First try to refresh the session if it exists
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (currentSession?.refresh_token) {
+        try {
+          const { data, error } = await supabase.auth.refreshSession();
+          if (error) {
+            console.warn('⚠️ Session refresh failed:', error.message);
+          } else if (data?.user) {
+            console.log('✅ Session refreshed successfully');
+            return data.user;
+          }
+        } catch (refreshError) {
+          console.warn('⚠️ Session refresh error:', refreshError);
+        }
+      }
+
+      // 2. Try strict server verification (Secure)
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error) throw error;
       return user;
     } catch (error: any) {
-      // 2. If Network Error ("Failed to fetch"), Fallback to Local Session
+      // 3. If Network Error ("Failed to fetch"), Fallback to Local Session
       if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
         console.warn('Offline mode: Verifying local session...');
         const { data: { session } } = await supabase.auth.getSession();

@@ -15,8 +15,17 @@ const parseAnyJson = <T,>(value: any, fallback: T): T => {
 };
 
 const getDoctorIdOrThrow = async (): Promise<{ userId: string; doctorId: string }> => {
-  const user = await authService.getCurrentUser();
-  if (!user) throw new Error('غير مسجل الدخول');
+  // Get current session directly from Supabase Auth
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  
+  if (sessionError || !session?.user) {
+    console.error('❌ Session error:', sessionError);
+    throw new Error('جلستك انتهت. من فضلك سجل دخولك مجدداً');
+  }
+
+  const user = session.user;
+  console.log('👤 Current user ID:', user.id);
+  console.log('📧 Current user email:', user.email);
 
   try {
     // Step 1: Try to get existing doctor
@@ -27,7 +36,7 @@ const getDoctorIdOrThrow = async (): Promise<{ userId: string; doctorId: string 
       .maybeSingle();
 
     if (doctorError) {
-      console.error('Error checking doctor:', doctorError);
+      console.error('❌ Error checking doctor:', doctorError);
     }
 
     if (existingDoctor?.id) {
@@ -39,6 +48,12 @@ const getDoctorIdOrThrow = async (): Promise<{ userId: string; doctorId: string 
     console.log('ℹ️ Doctor not found, attempting to create...');
     const doctorId = crypto.randomUUID();
     const now = new Date().toISOString();
+
+    console.log('🔧 Creating doctor with:', {
+      id: doctorId,
+      user_id: user.id,
+      email: user.email
+    });
 
     const { data: createdData, error: createError } = await supabase
       .from('doctors')
@@ -54,6 +69,7 @@ const getDoctorIdOrThrow = async (): Promise<{ userId: string; doctorId: string 
       .maybeSingle();
 
     if (createError) {
+      console.error('❌ Create doctor error:', createError.code, createError.message);
       // If UNIQUE constraint error, retry fetch
       if (createError.code === '23505') {
         console.log('ℹ️ Doctor already exists (UNIQUE), retrying fetch...');
@@ -198,7 +214,86 @@ export const dbService = {
 
   saveCycle: async (cycle: Partial<IvfCycle> & { patientId: string }) => {
     try {
+      // Ensure we have a valid session before proceeding
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        console.warn('⚠️ No valid session, attempting refresh...');
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          throw new Error('جلستك انتهت. من فضلك سجل دخولك مجدداً');
+        }
+      }
+
       const { doctorId } = await getDoctorIdOrThrow();
+      
+      // Verify doctor exists before inserting cycle
+      const { data: doctorExists, error: checkError } = await supabase
+        .from('doctors')
+        .select('id')
+        .eq('id', doctorId)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('❌ Error verifying doctor:', checkError);
+        throw new Error(`فشل التحقق من وجود الطبيب: ${checkError.message}`);
+      }
+
+      if (!doctorExists) {
+        console.warn('⚠️ Doctor not found, attempting to create again...');
+        // Doctor doesn't exist, try creating again with a small delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const newDoctorId = crypto.randomUUID();
+        const user = await authService.getCurrentUser();
+        const now = new Date().toISOString();
+
+        const { data: newDoctor, error: createError } = await supabase
+          .from('doctors')
+          .insert([{
+            id: newDoctorId,
+            user_id: user?.id || '',
+            email: user?.email || '',
+            name: 'الطبيب',
+            created_at: now,
+            updated_at: now
+          }])
+          .select('id')
+          .maybeSingle();
+
+        if (createError) {
+          if (createError.code !== '23505') { // Ignore UNIQUE constraint
+            throw createError;
+          }
+        }
+
+        // Use the new or existing doctor ID
+        const finalDoctorId = newDoctor?.id || doctorId;
+        const id = crypto.randomUUID();
+        const timestamp = new Date().toISOString();
+
+        const { error: insertError } = await supabase
+          .from('ivf_cycles')
+          .insert([{
+            id,
+            patient_id: cycle.patientId,
+            doctor_id: finalDoctorId,
+            protocol: cycle.protocol,
+            status: cycle.status || 'Active',
+            start_date: cycle.startDate,
+            assessment_data: JSON.stringify(cycle.assessment || {}),
+            lab_data: JSON.stringify(cycle.lab || {}),
+            transfer_data: JSON.stringify(cycle.transfer || {}),
+            outcome_data: JSON.stringify(cycle.outcome || {}),
+            created_at: timestamp,
+            updated_at: timestamp
+          }]);
+
+        if (insertError) throw insertError;
+        console.log('✅ Cycle created with recreated doctor:', finalDoctorId);
+        return { id, ...cycle };
+      }
+
+      // Doctor exists, proceed with cycle creation
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
 
@@ -220,10 +315,12 @@ export const dbService = {
         }]);
 
       if (error) throw error;
+      console.log('✅ Cycle created successfully:', id);
       return { id, ...cycle };
     } catch (error: any) {
       const details = error?.message ? `: ${error.message}` : '';
       const code = error?.code ? ` (code: ${error.code})` : '';
+      console.error('❌ saveCycle error:', error);
       throw new Error(`فشل إنشاء دورة IVF${details}${code}`);
     }
   },
