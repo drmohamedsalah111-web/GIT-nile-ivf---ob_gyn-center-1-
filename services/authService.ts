@@ -11,7 +11,7 @@ export const authService = {
     return data;
   },
 
-  signup: async (email: string, password: string, doctorData: { name: string; specialization?: string; phone?: string }) => {
+  signup: async (email: string, password: string, doctorData: { name: string; specialization?: string; phone?: string }, role: 'doctor' | 'secretary' = 'doctor', doctorId?: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -32,14 +32,16 @@ export const authService = {
             name: doctorData.name,
             specialization: doctorData.specialization || null,
             phone: doctorData.phone || null,
+            user_role: role,
+            secretary_doctor_id: role === 'secretary' ? doctorId : null,
             created_at: now,
             updated_at: now
           }]);
 
-        console.log('✅ Doctor record created in Supabase');
+        console.log(`✅ ${role === 'secretary' ? 'Secretary' : 'Doctor'} record created in Supabase`);
       } catch (dbError: any) {
-        console.error('❌ Failed to create doctor record:', dbError);
-        throw new Error(`فشل إنشاء ملف الطبيب: ${dbError.message || 'خطأ في قاعدة البيانات'}`);
+        console.error(`❌ Failed to create ${role} record:`, dbError);
+        throw new Error(`فشل إنشاء الملف: ${dbError.message || 'خطأ في قاعدة البيانات'}`);
       }
     }
 
@@ -203,6 +205,7 @@ export const authService = {
           user_id: userId,
           email,
           name: 'الطبيب',
+          user_role: 'doctor',
           created_at: now,
           updated_at: now
         }])
@@ -232,6 +235,47 @@ export const authService = {
     } catch (error: any) {
       console.error('❌ Failed to create doctor record:', error?.message);
       throw new Error(`فشل إنشاء ملف الطبيب: ${error?.message || 'خطأ غير معروف'}`);
+    }
+  },
+
+  getUserRole: async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('doctors')
+        .select('user_role, id, secretary_doctor_id')
+        .eq('user_id', userId)
+        .single();
+
+      if (error || !data) {
+        console.warn('Failed to fetch user role, defaulting to doctor');
+        return 'doctor';
+      }
+
+      return data.user_role || 'doctor';
+    } catch (error: any) {
+      console.warn('Error fetching user role:', error?.message);
+      return 'doctor';
+    }
+  },
+
+  getSecretaryProfile: async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('doctors')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('user_role', 'secretary')
+        .single();
+
+      if (error || !data) {
+        console.warn('Failed to load secretary profile');
+        return null;
+      }
+
+      return data;
+    } catch (error: any) {
+      console.warn('Failed to load secretary profile:', error?.message);
+      return null;
     }
   }
 };

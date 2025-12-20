@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
-import { LogIn, AlertCircle, Mail, Lock, User, Phone, Stethoscope, Facebook, MessageCircle } from 'lucide-react';
+import { LogIn, AlertCircle, Mail, Lock, User, Phone, Stethoscope, Facebook, MessageCircle, UserCheck } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -12,10 +13,13 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
+  const [isSecretary, setIsSecretary] = useState(false);
+  const [doctors, setDoctors] = useState<any[]>([]);
   const [signupData, setSignupData] = useState({
     name: '',
     specialization: '',
     phone: '',
+    doctorId: '',
   });
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -46,6 +50,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       return;
     }
 
+    if (isSecretary && !signupData.doctorId) {
+      toast.error('يرجى اختيار الطبيب المسؤول');
+      return;
+    }
+
     if (password.length < 6) {
       toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
       return;
@@ -53,16 +62,36 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
     setLoading(true);
     try {
-      await authService.signup(email, password, signupData);
+      const role = isSecretary ? 'secretary' : 'doctor';
+      await authService.signup(email, password, signupData, role, signupData.doctorId);
       toast.success('تم التسجيل بنجاح! يرجى التحقق من بريدك الإلكتروني');
       setShowSignup(false);
+      setIsSecretary(false);
       setEmail('');
       setPassword('');
-      setSignupData({ name: '', specialization: '', phone: '' });
+      setSignupData({ name: '', specialization: '', phone: '', doctorId: '' });
     } catch (error: any) {
       toast.error(error.message || 'فشل التسجيل');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDoctors = async () => {
+    try {
+      const { data: doctorsData, error } = await supabase
+        .from('doctors')
+        .select('id, name, email')
+        .eq('user_role', 'doctor');
+
+      if (!error && doctorsData) {
+        setDoctors(doctorsData);
+      } else if (error) {
+        console.error('Failed to load doctors:', error);
+        toast.error('فشل تحميل قائمة الأطباء');
+      }
+    } catch (error) {
+      console.error('Failed to load doctors:', error);
     }
   };
 
@@ -158,6 +187,38 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           ) : (
             /* Signup Form */
             <form onSubmit={handleSignup} className="space-y-6">
+              <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsSecretary(false)}
+                    className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
+                      !isSecretary
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-300'
+                    }`}
+                  >
+                    <Stethoscope className="inline w-4 h-4 ml-2" />
+                    طبيب
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSecretary(true);
+                      loadDoctors();
+                    }}
+                    className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
+                      isSecretary
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-300'
+                    }`}
+                  >
+                    <UserCheck className="inline w-4 h-4 ml-2" />
+                    سكرتيرة
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
                   الاسم الكامل *
@@ -169,28 +230,54 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     value={signupData.name}
                     onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
                     className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="د. أحمد محمد"
+                    placeholder={isSecretary ? "آية محمد" : "د. أحمد محمد"}
                     disabled={loading}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  التخصص
-                </label>
-                <div className="relative">
-                  <Stethoscope className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="text"
-                    value={signupData.specialization}
-                    onChange={(e) => setSignupData({ ...signupData, specialization: e.target.value })}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="أمراض النساء والتوليد"
-                    disabled={loading}
-                  />
+              {!isSecretary && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    التخصص
+                  </label>
+                  <div className="relative">
+                    <Stethoscope className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      type="text"
+                      value={signupData.specialization}
+                      onChange={(e) => setSignupData({ ...signupData, specialization: e.target.value })}
+                      className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
+                      placeholder="أمراض النساء والتوليد"
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {isSecretary && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    اختر الطبيب المسؤول *
+                  </label>
+                  <div className="relative">
+                    <Stethoscope className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+                    <select
+                      value={signupData.doctorId}
+                      onChange={(e) => setSignupData({ ...signupData, doctorId: e.target.value })}
+                      className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 bg-white"
+                      disabled={loading || doctors.length === 0}
+                    >
+                      <option value="">-- اختر طبيب --</option>
+                      {doctors.map((doctor) => (
+                        <option key={doctor.id} value={doctor.id}>
+                          د. {doctor.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -261,7 +348,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     جاري التسجيل...
                   </div>
                 ) : (
-                  'إنشاء حساب'
+                  isSecretary ? 'إنشاء حساب السكرتيرة' : 'إنشاء حساب'
                 )}
               </button>
             </form>

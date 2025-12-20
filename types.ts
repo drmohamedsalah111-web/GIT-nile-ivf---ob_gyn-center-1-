@@ -29,16 +29,24 @@ export interface Appointment {
   id: string;
   patient_id: string;
   doctor_id: string;
+  secretary_id?: string;
   appointment_date: string;
   status: 'Scheduled' | 'Waiting' | 'Completed' | 'Cancelled' | 'No Show';
   visit_type: 'Consultation' | 'Follow-up' | 'Procedure';
-  clerk_id?: string;
   notes?: string;
+  created_by: string;
   patient?: {
     name: string;
     phone: string;
   };
+  doctor?: {
+    name: string;
+  };
+  secretary?: {
+    name: string;
+  };
   created_at?: string;
+  updated_at?: string;
 }
 
 
@@ -187,6 +195,21 @@ export interface Doctor {
   clinic_image?: string;
   clinic_latitude?: string;
   clinic_longitude?: string;
+  user_role?: 'doctor' | 'secretary' | 'admin';
+  secretary_doctor_id?: string;
+  updated_at?: string;
+}
+
+export interface Secretary {
+  id: string;
+  user_id: string;
+  email: string;
+  name: string;
+  phone?: string;
+  doctor_id: string;
+  user_role: 'secretary';
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Pregnancy {
