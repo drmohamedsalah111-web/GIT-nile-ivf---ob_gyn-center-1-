@@ -94,3 +94,14 @@ serve(async (req) => {
     )
   }
 })
+// 1. جلب الأطباء للمنيو
+const { data: doctors } = await supabase.from('doctors').select('id, name');
+
+// 2. عند الضغط على حفظ
+const { error } = await supabase.from('patients').insert({
+  name: patientName,
+  age: patientAge,
+  phone: patientPhone,
+  doctor_id: selectedDoctorId, // <--- أهم نقطة: ربط المريض بالدكتور المختار
+  history: history
+});

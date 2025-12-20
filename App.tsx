@@ -14,6 +14,7 @@ import { authService } from './services/authService';
 import Dashboard from './pages/Dashboard';
 import SecretaryDashboard from './pages/SecretaryDashboard';
 import ReceptionDashboard from './src/pages/ReceptionDashboard';
+import AddPatient from './pages/AddPatient';
 import Gynecology from './pages/Gynecology';
 import IvfJourney from './pages/IvfJourney';
 import SmartIVFJourney from './pages/SmartIVFJourney';
@@ -110,6 +111,8 @@ const App: React.FC = () => {
         return <Dashboard />;
       case Page.RECEPTION:
         return <ReceptionDashboard />;
+      case Page.ADD_PATIENT:
+        return <AddPatient />;
       case Page.GYNECOLOGY:
         return <Gynecology />;
       case Page.IVF:

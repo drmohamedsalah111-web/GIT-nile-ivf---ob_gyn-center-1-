@@ -302,6 +302,7 @@ export interface FetalBiometryData {
 export enum Page {
   HOME = 'home',
   RECEPTION = 'reception',
+  ADD_PATIENT = 'add_patient',
   CLINICAL = 'clinical',
   GYNECOLOGY = 'gynecology',
   IVF = 'ivf',

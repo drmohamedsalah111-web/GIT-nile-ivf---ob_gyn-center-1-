@@ -66,8 +66,8 @@ export const appointmentsService = {
         .from('appointments')
         .select(`
           *,
-          patient:patients(*),
-          secretary:doctors(id, name, email)
+          patient:patients(id, name, phone, age, husband_name, history),
+          doctor_details:doctor_id(id, name, email, specialization)
         `)
         .eq('doctor_id', doctorId)
         .order('appointment_date', { ascending: true });
@@ -94,8 +94,8 @@ export const appointmentsService = {
         .from('appointments')
         .select(`
           *,
-          patient:patients(*),
-          doctor:doctors(id, name, email, specialization)
+          patient:patients(id, name, phone, age, husband_name, history),
+          doctor_details:doctor_id(id, name, email, specialization)
         `)
         .eq('secretary_id', secretaryId)
         .order('appointment_date', { ascending: true });
@@ -122,8 +122,7 @@ export const appointmentsService = {
         .from('appointments')
         .select(`
           *,
-          doctor:doctors(id, name, email, specialization),
-          secretary:doctors(id, name, email)
+          doctor_details:doctor_id(id, name, email, specialization)
         `)
         .eq('patient_id', patientId)
         .order('appointment_date', { ascending: true });
@@ -142,9 +141,8 @@ export const appointmentsService = {
         .from('appointments')
         .select(`
           *,
-          patient:patients(*),
-          doctor:doctors(id, name, email, specialization),
-          secretary:doctors(id, name, email)
+          patient:patients(id, name, phone, age, husband_name, history),
+          doctor_details:doctor_id(id, name, email, specialization)
         `)
         .eq('id', id)
         .single();
@@ -198,8 +196,7 @@ export const appointmentsService = {
         .select(`
           *,
           patient:patients(id, name, phone),
-          doctor:doctors(id, name),
-          secretary:doctors(id, name)
+          doctor_details:doctor_id(id, name)
         `);
 
       if (doctorId) {
@@ -213,7 +210,7 @@ export const appointmentsService = {
       const filtered = (data || []).filter(apt => 
         apt.patient?.name?.includes(query) ||
         apt.patient?.phone?.includes(query) ||
-        apt.doctor?.name?.includes(query)
+        apt.doctor_details?.name?.includes(query)
       );
 
       return filtered;
