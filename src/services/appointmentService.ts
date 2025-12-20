@@ -74,5 +74,26 @@ export const appointmentService = {
             console.error('Error updating appointment status:', error);
             return false;
         }
+    },
+
+    // Subscribe to realtime updates for appointments
+    subscribeToAppointments: (callback: () => void) => {
+        const subscription = supabase
+            .channel('appointments-channel')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'appointments'
+                },
+                (payload) => {
+                    console.log('Realtime update received:', payload);
+                    callback();
+                }
+            )
+            .subscribe();
+
+        return subscription;
     }
 };
