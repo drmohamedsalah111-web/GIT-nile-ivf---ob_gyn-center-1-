@@ -49,6 +49,18 @@ export interface Appointment {
   updated_at?: string;
 }
 
+export interface LabRequest {
+  id: string;
+  patient_id: string;
+  doctor_id: string;
+  test_names: string[];
+  status: 'Pending' | 'Completed' | 'Cancelled';
+  notes?: string;
+  created_by: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 
 export interface PrescriptionItem {
   category: string;
