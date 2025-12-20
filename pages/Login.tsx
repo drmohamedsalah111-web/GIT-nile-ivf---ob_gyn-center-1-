@@ -79,19 +79,29 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
   const loadDoctors = async () => {
     try {
+      // استخدام الدالة الآمنة التي تعمل حتى للمستخدمين غير المسجلين
       const { data: doctorsData, error } = await supabase
-        .from('doctors')
-        .select('id, name, email')
-        .eq('user_role', 'doctor');
+        .rpc('get_doctors_list');
 
       if (!error && doctorsData) {
         setDoctors(doctorsData);
       } else if (error) {
-        console.error('Failed to load doctors:', error);
-        toast.error('فشل تحميل قائمة الأطباء');
+        console.error('Failed to load doctors via RPC:', error);
+        // محاولة بديلة باستخدام الطريقة التقليدية
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('doctors')
+          .select('id, name, email')
+          .eq('user_role', 'doctor');
+        
+        if (!fallbackError && fallbackData) {
+          setDoctors(fallbackData);
+        } else {
+          toast.error('فشل تحميل قائمة الأطباء');
+        }
       }
     } catch (error) {
       console.error('Failed to load doctors:', error);
+      toast.error('حدث خطأ في تحميل قائمة الأطباء');
     }
   };
 
