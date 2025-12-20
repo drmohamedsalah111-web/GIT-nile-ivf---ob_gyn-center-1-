@@ -1,99 +1,118 @@
-import { supabase } from '../../services/supabaseClient';
-import { Appointment } from '../../types';
+// services/appointmentService.ts
+import { supabase } from './supabaseClient';
+
+export interface AppointmentData {
+  doctor_id: string;
+  patient_id: string;
+  appointment_date: string;
+  status: 'scheduled' | 'completed' | 'cancelled';
+  visit_type: string;
+  notes?: string;
+}
 
 export const appointmentService = {
-    // Get appointments for a specific date
-    getAppointments: async (date: string): Promise<Appointment[]> => {
-        try {
-            // We want to fetch appointments for the whole day, so we look for range [start, end]
-            // Assuming date is 'YYYY-MM-DD'
-            const startOfDay = new Date(date);
-            startOfDay.setHours(0, 0, 0, 0);
+  async bookAppointment(data: AppointmentData) {
+    try {
+      const { data: appointment, error } = await supabase
+        .from('appointments')
+        .insert([
+          {
+            doctor_id: data.doctor_id,
+            patient_id: data.patient_id,
+            appointment_date: data.appointment_date,
+            status: data.status,
+            visit_type: data.visit_type,
+            notes: data.notes || '',
+          },
+        ])
+        .select()
+        .single();
 
-            const endOfDay = new Date(date);
-            endOfDay.setHours(23, 59, 59, 999);
-
-            const { data, error } = await supabase
-                .from('appointments')
-                .select(`
-          *,
-          patient:patients (
-            name,
-            phone
-          )
-        `)
-                .gte('appointment_date', startOfDay.toISOString())
-                .lte('appointment_date', endOfDay.toISOString())
-                .order('appointment_date', { ascending: true });
-
-            if (error) {
-                throw error;
-            }
-
-            return data || [];
-        } catch (error) {
-            console.error('Error fetching appointments:', error);
-            return [];
-        }
-    },
-
-    // Create a new appointment
-    createAppointment: async (appointment: Partial<Appointment>): Promise<Appointment | null> => {
-        try {
-            const { data, error } = await supabase
-                .from('appointments')
-                .insert([appointment])
-                .select()
-                .single();
-
-            if (error) {
-                throw error;
-            }
-
-            return data;
-        } catch (error) {
-            console.error('Error creating appointment:', error);
-            throw error;
-        }
-    },
-
-    // Update appointment status
-    updateStatus: async (id: string, status: 'Scheduled' | 'Waiting' | 'Completed' | 'Cancelled' | 'No Show'): Promise<boolean> => {
-        try {
-            const { error } = await supabase
-                .from('appointments')
-                .update({ status })
-                .eq('id', id);
-
-            if (error) {
-                throw error;
-            }
-
-            return true;
-        } catch (error) {
-            console.error('Error updating appointment status:', error);
-            return false;
-        }
-    },
-
-    // Subscribe to realtime updates for appointments
-    subscribeToAppointments: (callback: () => void) => {
-        const subscription = supabase
-            .channel('appointments-channel')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'appointments'
-                },
-                (payload) => {
-                    console.log('Realtime update received:', payload);
-                    callback();
-                }
-            )
-            .subscribe();
-
-        return subscription;
+      if (error) throw error;
+      return appointment;
+    } catch (error: any) {
+      console.error('Error booking appointment:', error);
+      throw new Error(error.message || 'فشل حجز الموعد');
     }
+  },
+
+  async getDoctorAppointments(doctorId: string, date: string) {
+    try {
+      const startDate = `${date}T00:00:00`;
+      const endDate = `${date}T23:59:59`;
+
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*, patients(name, phone)')
+        .eq('doctor_id', doctorId)
+        .gte('appointment_date', startDate)
+        .lte('appointment_date', endDate)
+        .order('appointment_date', { ascending: true });
+
+      if (error) throw error;
+      return data;
+    } catch (error: any) {
+      console.error('Error fetching appointments:', error);
+      throw error;
+    }
+  },
+
+  async getAllDoctorAppointments(doctorId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*, patients(name, phone)')
+        .eq('doctor_id', doctorId)
+        .neq('status', 'cancelled')
+        .order('appointment_date', { ascending: true });
+
+      if (error) throw error;
+      return data;
+    } catch (error: any) {
+      console.error('Error fetching appointments:', error);
+      throw error;
+    }
+  },
+
+  async cancelAppointment(appointmentId: string) {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: 'cancelled' })
+        .eq('id', appointmentId);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error cancelling appointment:', error);
+      throw new Error(error.message || 'فشل إلغاء الموعد');
+    }
+  },
+
+  getAvailableSlots(
+    existingAppointments: any[],
+    selectedDate: string,
+    appointmentDuration: number = 30
+  ) {
+    const slots: string[] = [];
+    const startHour = 9;
+    const endHour = 17;
+
+    for (let hour = startHour; hour < endHour; hour++) {
+      for (let minute = 0; minute < 60; minute += appointmentDuration) {
+        const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+        const appointmentDateTime = `${selectedDate}T${time}:00`;
+
+        const isAvailable = !existingAppointments.some((apt) => {
+          const aptTime = new Date(apt.appointment_date).toISOString().slice(11, 16);
+          return aptTime === time;
+        });
+
+        if (isAvailable) {
+          slots.push(time);
+        }
+      }
+    }
+
+    return slots;
+  },
 };

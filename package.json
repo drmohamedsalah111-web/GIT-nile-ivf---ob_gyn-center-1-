@@ -14,7 +14,7 @@
     "@journeyapps/wa-sqlite": "^1.4.1",
     "@powersync/react": "^1.8.2",
     "@powersync/web": "^1.29.1",
-    "@supabase/supabase-js": "^2.39.7",
+    "@supabase/supabase-js": "^2.89.0",
     "clsx": "^2.1.0",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",

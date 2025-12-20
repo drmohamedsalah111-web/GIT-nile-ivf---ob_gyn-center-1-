@@ -47,7 +47,8 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setError(null);
 
       // Get current user and fetch their doctor branding
-      const user = await authService.getCurrentUser();
+      const sessionResult = await authService.getSession();
+      const user = sessionResult?.user ?? null;
       if (!user) {
         setBranding(getDefaultBranding());
         return;
@@ -125,7 +126,8 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       setError(null);
 
-      const user = await authService.getCurrentUser();
+      const sessionResult = await authService.getSession();
+      const user = sessionResult?.user ?? null;
       if (!user) throw new Error('User not authenticated');
 
       let logoUrl = updates.logo_url;
