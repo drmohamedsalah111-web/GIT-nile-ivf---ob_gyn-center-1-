@@ -371,7 +371,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 setShowSignup(!showSignup);
                 setEmail('');
                 setPassword('');
-                setSignupData({ name: '', specialization: '', phone: '' });
+                setSignupData({ name: '', specialization: '', phone: '', doctorId: '' });
               }}
               className="text-teal-600 hover:text-teal-700 font-semibold transition-colors duration-200"
               disabled={loading}

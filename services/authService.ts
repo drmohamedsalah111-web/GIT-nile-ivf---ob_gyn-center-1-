@@ -279,3 +279,23 @@ export const authService = {
     }
   }
 };
+export const getUserRole = async (userId: string): Promise<'doctor' | 'secretary'> => {
+  try {
+    // حاول الحصول على الدور من جدول doctors
+    const { data, error } = await supabase
+      .from('doctors')
+      .select('user_role')
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !data) {
+      console.log('Defaulting to doctor role');
+      return 'doctor';
+    }
+
+    return (data.user_role as 'doctor' | 'secretary') || 'doctor';
+  } catch (error) {
+    console.error('Error fetching user role:', error);
+    return 'doctor'; // القيمة الافتراضية
+  }
+};
