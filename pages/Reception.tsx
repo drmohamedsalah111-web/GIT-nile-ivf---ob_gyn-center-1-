@@ -39,13 +39,22 @@ const Reception: React.FC = () => {
       const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
       if (!doctor) throw new Error("Doctor profile missing. Please log out and sign in again.");
 
+      // Determine which doctor_id to use
+      let doctorId = doctor.id;
+      
+      // If user is a secretary, use the doctor they're assigned to
+      const userRole = await authService.getUserRole(user.id);
+      if (userRole === 'secretary' && doctor.secretary_doctor_id) {
+        doctorId = doctor.secretary_doctor_id;
+      }
+
       await addPatient({
         name: formData.name,
         age: parseInt(formData.age) || 0,
         phone: formData.phone,
         husband_name: formData.husbandName,
         history: formData.history,
-        doctor_id: doctor.id
+        doctor_id: doctorId
       });
 
       toast.success("Patient registered successfully!", { id: toastId });

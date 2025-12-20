@@ -13,6 +13,7 @@ const SecretaryDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
+  const [showPatientForm, setShowPatientForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   const [appointmentForm, setAppointmentForm] = useState({
@@ -21,6 +22,14 @@ const SecretaryDashboard: React.FC = () => {
     appointmentTime: '09:00',
     visitType: 'Consultation' as const,
     notes: ''
+  });
+
+  const [patientForm, setPatientForm] = useState({
+    name: '',
+    age: '',
+    phone: '',
+    husbandName: '',
+    history: ''
   });
 
   useEffect(() => {
@@ -137,6 +146,43 @@ const SecretaryDashboard: React.FC = () => {
       loadAppointments();
     } catch (error: any) {
       toast.error('فشل إلغاء الموعد', { id: toastId });
+    }
+  };
+
+  const handleAddPatient = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!patientForm.name || !patientForm.phone) {
+      toast.error('يرجى ملء الاسم ورقم الهاتف');
+      return;
+    }
+
+    const toastId = toast.loading('جاري إضافة المريضة...');
+
+    try {
+      const { data, error } = await supabase
+        .from('patients')
+        .insert([{
+          doctor_id: secretary.secretary_doctor_id,
+          name: patientForm.name,
+          age: patientForm.age ? parseInt(patientForm.age) : null,
+          phone: patientForm.phone,
+          husband_name: patientForm.husbandName || null,
+          history: patientForm.history || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select();
+
+      if (error) throw error;
+
+      toast.success('تم إضافة المريضة بنجاح', { id: toastId });
+      setShowPatientForm(false);
+      setPatientForm({ name: '', age: '', phone: '', husbandName: '', history: '' });
+      loadPatients();
+    } catch (error: any) {
+      toast.error(`فشل إضافة المريضة: ${error.message}`, { id: toastId });
+      console.error('Add patient error:', error);
     }
   };
 
@@ -419,8 +465,107 @@ const SecretaryDashboard: React.FC = () => {
           {/* Patients Tab */}
           {activeTab === 'patients' && (
             <div className="space-y-6">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <h2 className="text-2xl font-bold text-gray-900">قائمة المرضى</h2>
+                <button
+                  onClick={() => setShowPatientForm(!showPatientForm)}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                  إضافة مريضة جديدة
+                </button>
+              </div>
+
+              {/* Add Patient Form */}
+              {showPatientForm && (
+                <form onSubmit={handleAddPatient} className="bg-teal-50 rounded-xl p-6 space-y-4 border border-teal-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        اسم المريضة *
+                      </label>
+                      <input
+                        type="text"
+                        value={patientForm.name}
+                        onChange={(e) => setPatientForm({ ...patientForm, name: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                        placeholder="الاسم الكامل"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        رقم الهاتف *
+                      </label>
+                      <input
+                        type="tel"
+                        value={patientForm.phone}
+                        onChange={(e) => setPatientForm({ ...patientForm, phone: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                        placeholder="01xxxxxxxxx"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        العمر
+                      </label>
+                      <input
+                        type="number"
+                        value={patientForm.age}
+                        onChange={(e) => setPatientForm({ ...patientForm, age: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                        placeholder="سنة"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        اسم الزوج
+                      </label>
+                      <input
+                        type="text"
+                        value={patientForm.husbandName}
+                        onChange={(e) => setPatientForm({ ...patientForm, husbandName: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                        placeholder="اسم الزوج"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      السجل الطبي
+                    </label>
+                    <textarea
+                      value={patientForm.history}
+                      onChange={(e) => setPatientForm({ ...patientForm, history: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none h-24"
+                      placeholder="G P A، عمليات سابقة، حساسيات..."
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="submit"
+                      className="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 transition-colors font-semibold"
+                    >
+                      حفظ المريضة
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPatientForm(false)}
+                      className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors font-semibold"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </form>
+              )}
+
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">قائمة المرضى</h2>
                 <div className="relative">
                   <Search className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
                   <input
