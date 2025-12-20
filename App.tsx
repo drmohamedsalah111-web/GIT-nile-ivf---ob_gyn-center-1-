@@ -12,7 +12,7 @@ import { Page } from './types';
 import { authService } from './services/authService';
 
 import Dashboard from './pages/Dashboard';
-import Reception from './pages/Reception';
+import ReceptionDashboard from './src/pages/ReceptionDashboard';
 import Gynecology from './pages/Gynecology';
 import IvfJourney from './pages/IvfJourney';
 import SmartIVFJourney from './pages/SmartIVFJourney';
@@ -93,7 +93,7 @@ const App: React.FC = () => {
       case Page.HOME:
         return <Dashboard />;
       case Page.RECEPTION:
-        return <Reception />;
+        return <ReceptionDashboard />;
       case Page.GYNECOLOGY:
         return <Gynecology />;
       case Page.IVF:

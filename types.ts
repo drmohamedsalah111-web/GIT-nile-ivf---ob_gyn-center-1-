@@ -8,6 +8,7 @@ export interface Patient {
   createdAt?: string;
 }
 
+
 export interface Visit {
   id: string;
   patientId: string;
@@ -23,6 +24,23 @@ export interface Visit {
     bmi?: number;
   };
 }
+
+export interface Appointment {
+  id: string;
+  patient_id: string;
+  doctor_id: string;
+  appointment_date: string;
+  status: 'Scheduled' | 'Waiting' | 'Completed' | 'Cancelled' | 'No Show';
+  visit_type: 'Consultation' | 'Follow-up' | 'Procedure';
+  clerk_id?: string;
+  notes?: string;
+  patient?: {
+    name: string;
+    phone: string;
+  };
+  created_at?: string;
+}
+
 
 export interface PrescriptionItem {
   category: string;
