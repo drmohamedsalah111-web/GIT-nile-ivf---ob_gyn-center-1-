@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Phone, Stethoscope, Save, AlertCircle, Loader, Calendar, FileText } from 'lucide-react';
-import { supabase } from '../services/supabaseClient';
+import { supabase } from '../src/lib/supabase';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
 
