@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText, Brain } from 'lucide-react';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
+import { authService } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
 
 interface SidebarProps {
   activePage: Page;
@@ -11,8 +13,32 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout }) => {
   const { branding } = useBranding();
+  const [userRole, setUserRole] = useState<string | null>(null);
 
-  const menuItems = [
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const user = await authService.getCurrentUser();
+        if (user?.email) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('email', user.email)
+            .single();
+
+          if (data) {
+            setUserRole(data.role);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+
+    fetchRole();
+  }, []);
+
+  const doctorMenuItems = [
     { id: Page.HOME, label: 'Dashboard', arLabel: 'الرئيسية', icon: LayoutDashboard },
     { id: Page.RECEPTION, label: 'Reception', arLabel: 'الاستقبال', icon: Users },
     { id: Page.GYNECOLOGY, label: 'Gynecology', arLabel: 'عيادة النساء', icon: Activity },
@@ -22,6 +48,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
     { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: FileText },
     { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
   ];
+
+  const receptionistMenuItems = [
+    { id: Page.RECEPTION, label: 'Dashboard', arLabel: 'الرئيسية', icon: LayoutDashboard },
+    { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: Users },
+  ];
+
+  const filteredMenuItems = userRole === 'receptionist' ? receptionistMenuItems : doctorMenuItems;
+
+  if (loading) {
+    return (
+      <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 p-6">
+        <div className="flex flex-col items-center animate-pulse">
+          <div className="w-12 h-12 bg-gray-200 rounded-full mb-2"></div>
+          <div className="h-4 bg-gray-200 w-3/4 rounded mb-2"></div>
+        </div>
+        <div className="mt-8 space-y-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-10 bg-gray-100 rounded-lg w-full"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     // Hidden on mobile, visible from md and up
@@ -46,7 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
 
       <nav className="flex-1 overflow-y-auto py-4">
         <ul className="space-y-2 px-4">
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activePage === item.id;
             return (
@@ -54,8 +103,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
                 <button
                   onClick={() => setPage(item.id)}
                   className={`w-full flex items-center gap-4 px-4 py-3 transition-all duration-200 ${isActive
-                      ? 'font-bold shadow-sm'
-                      : 'hover:opacity-80'
+                    ? 'font-bold shadow-sm'
+                    : 'hover:opacity-80'
                     }`}
                   style={{
                     backgroundColor: isActive ? `${branding?.primary_color}20` || '#2d5a6b20' : 'transparent',
