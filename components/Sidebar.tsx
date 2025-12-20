@@ -14,10 +14,12 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout }) => {
   const { branding } = useBranding();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchRole = async () => {
       try {
+        setLoading(true);
         const user = await authService.getCurrentUser();
         if (user?.email) {
           const { data } = await supabase
@@ -32,6 +34,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
         }
       } catch (error) {
         console.error('Error fetching user role:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
