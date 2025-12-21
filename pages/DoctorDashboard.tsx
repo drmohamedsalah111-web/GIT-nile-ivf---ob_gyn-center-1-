@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Loader, AlertCircle, FileText, Stethoscope, Calendar, ArrowRight, Plus } from 'lucide-react';
+import { Users, Search, Loader, AlertCircle, FileText, Stethoscope, Calendar, ArrowRight, Plus, CheckCircle } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
@@ -20,9 +20,20 @@ interface LastVisit {
   visitDate: string;
 }
 
+interface Appointment {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  appointment_date: string;
+  visit_type: string;
+  status: string;
+  notes?: string;
+}
+
 interface DoctorDashboardProps {
   onViewPatient?: (patientId: string) => void;
   onAddPatient?: () => void;
+  onViewAppointments?: () => void;
 }
 
 const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddPatient }) => {
@@ -33,10 +44,12 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
   const [searchQuery, setSearchQuery] = useState('');
   const [currentDoctorId, setCurrentDoctorId] = useState<string | null>(null);
   const [lastVisits, setLastVisits] = useState<Record<string, string>>({});
+  const [todaysAppointments, setTodaysAppointments] = useState<Appointment[]>([]);
   const [statsData, setStatsData] = useState({
     totalPatients: 0,
     appointmentsToday: 0,
-    pendingLabRequests: 0
+    pendingLabRequests: 0,
+    completedAppointments: 0
   });
 
   useEffect(() => {
@@ -63,7 +76,8 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
       setCurrentDoctorId(doctorRecord.id);
       await Promise.all([
         fetchPatients(doctorRecord.id),
-        fetchStats(doctorRecord.id)
+        fetchStats(doctorRecord.id),
+        fetchTodaysAppointments(doctorRecord.id)
       ]);
     } catch (err: any) {
       console.error('❌ Error initializing dashboard:', err);
@@ -125,6 +139,44 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
     }
   };
 
+  const fetchTodaysAppointments = async (doctorId: string) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          patient_id,
+          appointment_date,
+          visit_type,
+          status,
+          notes,
+          patient:patients(name)
+        `)
+        .eq('doctor_id', doctorId)
+        .gte('appointment_date', `${today}T00:00:00`)
+        .lte('appointment_date', `${today}T23:59:59`)
+        .order('appointment_date', { ascending: true });
+
+      if (error) throw error;
+
+      const appointments: Appointment[] = (data || []).map(appt => ({
+        id: appt.id,
+        patient_id: appt.patient_id,
+        patient_name: appt.patient?.name || 'Unknown Patient',
+        appointment_date: appt.appointment_date,
+        visit_type: appt.visit_type,
+        status: appt.status,
+        notes: appt.notes
+      }));
+
+      setTodaysAppointments(appointments);
+    } catch (err: any) {
+      console.error('❌ Error fetching today\'s appointments:', err);
+    }
+  };
+
   const fetchStats = async (doctorId: string) => {
     try {
       const today = new Date().toISOString().split('T')[0];
@@ -142,6 +194,14 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
         .lte('appointment_date', `${today}T23:59:59`)
         .eq('status', 'Scheduled');
 
+      const { count: completedAppointmentCount } = await supabase
+        .from('appointments')
+        .select('id', { count: 'exact', head: true })
+        .eq('doctor_id', doctorId)
+        .gte('appointment_date', `${today}T00:00:00`)
+        .lte('appointment_date', `${today}T23:59:59`)
+        .eq('status', 'Completed');
+
       const { count: labCount } = await supabase
         .from('lab_requests')
         .select('id', { count: 'exact', head: true })
@@ -151,7 +211,8 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
       setStatsData({
         totalPatients: patientCount || 0,
         appointmentsToday: appointmentCount || 0,
-        pendingLabRequests: labCount || 0
+        pendingLabRequests: labCount || 0,
+        completedAppointments: completedAppointmentCount || 0
       });
     } catch (err: any) {
       console.error('❌ Error fetching stats:', err);
@@ -200,8 +261,8 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">Doctor Dashboard</h1>
-              <p className="text-gray-600">Manage your patients and appointments</p>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">لوحة تحكم الطبيب</h1>
+              <p className="text-gray-600">إدارة المرضى والمواعيد اليومية</p>
             </div>
             {onAddPatient && (
               <button
@@ -209,18 +270,18 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-lg"
               >
                 <Plus className="w-5 h-5" />
-                Add Patient
+                إضافة مريضة
               </button>
             )}
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-md border-l-4 border-blue-600 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Total Patients</p>
+                <p className="text-sm font-medium text-gray-600 mb-1">إجمالي المرضى</p>
                 <p className="text-4xl font-bold text-gray-900">{statsData.totalPatients}</p>
               </div>
               <Users className="w-12 h-12 text-blue-100" />
@@ -230,17 +291,27 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
           <div className="bg-white rounded-xl shadow-md border-l-4 border-green-600 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Appointments Today</p>
+                <p className="text-sm font-medium text-gray-600 mb-1">مواعيد اليوم</p>
                 <p className="text-4xl font-bold text-gray-900">{statsData.appointmentsToday}</p>
               </div>
               <Calendar className="w-12 h-12 text-green-100" />
             </div>
           </div>
 
+          <div className="bg-white rounded-xl shadow-md border-l-4 border-orange-600 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">المواعيد المكتملة</p>
+                <p className="text-4xl font-bold text-gray-900">{statsData.completedAppointments}</p>
+              </div>
+              <CheckCircle className="w-12 h-12 text-orange-100" />
+            </div>
+          </div>
+
           <div className="bg-white rounded-xl shadow-md border-l-4 border-yellow-600 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Pending Lab Requests</p>
+                <p className="text-sm font-medium text-gray-600 mb-1">طلبات المعامل المعلقة</p>
                 <p className="text-4xl font-bold text-gray-900">{statsData.pendingLabRequests}</p>
               </div>
               <FileText className="w-12 h-12 text-yellow-100" />
@@ -256,12 +327,60 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
           </div>
         )}
 
+        {/* Today's Appointments Section */}
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+          <div className="bg-gradient-to-r from-green-600 to-green-800 px-6 md:px-8 py-6">
+            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+              <Calendar className="w-6 h-6" />
+              مواعيد اليوم ({todaysAppointments.length})
+            </h2>
+          </div>
+
+          <div className="p-6">
+            {todaysAppointments.length === 0 ? (
+              <div className="text-center py-8">
+                <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-lg text-gray-600 font-medium">لا توجد مواعيد لهذا اليوم</p>
+                <p className="text-gray-500">يمكنك إضافة مواعيد جديدة من صفحة حجز المواعيد</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {todaysAppointments.map(appointment => (
+                  <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <User className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{appointment.patient_name}</p>
+                        <p className="text-sm text-gray-600">{appointment.visit_type}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right">
+                      <p className="font-medium text-gray-900">
+                        {new Date(appointment.appointment_date).toLocaleTimeString('ar-SA', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {appointment.status === 'Scheduled' ? 'مجدولة' : 'مكتملة'}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Patients Section */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-6 md:px-8 py-6">
             <h2 className="text-2xl font-bold text-white flex items-center gap-3">
               <Users className="w-6 h-6" />
-              Patients ({filteredPatients.length})
+              قائمة المرضى ({filteredPatients.length})
             </h2>
           </div>
 
@@ -271,7 +390,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by name or phone number..."
+                placeholder="البحث بالاسم أو رقم الهاتف..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -284,7 +403,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
             <div className="p-12 text-center">
               <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-xl text-gray-600 font-medium">
-                {patients.length === 0 ? 'No patients assigned yet' : 'No patients match your search'}
+                {patients.length === 0 ? 'لا توجد مريضات مسجلة بعد' : 'لا توجد نتائج مطابقة للبحث'}
               </p>
             </div>
           ) : (
