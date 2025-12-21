@@ -1,6 +1,21 @@
 import { supabase } from './supabaseClient';
 
-export const authService = {
+interface AuthService {
+  login: (email: string, password: string) => Promise<{ user: any; session: any; weakPassword?: any } | { user: null; session: null; weakPassword?: null }>;
+  signup: (email: string, password: string, userData: any, role: string, doctorId?: string) => Promise<any>;
+  logout: () => Promise<void>;
+  getCurrentUser: () => Promise<any>;
+  getDoctorProfile: (userId: string) => Promise<any>;
+  onAuthStateChange: (callback: (user: any) => void) => any;
+  updateDoctorProfile: (userId: string, updates: any) => Promise<any>;
+  updatePassword: (newPassword: string) => Promise<any>;
+  uploadImage: (userId: string, file: File, folder: 'doctor_images' | 'clinic_images') => Promise<string>;
+  ensureDoctorRecord: (userId: string, email: string) => Promise<any>;
+  getUserRole: (userId: string) => Promise<string>;
+  getSecretaryProfile: (userId: string) => Promise<any>;
+}
+
+export const authService: AuthService = {
   login: async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
