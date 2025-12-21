@@ -47,29 +47,41 @@ const ReceptionDashboard: React.FC = () => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             
-            let dateFilter = today.toISOString().split('T')[0];
+            let data = [];
             
-            if (selectedFilter === 'week') {
-                // For weekly view, we'll fetch today and filter in the UI
-                // In a real app, you'd pass date range to the service
+            if (selectedFilter === 'today') {
+                // Fetch today's appointments
+                const dateFilter = today.toISOString().split('T')[0];
+                data = await appointmentService.getAppointments(dateFilter);
+            } else if (selectedFilter === 'week') {
+                // Fetch all appointments and filter for this week
+                const user = await authService.getCurrentUser();
+                if (user) {
+                    const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
+                    if (doctor?.id) {
+                        data = await appointmentService.getAllDoctorAppointments(doctor.id);
+                        
+                        // Filter for this week
+                        const weekEnd = new Date(today);
+                        weekEnd.setDate(weekEnd.getDate() + 7);
+                        data = data.filter(apt => {
+                            const aptDate = new Date(apt.appointment_date);
+                            return aptDate >= today && aptDate <= weekEnd;
+                        });
+                    }
+                }
             } else if (selectedFilter === 'all') {
-                // Fetch all appointments (you may want to add a date range limit)
-            }
-
-            const data = await appointmentService.getAppointments(dateFilter);
-            
-            // Filter based on selected filter
-            let filteredData = data;
-            if (selectedFilter === 'week') {
-                const weekEnd = new Date(today);
-                weekEnd.setDate(weekEnd.getDate() + 7);
-                filteredData = data.filter(apt => {
-                    const aptDate = new Date(apt.appointment_date);
-                    return aptDate >= today && aptDate <= weekEnd;
-                });
+                // Fetch all appointments
+                const user = await authService.getCurrentUser();
+                if (user) {
+                    const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
+                    if (doctor?.id) {
+                        data = await appointmentService.getAllDoctorAppointments(doctor.id);
+                    }
+                }
             }
             
-            setAppointments(filteredData);
+            setAppointments(data);
             
             // Calculate enhanced stats
             const todayAppointments = data.filter(app => {
@@ -109,14 +121,26 @@ const ReceptionDashboard: React.FC = () => {
         return () => {
             if (subscription) subscription.unsubscribe();
         };
-    }, [selectedFilter]);
+    }, [selectedFilter]); // Re-fetch when filter changes
 
     const handleStatusUpdate = async (appointmentId: string, newStatus: any) => {
         try {
             await appointmentService.updateStatus(appointmentId, newStatus);
-            toast.success(`تم تحديث الحالة إلى ${newStatus}`);
-            loadAppointments();
+            
+            // Show appropriate Arabic message
+            const statusMessages: { [key: string]: string } = {
+                'Waiting': 'تم تسجيل حضور المريض',
+                'Completed': 'تم إكمال الموعد',
+                'Cancelled': 'تم إلغاء الموعد',
+                'Scheduled': 'تم جدولة الموعد'
+            };
+            
+            toast.success(statusMessages[newStatus] || `تم تحديث الحالة إلى ${newStatus}`);
+            
+            // Reload appointments to reflect changes
+            await loadAppointments();
         } catch (error) {
+            console.error('Error updating status:', error);
             toast.error('فشل تحديث الحالة');
         }
     };
@@ -167,11 +191,18 @@ const ReceptionDashboard: React.FC = () => {
     }
 
     // Filter appointments by search
-    const filteredAppointments = appointments.filter(apt => 
-        apt.patient?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        apt.patient?.phone.includes(searchTerm) ||
-        apt.visit_type?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredAppointments = appointments.filter(apt => {
+        if (!searchTerm) return true;
+        
+        const searchLower = searchTerm.toLowerCase();
+        const patientName = apt.patient?.name?.toLowerCase() || '';
+        const patientPhone = apt.patient?.phone || '';
+        const visitType = apt.visit_type?.toLowerCase() || '';
+        
+        return patientName.includes(searchLower) ||
+               patientPhone.includes(searchTerm) ||
+               visitType.includes(searchLower);
+    });
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4 md:p-8" dir="rtl">
@@ -180,7 +211,7 @@ const ReceptionDashboard: React.FC = () => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-6">
                         <div className="relative">
-                            <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-xl transform hover:scale-110 transition-transform duration-300">
+                            <div className="w-20 h- جبر20 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-xl transform hover:scale-110 transition-transform duration-300">
                                 <Stethoscope className="w-10 h-10 text-white" />
                             </div>
                             <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-4 border-white animate-pulse"></div>
