@@ -1,107 +1,164 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, content-type",
+};
+
+interface RequestBody {
+  name?: string;
+  age?: number;
+  phone?: string;
+  husband_name?: string;
+  history?: string;
 }
 
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ error: "Method not allowed" }),
+      {
+        status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 
   try {
-    // 1. Create a client to verify the user's JWT
-    // We use the ANON key (or just the incoming token) to create a client 
-    // that respects the user's auth state.
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('Missing Authorization header')
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      return new Response(
+        JSON.stringify({ error: "Missing environment variables" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    let body: RequestBody;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON body" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
-    // Create a regular client to check if the token is valid
-    const verificationClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
+    if (!body.name || typeof body.name !== "string" || body.name.trim() === "") {
+      return new Response(
+        JSON.stringify({ error: "Name is required and cannot be empty" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
-    // Get the user from the token. If this fails, the token is invalid/expired.
-    const { data: { user }, error: authError } = await verificationClient.auth.getUser()
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing Authorization header" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: "Invalid Authorization header format" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized', details: authError?.message }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // 2. Parse and Validate input
-    const { name, phone, age, doctor_id, user_id, husband_name, history } = await req.json()
-
-    if (!name || !phone) {
-      throw new Error('Name and Phone are required')
-    }
-
-    // 3. Perform the privileged insert using Service Role Key
-    // This bypasses RLS, which is what we want for this specific operation
-    // that was failing due to complex RLS/Foreign Key rules for receptionists.
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const adminClient = createClient(supabaseUrl, serviceRoleKey)
-
-    const { data, error } = await adminClient
-      .from('patients')
-      .insert([
+        JSON.stringify({ error: "Invalid or expired token" }),
         {
-          name,
-          phone,
-          age,
-          doctor_id,
-          husband_name,
-          history,
-          user_id: user_id || user.id, // Use passed user_id or the authenticated user's ID
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
-      ])
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Insert Error:', error)
-      throw error
+      );
     }
 
-    return new Response(
-      JSON.stringify(data),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
-      }
-    )
+    const userId = user.id;
 
+    const { data: doctor, error: doctorError } = await supabase
+      .from("doctors")
+      .select("id")
+      .eq("user_id", userId)
+      .single();
+
+    if (doctorError || !doctor) {
+      return new Response(
+        JSON.stringify({ error: "Doctor profile not found" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const doctorId = doctor.id;
+
+    const { error: insertError } = await supabase.from("patients").insert({
+      name: body.name.trim(),
+      age: body.age || null,
+      phone: body.phone || null,
+      husband_name: body.husband_name || null,
+      history: body.history || null,
+      user_id: userId,
+      doctor_id: doctorId,
+    });
+
+    if (insertError) {
+      console.error("Insert error:", insertError);
+      return new Response(
+        JSON.stringify({ error: "Failed to create patient" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 201,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
-    console.error('Function Error:', error)
+    console.error("Unexpected error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Internal server error" }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
-    )
+    );
   }
-})
-// 1. جلب الأطباء للمنيو
-const { data: doctors } = await supabase.from('doctors').select('id, name');
-
-// 2. عند الضغط على حفظ
-const { error } = await supabase.from('patients').insert({
-  name: patientName,
-  age: patientAge,
-  phone: patientPhone,
-  doctor_id: selectedDoctorId, // <--- أهم نقطة: ربط المريض بالدكتور المختار
-  history: history
 });
