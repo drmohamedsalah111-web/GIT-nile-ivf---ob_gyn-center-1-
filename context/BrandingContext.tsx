@@ -47,8 +47,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setError(null);
 
       // Get current user and fetch their doctor branding
-      const sessionResult = await authService.getSession();
-      const user = sessionResult?.user ?? null;
+      const user = await authService.getCurrentUser();
       if (!user) {
         setBranding(getDefaultBranding());
         return;
@@ -126,7 +125,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       setError(null);
 
-      const sessionResult = await authService.getSession();
+      const { data: { session: sessionResult } } = await supabase.auth.getSession();
       const user = sessionResult?.user ?? null;
       if (!user) throw new Error('User not authenticated');
 
