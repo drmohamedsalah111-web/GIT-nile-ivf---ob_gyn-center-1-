@@ -5,13 +5,14 @@ export interface AppointmentData {
   doctor_id: string;
   patient_id: string;
   appointment_date: string;
-  status: 'scheduled' | 'completed' | 'cancelled';
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
   visit_type: string;
   notes?: string;
+  created_by?: string;
 }
 
 export const appointmentService = {
-  async bookAppointment(data: AppointmentData) {
+  async createAppointment(data: AppointmentData) {
     try {
       const { data: appointment, error } = await supabase
         .from('appointments')
@@ -23,6 +24,7 @@ export const appointmentService = {
             status: data.status,
             visit_type: data.visit_type,
             notes: data.notes || '',
+            created_by: data.created_by || null,
           },
         ])
         .select()
@@ -114,5 +116,59 @@ export const appointmentService = {
     }
 
     return slots;
+  },
+
+  async getAppointments(date: string) {
+    try {
+      const startDate = `${date}T00:00:00`;
+      const endDate = `${date}T23:59:59`;
+
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*, patients(name, phone)')
+        .gte('appointment_date', startDate)
+        .lte('appointment_date', endDate)
+        .order('appointment_date', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error: any) {
+      console.error('Error fetching appointments:', error);
+      throw error;
+    }
+  },
+
+  async updateStatus(appointmentId: string, status: string) {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status })
+        .eq('id', appointmentId);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error updating appointment status:', error);
+      throw new Error(error.message || 'فشل تحديث حالة الموعد');
+    }
+  },
+
+  subscribeToAppointments(callback: () => void) {
+    const subscription = supabase
+      .channel('appointments')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments'
+        },
+        (payload) => {
+          console.log('Appointment change detected:', payload);
+          callback();
+        }
+      )
+      .subscribe();
+
+    return subscription;
   },
 };

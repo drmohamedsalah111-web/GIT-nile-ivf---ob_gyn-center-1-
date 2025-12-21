@@ -302,12 +302,13 @@ const NewAppointmentModal: React.FC<{
 
             const datetime = `${formData.date}T${formData.time}:00`;
             await appointmentService.createAppointment({
-                patient_id: selectedPatientId,
-                doctor_id: doctor?.id,
-                appointment_date: datetime,
-                status: 'Scheduled',
-                visit_type: formData.type,
-                notes: formData.notes
+              patient_id: selectedPatientId,
+              doctor_id: doctor?.id,
+              appointment_date: datetime,
+              status: 'Scheduled',
+              visit_type: formData.type,
+              notes: formData.notes,
+              created_by: user?.id
             });
 
             toast.success('Appointment scheduled');
