@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, UserPlus, Calendar, Clock, CheckCircle, Smartphone, Hash, X, RefreshCw, User, Activity, TrendingUp, XCircle, AlertCircle, Users } from 'lucide-react';
+import { Plus, UserPlus, Calendar, Clock, CheckCircle, Smartphone, Hash, X, RefreshCw, User, Activity, TrendingUp, XCircle, AlertCircle, Users, ArrowUp, ArrowDown, Bell, Search, Filter, Download, MoreVertical, Eye, Edit, Trash2, Phone, Mail, MapPin, FileText, ChevronRight, Stethoscope, HeartPulse, CalendarCheck, ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { appointmentService } from '../services/appointmentService';
 import { usePatients } from '../hooks/usePatients';
@@ -13,6 +13,8 @@ interface Stats {
     todayCancelled: number;
     totalPatients: number;
     weeklyAppointments: number;
+    todayRevenue?: number;
+    completionRate?: number;
 }
 
 const ReceptionDashboard: React.FC = () => {
@@ -23,15 +25,19 @@ const ReceptionDashboard: React.FC = () => {
     const [selectedFilter, setSelectedFilter] = useState<'all' | 'today' | 'week'>('today');
     const { patients, addPatient, searchQuery, setSearchQuery } = usePatients();
 
-    // Enhanced Stats
+    // Enhanced Stats with animations
     const [stats, setStats] = useState<Stats>({
         todayTotal: 0,
         todayCompleted: 0,
         todayPending: 0,
         todayCancelled: 0,
         totalPatients: 0,
-        weeklyAppointments: 0
+        weeklyAppointments: 0,
+        todayRevenue: 0,
+        completionRate: 0
     });
+    const [searchTerm, setSearchTerm] = useState('');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
     // Load appointments based on filter
     const loadAppointments = async () => {
@@ -71,13 +77,18 @@ const ReceptionDashboard: React.FC = () => {
                 return appDate.toDateString() === today.toDateString();
             });
 
+            const completed = todayAppointments.filter(a => a.status === 'Completed').length;
+            const total = todayAppointments.length;
+            
             setStats({
-                todayTotal: todayAppointments.length,
-                todayCompleted: todayAppointments.filter(a => a.status === 'Completed').length,
+                todayTotal: total,
+                todayCompleted: completed,
                 todayPending: todayAppointments.filter(a => a.status === 'Waiting' || a.status === 'Scheduled').length,
                 todayCancelled: todayAppointments.filter(a => a.status === 'Cancelled').length,
                 totalPatients: new Set(data.map(a => a.patient_id)).size,
-                weeklyAppointments: data.length
+                weeklyAppointments: data.length,
+                todayRevenue: completed * 500, // Example calculation
+                completionRate: total > 0 ? Math.round((completed / total) * 100) : 0
             });
         } catch (error) {
             console.error('Error loading appointments:', error);
@@ -147,233 +158,390 @@ const ReceptionDashboard: React.FC = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+                <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mb-4"></div>
+                    <p className="text-gray-600 font-medium">جاري تحميل البيانات...</p>
+                </div>
             </div>
         );
     }
 
+    // Filter appointments by search
+    const filteredAppointments = appointments.filter(apt => 
+        apt.patient?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        apt.patient?.phone.includes(searchTerm) ||
+        apt.visit_type?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6" dir="rtl">
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                    مرحباً د. محمد صلاح
-                </h1>
-                <p className="text-gray-600 text-lg">
-                    لوحة التحكم الطبية - {new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4 md:p-8" dir="rtl">
+            {/* Modern Header with Glass Effect */}
+            <div className="mb-8 backdrop-blur-xl bg-white/70 rounded-3xl shadow-2xl border border-white/20 p-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-6">
+                        <div className="relative">
+                            <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-xl transform hover:scale-110 transition-transform duration-300">
+                                <Stethoscope className="w-10 h-10 text-white" />
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-4 border-white animate-pulse"></div>
+                        </div>
+                        <div>
+                            <h1 className="text-4xl font-black bg-gradient-to-r from-gray-800 via-gray-700 to-gray-600 bg-clip-text text-transparent mb-1">
+                                مرحباً د. محمد صلاح
+                            </h1>
+                            <p className="text-gray-600 text-base flex items-center gap-2">
+                                <Calendar className="w-4 h-4" />
+                                {new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                        <button className="relative p-3 bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+                            <Bell className="w-5 h-5 text-gray-600 group-hover:text-teal-600 transition-colors" />
+                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                                3
+                            </span>
+                        </button>
+                        <button className="p-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                            <Download className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            {/* Enhanced Stats Cards */}
+            {/* World-Class Stats Cards with Advanced Design */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white rounded-2xl shadow-lg p-6 border-r-4 border-teal-500 hover:shadow-xl transition-shadow">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-gray-600 text-sm font-medium mb-1">إجمالي اليوم</p>
-                            <p className="text-3xl font-bold text-gray-800">{stats.todayTotal}</p>
+                {/* Card 1 - Total Today */}
+                <div className="group relative bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:scale-105">
+                    <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="relative p-6">
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="p-3 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                <Calendar className="w-7 h-7 text-white" />
+                            </div>
+                            <div className="flex items-center gap-1 px-3 py-1 bg-teal-50 rounded-full">
+                                <ArrowUp className="w-3 h-3 text-teal-600" />
+                                <span className="text-xs font-bold text-teal-600">+12%</span>
+                            </div>
                         </div>
-                        <div className="bg-teal-100 p-4 rounded-full">
-                            <Calendar className="w-8 h-8 text-teal-600" />
-                        </div>
+                        <h3 className="text-gray-600 text-sm font-semibold mb-2">إجمالي اليوم</h3>
+                        <p className="text-4xl font-black text-gray-800 mb-1">{stats.todayTotal}</p>
+                        <p className="text-xs text-gray-500">موعد مجدول</p>
                     </div>
+                    <div className="h-1 bg-gradient-to-r from-teal-500 to-cyan-600"></div>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-lg p-6 border-r-4 border-green-500 hover:shadow-xl transition-shadow">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-gray-600 text-sm font-medium mb-1">المكتملة</p>
-                            <p className="text-3xl font-bold text-gray-800">{stats.todayCompleted}</p>
+                {/* Card 2 - Completed */}
+                <div className="group relative bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:scale-105">
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="relative p-6">
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                <CheckCircle className="w-7 h-7 text-white" />
+                            </div>
+                            <div className="flex items-center gap-1 px-3 py-1 bg-green-50 rounded-full">
+                                <span className="text-xs font-bold text-green-600">{stats.completionRate}%</span>
+                            </div>
                         </div>
-                        <div className="bg-green-100 p-4 rounded-full">
-                            <CheckCircle className="w-8 h-8 text-green-600" />
-                        </div>
+                        <h3 className="text-gray-600 text-sm font-semibold mb-2">المكتملة</h3>
+                        <p className="text-4xl font-black text-gray-800 mb-1">{stats.todayCompleted}</p>
+                        <p className="text-xs text-gray-500">من {stats.todayTotal} موعد</p>
                     </div>
+                    <div className="h-1 bg-gradient-to-r from-green-500 to-emerald-600"></div>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-lg p-6 border-r-4 border-yellow-500 hover:shadow-xl transition-shadow">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-gray-600 text-sm font-medium mb-1">قيد الانتظار</p>
-                            <p className="text-3xl font-bold text-gray-800">{stats.todayPending}</p>
+                {/* Card 3 - Pending */}
+                <div className="group relative bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:scale-105">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="relative p-6">
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="p-3 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl shadow-lg group-hover:scale-110 transition-transform duration-300 animate-pulse">
+                                <Clock className="w-7 h-7 text-white" />
+                            </div>
+                            <div className="flex items-center gap-1 px-3 py-1 bg-amber-50 rounded-full">
+                                <AlertCircle className="w-3 h-3 text-amber-600" />
+                            </div>
                         </div>
-                        <div className="bg-yellow-100 p-4 rounded-full">
-                            <Clock className="w-8 h-8 text-yellow-600" />
-                        </div>
+                        <h3 className="text-gray-600 text-sm font-semibold mb-2">قيد الانتظار</h3>
+                        <p className="text-4xl font-black text-gray-800 mb-1">{stats.todayPending}</p>
+                        <p className="text-xs text-gray-500">في الانتظار</p>
                     </div>
+                    <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-600"></div>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-lg p-6 border-r-4 border-blue-500 hover:shadow-xl transition-shadow">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-gray-600 text-sm font-medium mb-1">إجمالي المرضى</p>
-                            <p className="text-3xl font-bold text-gray-800">{stats.totalPatients}</p>
+                {/* Card 4 - Total Patients */}
+                <div className="group relative bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:scale-105">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="relative p-6">
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                <Users className="w-7 h-7 text-white" />
+                            </div>
+                            <div className="flex items-center gap-1 px-3 py-1 bg-blue-50 rounded-full">
+                                <ArrowUp className="w-3 h-3 text-blue-600" />
+                                <span className="text-xs font-bold text-blue-600">+8%</span>
+                            </div>
                         </div>
-                        <div className="bg-blue-100 p-4 rounded-full">
-                            <Users className="w-8 h-8 text-blue-600" />
+                        <h3 className="text-gray-600 text-sm font-semibold mb-2">إجمالي المرضى</h3>
+                        <p className="text-4xl font-black text-gray-800 mb-1">{stats.totalPatients}</p>
+                        <p className="text-xs text-gray-500">مريض مسجل</p>
+                    </div>
+                    <div className="h-1 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+                </div>
+            </div>
+
+            {/* Advanced Filters and Actions Bar */}
+            <div className="backdrop-blur-xl bg-white/80 rounded-3xl shadow-2xl border border-white/20 p-6 mb-8">
+                <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+                    {/* Search Bar */}
+                    <div className="flex-1 w-full lg:w-auto">
+                        <div className="relative group">
+                            <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-teal-500 transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="ابحث عن مريض، رقم تليفون، أو نوع الزيارة..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pr-12 pl-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all text-gray-700 font-medium"
+                            />
                         </div>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="flex gap-2 bg-gray-100 p-1.5 rounded-2xl">
+                        <button
+                            onClick={() => setSelectedFilter('today')}
+                            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${
+                                selectedFilter === 'today'
+                                    ? 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-lg scale-105'
+                                    : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                        >
+                            <CalendarCheck className="w-4 h-4 inline-block ml-1" />
+                            اليوم
+                        </button>
+                        <button
+                            onClick={() => setSelectedFilter('week')}
+                            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${
+                                selectedFilter === 'week'
+                                    ? 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-lg scale-105'
+                                    : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                        >
+                            هذا الأسبوع
+                        </button>
+                        <button
+                            onClick={() => setSelectedFilter('all')}
+                            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${
+                                selectedFilter === 'all'
+                                    ? 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-lg scale-105'
+                                    : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                        >
+                            الكل
+                        </button>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex gap-3">
+                        <button
+                            onClick={loadAppointments}
+                            className="p-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-all hover:scale-110 hover:rotate-180 duration-500"
+                            title="تحديث"
+                        >
+                            <RefreshCw size={20} />
+                        </button>
+                        <button
+                            onClick={() => setShowRegisterPatientModal(true)}
+                            className="flex items-center gap-2 px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl hover:border-teal-500 hover:text-teal-600 hover:shadow-lg transition-all font-bold text-sm hover:scale-105"
+                        >
+                            <UserPlus size={18} />
+                            تسجيل سريع
+                        </button>
+                        <button
+                            onClick={() => setShowNewAppointmentModal(true)}
+                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl hover:shadow-2xl transition-all shadow-lg font-bold text-sm hover:scale-105"
+                        >
+                            <Plus size={18} />
+                            موعد جديد
+                        </button>
                     </div>
                 </div>
             </div>
 
-            {/* Filters and Actions */}
-            <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 flex justify-between items-center">
-                <div className="flex gap-4">
-                    <button
-                        onClick={() => setSelectedFilter('today')}
-                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-                            selectedFilter === 'today'
-                                ? 'bg-teal-600 text-white shadow-md'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                    >
-                        اليوم
-                    </button>
-                    <button
-                        onClick={() => setSelectedFilter('week')}
-                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-                            selectedFilter === 'week'
-                                ? 'bg-teal-600 text-white shadow-md'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                    >
-                        هذا الأسبوع
-                    </button>
-                    <button
-                        onClick={() => setSelectedFilter('all')}
-                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-                            selectedFilter === 'all'
-                                ? 'bg-teal-600 text-white shadow-md'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                    >
-                        الكل
-                    </button>
-                </div>
-                
-                <div className="flex gap-3">
-                    <button
-                        onClick={loadAppointments}
-                        className="p-2 text-gray-500 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                        title="تحديث"
-                    >
-                        <RefreshCw size={20} />
-                    </button>
-                    <button
-                        onClick={() => setShowRegisterPatientModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
-                    >
-                        <UserPlus size={16} />
-                        تسجيل سريع
-                    </button>
-                    <button
-                        onClick={() => setShowNewAppointmentModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors shadow-sm font-medium text-sm"
-                    >
-                        <Plus size={16} />
-                        موعد جديد
-                    </button>
-                </div>
-            </div>
-
-            {/* Appointments List - Professional Design */}
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                <div className="bg-gradient-to-r from-teal-600 to-teal-700 p-6">
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                        <Activity className="w-7 h-7" />
-                        المواعيد والحجوزات
-                    </h2>
+            {/* World-Class Appointments List */}
+            <div className="backdrop-blur-xl bg-white/80 rounded-3xl shadow-2xl overflow-hidden border border-white/20">
+                {/* Header with Gradient */}
+                <div className="relative bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 p-8 overflow-hidden">
+                    <div className="absolute inset-0 bg-black/10"></div>
+                    <div className="absolute top-0 left-0 w-full h-full">
+                        <div className="absolute top-10 right-20 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
+                        <div className="absolute bottom-10 left-20 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+                    </div>
+                    <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="p-4 bg-white/20 backdrop-blur-xl rounded-2xl">
+                                <ClipboardList className="w-8 h-8 text-white" />
+                            </div>
+                            <div>
+                                <h2 className="text-3xl font-black text-white mb-1">
+                                    المواعيد والحجوزات
+                                </h2>
+                                <p className="text-white/80 text-sm">
+                                    {filteredAppointments.length} من {appointments.length} موعد
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 bg-white/20 backdrop-blur-xl px-4 py-2 rounded-xl">
+                            <HeartPulse className="w-5 h-5 text-white animate-pulse" />
+                            <span className="text-white font-bold">مباشر</span>
+                        </div>
+                    </div>
                 </div>
 
-                {appointments.length === 0 ? (
-                    <div className="p-12 text-center">
-                        <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-500 text-lg">لا توجد مواعيد محجوزة</p>
+                {filteredAppointments.length === 0 ? (
+                    <div className="p-16 text-center">
+                        <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                            <Calendar className="w-12 h-12 text-gray-400" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-700 mb-2">لا توجد مواعيد</h3>
+                        <p className="text-gray-500">
+                            {searchTerm ? 'لا توجد نتائج للبحث' : 'لا توجد مواعيد محجوزة في هذه الفترة'}
+                        </p>
                     </div>
                 ) : (
-                    <div className="divide-y divide-gray-100">
-                        {appointments.map((appointment) => (
+                    <div className="p-6 space-y-4">
+                        {filteredAppointments.map((appointment, index) => (
                             <div
                                 key={appointment.id}
-                                className="p-6 hover:bg-gray-50 transition-colors"
+                                className="group relative bg-gradient-to-br from-white to-gray-50 rounded-2xl border-2 border-gray-100 hover:border-teal-300 transition-all duration-500 overflow-hidden hover:shadow-2xl"
+                                style={{
+                                    animationDelay: `${index * 50}ms`,
+                                    animation: 'slideIn 0.5s ease-out forwards'
+                                }}
                             >
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <div className="bg-teal-100 p-2 rounded-full">
-                                                <Users className="w-5 h-5 text-teal-600" />
+                                {/* Hover Gradient Effect */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-teal-500/0 via-cyan-500/0 to-blue-500/0 group-hover:from-teal-500/5 group-hover:via-cyan-500/5 group-hover:to-blue-500/5 transition-all duration-500"></div>
+                                
+                                <div className="relative p-6">
+                                    <div className="flex items-start justify-between gap-6">
+                                        {/* Patient Info */}
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <div className="relative">
+                                                    <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                                        <User className="w-7 h-7 text-white" />
+                                                    </div>
+                                                    <div className="absolute -bottom-1 -left-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-xl font-black text-gray-800 mb-1">
+                                                        {appointment.patient?.name || 'مريض'}
+                                                    </h3>
+                                                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                                                        <span className="flex items-center gap-1">
+                                                            <Phone className="w-3 h-3" />
+                                                            {appointment.patient?.phone || '-'}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h3 className="text-lg font-bold text-gray-800">
-                                                    {appointment.patient?.name || 'مريض'}
-                                                </h3>
-                                                <p className="text-sm text-gray-600">{appointment.patient?.phone || '-'}</p>
+
+                                            {/* Details Grid */}
+                                            <div className="grid grid-cols-3 gap-4 mb-4">
+                                                <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-100">
+                                                    <Calendar className="w-4 h-4 text-blue-600" />
+                                                    <div>
+                                                        <p className="text-xs text-gray-500">التاريخ</p>
+                                                        <p className="text-sm font-bold text-gray-800">
+                                                            {appointment.appointment_date ? new Date(appointment.appointment_date).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }) : '-'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+                                                    <Clock className="w-4 h-4 text-purple-600" />
+                                                    <div>
+                                                        <p className="text-xs text-gray-500">الوقت</p>
+                                                        <p className="text-sm font-bold text-gray-800">
+                                                            {appointment.appointment_date ? formatTime(appointment.appointment_date) : '-'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-100">
+                                                    <Activity className="w-4 h-4 text-orange-600" />
+                                                    <div>
+                                                        <p className="text-xs text-gray-500">النوع</p>
+                                                        <p className="text-sm font-bold text-gray-800">
+                                                            {appointment.visit_type || 'استشارة'}
+                                                        </p>
+                                                    </div>
+                                                </div>
                                             </div>
+
+                                            {/* Notes */}
+                                            {appointment.notes && (
+                                                <div className="p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                                                    <div className="flex items-start gap-2">
+                                                        <FileText className="w-4 h-4 text-gray-500 mt-0.5" />
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-gray-500 mb-1">ملاحظات</p>
+                                                            <p className="text-sm text-gray-700">{appointment.notes}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mr-12">
-                                            <div className="flex items-center gap-2 text-gray-700">
-                                                <Calendar className="w-4 h-4 text-teal-600" />
-                                                <span className="text-sm">{appointment.appointment_date ? formatDate(appointment.appointment_date) : '-'}</span>
+                                        {/* Status & Actions */}
+                                        <div className="flex flex-col gap-3 items-end">
+                                            {/* Status Badge */}
+                                            <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 shadow-lg ${getStatusColor(appointment.status)}`}>
+                                                {getStatusIcon(appointment.status)}
+                                                <span className="text-sm font-black">
+                                                    {appointment.status === 'Completed' && 'مكتمل'}
+                                                    {appointment.status === 'Scheduled' && 'مجدول'}
+                                                    {appointment.status === 'Waiting' && 'قيد الانتظار'}
+                                                    {appointment.status === 'Cancelled' && 'ملغي'}
+                                                </span>
                                             </div>
-                                            <div className="flex items-center gap-2 text-gray-700">
-                                                <Clock className="w-4 h-4 text-teal-600" />
-                                                <span className="text-sm">{appointment.appointment_date ? formatTime(appointment.appointment_date) : '-'}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-gray-700">
-                                                <Activity className="w-4 h-4 text-teal-600" />
-                                                <span className="text-sm font-medium">{appointment.visit_type || 'استشارة'}</span>
+                                            
+                                            {/* Action Buttons */}
+                                            <div className="flex flex-col gap-2 w-full">
+                                                {appointment.status === 'Scheduled' && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(appointment.id, 'Waiting')}
+                                                            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 rounded-xl transition-all font-bold text-sm shadow-lg hover:shadow-xl hover:scale-105"
+                                                        >
+                                                            <CheckCircle size={16} />
+                                                            حضر
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(appointment.id, 'Cancelled')}
+                                                            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white hover:from-red-600 hover:to-rose-700 rounded-xl transition-all font-bold text-sm shadow-lg hover:shadow-xl hover:scale-105"
+                                                        >
+                                                            <XCircle size={16} />
+                                                            إلغاء
+                                                        </button>
+                                                    </>
+                                                )}
+                                                {appointment.status === 'Waiting' && (
+                                                    <button
+                                                        onClick={() => handleStatusUpdate(appointment.id, 'Completed')}
+                                                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 rounded-xl transition-all font-bold text-sm shadow-lg hover:shadow-xl hover:scale-105"
+                                                    >
+                                                        <CheckCircle size={16} />
+                                                        إنهاء
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
-
-                                        {appointment.notes && (
-                                            <div className="mt-3 mr-12 p-3 bg-gray-50 rounded-lg">
-                                                <p className="text-sm text-gray-600">
-                                                    <span className="font-semibold">ملاحظات: </span>
-                                                    {appointment.notes}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="flex flex-col gap-2 items-end">
-                                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 ${getStatusColor(appointment.status)}`}>
-                                            {getStatusIcon(appointment.status)}
-                                            <span className="text-sm font-semibold">
-                                                {appointment.status === 'Completed' && 'مكتمل'}
-                                                {appointment.status === 'Scheduled' && 'مجدول'}
-                                                {appointment.status === 'Waiting' && 'قيد الانتظار'}
-                                                {appointment.status === 'Cancelled' && 'ملغي'}
-                                            </span>
-                                        </div>
-                                        
-                                        {/* Action Buttons */}
-                                        {appointment.status === 'Scheduled' && (
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => handleStatusUpdate(appointment.id, 'Waiting')}
-                                                    className="text-xs bg-green-600 text-white hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors font-medium flex items-center gap-1 shadow-sm"
-                                                >
-                                                    <CheckCircle size={12} />
-                                                    حضر
-                                                </button>
-                                                <button
-                                                    onClick={() => handleStatusUpdate(appointment.id, 'Cancelled')}
-                                                    className="text-xs bg-red-600 text-white hover:bg-red-700 px-3 py-1.5 rounded-lg transition-colors font-medium"
-                                                >
-                                                    إلغاء
-                                                </button>
-                                            </div>
-                                        )}
-                                        {appointment.status === 'Waiting' && (
-                                            <button
-                                                onClick={() => handleStatusUpdate(appointment.id, 'Completed')}
-                                                className="text-xs bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors font-medium"
-                                            >
-                                                إنهاء
-                                            </button>
-                                        )}
                                     </div>
                                 </div>
+
+                                {/* Bottom Accent Line */}
+                                <div className="h-1.5 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500"></div>
                             </div>
                         ))}
                     </div>
