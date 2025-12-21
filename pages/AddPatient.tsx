@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Phone, Stethoscope, Save, AlertCircle, Loader, Calendar, FileText } from 'lucide-react';
 import { supabase } from '../src/lib/supabase';
 import { authService } from '../services/authService';
+import { PatientService } from '../src/services/PatientService';
 import toast from 'react-hot-toast';
 
 interface Doctor {
@@ -113,13 +114,8 @@ const AddPatient: React.FC = () => {
         user_id: user.id
       };
 
-      const { data, error } = await supabase
-        .from('patients')
-        .insert([payload])
-        .select()
-        .single();
-
-      if (error) throw error;
+      // Use the Edge Function to bypass RLS restrictions
+      const data = await PatientService.addPatient(payload);
 
       toast.success('Patient added successfully!', { id: toastId });
       setFormData({
