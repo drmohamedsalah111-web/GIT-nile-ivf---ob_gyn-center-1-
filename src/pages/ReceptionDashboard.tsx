@@ -1,37 +1,87 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, UserPlus, Calendar, Clock, CheckCircle, Smartphone, Hash, X, RefreshCw, User } from 'lucide-react';
+import { Plus, UserPlus, Calendar, Clock, CheckCircle, Smartphone, Hash, X, RefreshCw, User, Activity, TrendingUp, XCircle, AlertCircle, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { appointmentService } from '../services/appointmentService';
 import { usePatients } from '../hooks/usePatients';
 import { Appointment } from '../../types';
 import { authService } from '../../services/authService';
 
+interface Stats {
+    todayTotal: number;
+    todayCompleted: number;
+    todayPending: number;
+    todayCancelled: number;
+    totalPatients: number;
+    weeklyAppointments: number;
+}
+
 const ReceptionDashboard: React.FC = () => {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
     const [showNewAppointmentModal, setShowNewAppointmentModal] = useState(false);
     const [showRegisterPatientModal, setShowRegisterPatientModal] = useState(false);
+    const [selectedFilter, setSelectedFilter] = useState<'all' | 'today' | 'week'>('today');
     const { patients, addPatient, searchQuery, setSearchQuery } = usePatients();
 
-    // Stats
-    const stats = {
-        total: appointments.length,
-        waiting: appointments.filter(a => a.status === 'Waiting').length,
-        completed: appointments.filter(a => a.status === 'Completed').length
-    };
+    // Enhanced Stats
+    const [stats, setStats] = useState<Stats>({
+        todayTotal: 0,
+        todayCompleted: 0,
+        todayPending: 0,
+        todayCancelled: 0,
+        totalPatients: 0,
+        weeklyAppointments: 0
+    });
 
-    // Load appointments for today
+    // Load appointments based on filter
     const loadAppointments = async () => {
         try {
-            // Don't set loading true on refresh if we already have data to avoid flicker
             if (appointments.length === 0) setLoading(true);
 
-            const today = new Date().toISOString().split('T')[0];
-            const data = await appointmentService.getAppointments(today);
-            setAppointments(data);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            let dateFilter = today.toISOString().split('T')[0];
+            
+            if (selectedFilter === 'week') {
+                // For weekly view, we'll fetch today and filter in the UI
+                // In a real app, you'd pass date range to the service
+            } else if (selectedFilter === 'all') {
+                // Fetch all appointments (you may want to add a date range limit)
+            }
+
+            const data = await appointmentService.getAppointments(dateFilter);
+            
+            // Filter based on selected filter
+            let filteredData = data;
+            if (selectedFilter === 'week') {
+                const weekEnd = new Date(today);
+                weekEnd.setDate(weekEnd.getDate() + 7);
+                filteredData = data.filter(apt => {
+                    const aptDate = new Date(apt.appointment_date);
+                    return aptDate >= today && aptDate <= weekEnd;
+                });
+            }
+            
+            setAppointments(filteredData);
+            
+            // Calculate enhanced stats
+            const todayAppointments = data.filter(app => {
+                const appDate = new Date(app.appointment_date);
+                return appDate.toDateString() === today.toDateString();
+            });
+
+            setStats({
+                todayTotal: todayAppointments.length,
+                todayCompleted: todayAppointments.filter(a => a.status === 'Completed').length,
+                todayPending: todayAppointments.filter(a => a.status === 'Waiting' || a.status === 'Scheduled').length,
+                todayCancelled: todayAppointments.filter(a => a.status === 'Cancelled').length,
+                totalPatients: new Set(data.map(a => a.patient_id)).size,
+                weeklyAppointments: data.length
+            });
         } catch (error) {
             console.error('Error loading appointments:', error);
-            toast.error('Failed to reload schedule');
+            toast.error('فشل تحميل المواعيد');
         } finally {
             setLoading(false);
         }
@@ -48,55 +98,163 @@ const ReceptionDashboard: React.FC = () => {
         return () => {
             if (subscription) subscription.unsubscribe();
         };
-    }, []);
+    }, [selectedFilter]);
 
     const handleStatusUpdate = async (appointmentId: string, newStatus: any) => {
         try {
             await appointmentService.updateStatus(appointmentId, newStatus);
-            toast.success(`Status updated to ${newStatus}`);
-            loadAppointments(); // Refresh list immediately
+            toast.success(`تم تحديث الحالة إلى ${newStatus}`);
+            loadAppointments();
         } catch (error) {
-            toast.error('Failed to update status');
+            toast.error('فشل تحديث الحالة');
         }
     };
 
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'Completed':
+                return 'bg-green-100 text-green-800 border-green-200';
+            case 'Scheduled':
+                return 'bg-blue-100 text-blue-800 border-blue-200';
+            case 'Waiting':
+                return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            case 'Cancelled':
+                return 'bg-red-100 text-red-800 border-red-200';
+            default:
+                return 'bg-gray-100 text-gray-800 border-gray-200';
+        }
+    };
+
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case 'Completed':
+                return <CheckCircle className="w-4 h-4" />;
+            case 'Cancelled':
+                return <XCircle className="w-4 h-4" />;
+            default:
+                return <AlertCircle className="w-4 h-4" />;
+        }
+    };
+
+    const formatTime = (date: string) => {
+        return new Date(date).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const formatDate = (date: string) => {
+        return new Date(date).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-6 p-6">
-            {/* Header & Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="md:col-span-1">
-                    <h1 className="text-2xl font-bold text-gray-900">Reception</h1>
-                    <p className="text-gray-500 text-sm">
-                        {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}
-                    </p>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6" dir="rtl">
+            {/* Header */}
+            <div className="mb-8">
+                <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                    مرحباً د. محمد صلاح
+                </h1>
+                <p className="text-gray-600 text-lg">
+                    لوحة التحكم الطبية - {new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+            </div>
+
+            {/* Enhanced Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="bg-white rounded-2xl shadow-lg p-6 border-r-4 border-teal-500 hover:shadow-xl transition-shadow">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-gray-600 text-sm font-medium mb-1">إجمالي اليوم</p>
+                            <p className="text-3xl font-bold text-gray-800">{stats.todayTotal}</p>
+                        </div>
+                        <div className="bg-teal-100 p-4 rounded-full">
+                            <Calendar className="w-8 h-8 text-teal-600" />
+                        </div>
+                    </div>
                 </div>
 
-                {/* Stats Cards */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-center">
-                    <span className="text-gray-500 text-xs uppercase font-semibold">Total Today</span>
-                    <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
+                <div className="bg-white rounded-2xl shadow-lg p-6 border-r-4 border-green-500 hover:shadow-xl transition-shadow">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-gray-600 text-sm font-medium mb-1">المكتملة</p>
+                            <p className="text-3xl font-bold text-gray-800">{stats.todayCompleted}</p>
+                        </div>
+                        <div className="bg-green-100 p-4 rounded-full">
+                            <CheckCircle className="w-8 h-8 text-green-600" />
+                        </div>
+                    </div>
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-center border-l-4 border-l-green-500">
-                    <span className="text-green-600 text-xs uppercase font-semibold">Waiting Now</span>
-                    <span className="text-2xl font-bold text-gray-900">{stats.waiting}</span>
+
+                <div className="bg-white rounded-2xl shadow-lg p-6 border-r-4 border-yellow-500 hover:shadow-xl transition-shadow">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-gray-600 text-sm font-medium mb-1">قيد الانتظار</p>
+                            <p className="text-3xl font-bold text-gray-800">{stats.todayPending}</p>
+                        </div>
+                        <div className="bg-yellow-100 p-4 rounded-full">
+                            <Clock className="w-8 h-8 text-yellow-600" />
+                        </div>
+                    </div>
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-center border-l-4 border-l-blue-500">
-                    <span className="text-blue-600 text-xs uppercase font-semibold">Completed</span>
-                    <span className="text-2xl font-bold text-gray-900">{stats.completed}</span>
+
+                <div className="bg-white rounded-2xl shadow-lg p-6 border-r-4 border-blue-500 hover:shadow-xl transition-shadow">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-gray-600 text-sm font-medium mb-1">إجمالي المرضى</p>
+                            <p className="text-3xl font-bold text-gray-800">{stats.totalPatients}</p>
+                        </div>
+                        <div className="bg-blue-100 p-4 rounded-full">
+                            <Users className="w-8 h-8 text-blue-600" />
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Actions Bar */}
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                <h2 className="font-bold text-gray-800 flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-teal-600" />
-                    Today's Schedule
-                </h2>
+            {/* Filters and Actions */}
+            <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 flex justify-between items-center">
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => setSelectedFilter('today')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                            selectedFilter === 'today'
+                                ? 'bg-teal-600 text-white shadow-md'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                        اليوم
+                    </button>
+                    <button
+                        onClick={() => setSelectedFilter('week')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                            selectedFilter === 'week'
+                                ? 'bg-teal-600 text-white shadow-md'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                        هذا الأسبوع
+                    </button>
+                    <button
+                        onClick={() => setSelectedFilter('all')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                            selectedFilter === 'all'
+                                ? 'bg-teal-600 text-white shadow-md'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                        الكل
+                    </button>
+                </div>
+                
                 <div className="flex gap-3">
                     <button
                         onClick={loadAppointments}
                         className="p-2 text-gray-500 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                        title="Refresh"
+                        title="تحديث"
                     >
                         <RefreshCw size={20} />
                     </button>
@@ -105,108 +263,119 @@ const ReceptionDashboard: React.FC = () => {
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
                     >
                         <UserPlus size={16} />
-                        Quick Register
+                        تسجيل سريع
                     </button>
                     <button
                         onClick={() => setShowNewAppointmentModal(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors shadow-sm font-medium text-sm"
                     >
                         <Plus size={16} />
-                        New Appointment
+                        موعد جديد
                     </button>
                 </div>
             </div>
 
-            {/* Today's Schedule Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                {loading && appointments.length === 0 ? (
-                    <div className="p-12 text-center text-gray-500">
-                        <div className="animate-spin w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                        Loading schedule...
-                    </div>
-                ) : appointments.length === 0 ? (
-                    <div className="p-16 text-center text-gray-500 flex flex-col items-center">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                            <Calendar className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <h3 className="text-lg font-medium text-gray-900">No appointments today</h3>
-                        <p className="text-sm">Click "New Appointment" to schedule a visit.</p>
+            {/* Appointments List - Professional Design */}
+            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div className="bg-gradient-to-r from-teal-600 to-teal-700 p-6">
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                        <Activity className="w-7 h-7" />
+                        المواعيد والحجوزات
+                    </h2>
+                </div>
+
+                {appointments.length === 0 ? (
+                    <div className="p-12 text-center">
+                        <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">لا توجد مواعيد محجوزة</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-gray-50 text-gray-600 text-xs uppercase font-semibold">
-                                <tr>
-                                    <th className="px-6 py-4">Time</th>
-                                    <th className="px-6 py-4">Patient</th>
-                                    <th className="px-6 py-4">Visit Type</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {appointments.map((apt) => (
-                                    <tr key={apt.id} className="hover:bg-gray-50 transition-colors group">
-                                        <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
-                                            <div className="flex items-center gap-2">
-                                                <Clock size={16} className="text-gray-400" />
-                                                {apt.appointment_date ? new Date(apt.appointment_date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '-'}
+                    <div className="divide-y divide-gray-100">
+                        {appointments.map((appointment) => (
+                            <div
+                                key={appointment.id}
+                                className="p-6 hover:bg-gray-50 transition-colors"
+                            >
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div className="bg-teal-100 p-2 rounded-full">
+                                                <Users className="w-5 h-5 text-teal-600" />
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-bold text-gray-900">{apt.patient?.name}</span>
-                                                <span className="text-xs text-gray-500 flex items-center gap-1">
-                                                    <Smartphone size={10} />
-                                                    {apt.patient?.phone}
-                                                </span>
+                                            <div>
+                                                <h3 className="text-lg font-bold text-gray-800">
+                                                    {appointment.patient?.name || 'مريض'}
+                                                </h3>
+                                                <p className="text-sm text-gray-600">{appointment.patient?.phone || '-'}</p>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${apt.visit_type === 'Consultation' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
-                                                apt.visit_type === 'Procedure' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
-                                                    'bg-gray-100 text-gray-700 border border-gray-200'
-                                                }`}>
-                                                {apt.visit_type}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mr-12">
+                                            <div className="flex items-center gap-2 text-gray-700">
+                                                <Calendar className="w-4 h-4 text-teal-600" />
+                                                <span className="text-sm">{appointment.appointment_date ? formatDate(appointment.appointment_date) : '-'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-gray-700">
+                                                <Clock className="w-4 h-4 text-teal-600" />
+                                                <span className="text-sm">{appointment.appointment_date ? formatTime(appointment.appointment_date) : '-'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-gray-700">
+                                                <Activity className="w-4 h-4 text-teal-600" />
+                                                <span className="text-sm font-medium">{appointment.visit_type || 'استشارة'}</span>
+                                            </div>
+                                        </div>
+
+                                        {appointment.notes && (
+                                            <div className="mt-3 mr-12 p-3 bg-gray-50 rounded-lg">
+                                                <p className="text-sm text-gray-600">
+                                                    <span className="font-semibold">ملاحظات: </span>
+                                                    {appointment.notes}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-col gap-2 items-end">
+                                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 ${getStatusColor(appointment.status)}`}>
+                                            {getStatusIcon(appointment.status)}
+                                            <span className="text-sm font-semibold">
+                                                {appointment.status === 'Completed' && 'مكتمل'}
+                                                {appointment.status === 'Scheduled' && 'مجدول'}
+                                                {appointment.status === 'Waiting' && 'قيد الانتظار'}
+                                                {appointment.status === 'Cancelled' && 'ملغي'}
                                             </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <StatusBadge status={apt.status} />
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                                {apt.status === 'Scheduled' && (
-                                                    <>
-                                                        <button
-                                                            onClick={() => handleStatusUpdate(apt.id, 'Waiting')}
-                                                            className="text-xs bg-green-600 text-white hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors font-medium flex items-center gap-1 shadow-sm"
-                                                        >
-                                                            <CheckCircle size={12} />
-                                                            Check In
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleStatusUpdate(apt.id, 'Cancelled')}
-                                                            className="text-xs bg-white border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors font-medium"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                    </>
-                                                )}
-                                                {apt.status === 'Waiting' && (
-                                                    <button
-                                                        onClick={() => handleStatusUpdate(apt.id, 'Completed')} // Normally doctor does this, but for dev/demo receptionist might need ability
-                                                        className="text-xs bg-white border border-gray-200 text-gray-500 px-3 py-1.5 rounded-lg cursor-not-allowed"
-                                                        title="Doctor will complete"
-                                                    >
-                                                        Waiting...
-                                                    </button>
-                                                )}
+                                        </div>
+                                        
+                                        {/* Action Buttons */}
+                                        {appointment.status === 'Scheduled' && (
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleStatusUpdate(appointment.id, 'Waiting')}
+                                                    className="text-xs bg-green-600 text-white hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors font-medium flex items-center gap-1 shadow-sm"
+                                                >
+                                                    <CheckCircle size={12} />
+                                                    حضر
+                                                </button>
+                                                <button
+                                                    onClick={() => handleStatusUpdate(appointment.id, 'Cancelled')}
+                                                    className="text-xs bg-red-600 text-white hover:bg-red-700 px-3 py-1.5 rounded-lg transition-colors font-medium"
+                                                >
+                                                    إلغاء
+                                                </button>
                                             </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                        )}
+                                        {appointment.status === 'Waiting' && (
+                                            <button
+                                                onClick={() => handleStatusUpdate(appointment.id, 'Completed')}
+                                                className="text-xs bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors font-medium"
+                                            >
+                                                إنهاء
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
