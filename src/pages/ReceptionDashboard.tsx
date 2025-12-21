@@ -24,9 +24,20 @@ const ReceptionDashboard: React.FC = () => {
     const [showRegisterPatientModal, setShowRegisterPatientModal] = useState(false);
     const [selectedFilter, setSelectedFilter] = useState<'all' | 'today' | 'week'>('today');
     const { patients, addPatient, searchQuery, setSearchQuery } = usePatients();
+    const [doctorName, setDoctorName] = useState<string>('الطبيب');
 
     // Enhanced Stats with animations
     const [stats, setStats] = useState<Stats>({
+        todayTotal: 0,
+        todayCompleted: 0,
+        todayPending: 0,
+        todayCancelled: 0,
+        totalPatients: 0,
+        weeklyAppointments: 0,
+        todayRevenue: 0,
+        completionRate: 0
+    });
+    const [previousStats, setPreviousStats] = useState<Stats>({
         todayTotal: 0,
         todayCompleted: 0,
         todayPending: 0,
@@ -47,37 +58,57 @@ const ReceptionDashboard: React.FC = () => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
             let data = [];
+            let yesterdayData = [];
+            
+            // Get current user and doctor info
+            const user = await authService.getCurrentUser();
+            let doctorId = null;
+            
+            if (user) {
+                const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
+                doctorId = doctor?.id;
+                
+                // Set doctor name from database
+                if (doctor?.name) {
+                    setDoctorName(doctor.name);
+                } else if (user.email) {
+                    setDoctorName(user.email.split('@')[0]);
+                }
+            }
             
             if (selectedFilter === 'today') {
                 // Fetch today's appointments
                 const dateFilter = today.toISOString().split('T')[0];
                 data = await appointmentService.getAppointments(dateFilter);
+                
+                // Fetch yesterday's data for comparison
+                const yesterdayFilter = yesterday.toISOString().split('T')[0];
+                try {
+                    yesterdayData = await appointmentService.getAppointments(yesterdayFilter);
+                } catch (e) {
+                    console.log('Could not fetch yesterday data for comparison');
+                }
             } else if (selectedFilter === 'week') {
                 // Fetch all appointments and filter for this week
-                const user = await authService.getCurrentUser();
-                if (user) {
-                    const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-                    if (doctor?.id) {
-                        data = await appointmentService.getAllDoctorAppointments(doctor.id);
-                        
-                        // Filter for this week
-                        const weekEnd = new Date(today);
-                        weekEnd.setDate(weekEnd.getDate() + 7);
-                        data = data.filter(apt => {
-                            const aptDate = new Date(apt.appointment_date);
-                            return aptDate >= today && aptDate <= weekEnd;
-                        });
-                    }
+                if (doctorId) {
+                    data = await appointmentService.getAllDoctorAppointments(doctorId);
+                    
+                    // Filter for this week
+                    const weekEnd = new Date(today);
+                    weekEnd.setDate(weekEnd.getDate() + 7);
+                    data = data.filter(apt => {
+                        const aptDate = new Date(apt.appointment_date);
+                        return aptDate >= today && aptDate <= weekEnd;
+                    });
                 }
             } else if (selectedFilter === 'all') {
                 // Fetch all appointments
-                const user = await authService.getCurrentUser();
-                if (user) {
-                    const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
-                    if (doctor?.id) {
-                        data = await appointmentService.getAllDoctorAppointments(doctor.id);
-                    }
+                if (doctorId) {
+                    data = await appointmentService.getAllDoctorAppointments(doctorId);
                 }
             }
             
@@ -88,20 +119,45 @@ const ReceptionDashboard: React.FC = () => {
                 const appDate = new Date(app.appointment_date);
                 return appDate.toDateString() === today.toDateString();
             });
+            
+            const yesterdayAppointments = yesterdayData.filter(app => {
+                const appDate = new Date(app.appointment_date);
+                return appDate.toDateString() === yesterday.toDateString();
+            });
 
             const completed = todayAppointments.filter(a => a.status === 'Completed').length;
             const total = todayAppointments.length;
+            const pending = todayAppointments.filter(a => a.status === 'Waiting' || a.status === 'Scheduled').length;
+            const cancelled = todayAppointments.filter(a => a.status === 'Cancelled').length;
+            const totalPatients = new Set(data.map(a => a.patient_id)).size;
             
-            setStats({
+            // Calculate previous stats for comparison
+            const yesterdayTotal = yesterdayAppointments.length;
+            const yesterdayCompleted = yesterdayAppointments.filter(a => a.status === 'Completed').length;
+            
+            const newStats = {
                 todayTotal: total,
                 todayCompleted: completed,
-                todayPending: todayAppointments.filter(a => a.status === 'Waiting' || a.status === 'Scheduled').length,
-                todayCancelled: todayAppointments.filter(a => a.status === 'Cancelled').length,
-                totalPatients: new Set(data.map(a => a.patient_id)).size,
+                todayPending: pending,
+                todayCancelled: cancelled,
+                totalPatients: totalPatients,
                 weeklyAppointments: data.length,
                 todayRevenue: completed * 500, // Example calculation
                 completionRate: total > 0 ? Math.round((completed / total) * 100) : 0
+            };
+            
+            setPreviousStats({
+                todayTotal: yesterdayTotal,
+                todayCompleted: yesterdayCompleted,
+                todayPending: 0,
+                todayCancelled: 0,
+                totalPatients: 0,
+                weeklyAppointments: 0,
+                todayRevenue: 0,
+                completionRate: 0
             });
+            
+            setStats(newStats);
         } catch (error) {
             console.error('Error loading appointments:', error);
             toast.error('فشل تحميل المواعيد');
@@ -218,7 +274,7 @@ const ReceptionDashboard: React.FC = () => {
                         </div>
                         <div>
                             <h1 className="text-4xl font-black bg-gradient-to-r from-gray-800 via-gray-700 to-gray-600 bg-clip-text text-transparent mb-1">
-                                مرحباً د. محمد صلاح
+                                مرحباً {doctorName}
                             </h1>
                             <p className="text-gray-600 text-base flex items-center gap-2">
                                 <Calendar className="w-4 h-4" />
@@ -251,10 +307,27 @@ const ReceptionDashboard: React.FC = () => {
                             <div className="p-3 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl shadow-lg group-hover:scale-110 transition-transform duration-300">
                                 <Calendar className="w-7 h-7 text-white" />
                             </div>
-                            <div className="flex items-center gap-1 px-3 py-1 bg-teal-50 rounded-full">
-                                <ArrowUp className="w-3 h-3 text-teal-600" />
-                                <span className="text-xs font-bold text-teal-600">+12%</span>
-                            </div>
+                            {stats.todayTotal > 0 && previousStats.todayTotal > 0 && (
+                                <div className="flex items-center gap-1 px-3 py-1 bg-teal-50 rounded-full">
+                                    {stats.todayTotal > previousStats.todayTotal ? (
+                                        <>
+                                            <ArrowUp className="w-3 h-3 text-teal-600" />
+                                            <span className="text-xs font-bold text-teal-600">
+                                                +{Math.round(((stats.todayTotal - previousStats.todayTotal) / previousStats.todayTotal) * 100)}%
+                                            </span>
+                                        </>
+                                    ) : stats.todayTotal < previousStats.todayTotal ? (
+                                        <>
+                                            <ArrowDown className="w-3 h-3 text-red-600" />
+                                            <span className="text-xs font-bold text-red-600">
+                                                {Math.round(((stats.todayTotal - previousStats.todayTotal) / previousStats.todayTotal) * 100)}%
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <span className="text-xs font-bold text-gray-600">0%</span>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <h3 className="text-gray-600 text-sm font-semibold mb-2">إجمالي اليوم</h3>
                         <p className="text-4xl font-black text-gray-800 mb-1">{stats.todayTotal}</p>
@@ -309,10 +382,12 @@ const ReceptionDashboard: React.FC = () => {
                             <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg group-hover:scale-110 transition-transform duration-300">
                                 <Users className="w-7 h-7 text-white" />
                             </div>
-                            <div className="flex items-center gap-1 px-3 py-1 bg-blue-50 rounded-full">
-                                <ArrowUp className="w-3 h-3 text-blue-600" />
-                                <span className="text-xs font-bold text-blue-600">+8%</span>
-                            </div>
+                            {stats.totalPatients > 0 && (
+                                <div className="flex items-center gap-1 px-3 py-1 bg-blue-50 rounded-full">
+                                    <Activity className="w-3 h-3 text-blue-600" />
+                                    <span className="text-xs font-bold text-blue-600">نشط</span>
+                                </div>
+                            )}
                         </div>
                         <h3 className="text-gray-600 text-sm font-semibold mb-2">إجمالي المرضى</h3>
                         <p className="text-4xl font-black text-gray-800 mb-1">{stats.totalPatients}</p>
@@ -437,9 +512,27 @@ const ReceptionDashboard: React.FC = () => {
                             <Calendar className="w-12 h-12 text-gray-400" />
                         </div>
                         <h3 className="text-2xl font-bold text-gray-700 mb-2">لا توجد مواعيد</h3>
-                        <p className="text-gray-500">
+                        <p className="text-gray-500 mb-4">
                             {searchTerm ? 'لا توجد نتائج للبحث' : 'لا توجد مواعيد محجوزة في هذه الفترة'}
                         </p>
+                        {!searchTerm && (
+                            <div className="flex gap-3 justify-center">
+                                <button
+                                    onClick={() => setShowRegisterPatientModal(true)}
+                                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-teal-500 text-teal-600 rounded-xl hover:bg-teal-50 transition-all font-bold text-sm"
+                                >
+                                    <UserPlus size={18} />
+                                    تسجيل مريض جديد
+                                </button>
+                                <button
+                                    onClick={() => setShowNewAppointmentModal(true)}
+                                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl hover:shadow-xl transition-all font-bold text-sm"
+                                >
+                                    <Plus size={18} />
+                                    حجز موعد جديد
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="p-6 space-y-4">
