@@ -1,5 +1,5 @@
 // services/appointmentService.ts
-import { supabase } from './supabaseClient';
+import { supabase } from '../../services/supabaseClient';
 
 export interface AppointmentData {
   doctor_id: string;
