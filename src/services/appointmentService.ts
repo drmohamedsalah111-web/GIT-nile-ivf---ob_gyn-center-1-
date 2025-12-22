@@ -47,8 +47,8 @@ export const appointmentService = {
         .from('appointments')
         .select(`
           *,
-          patients:patient_id(id, name, phone, email),
-          doctors:doctor_id(id, name, email)
+          patient:patient_id(id, name, phone, email),
+          doctor:doctor_id(id, name, email)
         `)
         .eq('doctor_id', doctorId)
         .gte('appointment_date', startDate)
@@ -60,14 +60,8 @@ export const appointmentService = {
         throw error;
       }
       
-      // Transform data to match expected format
-      const transformedData = (data || []).map(apt => ({
-        ...apt,
-        patient: apt.patients || null,
-        doctor: apt.doctors || null
-      }));
-      
-      return transformedData;
+      // Data already has correct structure from Supabase
+      return data || [];
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
       throw error;
@@ -80,8 +74,8 @@ export const appointmentService = {
         .from('appointments')
         .select(`
           *,
-          patients:patient_id(id, name, phone, email),
-          doctors:doctor_id(id, name, email)
+          patient:patient_id(id, name, phone, email),
+          doctor:doctor_id(id, name, email)
         `)
         .eq('doctor_id', doctorId)
         .neq('status', 'cancelled')
@@ -92,14 +86,8 @@ export const appointmentService = {
         throw error;
       }
       
-      // Transform data to match expected format
-      const transformedData = (data || []).map(apt => ({
-        ...apt,
-        patient: apt.patients || null,
-        doctor: apt.doctors || null
-      }));
-      
-      return transformedData;
+      // Data already has correct structure from Supabase
+      return data || [];
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
       throw error;
@@ -157,8 +145,8 @@ export const appointmentService = {
         .from('appointments')
         .select(`
           *,
-          patients:patient_id(id, name, phone, email),
-          doctors:doctor_id(id, name, email)
+          patient:patient_id(id, name, phone, email),
+          doctor:doctor_id(id, name, email)
         `)
         .gte('appointment_date', startDate)
         .lte('appointment_date', endDate)
@@ -169,14 +157,8 @@ export const appointmentService = {
         throw error;
       }
       
-      // Transform data to match expected format
-      const transformedData = (data || []).map(apt => ({
-        ...apt,
-        patient: apt.patients || null,
-        doctor: apt.doctors || null
-      }));
-      
-      return transformedData;
+      // Data already has correct structure from Supabase
+      return data || [];
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
       throw error;
