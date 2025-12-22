@@ -45,7 +45,11 @@ export const appointmentService = {
 
       const { data, error } = await supabase
         .from('appointments')
-        .select('*, patients(name, phone)')
+        .select(`
+          *,
+          patients(id, name, phone, email),
+          doctors(id, name, email)
+        `)
         .eq('doctor_id', doctorId)
         .gte('appointment_date', startDate)
         .lte('appointment_date', endDate)
@@ -63,7 +67,11 @@ export const appointmentService = {
     try {
       const { data, error } = await supabase
         .from('appointments')
-        .select('*, patients(name, phone)')
+        .select(`
+          *,
+          patients(id, name, phone, email),
+          doctors(id, name, email)
+        `)
         .eq('doctor_id', doctorId)
         .neq('status', 'cancelled')
         .order('appointment_date', { ascending: true });
@@ -125,7 +133,11 @@ export const appointmentService = {
 
       const { data, error } = await supabase
         .from('appointments')
-        .select('*, patients(name, phone)')
+        .select(`
+          *,
+          patients(id, name, phone, email),
+          doctors(id, name, email)
+        `)
         .gte('appointment_date', startDate)
         .lte('appointment_date', endDate)
         .order('appointment_date', { ascending: true });
