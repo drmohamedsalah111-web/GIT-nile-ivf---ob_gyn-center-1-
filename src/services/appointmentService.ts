@@ -47,16 +47,27 @@ export const appointmentService = {
         .from('appointments')
         .select(`
           *,
-          patients(id, name, phone, email),
-          doctors(id, name, email)
+          patients:patient_id(id, name, phone, email),
+          doctors:doctor_id(id, name, email)
         `)
         .eq('doctor_id', doctorId)
         .gte('appointment_date', startDate)
         .lte('appointment_date', endDate)
         .order('appointment_date', { ascending: true });
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('Supabase error details:', error);
+        throw error;
+      }
+      
+      // Transform data to match expected format
+      const transformedData = (data || []).map(apt => ({
+        ...apt,
+        patient: apt.patients || null,
+        doctor: apt.doctors || null
+      }));
+      
+      return transformedData;
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
       throw error;
@@ -69,15 +80,26 @@ export const appointmentService = {
         .from('appointments')
         .select(`
           *,
-          patients(id, name, phone, email),
-          doctors(id, name, email)
+          patients:patient_id(id, name, phone, email),
+          doctors:doctor_id(id, name, email)
         `)
         .eq('doctor_id', doctorId)
         .neq('status', 'cancelled')
         .order('appointment_date', { ascending: true });
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('Supabase error details:', error);
+        throw error;
+      }
+      
+      // Transform data to match expected format
+      const transformedData = (data || []).map(apt => ({
+        ...apt,
+        patient: apt.patients || null,
+        doctor: apt.doctors || null
+      }));
+      
+      return transformedData;
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
       throw error;
@@ -135,15 +157,26 @@ export const appointmentService = {
         .from('appointments')
         .select(`
           *,
-          patients(id, name, phone, email),
-          doctors(id, name, email)
+          patients:patient_id(id, name, phone, email),
+          doctors:doctor_id(id, name, email)
         `)
         .gte('appointment_date', startDate)
         .lte('appointment_date', endDate)
         .order('appointment_date', { ascending: true });
 
-      if (error) throw error;
-      return data || [];
+      if (error) {
+        console.error('Supabase error details:', error);
+        throw error;
+      }
+      
+      // Transform data to match expected format
+      const transformedData = (data || []).map(apt => ({
+        ...apt,
+        patient: apt.patients || null,
+        doctor: apt.doctors || null
+      }));
+      
+      return transformedData;
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
       throw error;
