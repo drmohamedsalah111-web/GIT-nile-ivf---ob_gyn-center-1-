@@ -259,8 +259,8 @@ const ReceptionDashboard: React.FC = () => {
         if (!searchTerm) return true;
         
         const searchLower = searchTerm.toLowerCase();
-        const patientName = apt.patients?.name?.toLowerCase() || '';
-        const patientPhone = apt.patients?.phone || '';
+        const patientName = apt.patient?.name?.toLowerCase() || '';
+        const patientPhone = apt.patient?.phone || '';
         const visitType = apt.visit_type?.toLowerCase() || '';
         
         return patientName.includes(searchLower) ||
@@ -577,12 +577,12 @@ const ReceptionDashboard: React.FC = () => {
                                                 </div>
                                                 <div className="min-w-0 flex-1">
                                                     <h3 className="text-base sm:text-lg md:text-xl font-black text-gray-800 mb-0.5 sm:mb-1 truncate">
-                                                        {appointment.patients?.name || 'مريض'}
+                                                        {appointment.patient?.name || 'مريض'}
                                                     </h3>
                                                     <div className="flex items-center gap-2 sm:gap-3 md:gap-4 text-xs sm:text-sm text-gray-600">
                                                         <span className="flex items-center gap-0.5 sm:gap-1">
                                                             <Phone className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
-                                                            <span className="truncate">{appointment.patients?.phone || '-'}</span>
+                                                            <span className="truncate">{appointment.patient?.phone || '-'}</span>
                                                         </span>
                                                     </div>
                                                 </div>
