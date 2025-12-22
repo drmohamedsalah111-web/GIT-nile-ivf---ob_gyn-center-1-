@@ -44,23 +44,17 @@ export const appointmentService = {
       const endDate = `${date}T23:59:59`;
 
       const { data, error } = await supabase
-        .from('appointments')
-        .select(`
-          *,
-          patients(id, name, phone, email),
-          doctors(id, name, email)
-        `)
-        .eq('doctor_id', doctorId)
-        .gte('appointment_date', startDate)
-        .lte('appointment_date', endDate)
-        .order('appointment_date', { ascending: true });
+        .rpc('get_doctor_appointments_with_details', {
+          p_doctor_id: doctorId,
+          start_date: startDate,
+          end_date: endDate
+        });
 
       if (error) {
         console.error('Supabase error details:', error);
         throw error;
       }
       
-      // Data already has correct structure from Supabase
       return data || [];
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
@@ -71,22 +65,15 @@ export const appointmentService = {
   async getAllDoctorAppointments(doctorId: string) {
     try {
       const { data, error } = await supabase
-        .from('appointments')
-        .select(`
-          *,
-          patients(id, name, phone, email),
-          doctors(id, name, email)
-        `)
-        .eq('doctor_id', doctorId)
-        .neq('status', 'cancelled')
-        .order('appointment_date', { ascending: true });
+        .rpc('get_all_doctor_appointments_with_details', {
+          p_doctor_id: doctorId
+        });
 
       if (error) {
         console.error('Supabase error details:', error);
         throw error;
       }
       
-      // Data already has correct structure from Supabase
       return data || [];
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
@@ -142,22 +129,16 @@ export const appointmentService = {
       const endDate = `${date}T23:59:59`;
 
       const { data, error } = await supabase
-        .from('appointments')
-        .select(`
-          *,
-          patients(id, name, phone, email),
-          doctors(id, name, email)
-        `)
-        .gte('appointment_date', startDate)
-        .lte('appointment_date', endDate)
-        .order('appointment_date', { ascending: true });
+        .rpc('get_appointments_with_details', {
+          start_date: startDate,
+          end_date: endDate
+        });
 
       if (error) {
         console.error('Supabase error details:', error);
         throw error;
       }
       
-      // Data already has correct structure from Supabase
       return data || [];
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
