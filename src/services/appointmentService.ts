@@ -47,8 +47,8 @@ export const appointmentService = {
         .from('appointments')
         .select(`
           *,
-          patients!patient_id(id, name, phone, email),
-          doctors!doctor_id(id, name, email)
+          patients(id, name, phone, email),
+          doctors(id, name, email)
         `)
         .eq('doctor_id', doctorId)
         .gte('appointment_date', startDate)
@@ -74,8 +74,8 @@ export const appointmentService = {
         .from('appointments')
         .select(`
           *,
-          patients!patient_id(id, name, phone, email),
-          doctors!doctor_id(id, name, email)
+          patients(id, name, phone, email),
+          doctors(id, name, email)
         `)
         .eq('doctor_id', doctorId)
         .neq('status', 'cancelled')
@@ -145,8 +145,8 @@ export const appointmentService = {
         .from('appointments')
         .select(`
           *,
-          patients!patient_id(id, name, phone, email),
-          doctors!doctor_id(id, name, email)
+          patients(id, name, phone, email),
+          doctors(id, name, email)
         `)
         .gte('appointment_date', startDate)
         .lte('appointment_date', endDate)
