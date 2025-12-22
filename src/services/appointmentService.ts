@@ -43,19 +43,50 @@ export const appointmentService = {
       const startDate = `${date}T00:00:00`;
       const endDate = `${date}T23:59:59`;
 
-      const { data, error } = await supabase
-        .rpc('get_doctor_appointments_with_details', {
-          p_doctor_id: doctorId,
-          start_date: startDate,
-          end_date: endDate
-        });
+      // Fetch appointments first
+      const { data: appointments, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('doctor_id', doctorId)
+        .gte('appointment_date', startDate)
+        .lte('appointment_date', endDate)
+        .order('appointment_date', { ascending: true });
 
-      if (error) {
-        console.error('Supabase error details:', error);
-        throw error;
+      if (appointmentsError) {
+        console.error('Appointments error:', appointmentsError);
+        throw appointmentsError;
       }
-      
-      return data || [];
+
+      if (!appointments || appointments.length === 0) {
+        return [];
+      }
+
+      // Get unique patient IDs
+      const patientIds = [...new Set(appointments.map(apt => apt.patient_id).filter(Boolean))];
+
+      // Fetch patients data
+      let patientsMap: Record<string, any> = {};
+      if (patientIds.length > 0) {
+        const { data: patients, error: patientsError } = await supabase
+          .from('patients')
+          .select('id, name, phone')
+          .in('id', patientIds);
+
+        if (!patientsError && patients) {
+          patientsMap = patients.reduce((acc, p) => {
+            acc[p.id] = p;
+            return acc;
+          }, {} as Record<string, any>);
+        }
+      }
+
+      // Merge patient data into appointments
+      const result = appointments.map(apt => ({
+        ...apt,
+        patient: patientsMap[apt.patient_id] || null
+      }));
+
+      return result;
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
       throw error;
@@ -64,17 +95,48 @@ export const appointmentService = {
 
   async getAllDoctorAppointments(doctorId: string) {
     try {
-      const { data, error } = await supabase
-        .rpc('get_all_doctor_appointments_with_details', {
-          p_doctor_id: doctorId
-        });
+      // Fetch all appointments for this doctor
+      const { data: appointments, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('doctor_id', doctorId)
+        .order('appointment_date', { ascending: false });
 
-      if (error) {
-        console.error('Supabase error details:', error);
-        throw error;
+      if (appointmentsError) {
+        console.error('Appointments error:', appointmentsError);
+        throw appointmentsError;
       }
-      
-      return data || [];
+
+      if (!appointments || appointments.length === 0) {
+        return [];
+      }
+
+      // Get unique patient IDs
+      const patientIds = [...new Set(appointments.map(apt => apt.patient_id).filter(Boolean))];
+
+      // Fetch patients data
+      let patientsMap: Record<string, any> = {};
+      if (patientIds.length > 0) {
+        const { data: patients, error: patientsError } = await supabase
+          .from('patients')
+          .select('id, name, phone')
+          .in('id', patientIds);
+
+        if (!patientsError && patients) {
+          patientsMap = patients.reduce((acc, p) => {
+            acc[p.id] = p;
+            return acc;
+          }, {} as Record<string, any>);
+        }
+      }
+
+      // Merge patient data into appointments
+      const result = appointments.map(apt => ({
+        ...apt,
+        patient: patientsMap[apt.patient_id] || null
+      }));
+
+      return result;
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
       throw error;
@@ -128,18 +190,49 @@ export const appointmentService = {
       const startDate = `${date}T00:00:00`;
       const endDate = `${date}T23:59:59`;
 
-      const { data, error } = await supabase
-        .rpc('get_appointments_with_details', {
-          start_date: startDate,
-          end_date: endDate
-        });
+      // Fetch appointments first
+      const { data: appointments, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('*')
+        .gte('appointment_date', startDate)
+        .lte('appointment_date', endDate)
+        .order('appointment_date', { ascending: true });
 
-      if (error) {
-        console.error('Supabase error details:', error);
-        throw error;
+      if (appointmentsError) {
+        console.error('Appointments error:', appointmentsError);
+        throw appointmentsError;
       }
-      
-      return data || [];
+
+      if (!appointments || appointments.length === 0) {
+        return [];
+      }
+
+      // Get unique patient IDs
+      const patientIds = [...new Set(appointments.map(apt => apt.patient_id).filter(Boolean))];
+
+      // Fetch patients data
+      let patientsMap: Record<string, any> = {};
+      if (patientIds.length > 0) {
+        const { data: patients, error: patientsError } = await supabase
+          .from('patients')
+          .select('id, name, phone')
+          .in('id', patientIds);
+
+        if (!patientsError && patients) {
+          patientsMap = patients.reduce((acc, p) => {
+            acc[p.id] = p;
+            return acc;
+          }, {} as Record<string, any>);
+        }
+      }
+
+      // Merge patient data into appointments
+      const result = appointments.map(apt => ({
+        ...apt,
+        patient: patientsMap[apt.patient_id] || null
+      }));
+
+      return result;
     } catch (error: any) {
       console.error('Error fetching appointments:', error);
       throw error;
