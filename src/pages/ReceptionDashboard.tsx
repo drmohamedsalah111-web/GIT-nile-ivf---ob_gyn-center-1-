@@ -953,11 +953,6 @@ const NewAppointmentModal: React.FC<{
             </div>
         </div>
     );
-                    </form>
-                </div>
-            </div>
-        </div>
-    );
 };
 
 // Register Patient Modal
