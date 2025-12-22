@@ -112,6 +112,14 @@ const ReceptionDashboard: React.FC = () => {
                 }
             }
             
+            // Debug: Log the appointments data to see structure
+            console.log('Loaded appointments:', data);
+            if (data.length > 0) {
+                console.log('First appointment structure:', data[0]);
+                console.log('First appointment patient:', data[0].patient);
+                console.log('First appointment patients:', data[0].patients);
+            }
+            
             setAppointments(data);
             
             // Calculate enhanced stats
