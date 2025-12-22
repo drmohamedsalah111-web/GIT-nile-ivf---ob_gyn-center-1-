@@ -395,6 +395,83 @@ export const dbService = {
     }
   },
 
+  handleCreateCycle: async (patientId: string) => {
+    try {
+      if (!patientId) {
+        throw new Error('رقم المريضة غير صالح');
+      }
+
+      console.log('📋 Fetching patient to get assigned doctor...');
+      const { data: patient, error: patientError } = await supabase
+        .from('patients')
+        .select('doctor_id')
+        .eq('id', patientId)
+        .maybeSingle();
+
+      if (patientError) {
+        console.error('❌ Error fetching patient:', patientError);
+        throw patientError;
+      }
+
+      if (!patient) {
+        throw new Error('المريضة غير موجودة في النظام');
+      }
+
+      if (!patient.doctor_id) {
+        throw new Error('يجب تعيين طبيب للمريضة قبل إنشاء دورة IVF. يرجى التواصل مع المسؤول');
+      }
+
+      console.log('✅ Doctor found for patient:', patient.doctor_id);
+
+      const cycleId = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const startDate = new Date().toISOString().split('T')[0];
+
+      console.log('💾 Creating IVF cycle...', {
+        id: cycleId,
+        patient_id: patientId,
+        doctor_id: patient.doctor_id,
+        start_date: startDate
+      });
+
+      const { data: newCycle, error: insertError } = await supabase
+        .from('ivf_cycles')
+        .insert([{
+          id: cycleId,
+          patient_id: patientId,
+          doctor_id: patient.doctor_id,
+          protocol: 'Antagonist',
+          status: 'Active',
+          start_date: startDate,
+          created_at: now,
+          updated_at: now
+        }])
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('❌ Insert error:', insertError);
+        throw insertError;
+      }
+
+      console.log('✅ IVF cycle created successfully:', cycleId);
+      return { 
+        success: true, 
+        cycleId: newCycle.id,
+        message: 'تم إنشاء دورة IVF بنجاح'
+      };
+    } catch (error: any) {
+      const details = error?.message ? `: ${error.message}` : '';
+      const code = error?.code ? ` (code: ${error.code})` : '';
+      console.error('❌ handleCreateCycle error:', error);
+      return {
+        success: false,
+        error: `فشل إنشاء دورة IVF${details}${code}`,
+        details: error?.message
+      };
+    }
+  },
+
   updateCycleOutcome: async (cycleId: string, outcomeData: any) => {
     try {
       if (!cycleId) throw new Error('رقم الدورة غير صالح');
