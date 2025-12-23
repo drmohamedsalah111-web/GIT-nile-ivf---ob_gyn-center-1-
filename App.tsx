@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { BookOpen, LogOut, Shield } from 'lucide-react';
 
 import { Sidebar } from './components/Sidebar';
