@@ -16,6 +16,7 @@
     "@powersync/web": "^1.29.1",
     "@supabase/supabase-js": "^2.89.0",
     "clsx": "^2.1.0",
+    "js-logger": "^1.6.1",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -23,6 +24,7 @@
     "react-router-dom": "^7.11.0",
     "recharts": "^2.12.2",
     "tailwind-merge": "^2.2.1",
+    "uuid": "^13.0.0",
     "wa-sqlite": "^1.0.0"
   },
   "devDependencies": {
