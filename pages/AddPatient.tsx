@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 interface Doctor {
   id: string;
   name: string;
+  name_ar: string | null;
 }
 
 interface FormData {
@@ -15,7 +16,6 @@ interface FormData {
   age: string;
   phone: string;
   husband_name: string;
-  history: string;
   doctor_id: string;
 }
 
@@ -25,7 +25,6 @@ const AddPatient: React.FC = () => {
     age: '',
     phone: '',
     husband_name: '',
-    history: '',
     doctor_id: ''
   });
 
@@ -43,7 +42,7 @@ const AddPatient: React.FC = () => {
       setFetchingDoctors(true);
       const { data, error } = await supabase
         .from('doctors')
-        .select('id, name')
+        .select('id, name, name_ar')
         .eq('user_role', 'doctor')
         .order('name');
 
@@ -109,7 +108,6 @@ const AddPatient: React.FC = () => {
         age: formData.age ? parseInt(formData.age) : 0,
         phone: formData.phone.trim(),
         husband_name: formData.husband_name.trim(),
-        history: formData.history.trim(),
         doctor_id: formData.doctor_id,
         user_id: user.id
       };
@@ -123,7 +121,6 @@ const AddPatient: React.FC = () => {
         age: '',
         phone: '',
         husband_name: '',
-        history: '',
         doctor_id: ''
       });
       setErrors({});
@@ -305,7 +302,7 @@ const AddPatient: React.FC = () => {
                     <option value="">-- اختر الطبيب المسؤول --</option>
                     {doctors.map(doctor => (
                       <option key={doctor.id} value={doctor.id}>
-                        د. {doctor.name}
+                        د. {doctor.name_ar || doctor.name}
                       </option>
                     ))}
                   </select>
@@ -316,25 +313,6 @@ const AddPatient: React.FC = () => {
                 <p className="text-gray-600 text-sm mt-2">
                   ⚠️ يجب اختيار الطبيب الذي ستتابع المريضة معه
                 </p>
-              </div>
-
-              {/* Medical History */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  السجل الطبي
-                </label>
-                <div className="relative">
-                  <FileText className="absolute right-3 top-3 w-5 h-5 text-gray-400 pointer-events-none" />
-                  <textarea
-                    name="history"
-                    value={formData.history}
-                    onChange={handleInputChange}
-                    placeholder="التاريخ الطبي، العمليات السابقة، الحساسيات، إلخ..."
-                    rows={4}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all bg-white resize-none"
-                    disabled={loading}
-                  />
-                </div>
               </div>
 
               {/* Submit Button */}
