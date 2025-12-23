@@ -63,13 +63,19 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setLoading(true);
     try {
       const role = isSecretary ? 'secretary' : 'doctor';
-      await authService.signup(email, password, signupData, role, signupData.doctorId);
-      toast.success('تم التسجيل بنجاح! يرجى التحقق من بريدك الإلكتروني');
-      setShowSignup(false);
-      setIsSecretary(false);
-      setEmail('');
-      setPassword('');
-      setSignupData({ name: '', specialization: '', phone: '', doctorId: '' });
+      const { session } = await authService.signup(email, password, signupData, role, signupData.doctorId);
+      
+      if (session) {
+        toast.success('تم التسجيل بنجاح!');
+        onLoginSuccess();
+      } else {
+        toast.success('تم التسجيل بنجاح! يرجى التحقق من بريدك الإلكتروني');
+        setShowSignup(false);
+        setIsSecretary(false);
+        setEmail('');
+        setPassword('');
+        setSignupData({ name: '', specialization: '', phone: '', doctorId: '' });
+      }
     } catch (error: any) {
       toast.error(error.message || 'فشل التسجيل');
     } finally {
