@@ -136,7 +136,7 @@ export const dbService = {
       age: p.age || 0,
       phone: p.phone || p.mobile || '',
       husbandName: p.husband_name || '',
-      history: p.history || '',
+      history: JSON.stringify(p.medical_history || {}),
       createdAt: p.created_at || new Date().toISOString()
     }));
   },
@@ -147,6 +147,19 @@ export const dbService = {
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
 
+      // Parse history if it's a string
+      let medicalHistory = {};
+      if (patient.history) {
+        try {
+          medicalHistory = typeof patient.history === 'string' 
+            ? JSON.parse(patient.history) 
+            : patient.history;
+        } catch (e) {
+          console.warn('Could not parse history as JSON, storing as notes:', e);
+          medicalHistory = { notes: patient.history };
+        }
+      }
+
       const { error } = await supabase
         .from('patients')
         .insert([{
@@ -155,8 +168,17 @@ export const dbService = {
           age: patient.age,
           phone: patient.phone,
           husband_name: patient.husbandName || null,
-          history: patient.history || null,
+          medical_history: medicalHistory,
           doctor_id: doctorId,
+          is_active: true,
+          gravida: 0,
+          para: 0,
+          abortions: 0,
+          living_children: 0,
+          previous_ivf_attempts: 0,
+          marital_status: 'married',
+          gender: 'female',
+          country: 'Egypt',
           created_at: now,
           updated_at: now
         }]);
@@ -165,6 +187,7 @@ export const dbService = {
       return { id, ...patient, createdAt: now };
     } catch (error: any) {
       const details = error?.message ? `: ${error.message}` : '';
+      console.error('❌ savePatient error:', error);
       throw new Error(`فشل حفظ بيانات المريضة${details}`);
     }
   },
@@ -181,7 +204,7 @@ export const dbService = {
     const { data: logs, error: logsError } = await supabase
       .from('stimulation_logs')
       .select('*')
-      .order('date', { ascending: false });
+      .order('log_date', { ascending: false });
 
     if (logsError) throw logsError;
 
@@ -195,8 +218,8 @@ export const dbService = {
         .filter((l: any) => l.cycle_id === c.id)
         .map((l: any) => ({
           id: l.id,
-          date: l.date,
-          cycleDay: l.cycle_day,
+          date: l.log_date,
+          cycleDay: l.day_number,
           fsh: l.fsh,
           hmg: l.hmg,
           e2: l.e2,
@@ -286,8 +309,8 @@ export const dbService = {
         .insert([{
           id,
           cycle_id: cycleId,
-          cycle_day: log.cycleDay,
-          date: log.date,
+          day_number: log.cycleDay,
+          log_date: log.date,
           fsh: log.fsh || '',
           hmg: log.hmg || '',
           e2: log.e2 || '',
