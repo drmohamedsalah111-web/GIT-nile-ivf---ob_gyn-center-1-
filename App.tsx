@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Toaster } from 'react-hot-toast';
-import { BookOpen, LogOut } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { BookOpen, LogOut, Shield } from 'lucide-react';
 
 import { Sidebar } from './components/Sidebar';
 import BottomNav from './components/BottomNav';
@@ -44,6 +44,12 @@ const App: React.FC = () => {
           const role = await authService.getUserRole(currentUser.id);
           console.log('Current User Role:', role); // Debug log
           setUserRole((role as any) || 'doctor');
+          
+          if (role === 'secretary') {
+            toast.success('تم تسجيل الدخول كسكرتيرة', { icon: '👩‍💼' });
+          } else {
+            // toast('تم تسجيل الدخول كطبيب', { icon: '👨‍⚕️' });
+          }
         }
       } catch (error: any) {
         console.error('App init error:', error?.message || error);

@@ -255,6 +255,14 @@ export const authService: AuthService = {
 
   getUserRole: async (userId: string) => {
     try {
+      // 1. Try to use the secure RPC function first (Bypasses RLS)
+      const { data: rpcRole, error: rpcError } = await supabase.rpc('get_my_role');
+      if (!rpcError && rpcRole) {
+        console.log('Role fetched via RPC:', rpcRole);
+        return rpcRole;
+      }
+
+      // 2. Fallback to direct table query
       const { data, error } = await supabase
         .from('doctors')
         .select('user_role, id, secretary_doctor_id')
@@ -264,6 +272,12 @@ export const authService: AuthService = {
       if (error || !data) {
         console.warn('Failed to fetch user role, defaulting to doctor');
         return 'doctor';
+      }
+
+      // Smart Inference: If secretary_doctor_id exists, it MUST be a secretary
+      if (data.secretary_doctor_id) {
+        console.log('Inferred Secretary Role from secretary_doctor_id');
+        return 'secretary';
       }
 
       console.log('Fetched User Role:', data.user_role); // Debug log
