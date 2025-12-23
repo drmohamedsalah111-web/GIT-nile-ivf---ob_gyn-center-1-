@@ -102,10 +102,6 @@ const App: React.FC = () => {
   }
 
   const renderContent = () => {
-    if (userRole === 'secretary') {
-      return <SecretaryDashboard />;
-    }
-
     switch (activePage) {
       case Page.HOME:
         return <Dashboard />;
@@ -132,91 +128,70 @@ const App: React.FC = () => {
     }
   };
 
+  if (userRole === 'secretary') {
+    return (
+      <BrandingProvider>
+        <EnvErrorBanner />
+        <PreviewWarningBanner />
+        <SecretaryDashboard />
+        <Toaster position="top-center" reverseOrder={false} />
+      </BrandingProvider>
+    );
+  }
+
   return (
     <BrandingProvider>
       <EnvErrorBanner />
       <PreviewWarningBanner />
       <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row-reverse font-[Tajawal]">
-        {userRole !== 'secretary' && (
-          <div className="hidden md:flex">
-            <Sidebar activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
-          </div>
-        )}
+        <div className="hidden md:flex">
+          <Sidebar activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
+        </div>
 
-        <main className={`flex-1 ${userRole !== 'secretary' ? 'md:mr-64' : ''} p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0`}>
+        <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">
           <div className="max-w-7xl mx-auto">
-            {userRole !== 'secretary' && (
-              <>
-                <div className="hidden md:flex justify-between items-center mb-6">
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    مرحباً، {user?.email}
-                  </h1>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setShowLabReferences(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg transition duration-200"
-                    >
-                      <BookOpen size={18} />
-                      مرجع التحاليل
-                    </button>
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200"
-                    >
-                      <LogOut size={18} />
-                      تسجيل الخروج
-                    </button>
-                  </div>
-                </div>
+            <div className="hidden md:flex justify-between items-center mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">
+                مرحباً، {user?.email}
+              </h1>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowLabReferences(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg transition duration-200"
+                >
+                  <BookOpen size={18} />
+                  مرجع التحاليل
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200"
+                >
+                  <LogOut size={18} />
+                  تسجيل الخروج
+                </button>
+              </div>
+            </div>
 
-                <div className="md:hidden mb-4 text-center">
-                  <h1 className="text-xl font-bold text-gray-900">
-                    مرحباً، {user?.email?.split('@')[0]}
-                  </h1>
-                  <div className="mt-3 flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => setShowLabReferences(true)}
-                      className="inline-flex items-center gap-2 px-3 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg transition duration-200"
-                    >
-                      <BookOpen size={16} />
-                      مرجع التحاليل
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {userRole === 'secretary' && (
-              <>
-                <div className="hidden md:flex justify-between items-center mb-6">
-                  <h1 className="text-2xl font-bold text-gray-900">لوحة السكرتيرة</h1>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200"
-                  >
-                    <LogOut size={18} />
-                    تسجيل الخروج
-                  </button>
-                </div>
-                <div className="flex justify-between items-center mb-6 md:hidden">
-                  <h1 className="text-lg font-bold text-gray-900">لوحة السكرتيرة</h1>
-                  <button
-                    onClick={handleLogout}
-                    className="text-red-600 text-sm font-semibold"
-                  >
-                    تسجيل الخروج
-                  </button>
-                </div>
-              </>
-            )}
+            <div className="md:hidden mb-4 text-center">
+              <h1 className="text-xl font-bold text-gray-900">
+                مرحباً، {user?.email?.split('@')[0]}
+              </h1>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setShowLabReferences(true)}
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg transition duration-200"
+                >
+                  <BookOpen size={16} />
+                  مرجع التحاليل
+                </button>
+              </div>
+            </div>
 
             {renderContent()}
           </div>
         </main>
 
-        {userRole !== 'secretary' && (
-          <BottomNav activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
-        )}
+        <BottomNav activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
 
         <LabReferencesModal isOpen={showLabReferences} onClose={() => setShowLabReferences(false)} />
 

@@ -43,6 +43,15 @@ const SecretaryDashboard: React.FC = () => {
     }
   }, [secretary, selectedDate]);
 
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
   const loadSecretaryData = async () => {
     try {
       setLoading(true);
@@ -223,6 +232,13 @@ const SecretaryDashboard: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-4">
+              <button 
+                onClick={handleLogout}
+                className="p-2 text-purple-200 hover:text-white hover:bg-purple-700 rounded-full transition-colors"
+                title="تسجيل الخروج"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
               <button className="p-2 text-purple-200 hover:text-white hover:bg-purple-700 rounded-full transition-colors relative">
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
