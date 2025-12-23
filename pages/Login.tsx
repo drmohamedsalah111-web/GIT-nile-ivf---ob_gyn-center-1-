@@ -67,7 +67,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       
       if (session) {
         toast.success('تم التسجيل بنجاح!');
-        onLoginSuccess();
+        // Force reload to ensure user role is correctly loaded
+        window.location.reload();
       } else {
         toast.success('تم التسجيل بنجاح! يرجى التحقق من بريدك الإلكتروني');
         setShowSignup(false);
