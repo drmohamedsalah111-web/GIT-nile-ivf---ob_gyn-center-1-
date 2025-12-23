@@ -42,6 +42,7 @@ const App: React.FC = () => {
         
         if (currentUser) {
           const role = await authService.getUserRole(currentUser.id);
+          console.log('Current User Role:', role); // Debug log
           setUserRole((role as any) || 'doctor');
         }
       } catch (error: any) {
@@ -57,6 +58,7 @@ const App: React.FC = () => {
       setUser(nextUser);
       if (nextUser) {
         authService.getUserRole(nextUser.id).then(role => {
+          console.log('Auth State Change Role:', role); // Debug log
           setUserRole((role as any) || 'doctor');
         });
       }
@@ -95,7 +97,7 @@ const App: React.FC = () => {
   if (!user) {
     return (
       <>
-        <Login onLoginSuccess={() => setActivePage(Page.HOME)} />
+        <Login onLoginSuccess={() => window.location.reload()} />
         <Toaster position="top-center" reverseOrder={false} />
       </>
     );

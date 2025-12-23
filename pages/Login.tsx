@@ -34,10 +34,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     try {
       await authService.login(email, password);
       toast.success('تم تسجيل الدخول بنجاح');
-      onLoginSuccess();
+      
+      // Force reload to ensure fresh state
+      window.location.reload();
     } catch (error: any) {
       toast.error(error.message || 'فشل تسجيل الدخول');
-    } finally {
       setLoading(false);
     }
   };

@@ -266,6 +266,7 @@ export const authService: AuthService = {
         return 'doctor';
       }
 
+      console.log('Fetched User Role:', data.user_role); // Debug log
       return data.user_role || 'doctor';
     } catch (error: any) {
       console.warn('Error fetching user role:', error?.message);
