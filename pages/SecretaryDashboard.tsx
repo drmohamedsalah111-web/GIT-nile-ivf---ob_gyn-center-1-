@@ -309,23 +309,21 @@ const SecretaryDashboard: React.FC = () => {
                   <div>
                     <p className="text-gray-500 text-sm">مواعيد اليوم</p>
                     <p className="text-3xl font-bold text-gray-800">{upcomingAppointments.filter(a => new Date(a.appointment_date).toDateString() === new Date().toDateString()).length}</p>
-                <div className="p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-purple-600" />
-                      جدول المواعيد
-                    </h2>
-                    {activeView === 'dashboard' && (
-                      <button onClick={() => setActiveView('calendar')} className="text-purple-600 text-sm hover:underline">
-                        عرض الكل
-                      </button>
-                    )}
                   </div>
-
-                  {showAppointmentForm && (
-                    <div className="mb-8 bg-purple-50 p-6 rounded-xl border border-purple-100 animate-fade-in">
-                      <h3 className="font-bold text-purple-800 mb-4">حجز موعد جديد</h3>
-                      <form onSubmit={handleCreateAppointment} className="space-y-4n">
+                  <div className="bg-purple-50 p-3 rounded-full">
+                    <Calendar className="w-6 h-6 text-purple-600" />
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-blue-500 flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm">إجمالي المرضى</p>
+                    <p className="text-3xl font-bold text-gray-800">{patients.length}</p>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-full">
+                    <Users className="w-6 h-6 text-blue-600" />
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-green-500 flex items-center justify-between">
                   <div>
                     <p className="text-gray-500 text-sm">في الانتظار</p>
                     <p className="text-3xl font-bold text-gray-800">{upcomingAppointments.filter(a => a.status === 'Waiting').length}</p>
@@ -342,20 +340,24 @@ const SecretaryDashboard: React.FC = () => {
               
               {/* Calendar / Appointments View */}
               {(activeView === 'calendar' || activeView === 'dashboard') && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <h2 className="text-2xl font-bold text-gray-900">المواعيد القادمة</h2>
-                <button
-                  onClick={() => setShowAppointmentForm(!showAppointmentForm)}
-                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-                >
-                  <Plus className="w-5 h-5" />
-                  إضافة موعد جديد
-                </button>
-              </div>
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-purple-600" />
+                      جدول المواعيد
+                    </h2>
+                    {activeView === 'dashboard' && (
+                      <button onClick={() => setActiveView('calendar')} className="text-purple-600 text-sm hover:underline">
+                        عرض الكل
+                      </button>
+                    )}
+                  </div>
 
-              {/* Appointment Form */}
-              {sho      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {showAppointmentForm && (
+                    <div className="mb-8 bg-purple-50 p-6 rounded-xl border border-purple-100 animate-fade-in">
+                      <h3 className="font-bold text-purple-800 mb-4">حجز موعد جديد</h3>
+                      <form onSubmit={handleCreateAppointment} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">المريضة</label>
                             <select
@@ -412,43 +414,9 @@ const SecretaryDashboard: React.FC = () => {
                         </div>
                       </form>
                     </div>
-                      </div>
-                </form>
-              )}
+                  )}
 
-              {/* Appointments List */}
-              <div className="space-y-3">
-                {upcomingAppointments.length > 0 ? (
-                  upcomingAppointments.map((apt) => (
-                    <div key={apt.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-gray-900 text-lg">
-                            {apt.patient?.name || 'مريضة'}
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">
-                            <Phone className="inline w-4 h-4 ml-1" />
-                            {apt.patient?.phone}
-                          </p>
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-semibold text-teal-700">
-                            {new Date(apt.appointment_date).toLocaleDateString('ar-EG')}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {new Date(apt.appointment_date).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                            apt.status === 'Scheduled'
-                              ? 'bg-green-100 text-green-800'
-                              : apt.status === 'Waiting'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : apt.status === 'Completed'
+                  {/* Appointments List */}
                   <div className="space-y-3">
                     {upcomingAppointments.length > 0 ? (
                       upcomingAppointments.map((apt) => (
@@ -498,28 +466,7 @@ const SecretaryDashboard: React.FC = () => {
               )}
 
               {/* Patients View */}
-              {activeView    رقم الهاتف *
-                      </label>
-                      <input
-                        type="tel"
-                        value={patientForm.phone}
-                        onChange={(e) => setPatientForm({ ...patientForm, phone: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                        placeholder="01xxxxxxxxx"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        العمر
-                      </label>
-                      <input
-                        type="number"
-                        value={patientForm.age}
-                        onChange={(e) => setPatientForm({ ...patientForm, age: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                        placeholder="سنة"
+              {activeView === 'patients' && (
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -535,6 +482,13 @@ const SecretaryDashboard: React.FC = () => {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full pr-10 pl-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                       />
+                    </div>
+                  </div>
+
+                  {showPatientForm && (
+                    <div className="mb-8 bg-purple-50 p-6 rounded-xl border border-purple-100 animate-fade-in">
+                      <h3 className="font-bold text-purple-800 mb-4">ملف مريضة جديدة</h3>
+                      <form onSubmit={handleAddPatient} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <input
                             type="text"
@@ -627,4 +581,9 @@ const SecretaryDashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      </main
+      </main>
+    </div>
+  );
+};
+
+export default SecretaryDashboard;
