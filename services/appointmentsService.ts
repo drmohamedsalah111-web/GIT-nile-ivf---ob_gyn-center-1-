@@ -90,6 +90,13 @@ export const appointmentsService = {
 
   getAppointmentsBySecretary: async (secretaryId: string, startDate?: string, endDate?: string) => {
     try {
+      // First, get the doctor ID associated with this secretary
+      const { data: secretaryData, error: secretaryError } = await supabase
+        .from('doctors')
+        .select('secretary_doctor_id')
+        .eq('user_id', secretaryId) // Assuming secretaryId passed here is user_id
+        .single();
+
       let query = supabase
         .from('appointments')
         .select(`
@@ -97,7 +104,17 @@ export const appointmentsService = {
           patient:patients(id, name, phone, age, husband_name, history),
           doctor_details:doctor_id(id, name, email, specialization)
         `)
-        .eq('secretary_id', secretaryId)
+        .order('appointment_date', { ascending: true });
+
+      // If we found a linked doctor, filter by that doctor instead of secretary_id
+      // This is better because appointments are usually linked to the doctor, not just the creator
+      if (secretaryData?.secretary_doctor_id) {
+         query = query.eq('doctor_id', secretaryData.secretary_doctor_id);
+      } else {
+         // Fallback to filtering by secretary_id if no doctor link found
+         // Note: This might return empty if appointments are not explicitly tagged with secretary_id
+         query = query.eq('secretary_id', secretaryId);
+      }
         .order('appointment_date', { ascending: true });
 
       if (startDate && endDate) {

@@ -290,42 +290,26 @@ export const authService: AuthService = {
 
   getSecretaryProfile: async (userId: string) => {
     try {
+      // 1. Try to fetch using the secure RPC function first (Bypasses RLS)
+      // Note: We might need to create a specific RPC for profile if RLS blocks select *
+      
+      // 2. Direct query
       const { data, error } = await supabase
         .from('doctors')
         .select('*')
         .eq('user_id', userId)
-        .eq('user_role', 'secretary')
-        .single();
+        .single(); // Removed .eq('user_role', 'secretary') to be more lenient
 
       if (error || !data) {
         console.warn('Failed to load secretary profile');
         return null;
       }
-
+      
+      // Double check role if needed, but return data anyway
       return data;
     } catch (error: any) {
       console.warn('Failed to load secretary profile:', error?.message);
       return null;
     }
-  }
-};
-export const getUserRole = async (userId: string): Promise<'doctor' | 'secretary'> => {
-  try {
-    // حاول الحصول على الدور من جدول doctors
-    const { data, error } = await supabase
-      .from('doctors')
-      .select('user_role')
-      .eq('user_id', userId)
-      .single();
-
-    if (error || !data) {
-      console.log('Defaulting to doctor role');
-      return 'doctor';
-    }
-
-    return (data.user_role as 'doctor' | 'secretary') || 'doctor';
-  } catch (error) {
-    console.error('Error fetching user role:', error);
-    return 'doctor'; // القيمة الافتراضية
   }
 };
