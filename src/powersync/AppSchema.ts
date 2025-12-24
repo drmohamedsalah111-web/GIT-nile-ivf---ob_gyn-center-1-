@@ -67,6 +67,7 @@ const antenatal_visits = new Table({
   urine_albuminuria: column.text,
   urine_glycosuria: column.text,
   fetal_heart_sound: column.integer,
+  fetal_heart_rate: column.integer,
   fundal_height_cm: column.real,
   edema: column.integer,
   edema_grade: column.text,
