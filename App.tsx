@@ -22,6 +22,7 @@ import ObstetricsDashboard from './pages/ObstetricsDashboard';
 import PatientMasterRecord from './pages/PatientMasterRecord';
 import Settings from './pages/Settings';
 import AdminDashboard from './pages/AdminDashboard';
+import InfertilityWorkup from './src/pages/InfertilityWorkup';
 import { Login } from './pages/Login';
 
 import LabReferencesModal from './src/components/LabReferencesModal';
@@ -123,6 +124,8 @@ const App: React.FC = () => {
         return <IvfJourney />;
       case Page.SMART_IVF:
         return <SmartIVFJourney />;
+      case Page.INFERTILITY_WORKUP:
+        return <InfertilityWorkup />;
       case Page.OBSTETRICS:
         return <ObstetricsDashboard />;
       case Page.PATIENT_RECORD:
