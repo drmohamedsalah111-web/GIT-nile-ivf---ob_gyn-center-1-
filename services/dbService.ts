@@ -141,6 +141,24 @@ export const dbService = {
     }));
   },
 
+  getAppointments: async (): Promise<any[]> => {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select(`
+        *,
+        patient:patients(name)
+      `)
+      .gte('appointment_date', new Date().toISOString().split('T')[0]) // Only future or today
+      .order('appointment_date', { ascending: true });
+
+    if (error) {
+      console.warn('Error fetching appointments (table might not exist yet):', error);
+      return [];
+    }
+
+    return data || [];
+  },
+
   savePatient: async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
     try {
       const { doctorId } = await getDoctorIdOrThrow();

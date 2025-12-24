@@ -313,6 +313,22 @@ export const obstetricsService = {
     return { id, ...pregnancy, created_at: now, updated_at: now };
   },
 
+  getAllPregnancies: async () => {
+    const { data: pregnancies, error } = await supabase
+      .from('pregnancies')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return (pregnancies || []).map((p: any) => ({
+      ...p,
+      risk_factors: p.risk_factors ? JSON.parse(p.risk_factors) : [],
+      aspirin_prescribed: p.aspirin_prescribed === true,
+      thromboprophylaxis_needed: p.thromboprophylaxis_needed === true
+    }));
+  },
+
   getPregnancyByPatient: async (patientId: string) => {
     const { data: pregnancies, error } = await supabase
       .from('pregnancies')

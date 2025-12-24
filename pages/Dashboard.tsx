@@ -26,6 +26,7 @@ const Dashboard: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [cycles, setCycles] = useState<IvfCycle[]>([]);
   const [pregnancies, setPregnancies] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
 
   // Fetch data from Supabase
   useEffect(() => {
@@ -34,15 +35,18 @@ const Dashboard: React.FC = () => {
         setLoading(true);
         console.log('📊 Dashboard: Fetching data from Supabase...');
         
-        const [patientsData, cyclesData] = await Promise.all([
+        const [patientsData, cyclesData, pregnanciesData, appointmentsData] = await Promise.all([
           dbService.getPatients(),
-          dbService.getCycles()
+          dbService.getCycles(),
+          obstetricsService.getAllPregnancies(),
+          dbService.getAppointments()
         ]);
 
-        console.log('✅ Dashboard: Fetched', patientsData.length, 'patients and', cyclesData.length, 'cycles');
+        console.log('✅ Dashboard: Fetched', patientsData.length, 'patients,', cyclesData.length, 'cycles,', pregnanciesData.length, 'pregnancies');
         setPatients(patientsData);
         setCycles(cyclesData);
-        setPregnancies([]); // Pregnancies not yet migrated
+        setPregnancies(pregnanciesData);
+        setAppointments(appointmentsData);
       } catch (error) {
         console.error('❌ Dashboard: Error fetching data:', error);
         toast.error('Failed to load dashboard data');
@@ -63,8 +67,10 @@ const Dashboard: React.FC = () => {
     const highRiskPregnancies = pregnancies.filter((p: any) => p.risk_level === 'high').length;
     const totalPregnancies = pregnancies.length;
 
-    // Mock today's visits (would come from visits table)
-    const todayVisits = Math.floor(Math.random() * 15) + 5;
+    // Calculate today's visits from appointments
+    const today = new Date().toISOString().split('T')[0];
+    const todayVisits = appointments.filter((a: any) => a.appointment_date === today).length;
+    const upcomingAppointments = appointments.filter((a: any) => a.appointment_date > today).length;
 
     // Calculate success rates
     const successfulCycles = cycles.filter((c: any) => {
@@ -86,9 +92,9 @@ const Dashboard: React.FC = () => {
       todayVisits,
       successRate,
       pendingLabs: Math.floor(Math.random() * 8) + 2, // Mock
-      upcomingAppointments: Math.floor(Math.random() * 12) + 3 // Mock
+      upcomingAppointments
     };
-  }, [patients, cycles, pregnancies]);
+  }, [patients, cycles, pregnancies, appointments]);
 
   // Filter patients based on search and department
   const filteredPatients = useMemo(() => {
@@ -107,39 +113,87 @@ const Dashboard: React.FC = () => {
     }).slice(0, 10); // Show top 10
   }, [patients, cycles, pregnancies, searchTerm, selectedDepartment]);
 
-  // Mock data for charts
-  const monthlyGrowth = [
-    { month: 'Jan', patients: 45, cycles: 12, pregnancies: 8 },
-    { month: 'Feb', patients: 52, cycles: 15, pregnancies: 10 },
-    { month: 'Mar', patients: 61, cycles: 18, pregnancies: 12 },
-    { month: 'Apr', patients: 78, cycles: 22, pregnancies: 15 },
-    { month: 'May', patients: 89, cycles: 25, pregnancies: 18 },
-    { month: 'Jun', patients: 95, cycles: 28, pregnancies: 20 },
-  ];
+  // Calculate monthly growth dynamically
+  const monthlyGrowth = useMemo(() => {
+    if (!patients || !cycles || !pregnancies) return [];
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentYear = new Date().getFullYear();
+    const last6Months = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      last6Months.push({
+        month: months[d.getMonth()],
+        year: d.getFullYear(),
+        monthIndex: d.getMonth()
+      });
+    }
+
+    return last6Months.map(({ month, year, monthIndex }) => {
+      const patientsCount = patients.filter(p => {
+        const d = new Date(p.createdAt);
+        return d.getMonth() === monthIndex && d.getFullYear() === year;
+      }).length;
+
+      const cyclesCount = cycles.filter(c => {
+        const d = new Date(c.startDate);
+        return d.getMonth() === monthIndex && d.getFullYear() === year;
+      }).length;
+
+      const pregnanciesCount = pregnancies.filter(p => {
+        const d = new Date(p.created_at);
+        return d.getMonth() === monthIndex && d.getFullYear() === year;
+      }).length;
+
+      return {
+        month,
+        patients: patientsCount,
+        cycles: cyclesCount,
+        pregnancies: pregnanciesCount
+      };
+    });
+  }, [patients, cycles, pregnancies]);
 
   const cycleOutcomes = [
     { name: 'Successful', value: stats?.successRate || 0, color: '#10B981' },
     { name: 'Ongoing', value: 100 - (stats?.successRate || 0), color: '#3B82F6' },
   ];
 
-  const departmentStats = [
-    { name: 'IVF', patients: cycles?.length || 0, color: '#8B5CF6' },
-    { name: 'Obstetrics', patients: pregnancies?.length || 0, color: '#F59E0B' },
-    { name: 'Gynecology', patients: Math.floor((patients?.length || 0) * 0.6), color: '#EF4444' },
-  ];
+  const departmentStats = useMemo(() => {
+    const ivfPatientIds = new Set(cycles.map(c => c.patientId));
+    const obPatientIds = new Set(pregnancies.map(p => p.patient_id));
+    
+    const ivfCount = ivfPatientIds.size;
+    const obCount = obPatientIds.size;
+    
+    // Gynecology is everyone else (approximate)
+    const gynCount = Math.max(0, patients.length - ivfCount - obCount);
+
+    return [
+      { name: 'IVF', patients: ivfCount, color: '#8B5CF6' },
+      { name: 'Obstetrics', patients: obCount, color: '#F59E0B' },
+      { name: 'Gynecology', patients: gynCount, color: '#EF4444' },
+    ];
+  }, [patients, cycles, pregnancies]);
 
   const handleRefresh = async () => {
     try {
       setLoading(true);
       console.log('🔄 Dashboard: Refreshing data...');
       
-      const [patientsData, cyclesData] = await Promise.all([
+      const [patientsData, cyclesData, pregnanciesData, appointmentsData] = await Promise.all([
         dbService.getPatients(),
-        dbService.getCycles()
+        dbService.getCycles(),
+        obstetricsService.getAllPregnancies(),
+        dbService.getAppointments()
       ]);
 
       setPatients(patientsData);
       setCycles(cyclesData);
+      setPregnancies(pregnanciesData);
+      setAppointments(appointmentsData);
       console.log('✅ Dashboard: Data refreshed');
       toast.success('Data refreshed');
     } catch (error) {
