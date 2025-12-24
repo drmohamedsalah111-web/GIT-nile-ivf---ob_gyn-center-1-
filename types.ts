@@ -210,6 +210,19 @@ export interface Doctor {
   user_role?: 'doctor' | 'secretary' | 'admin';
   secretary_doctor_id?: string;
   updated_at?: string;
+  primary_color?: string;
+  secondary_color?: string;
+  accent_color?: string;
+  background_color?: string;
+  text_color?: string;
+  header_font?: string;
+  body_font?: string;
+  button_style?: string;
+  card_style?: string;
+  clinic_watermark?: string;
+  prescription_header?: string;
+  prescription_footer?: string;
+  default_rx_notes?: string;
 }
 
 export interface Secretary {

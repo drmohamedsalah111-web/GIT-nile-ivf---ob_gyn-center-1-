@@ -115,7 +115,6 @@ export const appointmentsService = {
          // Note: This might return empty if appointments are not explicitly tagged with secretary_id
          query = query.eq('secretary_id', secretaryId);
       }
-        .order('appointment_date', { ascending: true });
 
       if (startDate && endDate) {
         query = query

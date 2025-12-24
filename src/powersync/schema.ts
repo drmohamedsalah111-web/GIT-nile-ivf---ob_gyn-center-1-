@@ -124,7 +124,20 @@ const doctors = new Table({
     clinic_address: column.text,
     clinic_phone: column.text,
     created_at: column.text,
-    updated_at: column.text
+    updated_at: column.text,
+    primary_color: column.text,
+    secondary_color: column.text,
+    accent_color: column.text,
+    background_color: column.text,
+    text_color: column.text,
+    header_font: column.text,
+    body_font: column.text,
+    button_style: column.text,
+    card_style: column.text,
+    clinic_watermark: column.text,
+    prescription_header: column.text,
+    prescription_footer: column.text,
+    default_rx_notes: column.text
 });
 
 const app_settings = new Table({

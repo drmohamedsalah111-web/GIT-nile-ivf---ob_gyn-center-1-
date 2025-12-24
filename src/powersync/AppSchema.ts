@@ -107,7 +107,20 @@ const doctors = new Table({
   clinic_phone: column.text,
   clinic_image: column.text,
   clinic_latitude: column.text,
-  clinic_longitude: column.text
+  clinic_longitude: column.text,
+  primary_color: column.text,
+  secondary_color: column.text,
+  accent_color: column.text,
+  background_color: column.text,
+  text_color: column.text,
+  header_font: column.text,
+  body_font: column.text,
+  button_style: column.text,
+  card_style: column.text,
+  clinic_watermark: column.text,
+  prescription_header: column.text,
+  prescription_footer: column.text,
+  default_rx_notes: column.text
 });
 
 const profiles = new Table({
