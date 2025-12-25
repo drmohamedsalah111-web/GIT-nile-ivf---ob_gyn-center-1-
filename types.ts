@@ -374,6 +374,34 @@ export interface FetalBiometryData {
   placenta?: string;
 }
 
+export interface PrintSettings {
+  id?: number;
+  clinic_id: number;
+  primary_color: string;
+  secondary_color: string;
+  logo_url: string | null;
+  header_text: string;
+  footer_text: string;
+  show_watermark: boolean;
+}
+
+export interface PatientData {
+  name: string;
+  age: number;
+  date: string;
+}
+
+export interface Medicine {
+  name: string;
+  dosage: string;
+  instructions: string;
+}
+
+export interface PrescriptionData {
+  patient: PatientData;
+  medicines: Medicine[];
+}
+
 export enum Page {
   HOME = 'home',
   RECEPTION = 'reception',

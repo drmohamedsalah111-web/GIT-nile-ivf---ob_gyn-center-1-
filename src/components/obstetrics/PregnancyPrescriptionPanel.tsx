@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Pill, Plus, Check, Trash2, Printer, AlertCircle, X, Upload, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '../../../services/supabaseClient';
 import toast from 'react-hot-toast';
+import PrescriptionTemplate from '../../../components/PrescriptionTemplate';
 
 // Pregnancy medications - Egyptian trade names in English
 const PREGNANCY_MEDICATIONS = {
@@ -212,7 +213,18 @@ interface PregnancyPrescriptionPanelProps {
   patientName?: string;
 }
 
-export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProps> = ({ 
+interface PrintSettings {
+  id?: number;
+  clinic_id: number;
+  primary_color: string;
+  secondary_color: string;
+  logo_url: string | null;
+  header_text: string;
+  footer_text: string;
+  show_watermark: boolean;
+}
+
+export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProps> = ({
   pregnancyId,
   gestationalWeeks,
   patientName
@@ -234,11 +246,21 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
     default_frequency: 'Once daily',
     default_duration: '30 days'
   });
+  const [printSettings, setPrintSettings] = useState<PrintSettings>({
+    clinic_id: 1,
+    primary_color: '#2d5a6b',
+    secondary_color: '#00838f',
+    logo_url: null,
+    header_text: 'Dr. Mohamed Salah Gabr',
+    footer_text: 'Clinic Address | Phone: 0123456789',
+    show_watermark: false,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchPrescriptions();
     fetchCustomMedications();
+    fetchPrintSettings();
   }, [pregnancyId]);
 
   const fetchCustomMedications = async () => {
@@ -252,6 +274,24 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
       setCustomMedications(data || []);
     } catch (error: any) {
       console.error('Error fetching custom medications:', error);
+    }
+  };
+
+  const fetchPrintSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clinic_print_settings')
+        .select('*')
+        .eq('clinic_id', 1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error; // PGRST116 is no rows
+
+      if (data) {
+        setPrintSettings(data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching print settings:', error);
     }
   };
 
@@ -425,6 +465,131 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
   };
 
   const recommendedMeds = getRecommendedMedications();
+
+  const handlePrint = (prescription: Prescription) => {
+    const printData = {
+      patient: {
+        name: patientName || 'Patient Name',
+        age: 30, // Mock age, should fetch from patient data
+        date: new Date().toLocaleDateString(),
+      },
+      medicines: prescription.items.map(item => ({
+        name: item.trade_name,
+        dosage: item.dosage,
+        instructions: `${item.frequency} for ${item.duration}${item.instructions ? ` - ${item.instructions}` : ''}`,
+      })),
+    };
+
+    const printWindow = window.open('', '', 'height=800,width=1000');
+    if (!printWindow) {
+      toast.error('فشل فتح نافذة الطباعة');
+      return;
+    }
+
+    const content = `
+      <html>
+        <head>
+          <title>Prescription</title>
+          <style>
+            body { margin: 0; padding: 20px; }
+          </style>
+        </head>
+        <body>
+          <div id="prescription-root"></div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
+
+    // Wait for content to load then render React component
+    setTimeout(() => {
+      const root = printWindow.document.getElementById('prescription-root');
+      if (root) {
+        // Since we can't easily render React in new window, let's use a simpler approach
+        // For now, just call window.print() on the template
+        // But since template has print CSS, we can render it in a hidden div and print
+        const hiddenDiv = document.createElement('div');
+        hiddenDiv.style.position = 'absolute';
+        hiddenDiv.style.left = '-9999px';
+        hiddenDiv.innerHTML = `
+          <style>
+            @media print {
+              .prescription-template {
+                margin: 0;
+                padding: 20mm;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                break-inside: avoid;
+              }
+              body * {
+                visibility: hidden;
+              }
+              .prescription-template, .prescription-template * {
+                visibility: visible;
+              }
+              .prescription-template {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: auto;
+              }
+              .drug-item {
+                break-inside: avoid;
+              }
+            }
+          </style>
+          <div class="prescription-template bg-white text-black font-sans" style="width: 210mm; height: 297mm; padding: 20mm; position: relative;">
+            ${printSettings.show_watermark && printSettings.logo_url ? `
+              <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0.08;">
+                <img src="${printSettings.logo_url}" alt="Watermark" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+              </div>
+            ` : ''}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; border-radius: 0 0 8px 8px; background-color: ${printSettings.primary_color}; color: white; padding: 20px;">
+              <div style="flex: 1;">
+                <h1 style="font-size: 24px; font-weight: bold;">${printSettings.header_text}</h1>
+              </div>
+              <div style="flex: 1; text-align: right;">
+                ${printSettings.logo_url ? `<img src="${printSettings.logo_url}" alt="Clinic Logo" style="max-height: 64px; max-width: 128px; object-fit: contain;" />` : ''}
+              </div>
+            </div>
+            <div style="background-color: #f9f9f9; padding: 16px; margin-bottom: 24px; border-radius: 8px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                <div><span style="font-weight: bold;">Patient:</span> ${printData.patient.name}</div>
+                <div><span style="font-weight: bold;">Age:</span> ${printData.patient.age} years</div>
+                <div><span style="font-weight: bold;">Date:</span> ${printData.patient.date}</div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; margin-bottom: 24px;">
+              <div style="font-size: 48px; margin-right: 16px; color: ${printSettings.primary_color};">℞</div>
+              <h2 style="font-size: 24px; font-weight: bold; color: ${printSettings.primary_color};">Prescription</h2>
+            </div>
+            <div style="margin-bottom: 32px;">
+              ${printData.medicines.map((medicine, index) => `
+                <div style="margin-bottom: 16px;" class="drug-item">
+                  <div style="flex: 1;">
+                    <div style="font-weight: bold; font-size: 18px;">${medicine.name}</div>
+                    <div style="color: #6b7280;">${medicine.dosage}</div>
+                    <div style="font-size: 14px; color: #9ca3af;">${medicine.instructions}</div>
+                  </div>
+                  ${index < printData.medicines.length - 1 ? `<hr style="margin-top: 16px; border-color: ${printSettings.secondary_color}; border-width: 1px; border-style: dotted;" />` : ''}
+                </div>
+              `).join('')}
+            </div>
+            <div style="margin-top: auto; padding-top: 32px;">
+              <hr style="margin-bottom: 16px; border-color: ${printSettings.primary_color}; border-width: 2px;" />
+              <div style="text-align: center; color: #6b7280;">${printSettings.footer_text}</div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(hiddenDiv);
+        window.print();
+        document.body.removeChild(hiddenDiv);
+      }
+    }, 100);
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 space-y-6" dir="rtl">
@@ -947,6 +1112,7 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
                   </span>
                 </div>
                 <button
+                  onClick={() => handlePrint(prescription)}
                   className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
                   title="طباعة الروشتة"
                 >
