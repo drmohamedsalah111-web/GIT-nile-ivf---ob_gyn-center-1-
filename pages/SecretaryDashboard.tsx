@@ -266,10 +266,12 @@ const SecretaryDashboard: React.FC = () => {
     .filter(apt => new Date(apt.appointment_date) >= new Date())
     .sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime());
 
-  const filteredPatients = patients.filter(patient =>
-    patient.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    patient.phone?.includes(searchQuery)
-  );
+  const filteredPatients = patients.filter(patient => {
+    const name = patient.name ? String(patient.name).toLowerCase() : '';
+    const phone = patient.phone ? String(patient.phone) : '';
+    const search = searchQuery.toLowerCase();
+    return name.includes(search) || phone.includes(searchQuery);
+  });
 
   if (loading) {
     return (

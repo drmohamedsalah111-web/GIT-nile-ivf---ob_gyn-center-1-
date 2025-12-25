@@ -31,14 +31,15 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedArray = Array.isArray(value) ? value : value ? [value] : [];
-  const normalizedOptions = options.map(opt => opt.toLowerCase());
+  const normalizedOptions = options.map(opt => String(opt || '').toLowerCase());
   const searchLower = searchQuery.toLowerCase();
 
-  const filteredOptions = options.filter(opt =>
-    opt.toLowerCase().includes(searchLower)
-  );
+  const filteredOptions = options.filter(opt => {
+    const optStr = String(opt || '').toLowerCase();
+    return optStr.includes(searchLower);
+  });
 
-  const showAddCustom = allowCustom && searchQuery.trim() && !filteredOptions.some(opt => opt.toLowerCase() === searchLower);
+  const showAddCustom = allowCustom && searchQuery.trim() && !filteredOptions.some(opt => String(opt || '').toLowerCase() === searchLower);
 
   const displayOptions = filteredOptions.length > 0 ? filteredOptions : (showAddCustom ? [] : options);
 

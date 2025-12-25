@@ -219,10 +219,12 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
     }
   };
 
-  const filteredPatients = patients.filter(patient =>
-    patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    patient.phone.includes(searchQuery)
-  );
+  const filteredPatients = patients.filter(patient => {
+    const name = patient.name ? String(patient.name).toLowerCase() : '';
+    const phone = patient.phone ? String(patient.phone) : '';
+    const search = searchQuery.toLowerCase();
+    return name.includes(search) || phone.includes(searchQuery);
+  });
 
   const handleViewPatient = (patientId: string) => {
     if (onViewPatient) {

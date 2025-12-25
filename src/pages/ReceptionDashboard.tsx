@@ -761,8 +761,12 @@ const NewAppointmentModal: React.FC<{
 
     // Auto-select if exact match found (helper)
     useEffect(() => {
-        if (patients.length === 1 && patients[0].name.toLowerCase() === searchQuery.toLowerCase()) {
-            setSelectedPatientId(patients[0].id);
+        if (patients.length === 1 && patients[0].name) {
+            const patientName = String(patients[0].name).toLowerCase();
+            const search = searchQuery.toLowerCase();
+            if (patientName === search) {
+                setSelectedPatientId(patients[0].id);
+            }
         }
     }, [patients, searchQuery]);
 

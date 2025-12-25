@@ -62,11 +62,14 @@ const PatientGallery: React.FC<PatientGalleryProps> = ({
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(doc =>
-        doc.file_name.toLowerCase().includes(query) ||
-        doc.notes?.toLowerCase().includes(query) ||
-        doc.tags?.some(tag => tag.toLowerCase().includes(query))
-      );
+      filtered = filtered.filter(doc => {
+        const fileName = doc.file_name ? String(doc.file_name).toLowerCase() : '';
+        const notes = doc.notes ? String(doc.notes).toLowerCase() : '';
+        const tags = doc.tags || [];
+        return fileName.includes(query) ||
+          notes.includes(query) ||
+          tags.some(tag => String(tag).toLowerCase().includes(query));
+      });
     }
 
     setFilteredDocuments(filtered);
