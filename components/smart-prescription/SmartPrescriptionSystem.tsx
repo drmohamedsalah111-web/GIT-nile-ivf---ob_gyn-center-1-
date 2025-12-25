@@ -88,8 +88,17 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
       return;
     }
 
-    // استخدام الطباعة المباشرة من المتصفح
-    window.print();
+    // التبديل إلى تاب المعاينة أولاً
+    if (activeTab !== 'preview') {
+      setActiveTab('preview');
+      toast.info('انتقل إلى تاب المعاينة أولاً ثم اضغط طباعة مرة أخرى');
+      return;
+    }
+
+    // انتظر قليلاً ثم اطبع
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   const handleAddDrug = () => {
