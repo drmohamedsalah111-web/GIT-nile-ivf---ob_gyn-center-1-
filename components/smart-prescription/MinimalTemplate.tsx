@@ -53,12 +53,17 @@ export const MinimalTemplate = React.forwardRef<HTMLDivElement, MinimalTemplateP
 
         {/* Medications - Clean List */}
         <div className="space-y-4 mb-8">
-          {prescriptions.map((item, index) => (
-            <div key={index} className="pb-3 border-b border-gray-200">
-              <div className="font-semibold text-gray-900">{item.drug}</div>
-              {item.dose && <div className="text-sm text-gray-600 mt-1">{item.dose}</div>}
-            </div>
-          ))}
+          {prescriptions && prescriptions.length > 0 ? (
+            prescriptions.map((item, index) => (
+              <div key={index} className="pb-3 border-b border-gray-200">
+                <div className="font-semibold text-gray-900">{index + 1}. {item.drug}</div>
+                {item.dose && <div className="text-sm text-gray-600 mt-1">{item.dose}</div>}
+                {item.category && <div className="text-xs text-gray-500 mt-1">التصنيف: {item.category}</div>}
+              </div>
+            ))
+          ) : (
+            <div className="text-gray-400 italic text-center py-4">لم تتم إضافة أي أدوية</div>
+          )}
         </div>
 
         {/* Notes */}

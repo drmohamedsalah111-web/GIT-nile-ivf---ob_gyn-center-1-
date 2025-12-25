@@ -19,6 +19,7 @@ import {
   Eye,
   Palette,
   FileText,
+  Pill,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -44,6 +45,9 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
   const printRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<'edit' | 'preview' | 'settings'>('edit');
   const [selectedTemplate, setSelectedTemplate] = useState<'modern' | 'classic' | 'minimal'>('modern');
+  const [newDrug, setNewDrug] = useState('');
+  const [newDose, setNewDose] = useState('');
+  const [newCategory, setNewCategory] = useState('');
 
   const {
     prescriptions,
@@ -52,6 +56,7 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
     interactionWarnings,
     hasInteractions,
     setPrescriptions,
+    addMedication,
   } = usePrescription({
     patientId: patient?.id?.toString(),
     enableInteractionCheck: true,
@@ -60,9 +65,9 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
   // Initialize prescriptions
   React.useEffect(() => {
     if (initialPrescriptions.length > 0) {
-      setPrescriptions(initialPrescriptions);
+      initialPrescriptions.forEach(med => addMedication(med));
     }
-  }, [initialPrescriptions, setPrescriptions]);
+  }, [initialPrescriptions]);
 
   const handlePrint = () => {
     console.log('Print action started');
@@ -134,6 +139,27 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
       console.error('خطأ الطباعة:', error);
       toast.error('حدث خطأ أثناء محاولة الطباعة');
     }
+  };
+
+  const handleAddDrug = () => {
+    if (!newDrug.trim()) {
+      toast.error('أدخل اسم الدواء');
+      return;
+    }
+    if (!newDose.trim()) {
+      toast.error('أدخل الجرعة');
+      return;
+    }
+
+    addMedication({
+      drug: newDrug,
+      dose: newDose,
+      category: newCategory || 'أدوية',
+    });
+
+    setNewDrug('');
+    setNewDose('');
+    setNewCategory('');
   };
 
   const handleExportPDF = () => {
@@ -289,9 +315,63 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
           )}
 
           {activeTab === 'edit' && (
-            <div className="text-center py-12 text-gray-500">
-              <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p>قم بإضافة الأدوية من الصفحة الرئيسية ثم انتقل لمعاينة الروشتة</p>
+            <div className="max-w-4xl mx-auto space-y-6">
+              {/* Add Drug Form */}
+              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">إضافة دواء</h3>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <input
+                    type="text"
+                    placeholder="اسم الدواء"
+                    value={newDrug}
+                    onChange={(e) => setNewDrug(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  />
+                  <input
+                    type="text"
+                    placeholder="الجرعة"
+                    value={newDose}
+                    onChange={(e) => setNewDose(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  />
+                  <input
+                    type="text"
+                    placeholder="التصنيف (اختياري)"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  />
+                </div>
+                <button
+                  onClick={handleAddDrug}
+                  className="w-full px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-semibold"
+                >
+                  إضافة الدواء
+                </button>
+              </div>
+
+              {/* Current Prescriptions */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">الأدوية المضافة ({prescriptions.length})</h3>
+                {prescriptions.length > 0 ? (
+                  <div className="space-y-3">
+                    {prescriptions.map((item, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
+                        <div>
+                          <p className="font-semibold text-gray-900">{item.drug}</p>
+                          <p className="text-sm text-gray-600">{item.dose}</p>
+                          {item.category && <p className="text-xs text-gray-500">التصنيف: {item.category}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Pill className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                    <p>لم تتم إضافة أي أدوية بعد</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
