@@ -11,10 +11,11 @@ const PREGNANCY_MEDICATIONS = {
     medications: [
       { id: 'folic_acid', name: 'Folic Acid 5mg', tradeName: 'Folicap / Folicare', frequency: 'Once daily' },
       { id: 'prenatal', name: 'Prenatal Multivitamin', tradeName: 'Pregnacare / Vitapreg / Maternavit', frequency: 'Once daily' },
-      { id: 'iron', name: 'Iron + Folic Acid', tradeName: 'Ferrovit / Haemoton', frequency: 'Once or twice daily' },
-      { id: 'calcium', name: 'Calcium + Vitamin D', tradeName: 'Calcimate D / Calcivit D', frequency: 'Twice daily' },
+      { id: 'iron', name: 'Iron + Folic Acid', tradeName: 'Ferrovit / Haemoton / Pharmaton', frequency: 'Once or twice daily' },
+      { id: 'calcium', name: 'Calcium + Vitamin D', tradeName: 'Calcimate D / Calcivit D / Osteocare', frequency: 'Twice daily' },
       { id: 'omega3', name: 'Omega-3', tradeName: 'Octatron / Omega Plus', frequency: 'Once daily' },
       { id: 'vitd', name: 'Vitamin D 50,000 IU', tradeName: 'Vidrop / Devarol-S', frequency: 'Weekly' },
+      { id: 'lactoferrin', name: 'Lactoferrin', tradeName: 'Pravotin / Pravotin Sachet', frequency: 'Twice daily' },
     ]
   },
   nausea: {
@@ -23,8 +24,9 @@ const PREGNANCY_MEDICATIONS = {
     medications: [
       { id: 'xonvea', name: 'Doxylamine + Pyridoxine', tradeName: 'Xonvea / Diclegis', frequency: 'As directed' },
       { id: 'ondansetron', name: 'Ondansetron 4mg', tradeName: 'Zofran / Emeset', frequency: 'Every 8 hours PRN' },
-      { id: 'metoclopramide', name: 'Metoclopramide 10mg', tradeName: 'Primperan', frequency: 'Every 8 hours PRN' },
+      { id: 'metoclopramide', name: 'Metoclopramide 10mg', tradeName: 'Primperan / Controloc', frequency: 'Every 8 hours PRN' },
       { id: 'meclizine', name: 'Meclizine 25mg', tradeName: 'Dramamine', frequency: 'Twice daily PRN' },
+      { id: 'navidoxine', name: 'Meclizine + B6', tradeName: 'Navidoxine', frequency: 'Once daily at bedtime' },
     ]
   },
   gi: {
@@ -33,19 +35,21 @@ const PREGNANCY_MEDICATIONS = {
     medications: [
       { id: 'omeprazole', name: 'Omeprazole 20mg', tradeName: 'Gastroloc / Omiz', frequency: 'Once daily before breakfast' },
       { id: 'esomeprazole', name: 'Esomeprazole 40mg', tradeName: 'Nexium / Ezoloc', frequency: 'Once daily' },
-      { id: 'antacid', name: 'Antacid', tradeName: 'Maalox / Gaviscon', frequency: 'After meals PRN' },
+      { id: 'antacid', name: 'Antacid', tradeName: 'Maalox / Gaviscon / Epicogel', frequency: 'After meals PRN' },
       { id: 'lactulose', name: 'Lactulose', tradeName: 'Duphalac / Laevolac', frequency: 'Once or twice daily' },
       { id: 'fiber', name: 'Fiber Supplement', tradeName: 'Agiolax', frequency: 'Once daily' },
+      { id: 'simethicone', name: 'Simethicone', tradeName: 'Disflatyl', frequency: 'Three times daily' },
     ]
   },
   antibiotics: {
     title: 'Antibiotics',
     titleAr: 'المضادات الحيوية',
     medications: [
-      { id: 'amoxicillin', name: 'Amoxicillin 1000mg', tradeName: 'Augmentin / E-Mox', frequency: 'Twice daily' },
+      { id: 'amoxicillin', name: 'Amoxicillin 1000mg', tradeName: 'Augmentin / E-Mox / Hibiotic', frequency: 'Twice daily' },
       { id: 'cephalexin', name: 'Cephalexin 500mg', tradeName: 'Ceporex / Keflex', frequency: 'Every 6-8 hours' },
       { id: 'azithromycin', name: 'Azithromycin 500mg', tradeName: 'Zithromax / Azithrocin', frequency: 'Once daily x 3-5 days' },
-      { id: 'nitrofurantoin', name: 'Nitrofurantoin 100mg', tradeName: 'Furadantin', frequency: 'Twice daily' },
+      { id: 'nitrofurantoin', name: 'Nitrofurantoin 100mg', tradeName: 'Furadantin / Macrofuran', frequency: 'Twice daily' },
+      { id: 'cefixime', name: 'Cefixime 400mg', tradeName: 'Suprax / Magnacef', frequency: 'Once daily' },
     ]
   },
   hypertension: {
@@ -81,6 +85,52 @@ const PREGNANCY_MEDICATIONS = {
       { id: 'cyclogest', name: 'Progesterone 400mg vaginal', tradeName: 'Cyclogest / Prontogest', frequency: 'Twice daily' },
       { id: 'duphaston', name: 'Dydrogesterone 10mg', tradeName: 'Duphaston', frequency: 'Twice daily' },
       { id: 'proluton', name: 'Progesterone 250mg IM', tradeName: 'Proluton Depot', frequency: 'Weekly' },
+      { id: 'utrogestan', name: 'Progesterone 100/200mg', tradeName: 'Utrogestan', frequency: 'As directed' },
+    ]
+  },
+  tocolytics: {
+    title: 'Tocolytics (Preterm Labor)',
+    titleAr: 'مثبطات الطلق المبكر',
+    medications: [
+      { id: 'nifedipine_tocolytic', name: 'Nifedipine 10mg', tradeName: 'Epilat', frequency: 'As directed' },
+      { id: 'ritodrine', name: 'Ritodrine', tradeName: 'Yutopar', frequency: 'As directed' },
+      { id: 'indomethacin', name: 'Indomethacin 50mg', tradeName: 'Indocin', frequency: 'As directed' },
+    ]
+  },
+  corticosteroids: {
+    title: 'Fetal Lung Maturity',
+    titleAr: 'حقن الرئة للجنين',
+    medications: [
+      { id: 'betamethasone', name: 'Betamethasone 12mg IM', tradeName: 'Celestone', frequency: 'Two doses 24h apart' },
+      { id: 'dexamethasone', name: 'Dexamethasone 6mg IM', tradeName: 'Fortecortin / Dexamethasone', frequency: 'Four doses 12h apart' },
+    ]
+  },
+  diabetes: {
+    title: 'Anti-Diabetics',
+    titleAr: 'أدوية السكر',
+    medications: [
+      { id: 'insulin_rapid', name: 'Rapid Acting Insulin', tradeName: 'NovoRapid / Humalog', frequency: 'Before meals' },
+      { id: 'insulin_long', name: 'Long Acting Insulin', tradeName: 'Lantus / Levemir', frequency: 'Once daily' },
+      { id: 'metformin', name: 'Metformin 500/1000mg', tradeName: 'Glucophage / Cidophage', frequency: 'As directed' },
+    ]
+  },
+  infections: {
+    title: 'Vaginal Infections',
+    titleAr: 'الالتهابات المهبلية',
+    medications: [
+      { id: 'clotrimazole', name: 'Clotrimazole Cream/Vaginal', tradeName: 'Canesten / Gynozol', frequency: 'At bedtime' },
+      { id: 'miconazole', name: 'Miconazole Vaginal', tradeName: 'Gyno-Daktarin', frequency: 'At bedtime' },
+      { id: 'metronidazole', name: 'Metronidazole 500mg', tradeName: 'Flagyl / Amrizole', frequency: 'Twice daily' },
+      { id: 'clindamycin', name: 'Clindamycin Vaginal', tradeName: 'Dalacin V', frequency: 'At bedtime' },
+      { id: 'betadine_vaginal', name: 'Povidone-Iodine Vaginal', tradeName: 'Betadine Vaginal Douche', frequency: 'As directed' },
+    ]
+  },
+  hemorrhoids: {
+    title: 'Hemorrhoids & Varicose',
+    titleAr: 'البواسير والدوالي',
+    medications: [
+      { id: 'daflon', name: 'Diosmin + Hesperidin', tradeName: 'Daflon 500mg', frequency: 'Twice daily' },
+      { id: 'proctoglyvenol', name: 'Hemorrhoid Cream', tradeName: 'Procto-Glyvenol / Faktu', frequency: 'Twice daily' },
     ]
   },
   painRelief: {
@@ -88,7 +138,7 @@ const PREGNANCY_MEDICATIONS = {
     titleAr: 'المسكنات',
     medications: [
       { id: 'paracetamol', name: 'Paracetamol 500mg', tradeName: 'Panadol / Cetal', frequency: 'Every 6-8 hours PRN' },
-      { id: 'paracetamol1g', name: 'Paracetamol 1000mg', tradeName: 'Panadol Extra', frequency: 'Every 6-8 hours PRN' },
+      { id: 'paracetamol1g', name: 'Paracetamol 1000mg', tradeName: 'Panadol Extra / Adol', frequency: 'Every 6-8 hours PRN' },
     ]
   },
   other: {
@@ -97,6 +147,7 @@ const PREGNANCY_MEDICATIONS = {
     medications: [
       { id: 'loratadine', name: 'Loratadine 10mg', tradeName: 'Claritine / Lorano', frequency: 'Once daily' },
       { id: 'cetirizine', name: 'Cetirizine 10mg', tradeName: 'Zyrtec / Letizen', frequency: 'Once daily' },
+      { id: 'antid', name: 'Anti-D Immunoglobulin', tradeName: 'Anti-D Injection / Rhophylac', frequency: 'Single dose' },
     ]
   }
 };
@@ -138,6 +189,7 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
   const [selectedItems, setSelectedItems] = useState<PrescriptionItem[]>([]);
   const [notes, setNotes] = useState('');
   const [editingItem, setEditingItem] = useState<PrescriptionItem | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchPrescriptions();
@@ -270,7 +322,21 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
       {/* New Prescription Form */}
       {showNewPrescription && (
         <div className="border border-gray-200 rounded-lg p-4 space-y-4">
-          <h4 className="font-medium text-gray-900">اختر الأدوية</h4>
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium text-gray-900">اختر الأدوية</h4>
+            <div className="relative w-64">
+              <input
+                type="text"
+                placeholder="بحث عن دواء..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-3 pr-10 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <Plus className="w-4 h-4 text-gray-400 rotate-45" />
+              </div>
+            </div>
+          </div>
           
           {/* Selected Items */}
           {selectedItems.length > 0 && (
@@ -307,44 +373,55 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
 
           {/* Medication Categories */}
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {Object.entries(PREGNANCY_MEDICATIONS).map(([key, category]) => (
-              <div key={key} className="space-y-2">
-                <h5 className="text-sm font-medium text-gray-700">
-                  {category.title} <span className="text-gray-500">({category.titleAr})</span>
-                </h5>
-                <div className="grid grid-cols-1 gap-2">
-                  {category.medications.map(med => {
-                    const isRecommended = recommendedMeds.includes(med.id);
-                    const isAlreadySelected = selectedItems.some(item => item.medication_id === med.id);
-                    
-                    return (
-                      <button
-                        key={med.id}
-                        type="button"
-                        onClick={() => handleAddMedication(med, key)}
-                        disabled={isAlreadySelected}
-                        className={`text-left px-3 py-2 rounded-lg border transition-colors ${
-                          isAlreadySelected
-                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                            : isRecommended
-                            ? 'bg-blue-50 text-blue-900 border-blue-300 hover:bg-blue-100'
-                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium">{med.tradeName}</p>
-                            <p className="text-xs text-gray-500">{med.name} • {med.frequency}</p>
+            {Object.entries(PREGNANCY_MEDICATIONS).map(([key, category]) => {
+              const filteredMeds = category.medications.filter(med => 
+                med.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                med.tradeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                category.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                category.titleAr.includes(searchTerm)
+              );
+
+              if (filteredMeds.length === 0) return null;
+
+              return (
+                <div key={key} className="space-y-2">
+                  <h5 className="text-sm font-medium text-gray-700">
+                    {category.title} <span className="text-gray-500">({category.titleAr})</span>
+                  </h5>
+                  <div className="grid grid-cols-1 gap-2">
+                    {filteredMeds.map(med => {
+                      const isRecommended = recommendedMeds.includes(med.id);
+                      const isAlreadySelected = selectedItems.some(item => item.medication_id === med.id);
+                      
+                      return (
+                        <button
+                          key={med.id}
+                          type="button"
+                          onClick={() => handleAddMedication(med, key)}
+                          disabled={isAlreadySelected}
+                          className={`text-left px-3 py-2 rounded-lg border transition-colors ${
+                            isAlreadySelected
+                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                              : isRecommended
+                              ? 'bg-blue-50 text-blue-900 border-blue-300 hover:bg-blue-100'
+                              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium">{med.tradeName}</p>
+                              <p className="text-xs text-gray-500">{med.name} • {med.frequency}</p>
+                            </div>
+                            {isRecommended && !isAlreadySelected && <span className="text-lg">⭐</span>}
+                            {isAlreadySelected && <Check size={16} className="text-gray-400" />}
                           </div>
-                          {isRecommended && !isAlreadySelected && <span className="text-lg">⭐</span>}
-                          {isAlreadySelected && <Check size={16} className="text-gray-400" />}
-                        </div>
-                      </button>
-                    );
-                  })}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Notes */}
