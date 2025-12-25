@@ -14,6 +14,82 @@ export interface LabReferenceItem {
   sourceInAppAr?: string;
 }
 
+export interface LabPackage {
+  id: string;
+  titleAr: string;
+  titleEn: string;
+  descriptionAr: string;
+  tests: string[];
+  category: 'Fertility' | 'Obstetrics' | 'General';
+}
+
+export const LAB_PACKAGES: LabPackage[] = [
+  {
+    id: 'basic_fertility',
+    titleAr: 'باقة الخصوبة الأساسية (يوم 2-3)',
+    titleEn: 'Basic Fertility Profile (Day 2-3)',
+    descriptionAr: 'تقييم أولي للهرمونات الأساسية المسؤولة عن التبويض.',
+    tests: ['FSH', 'LH', 'E2 (Estradiol)', 'Prolactin', 'TSH'],
+    category: 'Fertility'
+  },
+  {
+    id: 'ovarian_reserve',
+    titleAr: 'باقة مخزون المبيض',
+    titleEn: 'Ovarian Reserve Profile',
+    descriptionAr: 'لتقييم المخزون المبيضي والتنبؤ بالاستجابة للتنشيط.',
+    tests: ['AMH', 'AFC (Ultrasound)'],
+    category: 'Fertility'
+  },
+  {
+    id: 'pcos_profile',
+    titleAr: 'باقة تكيس المبايض',
+    titleEn: 'PCOS Profile',
+    descriptionAr: 'لتشخيص متلازمة تكيس المبايض ومقاومة الأنسولين.',
+    tests: ['FSH', 'LH', 'Total Testosterone', 'Free Testosterone', 'DHEAS', 'SHBG', 'Fasting Insulin', 'Fasting Glucose', 'HOMA-IR'],
+    category: 'Fertility'
+  },
+  {
+    id: 'recurrent_loss',
+    titleAr: 'باقة الإجهاض المتكرر',
+    titleEn: 'Recurrent Miscarriage Profile',
+    descriptionAr: 'فحوصات التجلط والمناعة للكشف عن أسباب الإجهاض المتكرر.',
+    tests: ['Lupus Anticoagulant', 'Anticardiolipin IgG/IgM', 'Beta-2 Glycoprotein 1 IgG/IgM', 'Protein C Activity', 'Protein S Activity', 'Antithrombin III', 'Factor V Leiden', 'Prothrombin Gene Mutation', 'Karyotyping (Husband & Wife)'],
+    category: 'Fertility'
+  },
+  {
+    id: 'pre_ivf_viral',
+    titleAr: 'باقة الفيروسات (قبل الحقن)',
+    titleEn: 'Pre-IVF Viral Markers',
+    descriptionAr: 'فحوصات العدوى الفيروسية المطلوبة قبل بدء الحقن المجهري.',
+    tests: ['HBsAg', 'HCV Ab', 'HIV I/II', 'VDRL / RPR'],
+    category: 'Fertility'
+  },
+  {
+    id: 'antenatal_first',
+    titleAr: 'باقة الحمل (الزيارة الأولى)',
+    titleEn: 'Antenatal Profile (First Visit)',
+    descriptionAr: 'الفحوصات الروتينية عند ثبوت الحمل.',
+    tests: ['CBC', 'Blood Group & Rh', 'Random Blood Sugar', 'Urine Analysis', 'Rubella IgG', 'TSH'],
+    category: 'Obstetrics'
+  },
+  {
+    id: 'antenatal_28w',
+    titleAr: 'باقة الحمل (الأسبوع 24-28)',
+    titleEn: 'Antenatal Profile (24-28 Weeks)',
+    descriptionAr: 'فحص سكري الحمل والأنيميا.',
+    tests: ['CBC', 'GCT (50g Glucose) or OGTT', 'Urine Analysis'],
+    category: 'Obstetrics'
+  },
+  {
+    id: 'male_infertility',
+    titleAr: 'باقة عقم الرجال',
+    titleEn: 'Male Infertility Profile',
+    descriptionAr: 'تقييم أسباب تأخر الإنجاب لدى الزوج.',
+    tests: ['Semen Analysis (Computerized)', 'FSH', 'LH', 'Total Testosterone', 'Prolactin', 'Scrotal Doppler'],
+    category: 'Fertility'
+  }
+];
+
 // ملاحظة: هذه القيم/الحدود مبنية على "قواعد التنبيه داخل البرنامج" (ألوان/تحذيرات)،
 // وليست بديلًا عن القيم المرجعية الرسمية للمعمل والتي قد تختلف حسب الكيت/المعمل.
 export const LAB_REFERENCES: LabReferenceItem[] = [
