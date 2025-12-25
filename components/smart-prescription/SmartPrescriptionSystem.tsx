@@ -121,6 +121,7 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>روشتة طبية</title>
+            <script src="https://cdn.tailwindcss.com"></script>
             <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
             <style>
               * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -214,7 +215,7 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
       setTimeout(() => {
         printWindow.focus();
         printWindow.print();
-      }, 1000);
+      }, 2000);
       
       toast.success('جاري فتح نافذة الطباعة...');
     } catch (error) {
