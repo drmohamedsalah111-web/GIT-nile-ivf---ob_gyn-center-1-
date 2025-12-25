@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Calendar, FileText, Image as ImageIcon, AlertCircle, Plus, RefreshCw } from 'lucide-react';
+import { Activity, Calendar, FileText, Image as ImageIcon, AlertCircle, Plus, RefreshCw, FlaskConical, Pill } from 'lucide-react';
 import { format, differenceInWeeks, addDays, differenceInDays } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { PregnancyOverview } from '../../components/obstetrics/PregnancyOverview';
@@ -7,6 +7,8 @@ import { VisitsTable } from '../../components/obstetrics/VisitsTable';
 import { UltrasoundGallery } from '../../components/obstetrics/UltrasoundGallery';
 import { NewVisitModal } from '../../components/obstetrics/NewVisitModal';
 import { NewPregnancyModal } from '../../components/obstetrics/NewPregnancyModal';
+import { PregnancyLabsPanel } from '../../components/obstetrics/PregnancyLabsPanel';
+import { PregnancyPrescriptionPanel } from '../../components/obstetrics/PregnancyPrescriptionPanel';
 import { obstetricsService } from '../../../services/obstetricsService';
 
 interface PregnancyProfileProps {
@@ -14,7 +16,7 @@ interface PregnancyProfileProps {
 }
 
 export const PregnancyProfile: React.FC<PregnancyProfileProps> = ({ patientId }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'visits' | 'gallery'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'visits' | 'labs' | 'prescriptions' | 'gallery'>('overview');
   const [isNewVisitModalOpen, setIsNewVisitModalOpen] = useState(false);
   const [isNewPregnancyModalOpen, setIsNewPregnancyModalOpen] = useState(false);
   
@@ -125,7 +127,29 @@ export const PregnancyProfile: React.FC<PregnancyProfileProps> = ({ patientId })
             }`}
           >
             <Calendar size={20} />
-            <span>الزيارات والمتابعة</span>
+            <span>الزيارات</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('labs')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg transition-colors ${
+              activeTab === 'labs'
+                ? 'bg-purple-50 text-purple-700 font-bold'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <FlaskConical size={20} />
+            <span>التحاليل</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('prescriptions')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg transition-colors ${
+              activeTab === 'prescriptions'
+                ? 'bg-emerald-50 text-emerald-700 font-bold'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <Pill size={20} />
+            <span>الروشتات</span>
           </button>
           <button
             onClick={() => setActiveTab('gallery')}
@@ -136,7 +160,7 @@ export const PregnancyProfile: React.FC<PregnancyProfileProps> = ({ patientId })
             }`}
           >
             <ImageIcon size={20} />
-            <span>معرض السونار</span>
+            <span>السونار</span>
           </button>
         </div>
       </div>
@@ -168,6 +192,24 @@ export const PregnancyProfile: React.FC<PregnancyProfileProps> = ({ patientId })
 
         {activeTab === 'gallery' && (
           <UltrasoundGallery files={files} />
+        )}
+
+        {activeTab === 'labs' && (
+          <PregnancyLabsPanel 
+            pregnancyId={pregnancy.id}
+            riskLevel={pregnancy.risk_level || 'low'}
+            gestationalWeeks={pregnancy.gestational_age ? Math.floor(pregnancy.gestational_age / 7) : 
+              differenceInWeeks(new Date(), new Date(pregnancy.lmp))}
+          />
+        )}
+
+        {activeTab === 'prescriptions' && (
+          <PregnancyPrescriptionPanel 
+            pregnancyId={pregnancy.id}
+            patientName={pregnancy.patient_name}
+            gestationalWeeks={pregnancy.gestational_age ? Math.floor(pregnancy.gestational_age / 7) : 
+              differenceInWeeks(new Date(), new Date(pregnancy.lmp))}
+          />
         )}
       </div>
 
