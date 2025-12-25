@@ -1,57 +1,61 @@
 import React, { useState, useEffect } from 'react';
-import { FlaskConical, Plus, Check, Clock, Trash2, Printer, AlertCircle } from 'lucide-react';
+import { FlaskConical, Plus, Check, Clock, Trash2, Printer, AlertCircle, X } from 'lucide-react';
 import { supabase } from '../../../services/supabaseClient';
 import toast from 'react-hot-toast';
 
-// تحاليل الحمل الأساسية
+// Pregnancy Lab Tests - English Names with Arabic translations
 const PREGNANCY_LABS = {
   booking: {
-    title: 'تحاليل الحجز (First Visit)',
+    title: 'Booking Tests (First Visit)',
     tests: [
-      { id: 'cbc', name: 'CBC', nameAr: 'صورة دم كاملة' },
-      { id: 'blood_group', name: 'Blood Group + Rh', nameAr: 'فصيلة الدم' },
-      { id: 'rbs', name: 'RBS', nameAr: 'سكر عشوائي' },
-      { id: 'urine', name: 'Urine Analysis', nameAr: 'تحليل بول' },
-      { id: 'hbsag', name: 'HBsAg', nameAr: 'التهاب كبدي B' },
-      { id: 'hcv', name: 'HCV Ab', nameAr: 'التهاب كبدي C' },
-      { id: 'hiv', name: 'HIV', nameAr: 'فيروس نقص المناعة' },
-      { id: 'vdrl', name: 'VDRL', nameAr: 'اختبار الزهري' },
-      { id: 'rubella', name: 'Rubella IgG', nameAr: 'الحصبة الألمانية' },
-      { id: 'tsh', name: 'TSH', nameAr: 'هرمون الغدة الدرقية' },
+      { id: 'cbc', name: 'Complete Blood Count (CBC)', nameAr: 'صورة دم كاملة', unit: '' },
+      { id: 'blood_group', name: 'Blood Group & Rh', nameAr: 'فصيلة الدم', unit: '' },
+      { id: 'rbs', name: 'Random Blood Sugar (RBS)', nameAr: 'سكر عشوائي', unit: 'mg/dL' },
+      { id: 'urine', name: 'Urine Analysis', nameAr: 'تحليل بول', unit: '' },
+      { id: 'hbsag', name: 'HBsAg', nameAr: 'Hepatitis B Surface Antigen', unit: '' },
+      { id: 'hcv', name: 'HCV Ab', nameAr: 'Hepatitis C Virus Antibody', unit: '' },
+      { id: 'hiv', name: 'HIV 1&2', nameAr: 'Human Immunodeficiency Virus', unit: '' },
+      { id: 'vdrl', name: 'VDRL / Syphilis', nameAr: 'اختبار الزهري', unit: '' },
+      { id: 'rubella', name: 'Rubella IgG', nameAr: 'الحصبة الألمانية', unit: 'IU/mL' },
+      { id: 'tsh', name: 'TSH', nameAr: 'Thyroid Stimulating Hormone', unit: 'mIU/L' },
+      { id: 'toxo', name: 'Toxoplasma IgG/IgM', nameAr: 'توكسوبلازما', unit: '' },
+      { id: 'hb_electrophoresis', name: 'Hb Electrophoresis', nameAr: 'فصل كهربائي للهيموجلوبين', unit: '' },
+      { id: 'vit_d', name: 'Vitamin D', nameAr: 'فيتامين د', unit: 'ng/mL' },
     ]
   },
   firstTrimester: {
-    title: 'تحاليل الثلث الأول (11-14 أسبوع)',
+    title: 'First Trimester (11-14 weeks)',
     tests: [
       { id: 'double_test', name: 'Double Test (PAPP-A + Free β-hCG)', nameAr: 'فحص مزدوج' },
-      { id: 'nt_scan', name: 'NT Scan', nameAr: 'قياس الشفافية القفوية' },
+      { id: 'nt_scan', name: 'NT Scan (Nuchal Translucency)', nameAr: 'قياس الشفافية القفوية' },
     ]
   },
   secondTrimester: {
-    title: 'تحاليل الثلث الثاني (15-20 أسبوع)',
+    title: 'Second Trimester (15-28 weeks)',
     tests: [
       { id: 'quad_test', name: 'Quad Screen', nameAr: 'الفحص الرباعي' },
-      { id: 'anomaly_scan', name: 'Anomaly Scan', nameAr: 'فحص التشوهات' },
-      { id: 'gtt', name: 'GTT (24-28 weeks)', nameAr: 'منحنى السكر' },
+      { id: 'anomaly_scan', name: 'Anomaly Scan (20-24 weeks)', nameAr: 'فحص التشوهات' },
+      { id: 'ogtt', name: 'OGTT (Oral Glucose Tolerance Test)', nameAr: 'منحنى السكر', unit: 'mg/dL' },
+      { id: 'indirect_coombs', name: 'Indirect Coombs Test', nameAr: 'اختبار كومبس غير المباشر' },
     ]
   },
   thirdTrimester: {
-    title: 'تحاليل الثلث الثالث (28+ أسبوع)',
+    title: 'Third Trimester (28+ weeks)',
     tests: [
-      { id: 'cbc_3rd', name: 'CBC', nameAr: 'صورة دم كاملة' },
+      { id: 'cbc_3rd', name: 'CBC (Repeat)', nameAr: 'صورة دم كاملة' },
       { id: 'gbs', name: 'GBS Culture (35-37 weeks)', nameAr: 'مزرعة المكورات العقدية' },
-      { id: 'coagulation', name: 'Coagulation Profile', nameAr: 'اختبارات التخثر' },
+      { id: 'coagulation', name: 'Coagulation Profile (PT, PTT, INR)', nameAr: 'اختبارات التخثر' },
     ]
   },
   highRisk: {
-    title: 'تحاليل الحمل عالي الخطورة',
+    title: 'High Risk / Complications',
     tests: [
-      { id: 'hba1c', name: 'HbA1c', nameAr: 'السكر التراكمي' },
-      { id: 'kidney', name: 'Kidney Function', nameAr: 'وظائف الكلى' },
-      { id: 'liver', name: 'Liver Function', nameAr: 'وظائف الكبد' },
-      { id: '24h_urine', name: '24h Urine Protein', nameAr: 'بروتين البول 24 ساعة' },
-      { id: 'uric_acid', name: 'Uric Acid', nameAr: 'حمض اليوريك' },
-      { id: 'ldh', name: 'LDH', nameAr: 'إنزيم LDH' },
+      { id: 'hba1c', name: 'HbA1c', nameAr: 'السكر التراكمي', unit: '%' },
+      { id: 'kidney', name: 'Kidney Function (Urea, Creatinine)', nameAr: 'وظائف الكلى' },
+      { id: 'liver', name: 'Liver Function (ALT, AST, Albumin)', nameAr: 'وظائف الكبد' },
+      { id: '24h_urine', name: '24h Urine Protein', nameAr: 'بروتين البول 24 ساعة', unit: 'mg/24h' },
+      { id: 'uric_acid', name: 'Uric Acid', nameAr: 'حمض اليوريك', unit: 'mg/dL' },
+      { id: 'ldh', name: 'LDH', nameAr: 'Lactate Dehydrogenase', unit: 'U/L' },
       { id: 'platelets', name: 'Platelet Count', nameAr: 'عدد الصفائح' },
     ]
   }
@@ -84,6 +88,8 @@ export const PregnancyLabsPanel: React.FC<PregnancyLabsPanelProps> = ({
   const [loading, setLoading] = useState(true);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [notes, setNotes] = useState('');
+  const [editingOrder, setEditingOrder] = useState<LabOrder | null>(null);
+  const [tempResults, setTempResults] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchLabOrders();
@@ -103,6 +109,34 @@ export const PregnancyLabsPanel: React.FC<PregnancyLabsPanelProps> = ({
       console.error('Error fetching lab orders:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenResults = (order: LabOrder) => {
+    setEditingOrder(order);
+    setTempResults(order.results || {});
+  };
+
+  const handleSaveResults = async () => {
+    if (!editingOrder) return;
+
+    try {
+      const { error } = await supabase
+        .from('pregnancy_labs')
+        .update({ 
+          results: tempResults,
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', editingOrder.id);
+
+      if (error) throw error;
+      toast.success('تم حفظ النتائج بنجاح');
+      setEditingOrder(null);
+      fetchLabOrders();
+    } catch (err) {
+      console.error('Error saving results:', err);
+      toast.error('حدث خطأ أثناء حفظ النتائج');
     }
   };
 
@@ -267,16 +301,19 @@ export const PregnancyLabsPanel: React.FC<PregnancyLabsPanelProps> = ({
                       key={test.id}
                       type="button"
                       onClick={() => handleToggleTest(test.id)}
-                      className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                      className={`px-3 py-1.5 text-sm rounded-lg border transition-all text-right flex flex-col items-start min-w-[120px] relative ${
                         isSelected
-                          ? 'bg-purple-600 text-white border-purple-600'
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-md'
                           : isRecommended
                           ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
                           : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
                       }`}
                     >
-                      {test.nameAr}
-                      {isRecommended && !isSelected && ' ⭐'}
+                      <span className="font-bold text-xs">{test.name}</span>
+                      <span className={`text-[10px] ${isSelected ? 'text-purple-100' : 'text-gray-400'}`}>{test.nameAr}</span>
+                      {isRecommended && !isSelected && (
+                        <span className="absolute -top-2 -right-1 text-xs">⭐</span>
+                      )}
                     </button>
                   );
                 })}
@@ -337,7 +374,7 @@ export const PregnancyLabsPanel: React.FC<PregnancyLabsPanelProps> = ({
               }`}
             >
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     {order.status === 'pending' ? (
                       <Clock className="w-4 h-4 text-amber-500" />
@@ -353,31 +390,48 @@ export const PregnancyLabsPanel: React.FC<PregnancyLabsPanelProps> = ({
                       {new Date(order.ordered_at).toLocaleDateString('ar-EG')}
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  
+                  <div className="flex flex-wrap gap-1 mb-3">
                     {order.test_names.map((testId, idx) => {
                       const allTests = Object.values(PREGNANCY_LABS).flatMap(c => c.tests);
                       const test = allTests.find(t => t.id === testId);
                       return (
                         <span key={idx} className="px-2 py-0.5 bg-white text-gray-700 text-xs rounded border">
-                          {test?.nameAr || testId}
+                          {test?.name || testId}
                         </span>
                       );
                     })}
                   </div>
+
+                  {/* Results Display */}
+                  {order.results && Object.keys(order.results).length > 0 && (
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {Object.entries(order.results).map(([testId, value]) => {
+                        const allTests = Object.values(PREGNANCY_LABS).flatMap(c => c.tests);
+                        const test = allTests.find(t => t.id === testId);
+                        return (
+                          <div key={testId} className="flex items-center justify-between bg-white/50 p-2 rounded border border-gray-100">
+                            <span className="text-xs font-medium text-gray-600">{test?.name || testId}:</span>
+                            <span className="text-sm font-bold text-purple-700">{value} <span className="text-[10px] font-normal text-gray-400">{test?.unit}</span></span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {order.notes && (
-                    <p className="text-sm text-gray-600 mt-2">{order.notes}</p>
+                    <p className="text-sm text-gray-600 mt-2 italic">"{order.notes}"</p>
                   )}
                 </div>
                 <div className="flex gap-1">
-                  {order.status === 'pending' && (
-                    <button
-                      onClick={() => handleMarkCompleted(order.id)}
-                      className="p-1.5 text-green-600 hover:bg-green-100 rounded"
-                      title="تحديد كمكتمل"
-                    >
-                      <Check size={16} />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleOpenResults(order)}
+                    className="p-1.5 text-purple-600 hover:bg-purple-100 rounded flex items-center gap-1 text-xs font-medium"
+                    title="إدخال النتائج"
+                  >
+                    <Plus size={16} />
+                    <span>النتائج</span>
+                  </button>
                   <button
                     className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
                     title="طباعة"
@@ -390,6 +444,57 @@ export const PregnancyLabsPanel: React.FC<PregnancyLabsPanelProps> = ({
           ))
         )}
       </div>
+
+      {/* Results Entry Modal */}
+      {editingOrder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-4 border-b bg-purple-50 flex items-center justify-between">
+              <h3 className="font-bold text-purple-900">إدخال نتائج التحاليل</h3>
+              <button onClick={() => setEditingOrder(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+              {editingOrder.test_names.map(testId => {
+                const allTests = Object.values(PREGNANCY_LABS).flatMap(c => c.tests);
+                const test = allTests.find(t => t.id === testId);
+                return (
+                  <div key={testId} className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      {test?.name || testId} {test?.nameAr && <span className="text-xs text-gray-400">({test.nameAr})</span>}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={tempResults[testId] || ''}
+                        onChange={e => setTempResults(prev => ({ ...prev, [testId]: e.target.value }))}
+                        className="flex-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                        placeholder="النتيجة..."
+                      />
+                      {test?.unit && <span className="text-xs text-gray-500 w-12">{test.unit}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="p-4 border-t bg-gray-50 flex gap-2">
+              <button
+                onClick={handleSaveResults}
+                className="flex-1 bg-purple-600 text-white py-2 rounded-lg font-bold hover:bg-purple-700 transition-colors"
+              >
+                حفظ النتائج
+              </button>
+              <button
+                onClick={() => setEditingOrder(null)}
+                className="flex-1 bg-white border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
