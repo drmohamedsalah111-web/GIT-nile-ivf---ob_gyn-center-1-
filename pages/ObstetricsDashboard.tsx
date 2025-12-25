@@ -16,6 +16,10 @@ const ObstetricsDashboard: React.FC = () => {
     }
   }, [patients]);
 
+  const handlePatientChange = (value: string | string[]) => {
+    setSelectedPatientId(Array.isArray(value) ? value[0] : value);
+  };
+
   return (
     <div className="space-y-6 font-[Tajawal]" dir="rtl">
       {/* Patient Selection Header */}
@@ -23,9 +27,12 @@ const ObstetricsDashboard: React.FC = () => {
         <div className="w-1/3">
           <label className="block text-sm font-medium text-gray-700 mb-1">اختر المريضة</label>
           <SearchableSelect
-            options={patients.map(p => ({ value: p.id.toString(), label: p.name }))}
-            value={selectedPatientId || ''}
-            onChange={setSelectedPatientId}
+            options={patients.map(p => p.name)}
+            value={patients.find(p => p.id.toString() === selectedPatientId)?.name || ''}
+            onChange={(value) => {
+              const patient = patients.find(p => p.name === (Array.isArray(value) ? value[0] : value));
+              if (patient) setSelectedPatientId(patient.id.toString());
+            }}
             placeholder="ابحث عن مريضة..."
           />
         </div>
@@ -58,7 +65,12 @@ const ObstetricsDashboard: React.FC = () => {
         {/* History Sidebar */}
         {showHistory && selectedPatientId && (
           <div className="w-80 shrink-0">
-            <HistorySidebar patientId={selectedPatientId} />
+            <HistorySidebar 
+              patientId={selectedPatientId} 
+              category="OBS"
+              isOpen={showHistory}
+              onClose={() => setShowHistory(false)}
+            />
           </div>
         )}
       </div>

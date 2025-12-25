@@ -161,15 +161,17 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
 
       if (error) throw error;
 
-      const appointments: Appointment[] = (data || []).map(appt => ({
-        id: appt.id,
-        patient_id: appt.patient_id,
-        patient_name: appt.patient?.name || 'Unknown Patient',
-        appointment_date: appt.appointment_date,
-        visit_type: appt.visit_type,
-        status: appt.status,
-        notes: appt.notes
-      }));
+      const appointments: Appointment[] = (data || [])
+        .filter(appt => appt && appt.id && appt.appointment_date)
+        .map(appt => ({
+          id: appt.id,
+          patient_id: appt.patient_id,
+          patient_name: appt.patient?.name || 'Unknown Patient',
+          appointment_date: appt.appointment_date,
+          visit_type: appt.visit_type || 'Consultation',
+          status: appt.status || 'Scheduled',
+          notes: appt.notes
+        }));
 
       setTodaysAppointments(appointments);
     } catch (err: any) {
@@ -347,31 +349,34 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
               </div>
             ) : (
               <div className="space-y-4">
-                {todaysAppointments.map(appointment => (
-                  <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="w-6 h-6 text-blue-600" />
+                {todaysAppointments.filter(Boolean).map(appointment => {
+                  if (!appointment) return null;
+                  return (
+                    <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                          <User className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">{appointment.patient_name}</p>
+                          <p className="text-sm text-gray-600">{appointment.visit_type}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{appointment.patient_name}</p>
-                        <p className="text-sm text-gray-600">{appointment.visit_type}</p>
+                      
+                      <div className="text-right">
+                        <p className="font-medium text-gray-900">
+                          {new Date(appointment.appointment_date).toLocaleTimeString('ar-SA', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {appointment.status === 'Scheduled' ? 'مجدولة' : 'مكتملة'}
+                        </p>
                       </div>
                     </div>
-                    
-                    <div className="text-right">
-                      <p className="font-medium text-gray-900">
-                        {new Date(appointment.appointment_date).toLocaleTimeString('ar-SA', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {appointment.status === 'Scheduled' ? 'مجدولة' : 'مكتملة'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
