@@ -65,49 +65,75 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
   }, [initialPrescriptions, setPrescriptions]);
 
   const handlePrint = () => {
+    console.log('Print action started');
+    console.log('PrintRef content:', printRef.current?.innerHTML.substring(0, 100));
+    
     if (!printRef.current) {
       toast.error('فشل تحميل نموذج الطباعة');
+      console.error('printRef.current is null');
       return;
     }
 
-    const printWindow = window.open('', '', 'width=800,height=600');
-    if (!printWindow) {
-      toast.error('فشل فتح نافذة الطباعة');
+    if (!printRef.current.innerHTML.trim()) {
+      toast.error('لا توجد بيانات لطباعتها - تأكد من إضافة الأدوية');
+      console.error('printRef.current is empty');
       return;
     }
 
-    const content = printRef.current.innerHTML;
-    
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>روشتة طبية</title>
-          <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Tajawal', sans-serif; }
-            @page { size: ${settings?.paper_size || 'A4'}; margin: 0; }
-            @media print {
-              body { margin: 0; padding: 0; }
-            }
-          </style>
-        </head>
-        <body>
-          ${content}
-          <script>
-            window.onload = () => {
-              window.print();
-              window.onafterprint = () => window.close();
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    
-    printWindow.document.close();
+    try {
+      const content = printRef.current.innerHTML;
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.style.position = 'absolute';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        toast.error('فشل إنشاء نافذة الطباعة');
+        document.body.removeChild(iframe);
+        return;
+      }
+
+      iframeDoc.open();
+      iframeDoc.write(`
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>روشتة طبية</title>
+            <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: 'Tajawal', sans-serif; padding: 20px; }
+              @page { size: ${settings?.paper_size || 'A4'}; margin: 10mm; }
+              @media print {
+                body { margin: 0; padding: 10mm; }
+              }
+            </style>
+          </head>
+          <body>
+            ${content}
+          </body>
+        </html>
+      `);
+      iframeDoc.close();
+
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 500);
+      }, 250);
+      
+      toast.success('جاري طباعة الروشتة...');
+    } catch (error) {
+      console.error('خطأ الطباعة:', error);
+      toast.error('حدث خطأ أثناء محاولة الطباعة');
+    }
   };
 
   const handleExportPDF = () => {
@@ -117,16 +143,25 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
   };
 
   const renderTemplate = () => {
-    if (!settings) return null;
+    if (!settings || !patient) {
+      console.warn('Missing settings or patient data:', { settings, patient });
+      return null;
+    }
 
     const templateProps = {
       patient,
       doctor,
-      prescriptions,
+      prescriptions: prescriptions || [],
       diagnosis,
       notes,
       settings,
     };
+
+    console.log('Rendering template with data:', { 
+      prescriptionCount: prescriptions.length,
+      selectedTemplate,
+      patientName: patient.name 
+    });
 
     switch (selectedTemplate) {
       case 'modern':
