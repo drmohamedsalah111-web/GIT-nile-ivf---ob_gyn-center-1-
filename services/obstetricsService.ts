@@ -567,6 +567,21 @@ export const obstetricsService = {
   },
 
   // ============================================================================
+  // PREGNANCY MANAGEMENT
+  // ============================================================================
+
+  getPregnancyById: async (pregnancyId: string) => {
+    const { data, error } = await supabase
+      .from('pregnancies')
+      .select('*')
+      .eq('id', pregnancyId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // ============================================================================
   // PREGNANCY FILES / ULTRASOUND IMAGES
   // ============================================================================
 

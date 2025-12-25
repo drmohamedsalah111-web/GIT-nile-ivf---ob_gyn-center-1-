@@ -237,6 +237,40 @@ export interface Secretary {
   updated_at?: string;
 }
 
+export interface ObstetricHistory {
+  gravida: number;
+  parity_fullterm: number;
+  parity_preterm: number;
+  abortions: number;
+  living: number;
+}
+
+export interface MedicalHistory {
+  hypertension: boolean;
+  diabetes: boolean;
+  thyroid: boolean;
+  cardiac: boolean;
+  dvt_vte: boolean;
+  other: string;
+}
+
+export interface PastObsHistory {
+  preeclampsia: boolean;
+  pph: boolean;
+  previous_cs: boolean;
+  recurrent_abortion: boolean;
+  other: string;
+}
+
+export interface CurrentRiskFactors {
+  smoking: boolean;
+  bmi_over_30: boolean;
+  rh_negative: boolean;
+  twin_pregnancy: boolean;
+  advanced_maternal_age: boolean;
+  other: string;
+}
+
 export interface Pregnancy {
   id: string;
   patient_id: string;
@@ -248,6 +282,10 @@ export interface Pregnancy {
   risk_factors: string[];
   aspirin_prescribed: boolean;
   thromboprophylaxis_needed: boolean;
+  obstetric_history?: ObstetricHistory;
+  medical_history?: MedicalHistory;
+  past_obs_history?: PastObsHistory;
+  current_risk_factors?: CurrentRiskFactors;
   created_at?: string;
   updated_at?: string;
 }
@@ -267,6 +305,7 @@ export interface AntenatalVisit {
   fundal_height_cm?: number;
   edema?: boolean;
   edema_grade?: string;
+  presentation?: 'Cephalic' | 'Breech' | 'Transverse' | 'Oblique';
   notes?: string;
   next_visit_date?: string;
   prescription?: PrescriptionItem[];
