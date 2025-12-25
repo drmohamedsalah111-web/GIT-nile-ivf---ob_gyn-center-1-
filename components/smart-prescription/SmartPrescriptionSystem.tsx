@@ -78,150 +78,18 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
   }, []);
 
   const handlePrint = () => {
-    console.log('Print action started');
-    
     if (!printRef.current) {
       toast.error('فشل تحميل نموذج الطباعة');
-      console.error('printRef.current is null');
       return;
     }
 
-    // جرب الحصول على المحتوى من العنصر الأساسي أو الأطفال
-    let htmlContent = '';
-    
-    if (printRef.current.innerHTML && printRef.current.innerHTML.trim()) {
-      htmlContent = printRef.current.innerHTML;
-    } else if (printRef.current.children.length > 0) {
-      htmlContent = printRef.current.children[0].outerHTML;
-    } else {
-      htmlContent = printRef.current.outerHTML;
-    }
-
-    console.log('HTML Content length:', htmlContent.length);
-    console.log('HTML Content preview:', htmlContent.substring(0, 200));
-
-    if (!htmlContent || !htmlContent.trim()) {
-      toast.error('لا توجد بيانات لطباعتها - تأكد من إضافة الأدوية');
-      console.error('No content found');
+    if (!prescriptions || prescriptions.length === 0) {
+      toast.error('أضف بعض الأدوية أولاً قبل الطباعة');
       return;
     }
 
-    try {
-      // Create a new window for printing
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        toast.error('تم حظر فتح نافذة الطباعة - يرجى السماح بالنوافذ المنبثقة');
-        return;
-      }
-
-      const htmlTemplate = `
-        <!DOCTYPE html>
-        <html dir="rtl" lang="ar">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>روشتة طبية</title>
-            <script src="https://cdn.tailwindcss.com"></script>
-            <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-            <style>
-              * { margin: 0; padding: 0; box-sizing: border-box; }
-              html, body { 
-                width: 100%;
-                height: 100%;
-              }
-              body { 
-                font-family: '${styleSettings.font_family || 'Tajawal'}', sans-serif; 
-                padding: 0;
-                margin: 0;
-                background: white;
-                color: #000;
-                line-height: 1.6;
-              }
-              @page { 
-                size: ${styleSettings.paper_size || 'A4'}; 
-                margin: 10mm;
-              }
-              @media print {
-                body { 
-                  margin: 0; 
-                  padding: 10mm; 
-                }
-                * { 
-                  box-shadow: none !important; 
-                }
-              }
-              /* Tailwind CSS Overrides */
-              .prescription-minimal { background: white !important; }
-              .prescription-modern { background: white !important; }
-              .prescription-classic { background: white !important; }
-              .bg-white { background-color: white !important; }
-              .text-gray-400 { color: #9CA3AF !important; }
-              .text-gray-500 { color: #6B7280 !important; }
-              .text-gray-600 { color: #4B5563 !important; }
-              .text-gray-700 { color: #374151 !important; }
-              .text-gray-900 { color: #111827 !important; }
-              .border { border: 1px solid #E5E7EB !important; }
-              .border-b { border-bottom: 1px solid #E5E7EB !important; }
-              .border-b-2 { border-bottom: 2px solid #E5E7EB !important; }
-              .rounded-lg { border-radius: 0.5rem !important; }
-              .p-4 { padding: 1rem !important; }
-              .px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
-              .py-4 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
-              .p-6 { padding: 1.5rem !important; }
-              .px-6 { padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
-              .py-6 { padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; }
-              .mb-1 { margin-bottom: 0.25rem !important; }
-              .mb-2 { margin-bottom: 0.5rem !important; }
-              .mb-3 { margin-bottom: 0.75rem !important; }
-              .mb-4 { margin-bottom: 1rem !important; }
-              .mb-6 { margin-bottom: 1.5rem !important; }
-              .mt-1 { margin-top: 0.25rem !important; }
-              .mr-4 { margin-right: 1rem !important; }
-              .font-light { font-weight: 300 !important; }
-              .font-semibold { font-weight: 600 !important; }
-              .font-bold { font-weight: 700 !important; }
-              .text-sm { font-size: 0.875rem !important; }
-              .text-xs { font-size: 0.75rem !important; }
-              .text-xl { font-size: 1.25rem !important; }
-              .text-2xl { font-size: 1.5rem !important; }
-              .text-3xl { font-size: 1.875rem !important; }
-              .space-y-1 > * + * { margin-top: 0.25rem !important; }
-              .space-y-3 > * + * { margin-top: 0.75rem !important; }
-              .space-y-4 > * + * { margin-top: 1rem !important; }
-              .flex { display: flex !important; }
-              .flex-col { flex-direction: column !important; }
-              .gap-2 { gap: 0.5rem !important; }
-              .gap-3 { gap: 0.75rem !important; }
-              .text-center { text-align: center !important; }
-              .italic { font-style: italic !important; }
-              .pb-3 { padding-bottom: 0.75rem !important; }
-              .pb-4 { padding-bottom: 1rem !important; }
-              .pt-8 { padding-top: 2rem !important; }
-              .mt-auto { margin-top: auto !important; }
-              .whitespace-pre-wrap { white-space: pre-wrap !important; }
-            </style>
-          </head>
-          <body>
-            ${htmlContent}
-          </body>
-        </html>
-      `;
-
-      printWindow.document.open();
-      printWindow.document.write(htmlTemplate);
-      printWindow.document.close();
-
-      // Wait for content to load then print
-      setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-      }, 2000);
-      
-      toast.success('جاري فتح نافذة الطباعة...');
-    } catch (error) {
-      console.error('خطأ الطباعة:', error);
-      toast.error('حدث خطأ أثناء محاولة الطباعة');
-    }
+    // استخدام الطباعة المباشرة من المتصفح
+    window.print();
   };
 
   const handleAddDrug = () => {
@@ -298,8 +166,27 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col">
+    <>
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #prescription-print-area,
+          #prescription-print-area * {
+            visibility: visible;
+          }
+          #prescription-print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+        }
+      `}</style>
+      
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col print:hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-t-2xl">
           <div className="flex items-center gap-3">
@@ -409,7 +296,7 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
 
               {/* Preview */}
               <div className="bg-gray-100 p-8 rounded-xl overflow-auto" style={{ maxHeight: 'calc(100vh - 500px)' }}>
-                <div className="mx-auto shadow-2xl" style={{ width: '210mm' }}>
+                <div id="prescription-print-area" className="mx-auto shadow-2xl" style={{ width: '210mm' }}>
                   {renderTemplate()}
                 </div>
               </div>
@@ -595,7 +482,7 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
               onClick={handlePrint}
               className="flex items-center gap-2 px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-semibold shadow-lg"
             >
-              <Printer size={20} />
+           <Printer size={20} />
               طباعة
             </button>
             <button
@@ -614,6 +501,7 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
