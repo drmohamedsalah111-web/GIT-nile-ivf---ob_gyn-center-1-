@@ -26,37 +26,37 @@ const PREGNANCY_LABS = {
   firstTrimester: {
     title: 'First Trimester (11-14 weeks)',
     tests: [
-      { id: 'double_test', name: 'Double Test (PAPP-A + Free β-hCG)', nameAr: 'فحص مزدوج' },
-      { id: 'nt_scan', name: 'NT Scan (Nuchal Translucency)', nameAr: 'قياس الشفافية القفوية' },
+      { id: 'double_test', name: 'Double Test (PAPP-A + Free β-hCG)', nameAr: 'فحص مزدوج', unit: '' },
+      { id: 'nt_scan', name: 'NT Scan (Nuchal Translucency)', nameAr: 'قياس الشفافية القفوية', unit: '' },
     ]
   },
   secondTrimester: {
     title: 'Second Trimester (15-28 weeks)',
     tests: [
-      { id: 'quad_test', name: 'Quad Screen', nameAr: 'الفحص الرباعي' },
-      { id: 'anomaly_scan', name: 'Anomaly Scan (20-24 weeks)', nameAr: 'فحص التشوهات' },
+      { id: 'quad_test', name: 'Quad Screen', nameAr: 'الفحص الرباعي', unit: '' },
+      { id: 'anomaly_scan', name: 'Anomaly Scan (20-24 weeks)', nameAr: 'فحص التشوهات', unit: '' },
       { id: 'ogtt', name: 'OGTT (Oral Glucose Tolerance Test)', nameAr: 'منحنى السكر', unit: 'mg/dL' },
-      { id: 'indirect_coombs', name: 'Indirect Coombs Test', nameAr: 'اختبار كومبس غير المباشر' },
+      { id: 'indirect_coombs', name: 'Indirect Coombs Test', nameAr: 'اختبار كومبس غير المباشر', unit: '' },
     ]
   },
   thirdTrimester: {
     title: 'Third Trimester (28+ weeks)',
     tests: [
-      { id: 'cbc_3rd', name: 'CBC (Repeat)', nameAr: 'صورة دم كاملة' },
-      { id: 'gbs', name: 'GBS Culture (35-37 weeks)', nameAr: 'مزرعة المكورات العقدية' },
-      { id: 'coagulation', name: 'Coagulation Profile (PT, PTT, INR)', nameAr: 'اختبارات التخثر' },
+      { id: 'cbc_3rd', name: 'CBC (Repeat)', nameAr: 'صورة دم كاملة', unit: '' },
+      { id: 'gbs', name: 'GBS Culture (35-37 weeks)', nameAr: 'مزرعة المكورات العقدية', unit: '' },
+      { id: 'coagulation', name: 'Coagulation Profile (PT, PTT, INR)', nameAr: 'اختبارات التخثر', unit: '' },
     ]
   },
   highRisk: {
     title: 'High Risk / Complications',
     tests: [
       { id: 'hba1c', name: 'HbA1c', nameAr: 'السكر التراكمي', unit: '%' },
-      { id: 'kidney', name: 'Kidney Function (Urea, Creatinine)', nameAr: 'وظائف الكلى' },
-      { id: 'liver', name: 'Liver Function (ALT, AST, Albumin)', nameAr: 'وظائف الكبد' },
+      { id: 'kidney', name: 'Kidney Function (Urea, Creatinine)', nameAr: 'وظائف الكلى', unit: '' },
+      { id: 'liver', name: 'Liver Function (ALT, AST, Albumin)', nameAr: 'وظائف الكبد', unit: '' },
       { id: '24h_urine', name: '24h Urine Protein', nameAr: 'بروتين البول 24 ساعة', unit: 'mg/24h' },
       { id: 'uric_acid', name: 'Uric Acid', nameAr: 'حمض اليوريك', unit: 'mg/dL' },
       { id: 'ldh', name: 'LDH', nameAr: 'Lactate Dehydrogenase', unit: 'U/L' },
-      { id: 'platelets', name: 'Platelet Count', nameAr: 'عدد الصفائح' },
+      { id: 'platelets', name: 'Platelet Count', nameAr: 'عدد الصفائح', unit: '' },
     ]
   }
 };
