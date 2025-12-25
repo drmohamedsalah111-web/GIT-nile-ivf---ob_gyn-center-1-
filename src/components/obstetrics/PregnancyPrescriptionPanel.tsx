@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Pill, Plus, Check, Trash2, Printer, AlertCircle, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Pill, Plus, Check, Trash2, Printer, AlertCircle, X, Upload, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '../../../services/supabaseClient';
 import toast from 'react-hot-toast';
 
@@ -190,10 +190,36 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
   const [notes, setNotes] = useState('');
   const [editingItem, setEditingItem] = useState<PrescriptionItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [customMedications, setCustomMedications] = useState<any[]>([]);
+  const [isAddMedModalOpen, setIsAddMedModalOpen] = useState(false);
+  const [newMedData, setNewMedData] = useState({
+    name: '',
+    trade_name: '',
+    category: 'Other Medications',
+    default_dosage: '1 tablet',
+    default_frequency: 'Once daily',
+    default_duration: '30 days'
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchPrescriptions();
+    fetchCustomMedications();
   }, [pregnancyId]);
+
+  const fetchCustomMedications = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('medications_catalog')
+        .select('*')
+        .order('trade_name', { ascending: true });
+
+      if (error) throw error;
+      setCustomMedications(data || []);
+    } catch (error: any) {
+      console.error('Error fetching custom medications:', error);
+    }
+  };
 
   const fetchPrescriptions = async () => {
     try {
@@ -211,6 +237,89 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddCustomMedication = async () => {
+    if (!newMedData.name || !newMedData.trade_name) {
+      toast.error('Please fill in both Generic and Trade names');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('medications_catalog')
+        .insert([newMedData]);
+
+      if (error) throw error;
+
+      toast.success('Medication added to catalog');
+      setIsAddMedModalOpen(false);
+      setNewMedData({
+        name: '',
+        trade_name: '',
+        category: 'Other Medications',
+        default_dosage: '1 tablet',
+        default_frequency: 'Once daily',
+        default_duration: '30 days'
+      });
+      fetchCustomMedications();
+    } catch (error: any) {
+      console.error('Error adding medication:', error);
+      toast.error('Error adding medication');
+    }
+  };
+
+  const handleCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n');
+      const medications = [];
+
+      // Skip header if exists (assuming: trade_name, generic_name, category, dosage, frequency, duration)
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const [trade_name, name, category, default_dosage, default_frequency, default_duration] = line.split(',').map(s => s.trim());
+        
+        if (trade_name && name) {
+          medications.push({
+            trade_name,
+            name,
+            category: category || 'Other Medications',
+            default_dosage: default_dosage || '1 tablet',
+            default_frequency: default_frequency || 'Once daily',
+            default_duration: default_duration || '30 days'
+          });
+        }
+      }
+
+      if (medications.length === 0) {
+        toast.error('No valid medications found in CSV');
+        return;
+      }
+
+      try {
+        const { error } = await supabase
+          .from('medications_catalog')
+          .insert(medications);
+
+        if (error) throw error;
+
+        toast.success(`Successfully imported ${medications.length} medications`);
+        fetchCustomMedications();
+      } catch (error: any) {
+        console.error('Error importing CSV:', error);
+        toast.error('Error importing CSV');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleAddMedication = (med: any, category: string) => {
@@ -322,19 +431,47 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
       {/* New Prescription Form */}
       {showNewPrescription && (
         <div className="border border-gray-200 rounded-lg p-4 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <h4 className="font-medium text-gray-900">اختر الأدوية</h4>
-            <div className="relative w-64">
-              <input
-                type="text"
-                placeholder="بحث عن دواء..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-3 pr-10 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <Plus className="w-4 h-4 text-gray-400 rotate-45" />
+            
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative w-full md:w-64">
+                <input
+                  type="text"
+                  placeholder="بحث عن دواء..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-3 pr-10 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <Plus className="w-4 h-4 text-gray-400 rotate-45" />
+                </div>
               </div>
+
+              <button
+                onClick={() => setIsAddMedModalOpen(true)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 text-sm transition-colors"
+                title="إضافة دواء جديد للدليل"
+              >
+                <Plus size={16} />
+                <span>إضافة دواء</span>
+              </button>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1 px-3 py-1.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-100 text-sm transition-colors"
+                title="استيراد من CSV"
+              >
+                <Upload size={16} />
+                <span>استيراد CSV</span>
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleCSVImport}
+                accept=".csv"
+                className="hidden"
+              />
             </div>
           </div>
           
@@ -373,6 +510,53 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
 
           {/* Medication Categories */}
           <div className="space-y-3 max-h-96 overflow-y-auto">
+            {/* Custom Medications Category */}
+            {customMedications.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-sm font-medium text-blue-700 flex items-center gap-2">
+                  <Pill size={14} />
+                  <span>Custom Medications (دليل الأدوية المضاف)</span>
+                </h5>
+                <div className="grid grid-cols-1 gap-2">
+                  {customMedications
+                    .filter(med => 
+                      med.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      med.trade_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      (med.category && med.category.toLowerCase().includes(searchTerm.toLowerCase()))
+                    )
+                    .map(med => {
+                      const isAlreadySelected = selectedItems.some(item => item.medication_id === med.id);
+                      return (
+                        <button
+                          key={med.id}
+                          type="button"
+                          onClick={() => handleAddMedication({
+                            id: med.id,
+                            name: med.name,
+                            tradeName: med.trade_name,
+                            frequency: med.default_frequency
+                          }, med.category)}
+                          disabled={isAlreadySelected}
+                          className={`text-left px-3 py-2 rounded-lg border transition-colors ${
+                            isAlreadySelected
+                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium">{med.trade_name}</p>
+                              <p className="text-xs text-gray-500">{med.name} • {med.default_frequency}</p>
+                            </div>
+                            {isAlreadySelected && <Check size={16} className="text-gray-400" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
             {Object.entries(PREGNANCY_MEDICATIONS).map(([key, category]) => {
               const filteredMeds = category.medications.filter(med => 
                 med.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -545,6 +729,124 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
               >
                 إلغاء
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Medication to Catalog Modal */}
+      {isAddMedModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Pill className="text-green-600" size={20} />
+                <h3 className="text-lg font-bold text-gray-900">إضافة دواء جديد للدليل</h3>
+              </div>
+              <button
+                onClick={() => setIsAddMedModalOpen(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الاسم التجاري (Trade Name)</label>
+                  <input
+                    type="text"
+                    value={newMedData.trade_name}
+                    onChange={e => setNewMedData({ ...newMedData, trade_name: e.target.value })}
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    placeholder="مثال: Augmentin"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الاسم العلمي (Generic Name)</label>
+                  <input
+                    type="text"
+                    value={newMedData.name}
+                    onChange={e => setNewMedData({ ...newMedData, name: e.target.value })}
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    placeholder="مثال: Amoxicillin"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">التصنيف</label>
+                <select
+                  value={newMedData.category}
+                  onChange={e => setNewMedData({ ...newMedData, category: e.target.value })}
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="Vitamins & Supplements">Vitamins & Supplements</option>
+                  <option value="Antibiotics">Antibiotics</option>
+                  <option value="Progesterone Support">Progesterone Support</option>
+                  <option value="Antihypertensives">Antihypertensives</option>
+                  <option value="Other Medications">Other Medications</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الجرعة الافتراضية</label>
+                  <input
+                    type="text"
+                    value={newMedData.default_dosage}
+                    onChange={e => setNewMedData({ ...newMedData, default_dosage: e.target.value })}
+                    className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="1 tablet"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">التردد الافتراضي</label>
+                  <input
+                    type="text"
+                    value={newMedData.default_frequency}
+                    onChange={e => setNewMedData({ ...newMedData, default_frequency: e.target.value })}
+                    className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="Once daily"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">المدة الافتراضية</label>
+                  <input
+                    type="text"
+                    value={newMedData.default_duration}
+                    onChange={e => setNewMedData({ ...newMedData, default_duration: e.target.value })}
+                    className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="30 days"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleAddCustomMedication}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+              >
+                حفظ في الدليل
+              </button>
+              <button
+                onClick={() => setIsAddMedModalOpen(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                إلغاء
+              </button>
+            </div>
+
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="flex gap-2 text-blue-700">
+                <FileSpreadsheet size={16} className="shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <p className="font-bold mb-1">نصيحة للاستيراد الجماعي:</p>
+                  <p>يمكنك استيراد قائمة كبيرة من الأدوية مرة واحدة باستخدام زر "استيراد CSV" في الشاشة السابقة.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
