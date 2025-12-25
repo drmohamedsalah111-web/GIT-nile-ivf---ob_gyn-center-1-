@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { authService } from '../services/authService';
-import { powerSyncDb } from '../src/powersync/client';
 
 interface DoctorBrandingSettings {
   id: string;
@@ -53,13 +52,19 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
 
-      // Use PowerSync to get doctor-specific branding
-      const results = await powerSyncDb.getAll(
-        'SELECT * FROM doctors WHERE user_id = ?',
-        [user.id]
-      );
+      // Get doctor branding from Supabase
+      const { data: results, error: fetchError } = await supabase
+        .from('doctors')
+        .select('*')
+        .eq('user_id', user.id)
+        .limit(1);
 
-      if (results.length > 0) {
+      if (fetchError) {
+        console.error('Error fetching doctor branding:', fetchError);
+        throw fetchError;
+      }
+
+      if (results && results.length > 0) {
         const doctor = results[0] as any;
         setBranding({
           id: doctor.id,
@@ -157,38 +162,35 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       }
 
-      // Update local PowerSync DB (which will sync to Supabase)
-      await powerSyncDb.execute(
-        `UPDATE doctors SET 
-           clinic_name = ?, clinic_address = ?, clinic_phone = ?, 
-           primary_color = ?, secondary_color = ?, accent_color = ?,
-           background_color = ?, text_color = ?, header_font = ?,
-           body_font = ?, button_style = ?, card_style = ?,
-           default_rx_notes = ?, prescription_header = ?, prescription_footer = ?,
-           clinic_watermark = ?, clinic_image = ?, updated_at = ?
-         WHERE user_id = ?`,
-        [
-          updates.clinic_name ?? branding?.clinic_name,
-          updates.clinic_address ?? branding?.clinic_address,
-          updates.clinic_phone ?? branding?.clinic_phone,
-          updates.primary_color ?? branding?.primary_color,
-          updates.secondary_color ?? branding?.secondary_color,
-          updates.accent_color ?? branding?.accent_color,
-          updates.background_color ?? branding?.background_color,
-          updates.text_color ?? branding?.text_color,
-          updates.header_font ?? branding?.header_font,
-          updates.body_font ?? branding?.body_font,
-          updates.button_style ?? branding?.button_style,
-          updates.card_style ?? branding?.card_style,
-          updates.default_rx_notes ?? branding?.default_rx_notes,
-          updates.prescription_header ?? branding?.prescription_header,
-          updates.prescription_footer ?? branding?.prescription_footer,
-          updates.clinic_watermark ?? branding?.clinic_watermark,
-          logoUrl || branding?.logo_url,
-          new Date().toISOString(),
-          user.id
-        ]
-      );
+      // Update doctor branding in Supabase
+      const { error: updateError } = await supabase
+        .from('doctors')
+        .update({
+          clinic_name: updates.clinic_name ?? branding?.clinic_name,
+          clinic_address: updates.clinic_address ?? branding?.clinic_address,
+          clinic_phone: updates.clinic_phone ?? branding?.clinic_phone,
+          primary_color: updates.primary_color ?? branding?.primary_color,
+          secondary_color: updates.secondary_color ?? branding?.secondary_color,
+          accent_color: updates.accent_color ?? branding?.accent_color,
+          background_color: updates.background_color ?? branding?.background_color,
+          text_color: updates.text_color ?? branding?.text_color,
+          header_font: updates.header_font ?? branding?.header_font,
+          body_font: updates.body_font ?? branding?.body_font,
+          button_style: updates.button_style ?? branding?.button_style,
+          card_style: updates.card_style ?? branding?.card_style,
+          default_rx_notes: updates.default_rx_notes ?? branding?.default_rx_notes,
+          prescription_header: updates.prescription_header ?? branding?.prescription_header,
+          prescription_footer: updates.prescription_footer ?? branding?.prescription_footer,
+          clinic_watermark: updates.clinic_watermark ?? branding?.clinic_watermark,
+          clinic_image: logoUrl || branding?.logo_url,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (updateError) {
+        console.error('Error updating branding:', updateError);
+        throw updateError;
+      }
 
       // Update local state
       if (branding) {

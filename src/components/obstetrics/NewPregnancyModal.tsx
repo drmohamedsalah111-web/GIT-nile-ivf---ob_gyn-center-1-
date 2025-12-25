@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { X, Save, Calculator } from 'lucide-react';
-import { db } from '../../hooks/usePowerSync';
-import { v4 as uuidv4 } from 'uuid';
+import { X, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { addDays, differenceInWeeks } from 'date-fns';
-import { authService } from '../../../services/authService';
+import { addDays } from 'date-fns';
+import { obstetricsService } from '../../../services/obstetricsService';
 
 interface NewPregnancyModalProps {
   isOpen: boolean;
@@ -40,26 +38,16 @@ export const NewPregnancyModal: React.FC<NewPregnancyModalProps> = ({ isOpen, on
     setLoading(true);
 
     try {
-      const user = await authService.getCurrentUser();
-      const doctor = await authService.getDoctorProfile(user?.id || '');
-
-      await db.execute(
-        `INSERT INTO pregnancies (
-          id, patient_id, doctor_id, lmp_date, edd_date, edd_by_scan, 
-          risk_level, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          uuidv4(),
-          patientId,
-          doctor?.id || 'unknown', // Fallback if doctor not found
-          formData.lmp_date || null,
-          formData.edd_date || null,
-          formData.edd_by_scan || null,
-          formData.risk_level,
-          new Date().toISOString(),
-          new Date().toISOString()
-        ]
-      );
+      await obstetricsService.createPregnancy({
+        patient_id: patientId,
+        lmp_date: formData.lmp_date || null,
+        edd_date: formData.edd_date || null,
+        edd_by_scan: formData.edd_by_scan || null,
+        risk_level: formData.risk_level as 'low' | 'moderate' | 'high',
+        risk_factors: [],
+        aspirin_prescribed: false,
+        thromboprophylaxis_needed: false
+      });
 
       toast.success('تم بدء متابعة الحمل بنجاح');
       onSuccess();

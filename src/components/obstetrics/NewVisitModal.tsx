@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { X, Save, Calculator } from 'lucide-react';
-import { db } from '../../hooks/usePowerSync';
-import { v4 as uuidv4 } from 'uuid';
+import { X, Save, Calculator, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { obstetricsService } from '../../../services/obstetricsService';
 
 interface NewVisitModalProps {
   isOpen: boolean;
@@ -36,50 +35,32 @@ export const NewVisitModal: React.FC<NewVisitModalProps> = ({ isOpen, onClose, p
     setLoading(true);
 
     try {
-      const visitId = uuidv4();
-      
-      // Insert Visit
-      await db.execute(
-        `INSERT INTO antenatal_visits (
-          id, pregnancy_id, visit_date, gestational_age_weeks, gestational_age_days,
-          systolic_bp, diastolic_bp, weight_kg, urine_albuminuria, fetal_heart_rate, notes, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          visitId,
-          pregnancyId,
-          formData.visit_date,
-          parseInt(formData.gestational_age_weeks) || 0,
-          parseInt(formData.gestational_age_days) || 0,
-          parseInt(formData.systolic_bp) || null,
-          parseInt(formData.diastolic_bp) || null,
-          parseFloat(formData.weight_kg) || null,
-          formData.urine_albuminuria,
-          parseInt(formData.fetal_heart_rate) || null,
-          formData.notes,
-          new Date().toISOString()
-        ]
-      );
+      // Insert Visit via Supabase
+      await obstetricsService.createANCVisit({
+        pregnancy_id: pregnancyId,
+        visit_date: formData.visit_date,
+        gestational_age_weeks: parseInt(formData.gestational_age_weeks) || 0,
+        gestational_age_days: parseInt(formData.gestational_age_days) || 0,
+        systolic_bp: parseInt(formData.systolic_bp) || null,
+        diastolic_bp: parseInt(formData.diastolic_bp) || null,
+        weight_kg: parseFloat(formData.weight_kg) || null,
+        urine_albuminuria: formData.urine_albuminuria || null,
+        fetal_heart_sound: parseInt(formData.fetal_heart_rate) || null,
+        notes: formData.notes || null
+      });
 
       // Insert Biometry if data exists
       if (formData.bpd_mm || formData.fl_mm || formData.ac_mm) {
-        await db.execute(
-          `INSERT INTO biometry_scans (
-            id, pregnancy_id, scan_date, gestational_age_weeks, gestational_age_days,
-            bpd_mm, fl_mm, ac_mm, efw_grams, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            uuidv4(),
-            pregnancyId,
-            formData.visit_date,
-            parseInt(formData.gestational_age_weeks) || 0,
-            parseInt(formData.gestational_age_days) || 0,
-            parseFloat(formData.bpd_mm) || null,
-            parseFloat(formData.fl_mm) || null,
-            parseFloat(formData.ac_mm) || null,
-            parseInt(formData.efw_grams) || null,
-            new Date().toISOString()
-          ]
-        );
+        await obstetricsService.createBiometryScan({
+          pregnancy_id: pregnancyId,
+          scan_date: formData.visit_date,
+          gestational_age_weeks: parseInt(formData.gestational_age_weeks) || 0,
+          gestational_age_days: parseInt(formData.gestational_age_days) || 0,
+          bpd_mm: parseFloat(formData.bpd_mm) || null,
+          fl_mm: parseFloat(formData.fl_mm) || null,
+          ac_mm: parseFloat(formData.ac_mm) || null,
+          efw_grams: parseInt(formData.efw_grams) || null
+        });
       }
 
       toast.success('تم حفظ الزيارة بنجاح');

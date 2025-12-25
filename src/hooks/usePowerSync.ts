@@ -10,9 +10,21 @@ function mapUiStatus(status: any): PowerSyncUiStatus {
     return 'READY';
 }
 
+// Safely get status - returns null if PowerSync not yet initialized
+function useSafeStatus() {
+    try {
+        const status = useStatus() as any;
+        return status;
+    } catch (e) {
+        // PowerSync not initialized yet
+        console.warn('PowerSync status not available yet');
+        return null;
+    }
+}
+
 // Hook for querying PowerSync data (PowerSync-only; no Supabase fallback)
 export function usePowerSyncQuery<T = any>(sql: string, parameters: any[] = []) {
-    const status = useStatus() as any;
+    const status = useSafeStatus();
     const uiStatus = useMemo(() => mapUiStatus(status), [status?.connected, status?.uploading, status?.downloading, status?.connecting]);
 
     const { data = [], isLoading: queryLoading, error } = useQuery<T>(sql, parameters);
