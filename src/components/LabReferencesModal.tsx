@@ -27,7 +27,13 @@ const LabReferencesModal: React.FC<LabReferencesModalProps> = ({ isOpen, onClose
       if (!matchesCategory) return false;
       if (!q) return true;
 
-      const haystack = `${item.nameAr} ${item.nameEn || ''} ${item.unit || ''} ${item.reminderAr} ${item.sourceInAppAr || ''}`.toLowerCase();
+      const nameAr = item.nameAr || '';
+      const nameEn = item.nameEn || '';
+      const unit = item.unit || '';
+      const reminderAr = item.reminderAr || '';
+      const sourceInAppAr = item.sourceInAppAr || '';
+
+      const haystack = `${nameAr} ${nameEn} ${unit} ${reminderAr} ${sourceInAppAr}`.toLowerCase();
       return haystack.includes(q);
     });
   }, [query, category]);
