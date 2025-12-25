@@ -101,9 +101,13 @@ const Dashboard: React.FC = () => {
     if (!patients) return [];
 
     return patients.filter(patient => {
+      const name = patient.name ? String(patient.name).toLowerCase() : '';
+      const phone = patient.phone ? String(patient.phone) : '';
+      const search = searchTerm.toLowerCase();
+
       const matchesSearch = searchTerm === '' ||
-        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.phone.includes(searchTerm);
+        name.includes(search) ||
+        phone.includes(searchTerm);
 
       const matchesDepartment = selectedDepartment === 'all' ||
         (selectedDepartment === 'ivf' && cycles.some((c: any) => c.patient_id === patient.id || c.patient_id === String(patient.id))) ||
