@@ -8,6 +8,7 @@ import { UltrasoundGallery } from '../../components/obstetrics/UltrasoundGallery
 import { NewVisitModal } from '../../components/obstetrics/NewVisitModal';
 import { NewPregnancyModal } from '../../components/obstetrics/NewPregnancyModal';
 import { PregnancyLabsPanel } from '../../components/obstetrics/PregnancyLabsPanel';
+import { PregnancyPrescriptionPanel } from '../../components/obstetrics/PregnancyPrescriptionPanel';
 import { obstetricsService } from '../../../services/obstetricsService';
 
 interface PregnancyProfileProps {
@@ -220,11 +221,12 @@ export const PregnancyProfile: React.FC<PregnancyProfileProps> = ({ patientId })
         )}
 
         {activeTab === 'prescriptions' && (
-          <div className="p-8 text-center bg-white rounded-lg shadow">
-            <Pill className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900">الروشتات</h3>
-            <p className="text-gray-500 mt-2">قيد التطوير</p>
-          </div>
+          <PregnancyPrescriptionPanel 
+            pregnancyId={pregnancy.id}
+            patientName={pregnancy.patient_name || 'المريضة'}
+            gestationalWeeks={pregnancy.gestational_age ? Math.floor(pregnancy.gestational_age / 7) : 
+              differenceInWeeks(new Date(), new Date(pregnancy.lmp || new Date()))}
+          />
         )}
       </div>
 
