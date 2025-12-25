@@ -48,6 +48,14 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
   const [newDrug, setNewDrug] = useState('');
   const [newDose, setNewDose] = useState('');
   const [newCategory, setNewCategory] = useState('');
+  const [styleSettings, setStyleSettings] = useState({
+    primary_color: '#0891B2',
+    secondary_color: '#06B6D4',
+    header_text: 'عيادة متخصصة',
+    footer_text: 'العنوان | الهاتف',
+    font_family: 'Tajawal',
+    paper_size: 'A4',
+  });
 
   const {
     prescriptions,
@@ -67,11 +75,10 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
     if (initialPrescriptions.length > 0) {
       initialPrescriptions.forEach(med => addMedication(med));
     }
-  }, [initialPrescriptions]);
+  }, []);
 
   const handlePrint = () => {
     console.log('Print action started');
-    console.log('PrintRef content:', printRef.current?.innerHTML.substring(0, 100));
     
     if (!printRef.current) {
       toast.error('فشل تحميل نموذج الطباعة');
@@ -79,31 +86,22 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
       return;
     }
 
-    if (!printRef.current.innerHTML.trim()) {
+    const htmlContent = printRef.current.innerHTML;
+    if (!htmlContent || !htmlContent.trim()) {
       toast.error('لا توجد بيانات لطباعتها - تأكد من إضافة الأدوية');
       console.error('printRef.current is empty');
       return;
     }
 
     try {
-      const content = printRef.current.innerHTML;
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.style.position = 'absolute';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = 'none';
-      document.body.appendChild(iframe);
-
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!iframeDoc) {
-        toast.error('فشل إنشاء نافذة الطباعة');
-        document.body.removeChild(iframe);
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast.error('تم حظر فتح نافذة الطباعة - يرجى السماح بالنوافذ المنبثقة');
         return;
       }
 
-      iframeDoc.open();
-      iframeDoc.write(`
+      const htmlTemplate = `
         <!DOCTYPE html>
         <html dir="rtl" lang="ar">
           <head>
@@ -113,28 +111,38 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
             <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
             <style>
               * { margin: 0; padding: 0; box-sizing: border-box; }
-              body { font-family: 'Tajawal', sans-serif; padding: 20px; }
-              @page { size: ${settings?.paper_size || 'A4'}; margin: 10mm; }
+              body { 
+                font-family: '${styleSettings.font_family || 'Tajawal'}', sans-serif; 
+                padding: 0;
+                margin: 0;
+              }
+              @page { 
+                size: ${styleSettings.paper_size || 'A4'}; 
+                margin: 10mm;
+              }
               @media print {
                 body { margin: 0; padding: 10mm; }
+                * { box-shadow: none !important; }
               }
             </style>
           </head>
           <body>
-            ${content}
+            ${htmlContent}
           </body>
         </html>
-      `);
-      iframeDoc.close();
+      `;
+
+      printWindow.document.write(htmlTemplate);
+      printWindow.document.close();
 
       setTimeout(() => {
-        iframe.contentWindow?.print();
+        printWindow.print();
         setTimeout(() => {
-          document.body.removeChild(iframe);
-        }, 500);
+          printWindow.close();
+        }, 100);
       }, 250);
       
-      toast.success('جاري طباعة الروشتة...');
+      toast.success('جاري فتح نافذة الطباعة...');
     } catch (error) {
       console.error('خطأ الطباعة:', error);
       toast.error('حدث خطأ أثناء محاولة الطباعة');
@@ -169,10 +177,21 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
   };
 
   const renderTemplate = () => {
-    if (!settings || !patient) {
-      console.warn('Missing settings or patient data:', { settings, patient });
-      return null;
+    if (!patient) {
+      return <div className="text-center py-12 text-gray-500">البيانات غير متاحة</div>;
     }
+
+    const templateSettings = {
+      primary_color: styleSettings.primary_color,
+      secondary_color: styleSettings.secondary_color,
+      accent_color: '#22D3EE',
+      font_family: styleSettings.font_family,
+      font_size: 'medium',
+      paper_size: styleSettings.paper_size,
+      header_text: styleSettings.header_text,
+      footer_text: styleSettings.footer_text,
+      show_watermark: false,
+    };
 
     const templateProps = {
       patient,
@@ -180,7 +199,7 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
       prescriptions: prescriptions || [],
       diagnosis,
       notes,
-      settings,
+      settings: templateSettings as any,
     };
 
     console.log('Rendering template with data:', { 
@@ -305,8 +324,16 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
                 ))}
               </div>
 
+              {/* Info */}
+              <div className="mb-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
+                <p className="text-sm text-teal-900">
+                  📋 الأدوية المضافة: <span className="font-semibold">{prescriptions.length}</span> | 
+                  عدل الألوان والنصوص من تاب الإعدادات
+                </p>
+              </div>
+
               {/* Preview */}
-              <div className="bg-gray-100 p-8 rounded-xl overflow-auto">
+              <div className="bg-gray-100 p-8 rounded-xl overflow-auto" style={{ maxHeight: 'calc(100vh - 500px)' }}>
                 <div className="mx-auto shadow-2xl" style={{ width: '210mm' }}>
                   {renderTemplate()}
                 </div>
@@ -376,10 +403,111 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
           )}
 
           {activeTab === 'settings' && (
-            <div className="max-w-2xl mx-auto space-y-6">
-              <div className="text-center py-12 text-gray-500">
-                <Settings className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p>إعدادات التخصيص قريباً...</p>
+            <div className="max-w-4xl mx-auto space-y-6">
+              {/* Colors */}
+              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">الألوان</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">اللون الأساسي</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={styleSettings.primary_color}
+                        onChange={(e) => setStyleSettings({ ...styleSettings, primary_color: e.target.value })}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={styleSettings.primary_color}
+                        onChange={(e) => setStyleSettings({ ...styleSettings, primary_color: e.target.value })}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">اللون الثانوي</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={styleSettings.secondary_color}
+                        onChange={(e) => setStyleSettings({ ...styleSettings, secondary_color: e.target.value })}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={styleSettings.secondary_color}
+                        onChange={(e) => setStyleSettings({ ...styleSettings, secondary_color: e.target.value })}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Text Settings */}
+              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">النصوص</h3>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">رأس الروشتة</label>
+                    <input
+                      type="text"
+                      value={styleSettings.header_text}
+                      onChange={(e) => setStyleSettings({ ...styleSettings, header_text: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      placeholder="مثال: عيادة متخصصة"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">تذييل الروشتة</label>
+                    <input
+                      type="text"
+                      value={styleSettings.footer_text}
+                      onChange={(e) => setStyleSettings({ ...styleSettings, footer_text: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      placeholder="مثال: العنوان | الهاتف"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Font & Layout */}
+              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">الخط وحجم الورقة</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">نوع الخط</label>
+                    <select
+                      value={styleSettings.font_family}
+                      onChange={(e) => setStyleSettings({ ...styleSettings, font_family: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    >
+                      <option value="Tajawal">تجول</option>
+                      <option value="Cairo">كايرو</option>
+                      <option value="Inter">إنتر</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">حجم الورقة</label>
+                    <select
+                      value={styleSettings.paper_size}
+                      onChange={(e) => setStyleSettings({ ...styleSettings, paper_size: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    >
+                      <option value="A4">A4</option>
+                      <option value="A5">A5</option>
+                      <option value="Letter">Letter</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview Live */}
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800">
+                  💡 سيتم تطبيق جميع التغييرات على المعاينة والطباعة تلقائياً
+                </p>
               </div>
             </div>
           )}
