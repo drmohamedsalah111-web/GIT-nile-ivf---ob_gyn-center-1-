@@ -78,27 +78,13 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
   }, []);
 
   const handlePrint = () => {
-    if (!printRef.current) {
-      toast.error('فشل تحميل نموذج الطباعة');
-      return;
-    }
-
     if (!prescriptions || prescriptions.length === 0) {
       toast.error('أضف بعض الأدوية أولاً قبل الطباعة');
       return;
     }
 
-    // التبديل إلى تاب المعاينة أولاً
-    if (activeTab !== 'preview') {
-      setActiveTab('preview');
-      toast.info('انتقل إلى تاب المعاينة أولاً ثم اضغط طباعة مرة أخرى');
-      return;
-    }
-
-    // انتظر قليلاً ثم اطبع
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    // اطبع داخل نفس الصفحة (بدون نافذة خارجية)
+    window.print();
   };
 
   const handleAddDrug = () => {
@@ -177,24 +163,64 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
   return (
     <>
       <style>{`
+        .sps-print {
+          display: none;
+        }
         @media print {
-          body * {
-            visibility: hidden;
+          .sps-screen {
+            display: none !important;
           }
-          #prescription-print-area,
-          #prescription-print-area * {
-            visibility: visible;
+          .sps-print {
+            display: block !important;
           }
           #prescription-print-area {
-            position: absolute;
-            left: 0;
-            top: 0;
             width: 100%;
           }
         }
       `}</style>
+
+      {/* Print-only area: always mounted so printing never becomes blank */}
+      <div className="sps-print">
+        <div id="prescription-print-area" className="mx-auto" style={{ width: '210mm' }}>
+          {(() => {
+            if (!patient) return null;
+
+            const templateSettings = {
+              primary_color: styleSettings.primary_color,
+              secondary_color: styleSettings.secondary_color,
+              accent_color: '#22D3EE',
+              font_family: styleSettings.font_family,
+              font_size: 'medium',
+              paper_size: styleSettings.paper_size,
+              header_text: styleSettings.header_text,
+              footer_text: styleSettings.footer_text,
+              show_watermark: false,
+            };
+
+            const templateProps = {
+              patient,
+              doctor,
+              prescriptions: prescriptions || [],
+              diagnosis,
+              notes,
+              settings: templateSettings as any,
+            };
+
+            switch (selectedTemplate) {
+              case 'modern':
+                return <ModernTemplate {...templateProps} />;
+              case 'classic':
+                return <ClassicTemplate {...templateProps} />;
+              case 'minimal':
+                return <MinimalTemplate {...templateProps} />;
+              default:
+                return <ModernTemplate {...templateProps} />;
+            }
+          })()}
+        </div>
+      </div>
       
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
+      <div className="sps-screen fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col print:hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-t-2xl">
@@ -305,7 +331,7 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
 
               {/* Preview */}
               <div className="bg-gray-100 p-8 rounded-xl overflow-auto" style={{ maxHeight: 'calc(100vh - 500px)' }}>
-                <div id="prescription-print-area" className="mx-auto shadow-2xl" style={{ width: '210mm' }}>
+                <div className="mx-auto shadow-2xl" style={{ width: '210mm' }}>
                   {renderTemplate()}
                 </div>
               </div>
