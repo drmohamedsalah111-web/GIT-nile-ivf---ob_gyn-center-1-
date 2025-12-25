@@ -38,6 +38,16 @@ CREATE INDEX IF NOT EXISTS idx_pregnancy_prescriptions_visit ON pregnancy_prescr
 ALTER TABLE pregnancy_labs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pregnancy_prescriptions ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies first (to avoid conflicts)
+DROP POLICY IF EXISTS "pregnancy_labs_select_all" ON pregnancy_labs;
+DROP POLICY IF EXISTS "pregnancy_labs_insert" ON pregnancy_labs;
+DROP POLICY IF EXISTS "pregnancy_labs_update" ON pregnancy_labs;
+DROP POLICY IF EXISTS "pregnancy_labs_delete" ON pregnancy_labs;
+DROP POLICY IF EXISTS "pregnancy_prescriptions_select_all" ON pregnancy_prescriptions;
+DROP POLICY IF EXISTS "pregnancy_prescriptions_insert" ON pregnancy_prescriptions;
+DROP POLICY IF EXISTS "pregnancy_prescriptions_update" ON pregnancy_prescriptions;
+DROP POLICY IF EXISTS "pregnancy_prescriptions_delete" ON pregnancy_prescriptions;
+
 -- Allow all authenticated users to read
 CREATE POLICY "pregnancy_labs_select_all" ON pregnancy_labs
   FOR SELECT USING (auth.role() = 'authenticated');
@@ -45,18 +55,24 @@ CREATE POLICY "pregnancy_labs_select_all" ON pregnancy_labs
 CREATE POLICY "pregnancy_prescriptions_select_all" ON pregnancy_prescriptions
   FOR SELECT USING (auth.role() = 'authenticated');
 
--- Allow insert/update for authenticated users
+-- Allow insert/update/delete for authenticated users
 CREATE POLICY "pregnancy_labs_insert" ON pregnancy_labs
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 CREATE POLICY "pregnancy_labs_update" ON pregnancy_labs
   FOR UPDATE USING (auth.role() = 'authenticated');
 
+CREATE POLICY "pregnancy_labs_delete" ON pregnancy_labs
+  FOR DELETE USING (auth.role() = 'authenticated');
+
 CREATE POLICY "pregnancy_prescriptions_insert" ON pregnancy_prescriptions
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 CREATE POLICY "pregnancy_prescriptions_update" ON pregnancy_prescriptions
   FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "pregnancy_prescriptions_delete" ON pregnancy_prescriptions
+  FOR DELETE USING (auth.role() = 'authenticated');
 
 -- 5. Updated_at trigger
 CREATE OR REPLACE FUNCTION update_pregnancy_labs_updated_at()
@@ -66,6 +82,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Drop existing triggers first
+DROP TRIGGER IF EXISTS pregnancy_labs_updated_at ON pregnancy_labs;
+DROP TRIGGER IF EXISTS pregnancy_prescriptions_updated_at ON pregnancy_prescriptions;
 
 CREATE TRIGGER pregnancy_labs_updated_at
   BEFORE UPDATE ON pregnancy_labs

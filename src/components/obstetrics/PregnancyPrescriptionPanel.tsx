@@ -1,67 +1,80 @@
 import React, { useState, useEffect } from 'react';
-import { Pill, Plus, Printer, Check, X, Edit2, Trash2, Copy, FileText } from 'lucide-react';
+import { Pill, Plus, Printer, Check, Trash2, Copy, FileText } from 'lucide-react';
 import { supabase } from '../../../services/supabaseClient';
 import toast from 'react-hot-toast';
 
-// أدوية الحمل الشائعة
+// أدوية الحمل الشائعة - الاسم بالإنجليزي والوصف بالعربي
 const PREGNANCY_MEDICATIONS = {
   vitamins: {
-    title: 'فيتامينات',
+    title: 'Vitamins - فيتامينات',
     icon: '💊',
     drugs: [
-      { name: 'Folic Acid 5mg', nameAr: 'حمض الفوليك ٥ مجم', dose: 'قرص يومياً', category: 'vitamin' },
-      { name: 'Folic Acid 400mcg', nameAr: 'حمض الفوليك ٤٠٠ ميكروجرام', dose: 'قرص يومياً', category: 'vitamin' },
-      { name: 'Vitamin D3 1000 IU', nameAr: 'فيتامين د ١٠٠٠ وحدة', dose: 'قرص يومياً', category: 'vitamin' },
-      { name: 'Vitamin D3 2000 IU', nameAr: 'فيتامين د ٢٠٠٠ وحدة', dose: 'قرص يومياً', category: 'vitamin' },
-      { name: 'Vitamin B12', nameAr: 'فيتامين ب١٢', dose: 'قرص يومياً', category: 'vitamin' },
-      { name: 'Omega-3 (DHA)', nameAr: 'أوميجا ٣', dose: 'كبسولة يومياً', category: 'vitamin' },
-      { name: 'Prenatal Multivitamin', nameAr: 'فيتامينات الحمل المتعددة', dose: 'قرص يومياً', category: 'vitamin' },
+      { name: 'Folic Acid 5mg', descAr: 'قرص واحد يومياً صباحاً', form: 'Tab' },
+      { name: 'Folic Acid 400mcg', descAr: 'قرص واحد يومياً', form: 'Tab' },
+      { name: 'Vitamin D3 1000 IU', descAr: 'قرص واحد يومياً بعد الأكل', form: 'Tab' },
+      { name: 'Vitamin D3 2000 IU', descAr: 'قرص واحد يومياً بعد الأكل', form: 'Tab' },
+      { name: 'Vitamin D3 10000 IU', descAr: 'قرص واحد أسبوعياً', form: 'Tab' },
+      { name: 'Vitamin B12 1000mcg', descAr: 'قرص واحد يومياً', form: 'Tab' },
+      { name: 'Omega-3 (DHA) 1000mg', descAr: 'كبسولة واحدة يومياً بعد الغداء', form: 'Cap' },
+      { name: 'Prenatal Multivitamin', descAr: 'قرص واحد يومياً', form: 'Tab' },
+      { name: 'Elevit Pronatal', descAr: 'قرص واحد يومياً', form: 'Tab' },
     ]
   },
   iron: {
-    title: 'حديد وكالسيوم',
+    title: 'Iron & Calcium - حديد وكالسيوم',
     icon: '🩸',
     drugs: [
-      { name: 'Ferrous Sulfate 200mg', nameAr: 'كبريتات الحديد ٢٠٠ مجم', dose: 'قرص مرتين يومياً', category: 'iron' },
-      { name: 'Iron Polymaltose', nameAr: 'حديد بولي مالتوز', dose: 'قرص يومياً', category: 'iron' },
-      { name: 'Ferrous Fumarate + Folic', nameAr: 'فيومارات الحديد + فوليك', dose: 'قرص يومياً', category: 'iron' },
-      { name: 'Calcium 500mg + Vit D', nameAr: 'كالسيوم ٥٠٠ مجم + فيتامين د', dose: 'قرص مرتين يومياً', category: 'calcium' },
-      { name: 'Calcium Carbonate 1000mg', nameAr: 'كربونات الكالسيوم ١٠٠٠ مجم', dose: 'قرص يومياً', category: 'calcium' },
+      { name: 'Ferrous Sulfate 200mg', descAr: 'قرص مرتين يومياً بعد الأكل بساعتين', form: 'Tab' },
+      { name: 'Ferrous Fumarate 350mg', descAr: 'قرص واحد يومياً', form: 'Tab' },
+      { name: 'Iron Polymaltose 100mg', descAr: 'قرص واحد يومياً مع الأكل', form: 'Tab' },
+      { name: 'Haemojet B12', descAr: 'قرص واحد يومياً', form: 'Tab' },
+      { name: 'Feroglobin', descAr: 'كبسولة واحدة يومياً', form: 'Cap' },
+      { name: 'Calcium 500mg + Vit D', descAr: 'قرص مرتين يومياً', form: 'Tab' },
+      { name: 'Calcium Carbonate 1000mg', descAr: 'قرص واحد يومياً', form: 'Tab' },
+      { name: 'Caltrate 600 + D', descAr: 'قرص واحد يومياً بعد الغداء', form: 'Tab' },
     ]
   },
   nausea: {
-    title: 'مضادات الغثيان',
+    title: 'Anti-nausea - مضادات الغثيان',
     icon: '🤢',
     drugs: [
-      { name: 'Vitamin B6 25mg', nameAr: 'فيتامين ب٦', dose: 'قرص ٣ مرات يومياً', category: 'nausea' },
-      { name: 'Doxylamine 10mg', nameAr: 'دوكسيلامين', dose: 'قرص قبل النوم', category: 'nausea' },
-      { name: 'Metoclopramide 10mg', nameAr: 'ميتوكلوبراميد', dose: 'قرص قبل الأكل', category: 'nausea' },
-      { name: 'Ondansetron 4mg', nameAr: 'أوندانسيترون', dose: 'قرص عند اللزوم', category: 'nausea' },
-      { name: 'Ginger Capsules', nameAr: 'كبسولات الزنجبيل', dose: 'كبسولة ٣ مرات يومياً', category: 'nausea' },
+      { name: 'Vitamin B6 (Pyridoxine) 25mg', descAr: 'قرص ٣ مرات يومياً', form: 'Tab' },
+      { name: 'Doxylamine 10mg', descAr: 'قرص قبل النوم', form: 'Tab' },
+      { name: 'Metoclopramide 10mg', descAr: 'قرص قبل الأكل بنصف ساعة عند اللزوم', form: 'Tab' },
+      { name: 'Ondansetron 4mg', descAr: 'قرص عند اللزوم (حد أقصى ٣ مرات)', form: 'Tab' },
+      { name: 'Ginger 250mg', descAr: 'كبسولة ٣ مرات يومياً', form: 'Cap' },
     ]
   },
   preventive: {
-    title: 'أدوية وقائية',
+    title: 'Preventive - أدوية وقائية',
     icon: '🛡️',
     drugs: [
-      { name: 'Aspirin 81mg', nameAr: 'أسبرين ٨١ مجم', dose: 'قرص يومياً مساءً', category: 'preventive' },
-      { name: 'Aspirin 100mg', nameAr: 'أسبرين ١٠٠ مجم', dose: 'قرص يومياً مساءً', category: 'preventive' },
-      { name: 'Enoxaparin 40mg', nameAr: 'كليكسان ٤٠ مجم', dose: 'حقنة تحت الجلد يومياً', category: 'preventive' },
-      { name: 'Enoxaparin 60mg', nameAr: 'كليكسان ٦٠ مجم', dose: 'حقنة تحت الجلد يومياً', category: 'preventive' },
-      { name: 'Progesterone 200mg', nameAr: 'بروجيستيرون ٢٠٠ مجم', dose: 'تحميلة مهبلية يومياً', category: 'preventive' },
-      { name: 'Progesterone 400mg', nameAr: 'بروجيستيرون ٤٠٠ مجم', dose: 'تحميلة مهبلية يومياً', category: 'preventive' },
+      { name: 'Aspirin 75mg', descAr: 'قرص واحد يومياً مساءً بعد الأكل', form: 'Tab' },
+      { name: 'Aspirin 81mg', descAr: 'قرص واحد يومياً مساءً بعد الأكل', form: 'Tab' },
+      { name: 'Aspirin 100mg', descAr: 'قرص واحد يومياً مساءً بعد الأكل', form: 'Tab' },
+      { name: 'Enoxaparin (Clexane) 40mg', descAr: 'حقنة تحت الجلد يومياً', form: 'Inj' },
+      { name: 'Enoxaparin (Clexane) 60mg', descAr: 'حقنة تحت الجلد يومياً', form: 'Inj' },
+      { name: 'Enoxaparin (Clexane) 80mg', descAr: 'حقنة تحت الجلد يومياً', form: 'Inj' },
+      { name: 'Progesterone 200mg (Cyclogest)', descAr: 'تحميلة مهبلية يومياً مساءً', form: 'Supp' },
+      { name: 'Progesterone 400mg (Cyclogest)', descAr: 'تحميلة مهبلية يومياً مساءً', form: 'Supp' },
+      { name: 'Progesterone 100mg (Utrogestan)', descAr: 'كبسولة مرتين يومياً', form: 'Cap' },
     ]
   },
   common: {
-    title: 'أدوية شائعة',
+    title: 'Common Medications - أدوية شائعة',
     icon: '💉',
     drugs: [
-      { name: 'Paracetamol 500mg', nameAr: 'باراسيتامول ٥٠٠ مجم', dose: 'قرص عند اللزوم', category: 'common' },
-      { name: 'Antacid (Gaviscon)', nameAr: 'مضاد الحموضة (جافيسكون)', dose: 'ملعقة بعد الأكل', category: 'common' },
-      { name: 'Lactulose', nameAr: 'لاكتيلوز (ملين)', dose: 'ملعقة صباحاً', category: 'common' },
-      { name: 'Methyldopa 250mg', nameAr: 'ميثيل دوبا ٢٥٠ مجم', dose: 'قرص ٣ مرات يومياً', category: 'bp' },
-      { name: 'Labetalol 100mg', nameAr: 'لابيتالول ١٠٠ مجم', dose: 'قرص مرتين يومياً', category: 'bp' },
-      { name: 'Nifedipine 20mg SR', nameAr: 'نيفيديبين ٢٠ مجم', dose: 'قرص مرتين يومياً', category: 'bp' },
+      { name: 'Paracetamol 500mg', descAr: 'قرص عند اللزوم كل ٦ ساعات', form: 'Tab' },
+      { name: 'Paracetamol 1000mg', descAr: 'قرص عند اللزوم كل ٨ ساعات', form: 'Tab' },
+      { name: 'Gaviscon Suspension', descAr: 'ملعقة كبيرة بعد الأكل وقبل النوم', form: 'Susp' },
+      { name: 'Omeprazole 20mg', descAr: 'كبسولة واحدة يومياً قبل الفطار', form: 'Cap' },
+      { name: 'Ranitidine 150mg', descAr: 'قرص مرتين يومياً', form: 'Tab' },
+      { name: 'Lactulose 10g/15ml', descAr: 'ملعقة كبيرة صباحاً', form: 'Syrup' },
+      { name: 'Bisacodyl 5mg', descAr: 'قرص قبل النوم عند اللزوم', form: 'Tab' },
+      { name: 'Methyldopa 250mg', descAr: 'قرص ٣ مرات يومياً', form: 'Tab' },
+      { name: 'Labetalol 100mg', descAr: 'قرص مرتين يومياً', form: 'Tab' },
+      { name: 'Nifedipine SR 20mg', descAr: 'قرص مرتين يومياً', form: 'Tab' },
+      { name: 'Insulin (as prescribed)', descAr: 'حسب الجرعة المحددة', form: 'Inj' },
     ]
   }
 };
@@ -69,10 +82,10 @@ const PREGNANCY_MEDICATIONS = {
 interface PrescriptionItem {
   id: string;
   drug: string;
-  drugAr: string;
-  dose: string;
+  descAr: string;
+  form: string;
   duration?: string;
-  notes?: string;
+  quantity?: string;
 }
 
 interface Prescription {
@@ -89,20 +102,23 @@ interface PregnancyPrescriptionPanelProps {
   visitId?: string;
   patientName?: string;
   gestationalWeeks?: number;
+  doctorName?: string;
+  clinicName?: string;
 }
 
 export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProps> = ({
   pregnancyId,
   visitId,
-  patientName,
-  gestationalWeeks
+  patientName = '',
+  gestationalWeeks,
+  doctorName = 'د. صلاح',
+  clinicName = 'Nile IVF Center'
 }) => {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [currentItems, setCurrentItems] = useState<PrescriptionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewPrescription, setShowNewPrescription] = useState(false);
   const [notes, setNotes] = useState('');
-  const [editingItem, setEditingItem] = useState<PrescriptionItem | null>(null);
 
   useEffect(() => {
     fetchPrescriptions();
@@ -126,12 +142,19 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
   };
 
   const handleAddDrug = (drug: typeof PREGNANCY_MEDICATIONS.vitamins.drugs[0]) => {
+    // Check if already added
+    if (currentItems.some(item => item.drug === drug.name)) {
+      toast.error('هذا الدواء مضاف بالفعل');
+      return;
+    }
+    
     const newItem: PrescriptionItem = {
       id: crypto.randomUUID(),
       drug: drug.name,
-      drugAr: drug.nameAr,
-      dose: drug.dose,
-      duration: '30 يوم'
+      descAr: drug.descAr,
+      form: drug.form,
+      duration: '30 يوم',
+      quantity: '1 علبة'
     };
     setCurrentItems(prev => [...prev, newItem]);
   };
@@ -181,58 +204,265 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    const prescriptionDate = new Date(prescription.created_at).toLocaleDateString('en-GB');
+
     const html = `
       <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
+      <html lang="ar">
       <head>
         <meta charset="UTF-8">
-        <title>روشتة</title>
+        <title>Prescription - روشتة طبية</title>
         <style>
-          body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; direction: rtl; }
-          .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
-          .patient-info { margin-bottom: 20px; }
-          .items { margin-bottom: 20px; }
-          .item { padding: 10px; border-bottom: 1px solid #ddd; display: flex; gap: 20px; }
-          .item-name { font-weight: bold; flex: 1; }
-          .item-dose { color: #666; }
-          .item-duration { color: #888; }
-          .notes { margin-top: 20px; padding: 10px; background: #f5f5f5; border-radius: 5px; }
-          .footer { margin-top: 40px; text-align: left; }
-          @media print { body { padding: 0; } }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          @page { size: A5; margin: 10mm; }
+          body { 
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif; 
+            padding: 15px;
+            font-size: 12px;
+            line-height: 1.4;
+          }
+          .prescription {
+            max-width: 148mm;
+            margin: 0 auto;
+            border: 2px solid #0d9488;
+            border-radius: 8px;
+            overflow: hidden;
+          }
+          .header {
+            background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+            color: white;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .clinic-name {
+            font-size: 18px;
+            font-weight: bold;
+          }
+          .clinic-subtitle {
+            font-size: 10px;
+            opacity: 0.9;
+          }
+          .rx-symbol {
+            font-size: 28px;
+            font-weight: bold;
+            font-family: serif;
+          }
+          .patient-section {
+            padding: 10px 15px;
+            background: #f0fdfa;
+            border-bottom: 1px solid #99f6e4;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+          }
+          .patient-info {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+          }
+          .info-item {
+            display: flex;
+            gap: 5px;
+          }
+          .info-label {
+            color: #0d9488;
+            font-weight: 600;
+            font-size: 11px;
+          }
+          .info-value {
+            font-weight: 500;
+          }
+          .medications {
+            padding: 15px;
+          }
+          .med-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          .med-table th {
+            text-align: left;
+            padding: 8px 5px;
+            border-bottom: 2px solid #0d9488;
+            color: #0d9488;
+            font-size: 11px;
+            font-weight: 600;
+          }
+          .med-table td {
+            padding: 10px 5px;
+            border-bottom: 1px solid #e5e7eb;
+            vertical-align: top;
+          }
+          .med-num {
+            width: 25px;
+            font-weight: bold;
+            color: #0d9488;
+          }
+          .med-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: #1f2937;
+          }
+          .med-form {
+            font-size: 10px;
+            color: #6b7280;
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 5px;
+          }
+          .med-desc {
+            color: #4b5563;
+            font-size: 11px;
+            direction: rtl;
+            text-align: right;
+          }
+          .med-duration {
+            font-size: 11px;
+            color: #059669;
+            white-space: nowrap;
+          }
+          .med-qty {
+            font-size: 11px;
+            color: #6b7280;
+            white-space: nowrap;
+          }
+          .notes-section {
+            padding: 10px 15px;
+            background: #fef3c7;
+            border-top: 1px solid #fcd34d;
+          }
+          .notes-title {
+            font-weight: 600;
+            color: #92400e;
+            font-size: 11px;
+            margin-bottom: 3px;
+          }
+          .notes-text {
+            color: #78350f;
+            font-size: 11px;
+            direction: rtl;
+            text-align: right;
+          }
+          .footer {
+            padding: 12px 15px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+          }
+          .doctor-info {
+            text-align: left;
+          }
+          .doctor-name {
+            font-weight: 600;
+            color: #1f2937;
+          }
+          .signature-line {
+            margin-top: 20px;
+            border-top: 1px solid #9ca3af;
+            width: 120px;
+            padding-top: 3px;
+            font-size: 10px;
+            color: #6b7280;
+          }
+          .date-info {
+            text-align: right;
+            font-size: 11px;
+            color: #6b7280;
+          }
+          @media print {
+            body { padding: 0; }
+            .prescription { border: 1px solid #0d9488; }
+          }
         </style>
       </head>
       <body>
-        <div class="header">
-          <h2>🏥 نايل IVF</h2>
-          <p>روشتة طبية</p>
-        </div>
-        <div class="patient-info">
-          <p><strong>المريضة:</strong> ${patientName || 'غير محدد'}</p>
-          <p><strong>التاريخ:</strong> ${new Date(prescription.created_at).toLocaleDateString('ar-EG')}</p>
-          ${gestationalWeeks ? `<p><strong>عمر الحمل:</strong> ${gestationalWeeks} أسبوع</p>` : ''}
-        </div>
-        <div class="items">
-          <h3>الأدوية:</h3>
-          ${prescription.items.map((item, idx) => `
-            <div class="item">
-              <span class="item-num">${idx + 1}.</span>
-              <span class="item-name">${item.drugAr || item.drug}</span>
-              <span class="item-dose">${item.dose}</span>
-              <span class="item-duration">${item.duration || ''}</span>
+        <div class="prescription">
+          <div class="header">
+            <div>
+              <div class="clinic-name">${clinicName}</div>
+              <div class="clinic-subtitle">Obstetrics & Gynecology - IVF Center</div>
             </div>
-          `).join('')}
+            <div class="rx-symbol">℞</div>
+          </div>
+          
+          <div class="patient-section">
+            <div class="patient-info">
+              <div class="info-item">
+                <span class="info-label">Patient:</span>
+                <span class="info-value">${patientName || '_______________'}</span>
+              </div>
+              ${gestationalWeeks ? `
+              <div class="info-item">
+                <span class="info-label">GA:</span>
+                <span class="info-value">${gestationalWeeks} weeks</span>
+              </div>
+              ` : ''}
+            </div>
+            <div class="info-item">
+              <span class="info-label">Date:</span>
+              <span class="info-value">${prescriptionDate}</span>
+            </div>
+          </div>
+
+          <div class="medications">
+            <table class="med-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Medication</th>
+                  <th style="text-align: right; direction: rtl;">الجرعة</th>
+                  <th>Duration</th>
+                  <th>Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${prescription.items.map((item, idx) => `
+                <tr>
+                  <td class="med-num">${idx + 1}</td>
+                  <td>
+                    <span class="med-name">${item.drug}</span>
+                    <span class="med-form">${item.form || 'Tab'}</span>
+                  </td>
+                  <td class="med-desc">${item.descAr}</td>
+                  <td class="med-duration">${item.duration || ''}</td>
+                  <td class="med-qty">${item.quantity || ''}</td>
+                </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          ${prescription.notes ? `
+          <div class="notes-section">
+            <div class="notes-title">ملاحظات / Notes:</div>
+            <div class="notes-text">${prescription.notes}</div>
+          </div>
+          ` : ''}
+
+          <div class="footer">
+            <div class="doctor-info">
+              <div class="doctor-name">${doctorName}</div>
+              <div class="signature-line">Signature</div>
+            </div>
+            <div class="date-info">
+              <div>Next visit: ___ / ___ / ______</div>
+            </div>
+          </div>
         </div>
-        ${prescription.notes ? `<div class="notes"><strong>ملاحظات:</strong> ${prescription.notes}</div>` : ''}
-        <div class="footer">
-          <p>توقيع الطبيب: ________________</p>
-        </div>
+        <script>
+          window.onload = function() { window.print(); }
+        </script>
       </body>
       </html>
     `;
 
     printWindow.document.write(html);
     printWindow.document.close();
-    printWindow.print();
   };
 
   const handleCopyToNew = (prescription: Prescription) => {
@@ -247,25 +477,34 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
   // Quick prescription templates
   const TEMPLATES = [
     {
-      name: 'روشتة الحجز',
+      name: 'روشتة الحجز (Booking)',
       items: [
-        { drug: 'Folic Acid 5mg', drugAr: 'حمض الفوليك ٥ مجم', dose: 'قرص يومياً', duration: '3 أشهر' },
-        { drug: 'Vitamin D3 1000 IU', drugAr: 'فيتامين د ١٠٠٠ وحدة', dose: 'قرص يومياً', duration: 'طوال الحمل' },
+        { drug: 'Folic Acid 5mg', descAr: 'قرص واحد يومياً صباحاً', form: 'Tab', duration: '3 شهور' },
+        { drug: 'Vitamin D3 1000 IU', descAr: 'قرص واحد يومياً بعد الأكل', form: 'Tab', duration: 'طوال الحمل' },
       ]
     },
     {
-      name: 'الثلث الثاني والثالث',
+      name: 'الثلث الثاني (2nd Trimester)',
       items: [
-        { drug: 'Ferrous Sulfate 200mg', drugAr: 'كبريتات الحديد ٢٠٠ مجم', dose: 'قرص يومياً', duration: 'طوال الحمل' },
-        { drug: 'Calcium 500mg + Vit D', drugAr: 'كالسيوم ٥٠٠ مجم + فيتامين د', dose: 'قرص مرتين يومياً', duration: 'طوال الحمل' },
-        { drug: 'Omega-3 (DHA)', drugAr: 'أوميجا ٣', dose: 'كبسولة يومياً', duration: 'طوال الحمل' },
+        { drug: 'Ferrous Sulfate 200mg', descAr: 'قرص مرتين يومياً بعد الأكل بساعتين', form: 'Tab', duration: 'طوال الحمل' },
+        { drug: 'Calcium 500mg + Vit D', descAr: 'قرص مرتين يومياً', form: 'Tab', duration: 'طوال الحمل' },
+        { drug: 'Omega-3 (DHA) 1000mg', descAr: 'كبسولة واحدة يومياً بعد الغداء', form: 'Cap', duration: 'طوال الحمل' },
       ]
     },
     {
-      name: 'حمل عالي الخطورة',
+      name: 'حمل عالي الخطورة (High Risk)',
       items: [
-        { drug: 'Aspirin 81mg', drugAr: 'أسبرين ٨١ مجم', dose: 'قرص يومياً مساءً', duration: 'حتى الأسبوع 36' },
-        { drug: 'Calcium 500mg + Vit D', drugAr: 'كالسيوم ٥٠٠ مجم + فيتامين د', dose: 'قرص مرتين يومياً', duration: 'طوال الحمل' },
+        { drug: 'Aspirin 81mg', descAr: 'قرص واحد يومياً مساءً بعد الأكل', form: 'Tab', duration: 'حتى أسبوع 36' },
+        { drug: 'Calcium 500mg + Vit D', descAr: 'قرص مرتين يومياً', form: 'Tab', duration: 'طوال الحمل' },
+        { drug: 'Vitamin D3 2000 IU', descAr: 'قرص واحد يومياً بعد الأكل', form: 'Tab', duration: 'طوال الحمل' },
+      ]
+    },
+    {
+      name: 'IVF Pregnancy',
+      items: [
+        { drug: 'Progesterone 400mg (Cyclogest)', descAr: 'تحميلة مهبلية يومياً مساءً', form: 'Supp', duration: 'حتى أسبوع 12' },
+        { drug: 'Folic Acid 5mg', descAr: 'قرص واحد يومياً صباحاً', form: 'Tab', duration: '3 شهور' },
+        { drug: 'Aspirin 81mg', descAr: 'قرص واحد يومياً مساءً بعد الأكل', form: 'Tab', duration: 'حتى أسبوع 36' },
       ]
     }
   ];
@@ -273,7 +512,8 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
   const handleApplyTemplate = (template: typeof TEMPLATES[0]) => {
     const items = template.items.map(item => ({
       ...item,
-      id: crypto.randomUUID()
+      id: crypto.randomUUID(),
+      quantity: '1 علبة'
     }));
     setCurrentItems(prev => [...prev, ...items]);
     toast.success(`تم إضافة ${template.name}`);
@@ -311,7 +551,7 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
                 <button
                   key={idx}
                   onClick={() => handleApplyTemplate(template)}
-                  className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+                  className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
                 >
                   {template.name}
                 </button>
@@ -327,15 +567,24 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
                 {category.title}
               </h5>
               <div className="flex flex-wrap gap-2">
-                {category.drugs.map((drug, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleAddDrug(drug)}
-                    className="px-3 py-1.5 text-sm bg-gray-50 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-emerald-300"
-                  >
-                    {drug.nameAr}
-                  </button>
-                ))}
+                {category.drugs.map((drug, idx) => {
+                  const isAdded = currentItems.some(item => item.drug === drug.name);
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAddDrug(drug)}
+                      disabled={isAdded}
+                      className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                        isAdded
+                          ? 'bg-emerald-100 text-emerald-700 border-emerald-300 cursor-not-allowed'
+                          : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-emerald-50 hover:border-emerald-300'
+                      }`}
+                    >
+                      <span className="font-medium">{drug.name}</span>
+                      {isAdded && <Check size={14} className="inline mr-1" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -346,30 +595,47 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
               <h4 className="text-sm font-medium text-gray-900 mb-3">الأدوية المختارة ({currentItems.length})</h4>
               <div className="space-y-2">
                 {currentItems.map((item, idx) => (
-                  <div key={item.id} className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg">
-                    <span className="text-sm font-bold text-emerald-700">{idx + 1}</span>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{item.drugAr}</p>
-                      <div className="flex items-center gap-2 mt-1">
+                  <div key={item.id} className="flex items-start gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 text-white text-sm font-bold">
+                      {idx + 1}
+                    </span>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900">{item.drug}</p>
+                        <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded">
+                          {item.form}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                         <input
                           type="text"
-                          value={item.dose}
-                          onChange={e => handleUpdateItem(item.id, 'dose', e.target.value)}
-                          className="text-sm px-2 py-1 border border-gray-200 rounded w-40"
+                          value={item.descAr}
+                          onChange={e => handleUpdateItem(item.id, 'descAr', e.target.value)}
+                          className="text-sm px-2 py-1.5 border border-gray-200 rounded bg-white"
                           placeholder="الجرعة"
+                          dir="rtl"
                         />
                         <input
                           type="text"
                           value={item.duration || ''}
                           onChange={e => handleUpdateItem(item.id, 'duration', e.target.value)}
-                          className="text-sm px-2 py-1 border border-gray-200 rounded w-28"
+                          className="text-sm px-2 py-1.5 border border-gray-200 rounded bg-white"
                           placeholder="المدة"
+                          dir="rtl"
+                        />
+                        <input
+                          type="text"
+                          value={item.quantity || ''}
+                          onChange={e => handleUpdateItem(item.id, 'quantity', e.target.value)}
+                          className="text-sm px-2 py-1.5 border border-gray-200 rounded bg-white"
+                          placeholder="الكمية"
+                          dir="rtl"
                         />
                       </div>
                     </div>
                     <button
                       onClick={() => handleRemoveItem(item.id)}
-                      className="p-1.5 text-red-500 hover:bg-red-100 rounded"
+                      className="p-1.5 text-red-500 hover:bg-red-100 rounded transition-colors"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -387,7 +653,8 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
               onChange={e => setNotes(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-lg text-sm"
               rows={2}
-              placeholder="تعليمات إضافية..."
+              placeholder="تعليمات إضافية... مثال: تجنب تناول الحديد مع الشاي أو القهوة"
+              dir="rtl"
             />
           </div>
 
@@ -396,7 +663,7 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
             <button
               onClick={handleSubmitPrescription}
               disabled={currentItems.length === 0}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Check size={18} />
               <span>حفظ الروشتة</span>
@@ -407,7 +674,7 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
                 setCurrentItems([]);
                 setNotes('');
               }}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
               إلغاء
             </button>
@@ -430,50 +697,57 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
           prescriptions.map(prescription => (
             <div
               key={prescription.id}
-              className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+              className="border border-gray-200 rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-emerald-600" />
                   <span className="text-sm font-medium text-gray-900">
-                    {new Date(prescription.created_at).toLocaleDateString('ar-EG')}
+                    {new Date(prescription.created_at).toLocaleDateString('en-GB')}
                   </span>
-                  <span className="text-xs text-gray-500">
-                    ({prescription.items.length} أدوية)
+                  <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded">
+                    {prescription.items.length} medications
                   </span>
                 </div>
                 <div className="flex gap-1">
                   <button
                     onClick={() => handleCopyToNew(prescription)}
-                    className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"
+                    className="p-2 text-blue-600 hover:bg-blue-100 rounded transition-colors"
                     title="نسخ للتعديل"
                   >
                     <Copy size={16} />
                   </button>
                   <button
                     onClick={() => handlePrintPrescription(prescription)}
-                    className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
+                    className="p-2 text-emerald-600 hover:bg-emerald-100 rounded transition-colors"
                     title="طباعة"
                   >
                     <Printer size={16} />
                   </button>
                 </div>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {prescription.items.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2 text-sm">
-                    <span className="text-gray-400">{idx + 1}.</span>
-                    <span className="text-gray-700">{item.drugAr || item.drug}</span>
-                    <span className="text-gray-500">-</span>
-                    <span className="text-gray-600">{item.dose}</span>
+                  <div key={idx} className="flex items-center gap-2 text-sm bg-white p-2 rounded">
+                    <span className="w-5 h-5 flex items-center justify-center bg-emerald-100 text-emerald-700 rounded text-xs font-bold">
+                      {idx + 1}
+                    </span>
+                    <span className="font-medium text-gray-800">{item.drug}</span>
+                    <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">
+                      {item.form}
+                    </span>
+                    <span className="text-gray-400">—</span>
+                    <span className="text-gray-600 text-right flex-1" dir="rtl">{item.descAr}</span>
                     {item.duration && (
-                      <span className="text-xs text-emerald-600">({item.duration})</span>
+                      <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                        {item.duration}
+                      </span>
                     )}
                   </div>
                 ))}
               </div>
               {prescription.notes && (
-                <p className="text-sm text-gray-600 mt-2 bg-white p-2 rounded">
+                <p className="text-sm text-amber-700 mt-3 bg-amber-50 p-2 rounded border border-amber-200" dir="rtl">
                   💬 {prescription.notes}
                 </p>
               )}
