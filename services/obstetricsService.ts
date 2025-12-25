@@ -565,4 +565,72 @@ export const obstetricsService = {
 
     if (error) throw error;
   },
+
+  // ============================================================================
+  // PREGNANCY FILES / ULTRASOUND IMAGES
+  // ============================================================================
+
+  getPregnancyFiles: async (pregnancyId: string) => {
+    const { data, error } = await supabase
+      .from('pregnancy_files')
+      .select('*')
+      .eq('pregnancy_id', pregnancyId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  uploadPregnancyFile: async (pregnancyId: string, file: File) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${pregnancyId}/${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `ultrasound/${fileName}`;
+
+    // 1. Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('ultrasound-images')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    // 2. Get Public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('ultrasound-images')
+      .getPublicUrl(filePath);
+
+    // 3. Save metadata to pregnancy_files table
+    const { data: fileData, error: dbError } = await supabase
+      .from('pregnancy_files')
+      .insert([{
+        pregnancy_id: pregnancyId,
+        file_name: file.name,
+        file_url: publicUrl,
+        file_type: file.type,
+        file_size: file.size
+      }])
+      .select()
+      .single();
+
+    if (dbError) throw dbError;
+    return fileData;
+  },
+
+  deletePregnancyFile: async (fileId: string, fileUrl: string) => {
+    // Extract path from URL
+    // URL format: .../storage/v1/object/public/ultrasound-images/ultrasound/pregnancyId/randomName.ext
+    const pathParts = fileUrl.split('ultrasound-images/');
+    if (pathParts.length > 1) {
+      const filePath = pathParts[1];
+      await supabase.storage
+        .from('ultrasound-images')
+        .remove([filePath]);
+    }
+
+    const { error } = await supabase
+      .from('pregnancy_files')
+      .delete()
+      .eq('id', fileId);
+
+    if (error) throw error;
+  }
 };

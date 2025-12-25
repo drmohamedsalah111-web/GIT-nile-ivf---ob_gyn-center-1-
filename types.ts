@@ -289,6 +289,17 @@ export interface BiometryScan {
   created_at?: string;
 }
 
+export interface PregnancyFile {
+  id: string;
+  pregnancy_id: string;
+  file_name: string;
+  file_url: string;
+  file_type?: string;
+  file_size?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ObstetricsData {
   id?: string;
   patientId: string;

@@ -27,6 +27,15 @@ export const PregnancyProfile: React.FC<PregnancyProfileProps> = ({ patientId })
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchFiles = async (pregnancyId: string) => {
+    try {
+      const filesData = await obstetricsService.getPregnancyFiles(pregnancyId);
+      setFiles(filesData || []);
+    } catch (err) {
+      console.error('Error fetching files:', err);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (!patientId) return;
@@ -47,6 +56,10 @@ export const PregnancyProfile: React.FC<PregnancyProfileProps> = ({ patientId })
           // Fetch scans for this pregnancy
           const scansData = await obstetricsService.getBiometryScans(pregnancyData.id);
           setScans(scansData || []);
+
+          // Fetch files for this pregnancy
+          const filesData = await obstetricsService.getPregnancyFiles(pregnancyData.id);
+          setFiles(filesData || []);
         }
       } catch (err: any) {
         console.error('Error fetching pregnancy data:', err);
@@ -191,7 +204,11 @@ export const PregnancyProfile: React.FC<PregnancyProfileProps> = ({ patientId })
         )}
 
         {activeTab === 'gallery' && (
-          <UltrasoundGallery files={files} />
+          <UltrasoundGallery 
+            files={files} 
+            pregnancyId={pregnancy.id}
+            onUploadSuccess={() => fetchFiles(pregnancy.id)}
+          />
         )}
 
         {activeTab === 'labs' && (
