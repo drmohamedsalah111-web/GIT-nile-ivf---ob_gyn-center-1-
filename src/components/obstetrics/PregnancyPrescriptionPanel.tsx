@@ -8,6 +8,7 @@ const PREGNANCY_MEDICATIONS = {
   vitamins: {
     title: 'Vitamins & Supplements',
     titleAr: 'الفيتامينات والمكملات',
+    color: 'emerald',
     medications: [
       { id: 'folic_acid', name: 'Folic Acid 5mg', tradeName: 'Folicap / Folicare', frequency: 'Once daily' },
       { id: 'prenatal', name: 'Prenatal Multivitamin', tradeName: 'Pregnacare / Vitapreg / Maternavit', frequency: 'Once daily' },
@@ -21,6 +22,7 @@ const PREGNANCY_MEDICATIONS = {
   nausea: {
     title: 'Nausea & Vomiting',
     titleAr: 'الغثيان والقيء',
+    color: 'orange',
     medications: [
       { id: 'xonvea', name: 'Doxylamine + Pyridoxine', tradeName: 'Xonvea / Diclegis', frequency: 'As directed' },
       { id: 'ondansetron', name: 'Ondansetron 4mg', tradeName: 'Zofran / Emeset', frequency: 'Every 8 hours PRN' },
@@ -32,6 +34,7 @@ const PREGNANCY_MEDICATIONS = {
   gi: {
     title: 'Gastrointestinal',
     titleAr: 'الجهاز الهضمي',
+    color: 'teal',
     medications: [
       { id: 'omeprazole', name: 'Omeprazole 20mg', tradeName: 'Gastroloc / Omiz', frequency: 'Once daily before breakfast' },
       { id: 'esomeprazole', name: 'Esomeprazole 40mg', tradeName: 'Nexium / Ezoloc', frequency: 'Once daily' },
@@ -44,6 +47,7 @@ const PREGNANCY_MEDICATIONS = {
   antibiotics: {
     title: 'Antibiotics',
     titleAr: 'المضادات الحيوية',
+    color: 'rose',
     medications: [
       { id: 'amoxicillin', name: 'Amoxicillin 1000mg', tradeName: 'Augmentin / E-Mox / Hibiotic', frequency: 'Twice daily' },
       { id: 'cephalexin', name: 'Cephalexin 500mg', tradeName: 'Ceporex / Keflex', frequency: 'Every 6-8 hours' },
@@ -55,6 +59,7 @@ const PREGNANCY_MEDICATIONS = {
   hypertension: {
     title: 'Antihypertensives',
     titleAr: 'أدوية الضغط',
+    color: 'blue',
     medications: [
       { id: 'methyldopa', name: 'Methyldopa 250mg', tradeName: 'Aldomet', frequency: 'Twice or three times daily' },
       { id: 'labetalol', name: 'Labetalol 100mg', tradeName: 'Trandate', frequency: 'Twice daily' },
@@ -64,6 +69,7 @@ const PREGNANCY_MEDICATIONS = {
   thyroid: {
     title: 'Thyroid Medications',
     titleAr: 'أدوية الغدة الدرقية',
+    color: 'purple',
     medications: [
       { id: 'levothyroxine', name: 'Levothyroxine', tradeName: 'Eltroxin / Euthyrox', frequency: 'Once daily on empty stomach' },
       { id: 'ptu', name: 'Propylthiouracil', tradeName: 'PTU', frequency: 'As directed' },
@@ -72,6 +78,7 @@ const PREGNANCY_MEDICATIONS = {
   anticoagulation: {
     title: 'Anticoagulation',
     titleAr: 'مضادات التخثر',
+    color: 'slate',
     medications: [
       { id: 'clexane', name: 'LMWH 40mg', tradeName: 'Clexane 40mg', frequency: 'Once daily SC' },
       { id: 'clexane60', name: 'LMWH 60mg', tradeName: 'Clexane 60mg', frequency: 'Once daily SC' },
@@ -81,6 +88,7 @@ const PREGNANCY_MEDICATIONS = {
   progesterone: {
     title: 'Progesterone Support',
     titleAr: 'دعم البروجسترون',
+    color: 'fuchsia',
     medications: [
       { id: 'cyclogest', name: 'Progesterone 400mg vaginal', tradeName: 'Cyclogest / Prontogest', frequency: 'Twice daily' },
       { id: 'duphaston', name: 'Dydrogesterone 10mg', tradeName: 'Duphaston', frequency: 'Twice daily' },
@@ -91,6 +99,7 @@ const PREGNANCY_MEDICATIONS = {
   tocolytics: {
     title: 'Tocolytics (Preterm Labor)',
     titleAr: 'مثبطات الطلق المبكر',
+    color: 'sky',
     medications: [
       { id: 'nifedipine_tocolytic', name: 'Nifedipine 10mg', tradeName: 'Epilat', frequency: 'As directed' },
       { id: 'ritodrine', name: 'Ritodrine', tradeName: 'Yutopar', frequency: 'As directed' },
@@ -100,6 +109,7 @@ const PREGNANCY_MEDICATIONS = {
   corticosteroids: {
     title: 'Fetal Lung Maturity',
     titleAr: 'حقن الرئة للجنين',
+    color: 'lime',
     medications: [
       { id: 'betamethasone', name: 'Betamethasone 12mg IM', tradeName: 'Celestone', frequency: 'Two doses 24h apart' },
       { id: 'dexamethasone', name: 'Dexamethasone 6mg IM', tradeName: 'Fortecortin / Dexamethasone', frequency: 'Four doses 12h apart' },
@@ -108,6 +118,7 @@ const PREGNANCY_MEDICATIONS = {
   diabetes: {
     title: 'Anti-Diabetics',
     titleAr: 'أدوية السكر',
+    color: 'amber',
     medications: [
       { id: 'insulin_rapid', name: 'Rapid Acting Insulin', tradeName: 'NovoRapid / Humalog', frequency: 'Before meals' },
       { id: 'insulin_long', name: 'Long Acting Insulin', tradeName: 'Lantus / Levemir', frequency: 'Once daily' },
@@ -117,6 +128,7 @@ const PREGNANCY_MEDICATIONS = {
   infections: {
     title: 'Vaginal Infections',
     titleAr: 'الالتهابات المهبلية',
+    color: 'yellow',
     medications: [
       { id: 'clotrimazole', name: 'Clotrimazole Cream/Vaginal', tradeName: 'Canesten / Gynozol', frequency: 'At bedtime' },
       { id: 'miconazole', name: 'Miconazole Vaginal', tradeName: 'Gyno-Daktarin', frequency: 'At bedtime' },
@@ -128,6 +140,7 @@ const PREGNANCY_MEDICATIONS = {
   hemorrhoids: {
     title: 'Hemorrhoids & Varicose',
     titleAr: 'البواسير والدوالي',
+    color: 'stone',
     medications: [
       { id: 'daflon', name: 'Diosmin + Hesperidin', tradeName: 'Daflon 500mg', frequency: 'Twice daily' },
       { id: 'proctoglyvenol', name: 'Hemorrhoid Cream', tradeName: 'Procto-Glyvenol / Faktu', frequency: 'Twice daily' },
@@ -136,6 +149,7 @@ const PREGNANCY_MEDICATIONS = {
   painRelief: {
     title: 'Pain Relief',
     titleAr: 'المسكنات',
+    color: 'red',
     medications: [
       { id: 'paracetamol', name: 'Paracetamol 500mg', tradeName: 'Panadol / Cetal', frequency: 'Every 6-8 hours PRN' },
       { id: 'paracetamol1g', name: 'Paracetamol 1000mg', tradeName: 'Panadol Extra / Adol', frequency: 'Every 6-8 hours PRN' },
@@ -144,12 +158,32 @@ const PREGNANCY_MEDICATIONS = {
   other: {
     title: 'Other Medications',
     titleAr: 'أدوية أخرى',
+    color: 'gray',
     medications: [
       { id: 'loratadine', name: 'Loratadine 10mg', tradeName: 'Claritine / Lorano', frequency: 'Once daily' },
       { id: 'cetirizine', name: 'Cetirizine 10mg', tradeName: 'Zyrtec / Letizen', frequency: 'Once daily' },
       { id: 'antid', name: 'Anti-D Immunoglobulin', tradeName: 'Anti-D Injection / Rhophylac', frequency: 'Single dose' },
     ]
   }
+};
+
+const CATEGORY_STYLES: Record<string, { bg: string; text: string; border: string; hover: string; light: string }> = {
+  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', hover: 'hover:bg-emerald-100', light: 'bg-emerald-100/50' },
+  orange: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', hover: 'hover:bg-orange-100', light: 'bg-orange-100/50' },
+  teal: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200', hover: 'hover:bg-teal-100', light: 'bg-teal-100/50' },
+  rose: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', hover: 'hover:bg-rose-100', light: 'bg-rose-100/50' },
+  blue: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', hover: 'hover:bg-blue-100', light: 'bg-blue-100/50' },
+  purple: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', hover: 'hover:bg-purple-100', light: 'bg-purple-100/50' },
+  slate: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', hover: 'hover:bg-slate-100', light: 'bg-slate-100/50' },
+  fuchsia: { bg: 'bg-fuchsia-50', text: 'text-fuchsia-700', border: 'border-fuchsia-200', hover: 'hover:bg-fuchsia-100', light: 'bg-fuchsia-100/50' },
+  sky: { bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200', hover: 'hover:bg-sky-100', light: 'bg-sky-100/50' },
+  lime: { bg: 'bg-lime-50', text: 'text-lime-700', border: 'border-lime-200', hover: 'hover:bg-lime-100', light: 'bg-lime-100/50' },
+  amber: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', hover: 'hover:bg-amber-100', light: 'bg-amber-100/50' },
+  yellow: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', hover: 'hover:bg-yellow-100', light: 'bg-yellow-100/50' },
+  stone: { bg: 'bg-stone-50', text: 'text-stone-700', border: 'border-stone-200', hover: 'hover:bg-stone-100', light: 'bg-stone-100/50' },
+  red: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', hover: 'hover:bg-red-100', light: 'bg-red-100/50' },
+  gray: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', hover: 'hover:bg-gray-100', light: 'bg-gray-100/50' },
+  indigo: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', hover: 'hover:bg-indigo-100', light: 'bg-indigo-100/50' }
 };
 
 interface PrescriptionItem {
@@ -477,47 +511,66 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
           
           {/* Selected Items */}
           {selectedItems.length > 0 && (
-            <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">الأدوية المختارة ({selectedItems.length})</span>
+            <div className="bg-blue-50/50 rounded-xl border border-blue-100 p-4 space-y-3 shadow-inner">
+              <div className="flex items-center justify-between border-b border-blue-100 pb-2">
+                <span className="text-sm font-bold text-blue-800 flex items-center gap-2">
+                  <FileSpreadsheet size={16} />
+                  الأدوية المختارة في الروشتة ({selectedItems.length})
+                </span>
+                <button 
+                  onClick={() => setSelectedItems([])}
+                  className="text-xs text-red-600 hover:underline"
+                >
+                  مسح الكل
+                </button>
               </div>
-              {selectedItems.map((item, index) => (
-                <div key={index} className="bg-white rounded-lg p-3 text-sm">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{item.trade_name}</p>
-                      <p className="text-gray-600">{item.name}</p>
-                      <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500">
-                        <span>• {item.dosage}</span>
-                        <span>• {item.frequency}</span>
-                        <span>• {item.duration}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {selectedItems.map((item, index) => (
+                  <div key={index} className="bg-white rounded-lg p-3 text-sm border border-blue-100 shadow-sm hover:shadow-md transition-shadow relative group">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-900 truncate">{item.trade_name}</p>
+                        <p className="text-xs text-gray-500 italic truncate">{item.name}</p>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px]">
+                          <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">💊 {item.dosage}</span>
+                          <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded">🔄 {item.frequency}</span>
+                          <span className="bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">⏳ {item.duration}</span>
+                        </div>
+                        {item.instructions && (
+                          <p className="text-[11px] text-gray-600 mt-2 bg-gray-50 p-1.5 rounded border-l-2 border-blue-400">
+                            📝 {item.instructions}
+                          </p>
+                        )}
                       </div>
-                      {item.instructions && (
-                        <p className="text-xs text-gray-500 mt-1">📝 {item.instructions}</p>
-                      )}
+                      <button
+                        onClick={() => handleRemoveItem(index)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                        title="حذف"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleRemoveItem(index)}
-                      className="p-1 text-red-600 hover:bg-red-50 rounded"
-                    >
-                      <Trash2 size={16} />
-                    </button>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
           {/* Medication Categories */}
-          <div className="space-y-3 max-h-96 overflow-y-auto">
+          <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
             {/* Custom Medications Category */}
             {customMedications.length > 0 && (
-              <div className="space-y-2">
-                <h5 className="text-sm font-medium text-blue-700 flex items-center gap-2">
-                  <Pill size={14} />
-                  <span>Custom Medications (دليل الأدوية المضاف)</span>
-                </h5>
-                <div className="grid grid-cols-1 gap-2">
+              <div className={`rounded-xl border ${CATEGORY_STYLES.indigo.border} ${CATEGORY_STYLES.indigo.bg} overflow-hidden shadow-sm`}>
+                <div className={`px-4 py-2 ${CATEGORY_STYLES.indigo.light} border-b ${CATEGORY_STYLES.indigo.border} flex items-center justify-between`}>
+                  <h5 className={`text-sm font-bold ${CATEGORY_STYLES.indigo.text} flex items-center gap-2`}>
+                    <Pill size={16} />
+                    <span>Custom Medications (دليل الأدوية المضاف)</span>
+                  </h5>
+                  <span className={`text-xs font-medium ${CATEGORY_STYLES.indigo.text} bg-white/50 px-2 py-0.5 rounded-full`}>
+                    {customMedications.length} دواء
+                  </span>
+                </div>
+                <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {customMedications
                     .filter(med => 
                       med.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -537,18 +590,18 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
                             frequency: med.default_frequency
                           }, med.category)}
                           disabled={isAlreadySelected}
-                          className={`text-left px-3 py-2 rounded-lg border transition-colors ${
+                          className={`text-left px-3 py-2 rounded-lg border transition-all duration-200 ${
                             isAlreadySelected
                               ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                              : `bg-white text-gray-700 border-gray-200 hover:border-indigo-400 hover:shadow-md transform hover:-translate-y-0.5`
                           }`}
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm font-medium">{med.trade_name}</p>
-                              <p className="text-xs text-gray-500">{med.name} • {med.default_frequency}</p>
+                              <p className="text-sm font-bold text-gray-900">{med.trade_name}</p>
+                              <p className="text-xs text-gray-500 italic">{med.name}</p>
                             </div>
-                            {isAlreadySelected && <Check size={16} className="text-gray-400" />}
+                            {isAlreadySelected && <Check size={16} className="text-indigo-600" />}
                           </div>
                         </button>
                       );
@@ -567,12 +620,20 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
 
               if (filteredMeds.length === 0) return null;
 
+              const style = CATEGORY_STYLES[category.color] || CATEGORY_STYLES.gray;
+
               return (
-                <div key={key} className="space-y-2">
-                  <h5 className="text-sm font-medium text-gray-700">
-                    {category.title} <span className="text-gray-500">({category.titleAr})</span>
-                  </h5>
-                  <div className="grid grid-cols-1 gap-2">
+                <div key={key} className={`rounded-xl border ${style.border} ${style.bg} overflow-hidden shadow-sm`}>
+                  <div className={`px-4 py-2 ${style.light} border-b ${style.border} flex items-center justify-between`}>
+                    <h5 className={`text-sm font-bold ${style.text} flex items-center gap-2`}>
+                      <Pill size={16} />
+                      <span>{category.title} <span className="opacity-70 text-xs font-normal">({category.titleAr})</span></span>
+                    </h5>
+                    <span className={`text-xs font-medium ${style.text} bg-white/50 px-2 py-0.5 rounded-full`}>
+                      {filteredMeds.length} دواء
+                    </span>
+                  </div>
+                  <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     {filteredMeds.map(med => {
                       const isRecommended = recommendedMeds.includes(med.id);
                       const isAlreadySelected = selectedItems.some(item => item.medication_id === med.id);
@@ -583,21 +644,26 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
                           type="button"
                           onClick={() => handleAddMedication(med, key)}
                           disabled={isAlreadySelected}
-                          className={`text-left px-3 py-2 rounded-lg border transition-colors ${
+                          className={`text-left px-3 py-2 rounded-lg border transition-all duration-200 ${
                             isAlreadySelected
                               ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                               : isRecommended
-                              ? 'bg-blue-50 text-blue-900 border-blue-300 hover:bg-blue-100'
-                              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                              ? `bg-white text-gray-900 ${style.border} hover:border-amber-400 hover:shadow-md transform hover:-translate-y-0.5 ring-1 ring-amber-200`
+                              : `bg-white text-gray-700 border-gray-200 ${style.hover.replace('hover:', 'hover:border-')} hover:shadow-md transform hover:-translate-y-0.5`
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium">{med.tradeName}</p>
-                              <p className="text-xs text-gray-500">{med.name} • {med.frequency}</p>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-gray-900 truncate">{med.tradeName}</p>
+                              <p className="text-xs text-gray-500 truncate italic">{med.name}</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{med.frequency}</p>
                             </div>
-                            {isRecommended && !isAlreadySelected && <span className="text-lg">⭐</span>}
-                            {isAlreadySelected && <Check size={16} className="text-gray-400" />}
+                            <div className="flex items-center gap-1">
+                              {isRecommended && !isAlreadySelected && (
+                                <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" title="Recommended" />
+                              )}
+                              {isAlreadySelected && <Check size={16} className={style.text} />}
+                            </div>
                           </div>
                         </button>
                       );
