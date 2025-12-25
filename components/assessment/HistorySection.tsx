@@ -77,7 +77,7 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
             >
               <option value="Regular">Regular</option>
               <option value="Irregular">Irregular</option>
-              <option value="Oligomenorrhea">Oligomenorrhea (>35 days)</option>
+              <option value="Oligomenorrhea">Oligomenorrhea ({'>'}35 days)</option>
               <option value="Amenorrhea">Amenorrhea</option>
             </select>
           </div>

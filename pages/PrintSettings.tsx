@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { PrintSettings } from '../types';
+import type { PrintSettings } from '../types';
 import PrescriptionTemplate from '@/components/PrescriptionTemplate';
 
 const PrintSettings: React.FC = () => {
