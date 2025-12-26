@@ -45,6 +45,7 @@ const App: React.FC = () => {
   const [userRole, setUserRole] = useState<'doctor' | 'secretary' | 'admin'>('doctor');
   const [loading, setLoading] = useState(true);
   const [showLabReferences, setShowLabReferences] = useState(false);
+  const [isAdminLogin, setIsAdminLogin] = useState(false);
 
   // Helper function to get clinic ID based on user role
   const getClinicId = (): string | null => {
@@ -61,6 +62,14 @@ const App: React.FC = () => {
       try {
         setLoading(true);
         const currentUser = await authService.getCurrentUser();
+        
+        // Check if this is an admin login session
+        const adminLoginFlag = localStorage.getItem('adminLogin');
+        if (adminLoginFlag === 'true' && currentUser) {
+          setIsAdminLogin(true);
+          setActivePage(Page.SUPER_ADMIN);
+        }
+        
         setUser(currentUser);
         
         if (currentUser) {
@@ -103,10 +112,13 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     try {
       await authService.logout();
+      localStorage.removeItem('adminLogin'); // Clear admin login flag
       setUser(null);
       setActivePage(Page.HOME);
+      setIsAdminLogin(false);
     } catch (error) {
       console.error('Logout error:', error);
+      localStorage.removeItem('adminLogin');
       setUser(null);
       localStorage.clear();
     }

@@ -5,11 +5,16 @@
 // ============================================================================
 
 import React, { useState } from 'react';
-import { Shield, CreditCard, Users, DollarSign, Settings, BarChart3, Database, Lock } from 'lucide-react';
+import { Shield, CreditCard, Users, DollarSign, Settings, BarChart3, Database, Lock, Home } from 'lucide-react';
 import SaaSManagement from './admin/SaaSManagement';
 
 const SuperAdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'subscriptions' | 'users' | 'settings'>('overview');
+
+  const switchToNormalMode = () => {
+    localStorage.removeItem('adminLogin');
+    window.location.reload();
+  };
 
   const adminCards = [
     {
@@ -73,7 +78,17 @@ const SuperAdminDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 mb-8 text-white shadow-xl">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 mb-8 text-white shadow-xl relative">
+        {/* Switch to Normal Mode Button */}
+        <button
+          onClick={switchToNormalMode}
+          className="absolute top-4 left-4 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-4 py-2 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2"
+        >
+          <Home className="w-4 h-4" />
+          <span className="hidden md:inline">العودة للنظام العادي</span>
+          <span className="md:hidden">عادي</span>
+        </button>
+
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">

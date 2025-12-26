@@ -47,6 +47,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess }) =
             .single();
           
           if (doctorData?.user_role === 'admin') {
+            // Save admin login flag in localStorage
+            localStorage.setItem('adminLogin', 'true');
             toast.success('مرحباً بك في لوحة الأدمن!');
             // Force reload to load as admin
             window.location.reload();
