@@ -289,7 +289,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
         onClick={() => setSelectedCategory(isSelected ? null : category)}
         className={`
           inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
-          transition-all duration-200 whitespace-nowrap
+          transition-all duration-200 whitespace-nowrap shadow-sm
           ${isSelected ? 'ring-2 ring-offset-2' : 'hover:scale-105'}
         `}
         style={{
@@ -301,7 +301,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
         <span>{config.icon}</span>
         <span>{category}</span>
         {count !== undefined && (
-          <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded-full text-xs">
+          <span className="ml-1 px-1.5 py-0.5 rounded-full text-xs" style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.6)' }}>
             {count}
           </span>
         )}
@@ -323,9 +323,10 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
         className={`
           relative p-3 rounded-lg border-2 cursor-pointer
           transition-all duration-200 hover:shadow-md
-          ${isInPrescription 
-            ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
-            : 'bg-white hover:scale-[1.02] border-gray-200 hover:border-opacity-100'
+          ${
+            isInPrescription 
+            ? 'bg-surface/50 border-borderColor cursor-not-allowed opacity-60' 
+            : 'bg-surface hover:scale-[1.02] border-borderColor hover:shadow-lg'
           }
         `}
         style={{ 
@@ -334,10 +335,10 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
         }}
       >
         {/* Trade Name */}
-        <div className="font-semibold text-gray-900">{medication.trade_name}</div>
+        <div className="font-semibold text-textMain">{medication.trade_name}</div>
         
         {/* Generic Name */}
-        <div className="text-sm text-gray-500 italic">{medication.generic_name}</div>
+        <div className="text-sm text-textSecondary italic">{medication.generic_name}</div>
         
         {/* Form & Strength */}
         <div className="flex items-center gap-2 mt-1">
@@ -347,12 +348,12 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
           >
             {medication.form}
           </span>
-          <span className="text-sm text-gray-600 font-medium">{medication.strength}</span>
+          <span className="text-sm text-textSecondary font-medium">{medication.strength}</span>
         </div>
 
         {/* Default Dosing */}
         {medication.default_dose && (
-          <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+          <div className="text-xs text-textSecondary/70 mt-1 flex items-center gap-1">
             <Clock className="w-3 h-3" />
             {medication.default_dose} - {medication.default_frequency}
           </div>
@@ -361,14 +362,14 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
         {/* Warning Badge */}
         {medication.warnings && (
           <div className="absolute top-2 right-2" title={medication.warnings}>
-            <AlertCircle className="w-4 h-4 text-amber-500" />
+            <AlertCircle className="w-4 h-4 text-warning" />
           </div>
         )}
 
         {/* Added Check */}
         {isInPrescription && (
           <div className="absolute top-2 right-2">
-            <Check className="w-5 h-5 text-green-500" />
+            <Check className="w-5 h-5 text-success" />
           </div>
         )}
       </div>
@@ -385,25 +386,25 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
 
     return (
       <div 
-        className="p-3 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow"
+        className="p-3 bg-surface rounded-lg border border-borderColor hover:shadow-md transition-all"
         style={{ borderLeftWidth: '4px', borderLeftColor: config.color }}
       >
         <div className="flex items-start justify-between">
           {/* Medication Info */}
           <div className="flex-1">
-            <div className="font-semibold text-gray-900 flex items-center gap-2">
+            <div className="font-semibold text-textMain flex items-center gap-2">
               {item.medication.trade_name}
-              <span className="text-xs font-normal text-gray-500">
+              <span className="text-xs font-normal text-textSecondary">
                 ({item.medication.strength})
               </span>
             </div>
-            <div className="text-sm text-gray-500 italic">{item.medication.generic_name}</div>
+            <div className="text-sm text-textSecondary italic">{item.medication.generic_name}</div>
           </div>
 
           {/* Delete Button */}
           <button
             onClick={() => removeFromPrescription(index)}
-            className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+            className="p-1 text-error/60 hover:text-error hover:bg-error/10 rounded transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -413,22 +414,22 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
         <div className="mt-2 grid grid-cols-3 gap-2">
           {/* Dose */}
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Dose</label>
+            <label className="text-xs text-textSecondary block mb-1">Dose</label>
             <input
               type="text"
               value={item.dose}
               onChange={(e) => updatePrescriptionItem(index, { dose: e.target.value })}
-              className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-2 py-1 text-sm bg-background border border-borderColor rounded text-textMain focus:ring-1 focus:ring-brand focus:border-brand transition-colors"
             />
           </div>
 
           {/* Frequency */}
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Frequency</label>
+            <label className="text-xs text-textSecondary block mb-1">Frequency</label>
             <select
               value={item.frequency}
               onChange={(e) => updatePrescriptionItem(index, { frequency: e.target.value })}
-              className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-2 py-1 text-sm bg-background border border-borderColor rounded text-textMain focus:ring-1 focus:ring-brand focus:border-brand transition-colors"
             >
               {FREQUENCY_OPTIONS.map(opt => (
                 <option key={opt} value={opt}>{opt}</option>
@@ -438,11 +439,11 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
 
           {/* Duration */}
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Duration</label>
+            <label className="text-xs text-textSecondary block mb-1">Duration</label>
             <select
               value={item.duration}
               onChange={(e) => updatePrescriptionItem(index, { duration: e.target.value })}
-              className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-2 py-1 text-sm bg-background border border-borderColor rounded text-textMain focus:ring-1 focus:ring-brand focus:border-brand transition-colors"
             >
               {DURATION_OPTIONS.map(opt => (
                 <option key={opt} value={opt}>{opt}</option>
@@ -457,7 +458,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
           placeholder="Special instructions..."
           value={item.notes}
           onChange={(e) => updatePrescriptionItem(index, { notes: e.target.value })}
-          className="mt-2 w-full px-2 py-1 text-sm border border-gray-100 rounded bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          className="mt-2 w-full px-2 py-1 text-sm border border-borderColor rounded bg-background text-textMain placeholder:text-textSecondary/50 focus:ring-1 focus:ring-brand focus:border-brand transition-colors"
         />
       </div>
     );
@@ -469,31 +470,31 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-64 bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-background">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
+      <div className="bg-surface border-b border-borderColor px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-pink-100 rounded-lg">
-              <Pill className="w-5 h-5 text-pink-600" />
+            <div className="p-2 bg-brand/10 rounded-lg">
+              <Pill className="w-5 h-5 text-brand" />
             </div>
             <div>
-              <h2 className="font-semibold text-gray-900">Pregnancy Prescription</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="font-semibold text-textMain">Pregnancy Prescription</h2>
+              <p className="text-sm text-textSecondary">
                 {patientName} {gestationalAge && `• ${gestationalAge}`}
               </p>
             </div>
           </div>
           {onClose && (
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-              <X className="w-5 h-5 text-gray-500" />
+            <button onClick={onClose} className="p-2 hover:bg-surface rounded-lg transition-colors">
+              <X className="w-5 h-5 text-textSecondary" />
             </button>
           )}
         </div>
@@ -502,22 +503,22 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Medication Catalog */}
-        <div className="w-2/3 flex flex-col border-r border-gray-200 bg-white">
+        <div className="w-2/3 flex flex-col border-r border-borderColor bg-surface">
           {/* Search Bar */}
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-borderColor">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-textSecondary" />
               <input
                 type="text"
                 placeholder="Search medications by trade or generic name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                className="w-full pl-10 pr-4 py-2.5 bg-background border border-borderColor rounded-lg text-textMain placeholder:text-textSecondary focus:ring-2 focus:ring-brand focus:border-brand transition-colors"
               />
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary hover:text-textMain transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -526,7 +527,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
           </div>
 
           {/* Category Pills */}
-          <div className="px-4 py-3 border-b border-gray-100 overflow-x-auto">
+          <div className="px-4 py-3 border-b border-borderColor overflow-x-auto bg-background">
             <div className="flex gap-2 flex-nowrap">
               {Object.entries(CATEGORY_CONFIG)
                 .sort((a, b) => a[1].order - b[1].order)
@@ -547,7 +548,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
                   <MedicationCard key={med.id} medication={med} />
                 ))}
                 {filteredMedications.length === 0 && (
-                  <div className="col-span-2 text-center py-8 text-gray-500">
+                  <div className="col-span-2 text-center py-8 text-textSecondary">
                     No medications found
                   </div>
                 )}
@@ -560,11 +561,11 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
                   const isExpanded = expandedCategories.has(category);
 
                   return (
-                    <div key={category} className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div key={category} className="border border-borderColor rounded-lg overflow-hidden bg-surface">
                       {/* Category Header */}
                       <button
                         onClick={() => toggleCategory(category)}
-                        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                        className="w-full flex items-center justify-between px-4 py-3 bg-background hover:bg-surface transition-colors"
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{config.icon}</span>
@@ -574,12 +575,12 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
                           >
                             {category}
                           </span>
-                          <span className="text-sm text-gray-400">({meds.length})</span>
+                          <span className="text-sm text-textSecondary">({meds.length})</span>
                         </div>
                         {isExpanded ? (
-                          <ChevronDown className="w-5 h-5 text-gray-400" />
+                          <ChevronDown className="w-5 h-5 text-textSecondary" />
                         ) : (
-                          <ChevronRight className="w-5 h-5 text-gray-400" />
+                          <ChevronRight className="w-5 h-5 text-textSecondary" />
                         )}
                       </button>
 
@@ -600,15 +601,15 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
         </div>
 
         {/* Right Panel: Prescription */}
-        <div className="w-1/3 flex flex-col bg-gray-50">
+        <div className="w-1/3 flex flex-col bg-background">
           {/* Prescription Header */}
-          <div className="px-4 py-3 bg-white border-b border-gray-200">
+          <div className="px-4 py-3 bg-surface border-b border-borderColor">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-pink-500" />
-                <span className="font-semibold text-gray-900">Current Prescription</span>
+                <Sparkles className="w-5 h-5 text-brand" />
+                <span className="font-semibold text-textMain">Current Prescription</span>
               </div>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-textSecondary">
                 {prescription.length} item{prescription.length !== 1 ? 's' : ''}
               </span>
             </div>
@@ -618,9 +619,9 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {prescription.length === 0 ? (
               <div className="text-center py-12">
-                <Pill className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">Click medications to add</p>
-                <p className="text-sm text-gray-400 mt-1">
+                <Pill className="w-12 h-12 text-textSecondary/50 mx-auto mb-3" />
+                <p className="text-textSecondary">Click medications to add</p>
+                <p className="text-sm text-textSecondary/70 mt-1">
                   They will appear here
                 </p>
               </div>
@@ -633,18 +634,18 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
 
           {/* Action Buttons */}
           {prescription.length > 0 && (
-            <div className="p-4 bg-white border-t border-gray-200 space-y-2">
+            <div className="p-4 bg-surface border-t border-borderColor space-y-2">
               <div className="flex gap-2">
                 <button
                   onClick={copyToClipboard}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-borderColor rounded-lg text-textMain bg-background hover:bg-surface transition-colors"
                 >
                   <Copy className="w-4 h-4" />
                   Copy
                 </button>
                 <button
                   onClick={() => window.print()}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-borderColor rounded-lg text-textMain bg-background hover:bg-surface transition-colors"
                 >
                   <Printer className="w-4 h-4" />
                   Print
@@ -652,7 +653,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
               </div>
               <button
                 onClick={handleSave}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors font-medium"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-brand text-white rounded-lg hover:bg-brand/90 transition-colors font-medium shadow-sm"
               >
                 <Check className="w-5 h-5" />
                 Save Prescription

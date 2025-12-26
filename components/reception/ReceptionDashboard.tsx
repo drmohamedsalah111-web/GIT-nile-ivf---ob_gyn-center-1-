@@ -26,6 +26,7 @@ import toast from 'react-hot-toast';
 interface ReceptionDashboardProps {
   userId?: string;
   userName?: string;
+  onPageChange?: (page: string) => void;
 }
 
 interface Appointment {
@@ -43,7 +44,8 @@ interface Appointment {
 
 export const ReceptionDashboard: React.FC<ReceptionDashboardProps> = ({ 
   userId = '', 
-  userName = 'السكرتيرة' 
+  userName = 'السكرتيرة',
+  onPageChange
 }) => {
   const [waitingQueue, setWaitingQueue] = useState<Appointment[]>([]);
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
@@ -201,7 +203,15 @@ export const ReceptionDashboard: React.FC<ReceptionDashboardProps> = ({
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">إجراءات سريعة</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="flex items-center gap-3 p-4 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors group">
+          <button 
+            onClick={() => {
+              if (onPageChange) {
+                onPageChange('patients');
+                toast.success('جاري فتح صفحة تسجيل المريض...');
+              }
+            }}
+            className="flex items-center gap-3 p-4 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors group"
+          >
             <div className="w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               <UserPlus className="w-6 h-6 text-white" />
             </div>
@@ -211,7 +221,15 @@ export const ReceptionDashboard: React.FC<ReceptionDashboardProps> = ({
             </div>
           </button>
 
-          <button className="flex items-center gap-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors group">
+          <button 
+            onClick={() => {
+              if (onPageChange) {
+                onPageChange('appointments');
+                toast.success('جاري فتح صفحة المواعيد...');
+              }
+            }}
+            className="flex items-center gap-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors group"
+          >
             <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               <Calendar className="w-6 h-6 text-white" />
             </div>
@@ -221,7 +239,15 @@ export const ReceptionDashboard: React.FC<ReceptionDashboardProps> = ({
             </div>
           </button>
 
-          <button className="flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors group">
+          <button 
+            onClick={() => {
+              if (onPageChange) {
+                onPageChange('cash');
+                toast.success('جاري فتح صفحة الفواتير...');
+              }
+            }}
+            className="flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors group"
+          >
             <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               <CreditCard className="w-6 h-6 text-white" />
             </div>

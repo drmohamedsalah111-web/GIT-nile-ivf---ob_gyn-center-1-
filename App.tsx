@@ -170,6 +170,7 @@ const App: React.FC = () => {
             <NewReceptionDashboard 
               userId={user?.id || ''}
               userName={user?.email?.split('@')[0] || 'السكرتيرة'}
+              onPageChange={setReceptionPage}
             />
           )}
           {receptionPage === 'appointments' && <ReceptionDashboard />}
