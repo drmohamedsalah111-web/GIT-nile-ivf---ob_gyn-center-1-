@@ -475,7 +475,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess }) =
                 </button>
               </>
             )}
-            </button>
           </div>
 
           {/* Footer with Copyright and Developer Credits */}
