@@ -179,6 +179,13 @@ const SecretaryDashboard: React.FC = () => {
       return;
     }
 
+    // ✅ التحقق من ربط السكرتيرة بطبيب
+    if (!secretary?.secretary_doctor_id) {
+      toast.error('⚠️ السكرتيرة غير مربوطة بطبيب! يرجى التواصل مع الإدارة.');
+      console.error('Secretary not linked to doctor:', secretary);
+      return;
+    }
+
     const toastId = toast.loading('جاري إنشاء الموعد...');
 
     try {
@@ -187,7 +194,7 @@ const SecretaryDashboard: React.FC = () => {
 
       const appointmentDateTime = new Date(`${appointmentForm.appointmentDate}T${appointmentForm.appointmentTime}`).toISOString();
 
-      await appointmentsService.createAppointment({
+      const newAppointment = await appointmentsService.createAppointment({
         doctor_id: secretary.secretary_doctor_id,
         secretary_id: secretary.id,
         patient_id: appointmentForm.patientId,
@@ -198,7 +205,9 @@ const SecretaryDashboard: React.FC = () => {
         created_by: user.id
       });
 
-      toast.success('تم إنشاء الموعد بنجاح', { id: toastId });
+      console.log('✅ Appointment created:', newAppointment);
+      
+      toast.success('✅ تم إنشاء الموعد بنجاح', { id: toastId });
       setShowAppointmentForm(false);
       setAppointmentForm({
         patientId: '',
@@ -207,8 +216,11 @@ const SecretaryDashboard: React.FC = () => {
         visitType: 'Consultation',
         notes: ''
       });
-      loadAppointments();
+      
+      // إعادة تحميل المواعيد لعرض الموعد الجديد
+      await loadAppointments();
     } catch (error: any) {
+      console.error('❌ Create appointment error:', error);
       toast.error(`فشل إنشاء الموعد: ${error.message}`, { id: toastId });
     }
   };
@@ -342,6 +354,28 @@ const SecretaryDashboard: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* ⚠️ تحذير: السكرتيرة غير مربوطة بطبيب */}
+        {!secretary?.secretary_doctor_id && (
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-red-900 font-bold text-lg mb-2">⚠️ تنبيه: حساب غير مكتمل</h3>
+                <p className="text-red-800 mb-3">
+                  حسابك غير مربوط بطبيب! لن تتمكني من إضافة مرضى أو حجز مواعيد.
+                </p>
+                <div className="bg-red-100 p-3 rounded border border-red-200">
+                  <p className="text-red-900 font-semibold mb-2">📞 يرجى التواصل مع الإدارة لربط حسابك بطبيب</p>
+                  <p className="text-red-700 text-sm">
+                    البريد الإلكتروني: <span className="font-mono">{secretary?.email}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* Left Sidebar - Navigation */}
