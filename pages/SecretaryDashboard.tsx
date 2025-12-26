@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Clock, Plus, Search, Phone, User, History, ChevronDown, LogOut, Bell, Settings, FileText, CheckCircle, AlertCircle, Zap, RefreshCw } from 'lucide-react';
+import { Calendar, Users, Clock, Plus, Search, Phone, User, History, ChevronDown, LogOut, Bell, Settings, FileText, CheckCircle, AlertCircle, Zap, RefreshCw, Receipt } from 'lucide-react';
 import { authService } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import { appointmentsService } from '../services/appointmentsService';
 import { visitsService } from '../services/visitsService';
+import { InvoicesManagementPage } from '../components/invoices';
 import toast from 'react-hot-toast';
 
 const SecretaryDashboard: React.FC = () => {
-  const [activeView, setActiveView] = useState<'dashboard' | 'calendar' | 'patients' | 'waiting'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'calendar' | 'patients' | 'waiting' | 'invoices'>('dashboard');
   const [secretary, setSecretary] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
@@ -376,6 +377,15 @@ const SecretaryDashboard: React.FC = () => {
                 >
                   <div className={`w-2 h-2 rounded-full ${activeView === 'patients' ? 'bg-purple-600' : 'bg-gray-300'}`}></div>
                   سجل المرضى
+                </button>
+                <button 
+                  onClick={() => setActiveView('invoices')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeView === 'invoices' ? 'bg-purple-50 text-purple-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <div className={`w-2 h-2 rounded-full ${activeView === 'invoices' ? 'bg-purple-600' : 'bg-gray-300'}`}></div>
+                  <Receipt className="w-4 h-4" />
+                  الفواتير
+                  <span className="mr-auto bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">جديد</span>
                 </button>
               </nav>
             </div>
@@ -853,6 +863,17 @@ const SecretaryDashboard: React.FC = () => {
                       </div>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* Invoices View */}
+              {activeView === 'invoices' && secretary && (
+                <div>
+                  <InvoicesManagementPage
+                    secretaryId={secretary.id}
+                    doctorId={secretary.secretary_doctor_id}
+                    secretaryName={secretary.name || secretary.email?.split('@')[0] || 'السكرتيرة'}
+                  />
                 </div>
               )}
 

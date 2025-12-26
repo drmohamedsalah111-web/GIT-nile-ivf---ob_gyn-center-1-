@@ -28,6 +28,7 @@ import {
   CheckCircle,
   Clock,
   Banknote,
+  X,
   CreditCard,
   Building2
 } from 'lucide-react';
@@ -140,8 +141,8 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
 
       if (error) throw error;
 
-      setInvoices(data || []);
-      calculateStats(data || []);
+      setInvoices((data || []) as any);
+      calculateStats((data || []) as any);
     } catch (error: any) {
       console.error('Fetch invoices error:', error);
       toast.error('فشل تحميل الفواتير');
