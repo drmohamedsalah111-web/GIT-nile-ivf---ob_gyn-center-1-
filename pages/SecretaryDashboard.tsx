@@ -120,17 +120,49 @@ const SecretaryDashboard: React.FC = () => {
 
   const loadAppointments = async () => {
     try {
-      if (!secretary?.id) return;
-      const data = await appointmentsService.getAppointmentsBySecretary(secretary.id);
-      setAppointments(data);
+      if (!secretary?.secretary_doctor_id) {
+        console.warn('⚠️ Cannot load appointments: Secretary not linked to doctor');
+        setAppointments([]);
+        return;
+      }
+      
+      console.log('📅 Loading appointments for doctor:', secretary.secretary_doctor_id);
+      
+      // استخدام doctor_id بدلاً من secretary_id
+      const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+          *,
+          patient:patients(id, name, phone, age, husband_name),
+          doctor_details:doctors!appointments_doctor_id_fkey(id, name, email)
+        `)
+        .eq('doctor_id', secretary.secretary_doctor_id)
+        .order('appointment_date', { ascending: true });
+
+      if (error) {
+        console.error('❌ Load appointments error:', error);
+        toast.error('خطأ في تحميل المواعيد');
+        setAppointments([]);
+        return;
+      }
+
+      console.log('✅ Appointments loaded:', data?.length || 0);
+      setAppointments(data || []);
     } catch (error: any) {
-      console.error('Load appointments error:', error);
+      console.error('❌ Load appointments error:', error);
+      setAppointments([]);
     }
   };
 
   const loadPatients = async () => {
     try {
-      if (!secretary?.secretary_doctor_id) return;
+      if (!secretary?.secretary_doctor_id) {
+        console.warn('⚠️ Cannot load patients: Secretary not linked to doctor');
+        setPatients([]);
+        return;
+      }
+      
+      console.log('👥 Loading patients for doctor:', secretary.secretary_doctor_id);
       
       const { data, error } = await supabase
         .from('patients')
@@ -138,14 +170,22 @@ const SecretaryDashboard: React.FC = () => {
         .eq('doctor_id', secretary.secretary_doctor_id)
         .order('created_at', { ascending: false });
 
-      if (!error && data) {
-        setPatients(data);
-        loadPatientVisits(data);
-      } else if (error) {
-        console.error('Load patients error:', error);
+      if (error) {
+        console.error('❌ Load patients error:', error);
+        toast.error('خطأ في تحميل المرضى');
+        setPatients([]);
+        return;
+      }
+
+      console.log('✅ Patients loaded:', data?.length || 0);
+      setPatients(data || []);
+      
+      if (data && data.length > 0) {
+        await loadPatientVisits(data);
       }
     } catch (error: any) {
-      console.error('Load patients error:', error);
+      console.error('❌ Load patients error:', error);
+      setPatients([]);
     }
   };
 
@@ -677,9 +717,20 @@ const SecretaryDashboard: React.FC = () => {
                         );
                       })
                     ) : (
-                      <div className="text-center py-12 text-gray-400">
-                        <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p>لا توجد مواعيد قادمة</p>
+                      <div className="text-center py-12">
+                        {!secretary?.secretary_doctor_id ? (
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+                            <AlertCircle className="w-12 h-12 mx-auto mb-3 text-red-500" />
+                            <p className="font-bold text-red-900 mb-2">حسابك غير مربوط بطبيب</p>
+                            <p className="text-red-700 text-sm">يرجى التواصل مع الإدارة لربط حسابك</p>
+                          </div>
+                        ) : (
+                          <div className="text-gray-400">
+                            <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                            <p className="font-medium">لا توجد مواعيد قادمة</p>
+                            <p className="text-sm mt-1">اضغط على "حجز موعد" لإضافة موعد جديد</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -901,8 +952,26 @@ const SecretaryDashboard: React.FC = () => {
                       </tbody>
                     </table>
                     {filteredPatients.length === 0 && (
-                      <div className="text-center py-8 text-gray-400">
-                        لا توجد نتائج
+                      <div className="text-center py-12">
+                        {!secretary?.secretary_doctor_id ? (
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+                            <AlertCircle className="w-12 h-12 mx-auto mb-3 text-red-500" />
+                            <p className="font-bold text-red-900 mb-2">حسابك غير مربوط بطبيب</p>
+                            <p className="text-red-700 text-sm">يرجى التواصل مع الإدارة لربط حسابك</p>
+                          </div>
+                        ) : searchQuery ? (
+                          <div className="text-gray-400">
+                            <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                            <p className="font-medium">لا توجد نتائج للبحث</p>
+                            <p className="text-sm mt-1">جرب مصطلحات بحث مختلفة</p>
+                          </div>
+                        ) : (
+                          <div className="text-gray-400">
+                            <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                            <p className="font-medium">لا يوجد مرضى مسجلين</p>
+                            <p className="text-sm mt-1">اضغط على "مريضة جديدة" لإضافة أول مريضة</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
