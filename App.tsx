@@ -160,31 +160,10 @@ const App: React.FC = () => {
         <BrandingProvider>
           <EnvErrorBanner />
           <PreviewWarningBanner />
-          <ReceptionLayout
-          activePage={receptionPage}
-          onPageChange={setReceptionPage}
-          onLogout={handleLogout}
-          userName={user?.email?.split('@')[0] || 'السكرتيرة'}
-        >
-          {receptionPage === 'dashboard' && (
-            <NewReceptionDashboard 
-              userId={user?.id || ''}
-              userName={user?.email?.split('@')[0] || 'السكرتيرة'}
-              onPageChange={setReceptionPage}
-            />
-          )}
-          {receptionPage === 'appointments' && <ReceptionDashboard />}
-          {receptionPage === 'patients' && <AddPatient />}
-          {receptionPage === 'cash' && (
-            <DailyCashPage
-              secretaryId={user?.id || ''}
-              secretaryName={user?.email?.split('@')[0] || 'السكرتيرة'}
-            />
-          )}
-        </ReceptionLayout>
-        <Toaster position="top-center" reverseOrder={false} />
-      </BrandingProvider>
-    </ThemeProvider>
+          <SecretaryDashboard />
+          <Toaster position="top-center" reverseOrder={false} />
+        </BrandingProvider>
+      </ThemeProvider>
     );
   }
 
