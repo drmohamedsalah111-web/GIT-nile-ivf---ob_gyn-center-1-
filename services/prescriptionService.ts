@@ -77,13 +77,20 @@ class PrescriptionService {
         .eq('clinic_id', clinicId)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching prescription settings:', error);
+      // If table doesn't exist (PGRST205) or no data (PGRST116), return defaults silently
+      if (error) {
+        if (error.code === 'PGRST205') {
+          // Table doesn't exist - return defaults without logging
+          return { ...DEFAULT_SETTINGS, clinic_id: clinicId } as PrescriptionSettings;
+        }
+        if (error.code !== 'PGRST116') {
+          console.warn('Prescription settings not available, using defaults');
+        }
       }
 
       return { ...DEFAULT_SETTINGS, ...data, clinic_id: clinicId } as PrescriptionSettings;
     } catch (error) {
-      console.error('Error in getSettings:', error);
+      // Fail silently and return defaults
       return { ...DEFAULT_SETTINGS, clinic_id: clinicId } as PrescriptionSettings;
     }
   }
@@ -100,7 +107,14 @@ class PrescriptionService {
           updated_at: new Date().toISOString(),
         });
 
-      if (error) throw error;
+      // If table doesn't exist, fail silently
+      if (error) {
+        if (error.code === 'PGRST205') {
+          console.warn('Prescription settings table not available');
+          return false;
+        }
+        throw error;
+      }
       return true;
     } catch (error) {
       console.error('Error saving prescription settings:', error);

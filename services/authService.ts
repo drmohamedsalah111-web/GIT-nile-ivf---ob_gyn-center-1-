@@ -145,10 +145,23 @@ export const authService: AuthService = {
   updateDoctorProfile: async (userId: string, updates: any) => {
     const updateData = { ...updates, updated_at: new Date().toISOString() };
 
+    // First, get the doctor's ID from user_id
+    const { data: doctor, error: fetchError } = await supabase
+      .from('doctors')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !doctor) {
+      console.error('❌ Failed to find doctor profile:', fetchError);
+      throw fetchError || new Error('Doctor not found');
+    }
+
+    // Now update using the doctor's ID
     const { error } = await supabase
       .from('doctors')
       .update(updateData)
-      .eq('user_id', userId);
+      .eq('id', doctor.id);
 
     if (error) {
       console.error('❌ Failed to update doctor profile:', error);
