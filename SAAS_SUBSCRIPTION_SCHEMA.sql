@@ -11,6 +11,7 @@
 -- ========================================
 
 -- Drop existing tables if they exist (for clean migration)
+DROP TABLE IF EXISTS public.subscription_history CASCADE;
 DROP TABLE IF EXISTS public.clinic_subscriptions CASCADE;
 DROP TABLE IF EXISTS public.subscription_plans CASCADE;
 
