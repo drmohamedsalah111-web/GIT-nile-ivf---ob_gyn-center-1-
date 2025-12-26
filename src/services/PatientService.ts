@@ -12,18 +12,27 @@ export interface PatientData {
 
 export const PatientService = {
     /**
-     * Adds a new patient by invoking the 'add-patient' Edge Function.
-     * This bypasses RLS restrictions for reception users.
+     * Adds a new patient directly to the database.
+     * Uses the fixed RLS policies that allow secretary/doctor access.
      */
     async addPatient(patientData: PatientData) {
         try {
-            const { data, error } = await supabase.functions.invoke('add-patient', {
-                body: patientData,
-            });
+            const { data, error } = await supabase
+                .from('patients')
+                .insert([{
+                    name: patientData.name,
+                    age: patientData.age,
+                    phone: patientData.phone,
+                    husband_name: patientData.husband_name || '',
+                    history: patientData.history || '',
+                    doctor_id: patientData.doctor_id,
+                }])
+                .select()
+                .single();
 
             if (error) {
-                console.error('Error invoking add-patient function:', error);
-                throw error;
+                console.error('Error adding patient:', error);
+                throw new Error(error.message || 'Failed to add patient to database');
             }
 
             return data;
