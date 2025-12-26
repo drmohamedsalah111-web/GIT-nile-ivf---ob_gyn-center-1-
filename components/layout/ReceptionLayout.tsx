@@ -19,8 +19,8 @@ import { useBranding } from '../../context/BrandingContext';
 
 interface ReceptionLayoutProps {
   children: React.ReactNode;
-  activePage: 'dashboard' | 'appointments' | 'patients' | 'waiting' | 'cash';
-  onPageChange: (page: 'dashboard' | 'appointments' | 'patients' | 'waiting' | 'cash') => void;
+  activePage: string;
+  onPageChange: (page: string) => void;
   onLogout: () => void;
   userName?: string;
 }

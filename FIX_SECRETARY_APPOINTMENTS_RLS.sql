@@ -10,6 +10,12 @@
 DROP POLICY IF EXISTS "secretaries_view_appointments" ON appointments;
 DROP POLICY IF EXISTS "secretaries_create_appointments" ON appointments;
 DROP POLICY IF EXISTS "secretaries_update_appointments" ON appointments;
+DROP POLICY IF EXISTS "secretaries_delete_all_appointments" ON appointments;
+
+-- Drop new policies if they exist (in case of re-running)
+DROP POLICY IF EXISTS "secretaries_view_all_appointments" ON appointments;
+DROP POLICY IF EXISTS "secretaries_create_all_appointments" ON appointments;
+DROP POLICY IF EXISTS "secretaries_update_all_appointments" ON appointments;
 
 -- New simplified policies for secretaries
 -- Secretaries can VIEW all appointments in the clinic

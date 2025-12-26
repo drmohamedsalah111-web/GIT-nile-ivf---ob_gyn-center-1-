@@ -160,9 +160,9 @@ const App: React.FC = () => {
         <PreviewWarningBanner />
         <ReceptionLayout
           activePage={receptionPage}
-          setActivePage={setReceptionPage}
-          user={user}
+          onPageChange={setReceptionPage}
           onLogout={handleLogout}
+          userName={user?.email?.split('@')[0] || 'السكرتيرة'}
         >
           {receptionPage === 'dashboard' && (
             <NewReceptionDashboard 
