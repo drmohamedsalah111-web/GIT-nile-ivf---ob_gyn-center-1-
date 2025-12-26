@@ -65,14 +65,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
 
   if (loading) {
     return (
-      <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 p-6">
+      <div className="hidden md:w-64 md:flex md:flex-col bg-background h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 p-6 border-l border-borderColor">
         <div className="flex flex-col items-center animate-pulse">
-          <div className="w-12 h-12 bg-gray-200 rounded-full mb-2"></div>
-          <div className="h-4 bg-gray-200 w-3/4 rounded mb-2"></div>
+          <div className="w-12 h-12 bg-surface rounded-full mb-2"></div>
+          <div className="h-4 bg-surface w-3/4 rounded mb-2"></div>
         </div>
         <div className="mt-8 space-y-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-10 bg-gray-100 rounded-lg w-full"></div>
+            <div key={i} className="h-10 bg-surface rounded-lg w-full"></div>
           ))}
         </div>
       </div>
@@ -81,8 +81,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
 
   return (
     // Hidden on mobile, visible from md and up
-    <div className="hidden md:w-64 md:flex md:flex-col bg-white h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 no-print">
-      <div className="p-6 border-b border-gray-100 flex items-center justify-center" style={{ backgroundColor: branding?.background_color || '#ffffff' }}>
+    <div className="hidden md:w-64 md:flex md:flex-col bg-background h-screen shadow-lg fixed md:static inset-y-0 right-0 z-10 no-print border-l border-borderColor">
+      <div className="p-6 border-b border-borderColor flex items-center justify-center" style={{ backgroundColor: branding?.background_color || 'var(--bg-primary)' }}>
         <div className="flex flex-col items-center">
           {branding?.logo_url ? (
             <img src={branding.logo_url} alt="Logo" className="w-12 h-12 rounded-full mb-2 object-cover border-2" style={{ borderColor: branding?.primary_color || '#2d5a6b' }} />
@@ -129,7 +129,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-borderColor">
         {/* Theme Switcher */}
         <div className="mb-3">
           <ThemeSwitcher variant="compact" />
@@ -137,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
         
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
+          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-textMuted hover:text-error transition-colors"
         >
           <LogOut className="w-4 h-4" />
           <span>Sign Out</span>

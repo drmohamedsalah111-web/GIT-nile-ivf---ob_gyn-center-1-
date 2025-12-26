@@ -101,10 +101,10 @@ const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center font-[Tajawal]">
+      <div className="min-h-screen bg-background flex items-center justify-center font-[Tajawal]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4" />
-          <p className="text-gray-600">جاري التحميل...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand mx-auto mb-4" />
+          <p className="text-textSecondary">جاري التحميل...</p>
         </div>
       </div>
     );
@@ -192,7 +192,7 @@ const App: React.FC = () => {
       <BrandingProvider>
       <EnvErrorBanner />
       <PreviewWarningBanner />
-      <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row-reverse font-[Tajawal]">
+      <div className="min-h-screen bg-background flex flex-col md:flex-row-reverse font-[Tajawal]">
         <div className="hidden md:flex">
           <Sidebar activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
         </div>
