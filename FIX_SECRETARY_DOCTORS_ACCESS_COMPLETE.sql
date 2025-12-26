@@ -183,15 +183,12 @@ CREATE POLICY "secretaries_read_own_profile" ON doctors
   );
 
 -- 2. السكرتيرة تقرأ جميع الأطباء (هذا هو المفتاح!)
+-- استخدام get_user_role() لتجنب infinite recursion
 -- لازم تشوف جميع الأطباء عشان تختار واحد عند إضافة مريض
 CREATE POLICY "secretaries_view_all_doctors" ON doctors
   FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-        AND user_role = 'secretary'
-    )
+    get_user_role() = 'secretary'
     AND user_role = 'doctor'
   );
 
