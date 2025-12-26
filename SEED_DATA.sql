@@ -1,103 +1,126 @@
 -- ============================================================================
--- NILE IVF - SEED DATA (SAMPLE DATA FOR TESTING)
+-- 🌱 بيانات تجريبية لاختبار لوحة تحكم الأدمن
 -- ============================================================================
--- Run this in Supabase SQL Editor to populate with sample data
-
--- Note: Replace 'YOUR_DOCTOR_USER_ID' with actual user ID from auth.users table
-
+-- نسخ والصق في Supabase SQL Editor
 -- ============================================================================
--- 1. ADD SAMPLE DOCTOR (if not exists)
--- ============================================================================
--- This will use the first user from auth.users table
 
-INSERT INTO doctors (user_id, email, name, specialization, phone)
+-- 1️⃣ إضافة عيادات تجريبية (5 أطباء)
+DO $$
+DECLARE
+  doctor1_id UUID;
+  doctor2_id UUID;
+  doctor3_id UUID;
+  doctor4_id UUID;
+  doctor5_id UUID;
+BEGIN
+  -- إضافة الطبيب الأول
+  INSERT INTO doctors (name, email, phone, specialization, user_role, is_active, created_at)
+  VALUES ('د. أحمد محمد', 'ahmed@clinic.com', '0501234567', 'أمراض نساء وتوليد', 'doctor', true, NOW() - INTERVAL '3 months')
+  ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+  RETURNING id INTO doctor1_id;
+
+  -- إضافة الطبيب الثاني
+  INSERT INTO doctors (name, email, phone, specialization, user_role, is_active, created_at)
+  VALUES ('د. سارة علي', 'sara@clinic.com', '0509876543', 'أطفال أنابيب', 'doctor', true, NOW() - INTERVAL '2 months')
+  ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+  RETURNING id INTO doctor2_id;
+
+  -- إضافة الطبيب الثالث
+  INSERT INTO doctors (name, email, phone, specialization, user_role, is_active, created_at)
+  VALUES ('د. محمود حسن', 'mahmoud@clinic.com', '0505551234', 'طب النساء', 'doctor', true, NOW() - INTERVAL '1 month')
+  ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+  RETURNING id INTO doctor3_id;
+
+  -- إضافة الطبيب الرابع (معطل)
+  INSERT INTO doctors (name, email, phone, specialization, user_role, is_active, created_at)
+  VALUES ('د. فاطمة خالد', 'fatima@clinic.com', '0507778899', 'أمراض نساء وتوليد', 'doctor', false, NOW() - INTERVAL '15 days')
+  ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+  RETURNING id INTO doctor4_id;
+
+  -- إضافة الطبيب الخامس
+  INSERT INTO doctors (name, email, phone, specialization, user_role, is_active, created_at)
+  VALUES ('د. عمر سعيد', 'omar@clinic.com', '0502223344', 'أطفال أنابيب', 'doctor', true, NOW() - INTERVAL '5 days')
+  ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+  RETURNING id INTO doctor5_id;
+
+  -- إضافة سكرتيرات
+  INSERT INTO doctors (name, email, phone, specialization, user_role, doctor_id, is_active, created_at)
+  VALUES 
+    ('نور الهدى', 'nour@secretary.com', '0508881111', 'سكرتارية', 'secretary', doctor1_id, true, NOW()),
+    ('ريم أحمد', 'reem@secretary.com', '0508882222', 'سكرتارية', 'secretary', doctor2_id, true, NOW()),
+    ('هدى محمد', 'hoda@secretary.com', '0508883333', 'سكرتارية', 'secretary', doctor3_id, true, NOW())
+  ON CONFLICT (email) DO NOTHING;
+
+  RAISE NOTICE 'تم إضافة % أطباء و % سكرتيرات', 5, 3;
+END $$;
+
+-- 2️⃣ إضافة خطط الاشتراك
+INSERT INTO subscription_plans (name, name_en, price, duration_days, features, is_active)
+VALUES
+  ('أساسية', 'Basic', 4999.00, 30, '{"patients": 50, "storage": "1GB", "support": "بريد"}', true),
+  ('متقدمة', 'Standard', 9999.00, 30, '{"patients": 200, "storage": "5GB", "support": "أولوية"}', true),
+  ('احترافية', 'Enterprise', 19999.00, 30, '{"patients": "unlimited", "storage": "unlimited", "support": "24/7"}', true)
+ON CONFLICT (name) DO NOTHING;
+
+-- 3️⃣ إضافة اشتراكات للعيادات
+INSERT INTO clinic_subscriptions (clinic_id, plan_id, start_date, end_date, status)
 SELECT 
-  (SELECT id FROM auth.users LIMIT 1),
-  'doctor@example.com',
-  'د محمد صلاح جبر',
-  'أخصائي الخصوبة',
-  '01000000000'
-WHERE NOT EXISTS (
-  SELECT 1 FROM doctors WHERE user_id = (SELECT id FROM auth.users LIMIT 1)
-);
+  d.id,
+  (SELECT id FROM subscription_plans ORDER BY RANDOM() LIMIT 1),
+  NOW() - INTERVAL '10 days',
+  NOW() + INTERVAL '20 days',
+  CASE WHEN d.is_active THEN 'active' ELSE 'expired' END
+FROM doctors d
+WHERE d.user_role = 'doctor'
+ON CONFLICT DO NOTHING;
 
--- ============================================================================
--- 2. ADD SAMPLE PATIENTS
--- ============================================================================
-INSERT INTO patients (name, age, phone, husband_name, history, doctor_id)
-VALUES 
-  ('فاطمة احمد', 32, '01012345678', 'محمد علي', 'عدم الحمل لمدة 3 سنوات', (SELECT id FROM doctors LIMIT 1)),
-  ('سارة محمود', 28, '01087654321', 'أحمد حسن', 'تأخر الحمل الثانوي', (SELECT id FROM doctors LIMIT 1)),
-  ('ليلى خالد', 35, '01098765432', 'عمر محمد', 'أكياس على المبايض', (SELECT id FROM doctors LIMIT 1));
+-- 4️⃣ إضافة مرضى تجريبيين
+INSERT INTO patients (doctor_id, name, national_id, phone, gender, birth_date, address)
+SELECT 
+  d.id,
+  'مريض تجريبي ' || gs,
+  '29' || LPAD((RANDOM() * 99999999)::BIGINT::TEXT, 10, '0'),
+  '050' || LPAD((RANDOM() * 9999999)::INT::TEXT, 7, '0'),
+  CASE WHEN RANDOM() > 0.5 THEN 'female' ELSE 'male' END,
+  NOW() - INTERVAL '25 years' - (RANDOM() * INTERVAL '15 years'),
+  'عنوان تجريبي - الخليل، فلسطين'
+FROM doctors d
+CROSS JOIN generate_series(1, 3) gs
+WHERE d.user_role = 'doctor' AND d.is_active = true;
 
--- ============================================================================
--- 3. ADD SAMPLE IVF CYCLES
--- ============================================================================
-INSERT INTO ivf_cycles (patient_id, doctor_id, protocol, status, start_date, assessment_data)
-VALUES 
-  (
-    (SELECT id FROM patients WHERE name = 'فاطمة احمد'),
-    (SELECT id FROM doctors LIMIT 1),
-    'Long Protocol',
-    'Active',
-    CURRENT_DATE,
-    jsonb_build_object(
-      'coupleProfile', jsonb_build_object('duration', '3 years', 'type', 'primary'),
-      'maleFactorData', jsonb_build_object('spermCount', 50, 'motility', 40),
-      'femaleFactorData', jsonb_build_object('amh', 3.5, 'follicleCount', 15)
-    )
-  ),
-  (
-    (SELECT id FROM patients WHERE name = 'سارة محمود'),
-    (SELECT id FROM doctors LIMIT 1),
-    'Short Protocol',
-    'Active',
-    CURRENT_DATE + INTERVAL '1 week',
-    jsonb_build_object(
-      'coupleProfile', jsonb_build_object('duration', '2 years', 'type', 'secondary')
-    )
-  );
+-- ============================================
+-- ✅ التحقق من البيانات
+-- ============================================
 
--- ============================================================================
--- 4. ADD SAMPLE VISITS
--- ============================================================================
-INSERT INTO visits (patient_id, date, department, diagnosis, prescription, notes)
-VALUES 
-  (
-    (SELECT id FROM patients WHERE name = 'فاطمة احمد'),
-    CURRENT_DATE,
-    'IVF',
-    'تأخر الحمل',
-    jsonb_build_array(jsonb_build_object('drug', 'Gonal-F', 'dose', '300 IU')),
-    'بدء تحفيز المبايض'
-  ),
-  (
-    (SELECT id FROM patients WHERE name = 'سارة محمود'),
-    CURRENT_DATE - INTERVAL '5 days',
-    'IVF',
-    'تأخر الحمل الثانوي',
-    jsonb_build_array(jsonb_build_object('drug', 'Menopur', 'dose', '75 IU')),
-    'متابعة روتينية'
-  );
+SELECT '===== 📊 إحصائيات النظام =====' as "نتيجة";
 
--- ============================================================================
--- 5. VERIFICATION QUERIES
--- ============================================================================
--- Run these to confirm data was inserted:
+SELECT 'إجمالي العيادات' as "البند", COUNT(*)::TEXT as "العدد" 
+FROM doctors WHERE user_role = 'doctor'
+UNION ALL
+SELECT 'العيادات النشطة', COUNT(*)::TEXT 
+FROM doctors WHERE user_role = 'doctor' AND is_active = true
+UNION ALL
+SELECT 'السكرتارية', COUNT(*)::TEXT 
+FROM doctors WHERE user_role = 'secretary'
+UNION ALL
+SELECT 'خطط الاشتراك', COUNT(*)::TEXT 
+FROM subscription_plans
+UNION ALL
+SELECT 'الاشتراكات النشطة', COUNT(*)::TEXT 
+FROM clinic_subscriptions WHERE status = 'active'
+UNION ALL
+SELECT 'المرضى', COUNT(*)::TEXT 
+FROM patients;
 
-SELECT '📊 DOCTORS' as section;
-SELECT id, name, email, specialization FROM doctors;
+-- عرض العيادات
+SELECT '===== 🏥 العيادات =====' as "نتيجة";
+SELECT name as "الاسم", email as "الإيميل", specialization as "التخصص", 
+       CASE WHEN is_active THEN '✅ نشط' ELSE '🔒 معطل' END as "الحالة"
+FROM doctors WHERE user_role = 'doctor';
 
-SELECT '👥 PATIENTS' as section;
-SELECT id, name, age, doctor_id FROM patients;
-
-SELECT '🔄 IVF CYCLES' as section;
-SELECT id, patient_id, protocol, status, start_date FROM ivf_cycles;
-
-SELECT '📋 VISITS' as section;
-SELECT id, patient_id, date, department, diagnosis FROM visits;
-
--- ============================================================================
+-- ============================================
+-- 🎉 تم! افتح لوحة تحكم الأدمن الآن
+-- ============================================-- ============================================================================
 -- DONE!
 -- Data should now be visible in the app
 -- ============================================================================
