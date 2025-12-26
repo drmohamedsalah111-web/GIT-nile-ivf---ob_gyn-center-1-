@@ -3,9 +3,101 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ========================================
+   THEME SYSTEM - CSS VARIABLES
+   ======================================== */
+
+/* Theme 1: Clinical Pure (Default Light) */
+:root,
+[data-theme="clinical-pure"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f1f5f9;
+  --bg-tertiary: #e2e8f0;
+  --text-main: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --brand-color: #0284c7;
+  --brand-hover: #0369a1;
+  --border-color: #cbd5e1;
+  --shadow-color: rgba(15, 23, 42, 0.1);
+  --success-color: #10b981;
+  --error-color: #ef4444;
+  --warning-color: #f59e0b;
+}
+
+/* Theme 2: Soft Harmony (Ob/Gyn Light) */
+[data-theme="soft-harmony"] {
+  --bg-primary: #fffbff;
+  --bg-secondary: #fce7f3;
+  --bg-tertiary: #fbcfe8;
+  --text-main: #4c0519;
+  --text-secondary: #831843;
+  --text-muted: #be185d;
+  --brand-color: #db2777;
+  --brand-hover: #be185d;
+  --border-color: #f9a8d4;
+  --shadow-color: rgba(219, 39, 119, 0.15);
+  --success-color: #10b981;
+  --error-color: #ef4444;
+  --warning-color: #f59e0b;
+}
+
+/* Theme 3: Midnight Pro (Modern Dark) */
+[data-theme="midnight-pro"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-main: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --brand-color: #38bdf8;
+  --brand-hover: #0ea5e9;
+  --border-color: #475569;
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --success-color: #34d399;
+  --error-color: #f87171;
+  --warning-color: #fbbf24;
+}
+
+/* Theme 4: OLED Deep (High Contrast Dark) */
+[data-theme="oled-deep"] {
+  --bg-primary: #09090b;
+  --bg-secondary: #18181b;
+  --bg-tertiary: #27272a;
+  --text-main: #ffffff;
+  --text-secondary: #e4e4e7;
+  --text-muted: #a1a1aa;
+  --brand-color: #10b981;
+  --brand-hover: #059669;
+  --border-color: #3f3f46;
+  --shadow-color: rgba(0, 0, 0, 0.5);
+  --success-color: #22c55e;
+  --error-color: #ef4444;
+  --warning-color: #eab308;
+}
+
+/* Theme 5: Forest Dim (Relaxed Dark) */
+[data-theme="forest-dim"] {
+  --bg-primary: #1c1917;
+  --bg-secondary: #292524;
+  --bg-tertiary: #44403c;
+  --text-main: #e7e5e4;
+  --text-secondary: #d6d3d1;
+  --text-muted: #a8a29e;
+  --brand-color: #d97706;
+  --brand-hover: #b45309;
+  --border-color: #57534e;
+  --shadow-color: rgba(28, 25, 23, 0.4);
+  --success-color: #84cc16;
+  --error-color: #ef4444;
+  --warning-color: #fbbf24;
+}
+
 body {
   font-family: 'Tajawal', sans-serif;
-  background-color: #f3f4f6;
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 ::-webkit-scrollbar {
@@ -14,16 +106,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--bg-secondary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--border-color);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--text-muted);
 }
 
 /* Bottom Navigation Scrollbar Styles */

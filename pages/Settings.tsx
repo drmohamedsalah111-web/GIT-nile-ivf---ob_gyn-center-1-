@@ -5,6 +5,7 @@ import { authService } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
 import { prescriptionService } from '../services/prescriptionService';
 import { Doctor } from '../types';
+import { ThemeSwitcher } from '../components/theme/ThemeSwitcher';
 
 interface SettingsProps {
   user: any;
@@ -285,9 +286,12 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">لوحة التحكم الإدارية</h1>
-        <p className="text-gray-600 font-[Tajawal]">تحكم في إعدادات التطبيق والهوية البصرية والروشتات الطبية</p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2 font-[Tajawal]">لوحة التحكم الإدارية</h1>
+          <p className="text-gray-600 font-[Tajawal]">تحكم في إعدادات التطبيق والهوية البصرية والروشتات الطبية</p>
+        </div>
+        <ThemeSwitcher variant="modal" />
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-8 border-b border-gray-200">

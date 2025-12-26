@@ -9,6 +9,21 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Theme System Colors (CSS Variables)
+        background: 'var(--bg-primary)',
+        surface: 'var(--bg-secondary)',
+        surfaceTertiary: 'var(--bg-tertiary)',
+        textMain: 'var(--text-main)',
+        textSecondary: 'var(--text-secondary)',
+        textMuted: 'var(--text-muted)',
+        brand: 'var(--brand-color)',
+        brandHover: 'var(--brand-hover)',
+        borderColor: 'var(--border-color)',
+        success: 'var(--success-color)',
+        error: 'var(--error-color)',
+        warning: 'var(--warning-color)',
+        
+        // Keep existing teal colors for backward compatibility
         teal: {
           50: '#e0f2f1',
           100: '#b2dfdb',

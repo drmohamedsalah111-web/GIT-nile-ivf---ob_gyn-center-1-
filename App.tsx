@@ -7,6 +7,7 @@ import BottomNav from './components/BottomNav';
 import EnvErrorBanner from './components/EnvErrorBanner';
 import PreviewWarningBanner from './components/PreviewWarningBanner';
 import { BrandingProvider } from './context/BrandingContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 import { Page } from './types';
 import { authService } from './services/authService';
@@ -155,10 +156,11 @@ const App: React.FC = () => {
 
   if (userRole === 'secretary') {
     return (
-      <BrandingProvider>
-        <EnvErrorBanner />
-        <PreviewWarningBanner />
-        <ReceptionLayout
+      <ThemeProvider>
+        <BrandingProvider>
+          <EnvErrorBanner />
+          <PreviewWarningBanner />
+          <ReceptionLayout
           activePage={receptionPage}
           onPageChange={setReceptionPage}
           onLogout={handleLogout}
@@ -181,11 +183,13 @@ const App: React.FC = () => {
         </ReceptionLayout>
         <Toaster position="top-center" reverseOrder={false} />
       </BrandingProvider>
+    </ThemeProvider>
     );
   }
 
   return (
-    <BrandingProvider>
+    <ThemeProvider>
+      <BrandingProvider>
       <EnvErrorBanner />
       <PreviewWarningBanner />
       <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row-reverse font-[Tajawal]">
@@ -243,6 +247,7 @@ const App: React.FC = () => {
         <Toaster position="top-center" reverseOrder={false} />
       </div>
     </BrandingProvider>
+  </ThemeProvider>
   );
 };
 

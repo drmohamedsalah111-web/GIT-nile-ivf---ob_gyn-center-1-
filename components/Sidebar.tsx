@@ -4,6 +4,7 @@ import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
 import { authService } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
+import { ThemeSwitcher } from './theme/ThemeSwitcher';
 
 interface SidebarProps {
   activePage: Page;
@@ -129,6 +130,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
       </nav>
 
       <div className="p-4 border-t border-gray-100">
+        {/* Theme Switcher */}
+        <div className="mb-3">
+          <ThemeSwitcher variant="compact" />
+        </div>
+        
         <button
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
