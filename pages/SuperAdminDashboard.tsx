@@ -7,9 +7,12 @@
 import React, { useState } from 'react';
 import { Shield, CreditCard, Users, DollarSign, Settings, BarChart3, Database, Lock, Home } from 'lucide-react';
 import SaaSManagement from './admin/SaaSManagement';
+import ClinicsManagement from './admin/ClinicsManagement';
+import UsersManagement from './admin/UsersManagement';
+import AdminAnalytics from './admin/AdminAnalytics';
 
 const SuperAdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'subscriptions' | 'users' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'subscriptions' | 'clinics' | 'users' | 'analytics' | 'settings'>('overview');
 
   const switchToNormalMode = () => {
     localStorage.removeItem('adminLogin');
@@ -28,14 +31,24 @@ const SuperAdminDashboard: React.FC = () => {
       action: () => setActiveTab('subscriptions')
     },
     {
+      id: 'clinics',
+      title: 'إدارة العيادات',
+      titleEn: 'Clinics Management',
+      description: 'عرض وإدارة جميع العيادات المسجلة في النظام',
+      icon: Database,
+      color: 'bg-teal-500',
+      count: 'إدارة كاملة',
+      action: () => setActiveTab('clinics')
+    },
+    {
       id: 'users',
       title: 'إدارة المستخدمين',
       titleEn: 'User Management',
       description: 'عرض وإدارة جميع المستخدمين في النظام',
       icon: Users,
       color: 'bg-green-500',
-      count: 'قريباً',
-      action: () => alert('هذه الميزة قيد التطوير')
+      count: 'إدارة كاملة',
+      action: () => setActiveTab('users')
     },
     {
       id: 'analytics',
@@ -44,8 +57,8 @@ const SuperAdminDashboard: React.FC = () => {
       description: 'إحصائيات مفصلة عن استخدام النظام',
       icon: BarChart3,
       color: 'bg-purple-500',
-      count: 'قريباً',
-      action: () => alert('هذه الميزة قيد التطوير')
+      count: 'إدارة كاملة',
+      action: () => setActiveTab('analytics')
     },
     {
       id: 'settings',
@@ -59,6 +72,54 @@ const SuperAdminDashboard: React.FC = () => {
     }
   ];
 
+  if (activeTab === 'clinics') {
+    return (
+      <div>
+        <div className="mb-6">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className="flex items-center gap-2 text-teal-600 hover:text-teal-700 font-semibold"
+          >
+            ← العودة للوحة التحكم
+          </button>
+        </div>
+        <ClinicsManagement />
+      </div>
+    );
+  }
+
+  if (activeTab === 'users') {
+    return (
+      <div>
+        <div className="mb-6">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className="flex items-center gap-2 text-green-600 hover:text-green-700 font-semibold"
+          >
+            ← العودة للوحة التحكم
+          </button>
+        </div>
+        <UsersManagement />
+      </div>
+    );
+  }
+
+  if (activeTab === 'analytics') {
+    return (
+      <div>
+        <div className="mb-6">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className="flex items-center gap-2 text-purple-600 hover:text-purple-700 font-semibold"
+          >
+            ← العودة للوحة التحكم
+          </button>
+        </div>
+        <AdminAnalytics />
+      </div>
+    );
+  }
+
   if (activeTab === 'subscriptions') {
     return (
       <div>
@@ -71,6 +132,22 @@ const SuperAdminDashboard: React.FC = () => {
           </button>
         </div>
         <SaaSManagement />
+      </div>
+    );
+  }
+
+  if (activeTab === 'clinics') {
+    return (
+      <div>
+        <div className="mb-6">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className="flex items-center gap-2 text-teal-600 hover:text-teal-700 font-semibold"
+          >
+            ← العودة للوحة التحكم
+          </button>
+        </div>
+        <ClinicsManagement />
       </div>
     );
   }
