@@ -6,9 +6,11 @@
 import React, { useState, useRef } from 'react';
 import { Patient, Doctor, PrescriptionItem } from '../../types';
 import { usePrescription } from '../../hooks/usePrescription';
+import { useBranding } from '../../context/BrandingContext';
 import { ModernTemplate } from './ModernTemplate';
 import { ClassicTemplate } from './ClassicTemplate';
 import { MinimalTemplate } from './MinimalTemplate';
+import { prescriptionService } from '../../services/prescriptionService';
 import {
   Printer,
   Settings,
@@ -20,6 +22,8 @@ import {
   Palette,
   FileText,
   Pill,
+  Trash2,
+  Info,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -43,11 +47,13 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
   notes = '',
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const { branding } = useBranding();
   const [activeTab, setActiveTab] = useState<'edit' | 'preview' | 'settings'>('edit');
   const [selectedTemplate, setSelectedTemplate] = useState<'modern' | 'classic' | 'minimal'>('modern');
   const [newDrug, setNewDrug] = useState('');
   const [newDose, setNewDose] = useState('');
   const [newCategory, setNewCategory] = useState('');
+  const [localNotes, setLocalNotes] = useState(notes);
   const [styleSettings, setStyleSettings] = useState({
     primary_color: '#0891B2',
     secondary_color: '#06B6D4',
@@ -65,6 +71,10 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
     hasInteractions,
     setPrescriptions,
     addMedication,
+    removeMedication,
+    updateMedication,
+    clearPrescriptions,
+    loadSettings,
   } = usePrescription({
     patientId: patient?.id?.toString(),
     enableInteractionCheck: true,
@@ -75,7 +85,53 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
     if (initialPrescriptions.length > 0) {
       initialPrescriptions.forEach(med => addMedication(med));
     }
-  }, []);
+  }, [initialPrescriptions, addMedication]);
+
+  // Sync UI style/template with stored settings + branding defaults
+  React.useEffect(() => {
+    if (!settings) return;
+
+    const safeTemplate: 'modern' | 'classic' | 'minimal' =
+      settings.template_type === 'classic' || settings.template_type === 'minimal'
+        ? settings.template_type
+        : 'modern';
+    setSelectedTemplate(safeTemplate);
+
+    // Build footer from branding if available
+    let footerText = settings.footer_text || 'العنوان | الهاتف';
+    if (branding?.clinic_address || branding?.clinic_phone) {
+      const parts: string[] = [];
+      if (branding.clinic_address) parts.push(branding.clinic_address);
+      if (branding.clinic_phone) parts.push(`ت: ${branding.clinic_phone}`);
+      footerText = parts.join(' | ');
+    }
+
+    setStyleSettings((prev) => ({
+      ...prev,
+      primary_color: settings.primary_color || prev.primary_color,
+      secondary_color: settings.secondary_color || prev.secondary_color,
+      header_text: settings.header_text || branding?.clinic_name || prev.header_text,
+      footer_text: footerText,
+      font_family:
+        settings.font_family === 'tajawal'
+          ? 'Tajawal'
+          : settings.font_family === 'cairo'
+            ? 'Cairo'
+            : settings.font_family === 'almarai'
+              ? 'Almarai'
+              : 'Inter',
+      paper_size: settings.paper_size || prev.paper_size,
+    }));
+  }, [settings, branding]);
+
+  // Load default_rx_notes from branding if notes prop is empty
+  React.useEffect(() => {
+    if (!notes && branding?.default_rx_notes) {
+      setLocalNotes(branding.default_rx_notes);
+    } else {
+      setLocalNotes(notes);
+    }
+  }, [notes, branding]);
 
   const handlePrint = () => {
     if (!prescriptions || prescriptions.length === 0) {
@@ -114,6 +170,38 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
     handlePrint();
   };
 
+  const handleSaveSettings = async () => {
+    try {
+      const ok = await prescriptionService.saveSettings({
+        clinic_id: 1,
+        template_type: selectedTemplate,
+        primary_color: styleSettings.primary_color,
+        secondary_color: styleSettings.secondary_color,
+        header_text: styleSettings.header_text,
+        footer_text: styleSettings.footer_text,
+        paper_size: styleSettings.paper_size as any,
+        font_family:
+          styleSettings.font_family === 'Tajawal'
+            ? 'tajawal'
+            : styleSettings.font_family === 'Cairo'
+              ? 'cairo'
+              : styleSettings.font_family === 'Almarai'
+                ? 'almarai'
+                : 'inter',
+      });
+
+      if (ok) {
+        toast.success('تم حفظ إعدادات الروشتة');
+        await loadSettings();
+      } else {
+        toast.error('فشل حفظ الإعدادات');
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('حدث خطأ أثناء حفظ الإعدادات');
+    }
+  };
+
   const renderTemplate = () => {
     if (!patient) {
       return <div className="text-center py-12 text-gray-500">البيانات غير متاحة</div>;
@@ -136,15 +224,9 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
       doctor,
       prescriptions: prescriptions || [],
       diagnosis,
-      notes,
+      notes: localNotes,
       settings: templateSettings as any,
     };
-
-    console.log('Rendering template with data:', { 
-      prescriptionCount: prescriptions.length,
-      selectedTemplate,
-      patientName: patient.name 
-    });
 
     switch (selectedTemplate) {
       case 'modern':
@@ -167,6 +249,14 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
           display: none;
         }
         @media print {
+          @page {
+            size: ${styleSettings.paper_size};
+            margin: 12mm;
+          }
+          body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
           .sps-screen {
             display: none !important;
           }
@@ -202,7 +292,7 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
               doctor,
               prescriptions: prescriptions || [],
               diagnosis,
-              notes,
+              notes: localNotes,
               settings: templateSettings as any,
             };
 
@@ -340,6 +430,18 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
 
           {activeTab === 'edit' && (
             <div className="max-w-4xl mx-auto space-y-6">
+              {/* Branding Info Banner */}
+              {(branding?.clinic_address || branding?.clinic_phone || branding?.default_rx_notes) && (
+                <div className="bg-cyan-50 p-4 rounded-lg border border-cyan-200 flex items-start gap-3">
+                  <Info className="w-5 h-5 text-cyan-700 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-cyan-900">
+                    <p className="font-semibold mb-1">📋 إعدادات الروشتة (من Settings العامة)</p>
+                    {branding.clinic_address && <p className="mb-1">• العنوان: {branding.clinic_address}</p>}
+                    {branding.clinic_phone && <p className="mb-1">• الهاتف: {branding.clinic_phone}</p>}
+                    {branding.default_rx_notes && <p>• ملاحظات افتراضية: {branding.default_rx_notes.substring(0, 60)}...</p>}
+                  </div>
+                </div>
+              )}
               {/* Add Drug Form */}
               <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">إضافة دواء</h3>
@@ -377,14 +479,71 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
               {/* Current Prescriptions */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">الأدوية المضافة ({prescriptions.length})</h3>
-                {prescriptions.length > 0 ? (
+                {prescriptions.length > 0 && (
+                  <div className="flex justify-end mb-3">
+                    <button
+                      onClick={() => clearPrescriptions()}
+                      className="px-4 py-2 text-sm border border-red-200 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                    >
+                      مسح الروشتة بالكامل
+                    </button>
+                  </div>
+                )}
+              {/* Notes Field */}
+              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">ملاحظات الروشتة</h3>
+                <textarea
+                  value={localNotes}
+                  onChange={(e) => setLocalNotes(e.target.value)}
+                  rows={4}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  placeholder={branding?.default_rx_notes || 'أدخل أي ملاحظات أو تعليمات إضافية...'}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 الملاحظات الافتراضية من Settings. يمكنك التعديل هنا مؤقتاً.
+                </p>
+              </div>                {prescriptions.length > 0 ? (
                   <div className="space-y-3">
                     {prescriptions.map((item, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
-                        <div>
-                          <p className="font-semibold text-gray-900">{item.drug}</p>
-                          <p className="text-sm text-gray-600">{item.dose}</p>
-                          {item.category && <p className="text-xs text-gray-500">التصنيف: {item.category}</p>}
+                      <div key={index} className="p-4 bg-white border border-gray-200 rounded-lg">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">اسم الدواء</label>
+                              <input
+                                type="text"
+                                value={item.drug}
+                                onChange={(e) => updateMedication(index, { drug: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">الجرعة</label>
+                              <input
+                                type="text"
+                                value={item.dose}
+                                onChange={(e) => updateMedication(index, { dose: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">التصنيف</label>
+                              <input
+                                type="text"
+                                value={item.category || ''}
+                                onChange={(e) => updateMedication(index, { category: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              />
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => removeMedication(index)}
+                            className="mt-6 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="حذف الدواء"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -500,11 +659,37 @@ export const SmartPrescriptionSystem: React.FC<SmartPrescriptionSystemProps> = (
                 </div>
               </div>
 
+              {/* Loaded Defaults Info */}
+              {(branding?.clinic_address || branding?.clinic_phone) && (
+                <div className="bg-cyan-50 p-4 rounded-lg border border-cyan-200">
+                  <p className="text-sm text-cyan-900 font-semibold mb-2">
+                    📍 بيانات محملة من Settings العامة:
+                  </p>
+                  <ul className="text-xs text-cyan-800 space-y-1">
+                    {branding.clinic_address && <li>• العنوان: {branding.clinic_address}</li>}
+                    {branding.clinic_phone && <li>• الهاتف: {branding.clinic_phone}</li>}
+                  </ul>
+                  <p className="text-xs text-cyan-700 mt-2 italic">
+                    هذه البيانات تُستخدم في التذييل تلقائياً. يمكنك تعديلها من تبويب Settings.
+                  </p>
+                </div>
+              )}
+
               {/* Preview Live */}
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <p className="text-sm text-blue-800">
                   💡 سيتم تطبيق جميع التغييرات على المعاينة والطباعة تلقائياً
                 </p>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSaveSettings}
+                  className="flex items-center gap-2 px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-semibold"
+                >
+                  <Save size={18} />
+                  حفظ الإعدادات
+                </button>
               </div>
             </div>
           )}
