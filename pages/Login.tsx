@@ -2,19 +2,21 @@ import React, { useState } from 'react';
 import { authService } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
-import { LogIn, AlertCircle, Mail, Lock, User, Phone, Stethoscope, Facebook, MessageCircle, UserCheck } from 'lucide-react';
+import { LogIn, AlertCircle, Mail, Lock, User, Phone, Stethoscope, Facebook, MessageCircle, UserCheck, Shield } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: () => void;
+  onAdminAccess?: () => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [isSecretary, setIsSecretary] = useState(false);
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [signupData, setSignupData] = useState({
     name: '',
     specialization: '',
@@ -33,10 +35,32 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setLoading(true);
     try {
       await authService.login(email, password);
-      toast.success('تم تسجيل الدخول بنجاح');
       
-      // Force reload to ensure fresh state
-      window.location.reload();
+      // Check if admin login
+      if (showAdminLogin) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          const { data: doctorData } = await supabase
+            .from('doctors')
+            .select('user_role')
+            .eq('email', user.email)
+            .single();
+          
+          if (doctorData?.user_role === 'admin') {
+            toast.success('مرحباً بك في لوحة الأدمن!');
+            // Force reload to load as admin
+            window.location.reload();
+          } else {
+            toast.error('هذا الحساب ليس حساب أدمن');
+            await authService.logout();
+            setLoading(false);
+            return;
+          }
+        }
+      } else {
+        toast.success('تم تسجيل الدخول بنجاح');
+        window.location.reload();
+      }
     } catch (error: any) {
       toast.error(error.message || 'فشل تسجيل الدخول');
       setLoading(false);
@@ -126,6 +150,26 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         <div className="w-full max-w-md space-y-8">
           {/* Logo and Branding */}
           <div className="text-center">
+            {/* Admin Button - زر الأدمن */}
+            <div className="absolute top-8 left-8">
+              <button
+                onClick={() => {
+                  setShowAdminLogin(!showAdminLogin);
+                  setShowSignup(false);
+                }}
+                className={`group flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
+                  showAdminLogin
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+              >
+                <Shield className={`w-5 h-5 ${showAdminLogin ? 'animate-pulse' : ''}`} />
+                <span className="hidden md:inline">
+                  {showAdminLogin ? 'دخول الأدمن' : 'أدمن'}
+                </span>
+              </button>
+            </div>
+
             <div className="flex justify-center mb-6">
               {branding?.logo_url ? (
                 <img
@@ -146,8 +190,18 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               معاكم خطوة بخطوة
             </p>
             <p className="text-gray-500 text-base">
-              {showSignup ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}
+              {showAdminLogin ? '🔐 دخول المدير العام' : showSignup ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}
             </p>
+            
+            {/* Admin Notice */}
+            {showAdminLogin && (
+              <div className="mt-4 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-4">
+                <div className="flex items-center justify-center gap-2 text-blue-700 font-semibold">
+                  <Shield className="w-5 h-5" />
+                  <span>تسجيل دخول خاص بالمديرين فقط</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Login Form */}
@@ -190,12 +244,21 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className={`w-full ${
+                  showAdminLogin
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                    : 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700'
+                } disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5`}
               >
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                     جاري التسجيل...
+                  </div>
+                ) : showAdminLogin ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Shield className="w-5 h-5" />
+                    <span>دخول لوحة الأدمن</span>
                   </div>
                 ) : (
                   'تسجيل الدخول'
@@ -373,10 +436,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           )}
 
           {/* Toggle between Login/Signup */}
-          <div className="text-center">
+          <div className="text-center space-y-4">
             <button
               onClick={() => {
                 setShowSignup(!showSignup);
+                setShowAdminLogin(false);
                 setEmail('');
                 setPassword('');
                 setSignupData({ name: '', specialization: '', phone: '', doctorId: '' });
@@ -385,6 +449,32 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               disabled={loading}
             >
               {showSignup ? 'هل لديك حساب؟ تسجيل الدخول' : 'ليس لديك حساب؟ إنشاء حساب'}
+            </button>
+
+            {/* Admin Access Divider - للأدمن فقط */}
+            {!showSignup && !showAdminLogin && (
+              <>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-white text-gray-500">أو</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowAdminLogin(true)}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center gap-3"
+                >
+                  <Shield className="w-6 h-6 animate-pulse" />
+                  <div className="text-center">
+                    <div className="text-lg">🔐 دخول المدير العام</div>
+                    <div className="text-xs opacity-90">Admin Dashboard Access</div>
+                  </div>
+                </button>
+              </>
+            )}
             </button>
           </div>
 
