@@ -28,8 +28,15 @@ import { Login } from './pages/Login';
 
 import LabReferencesModal from './src/components/LabReferencesModal';
 
+// Reception System Components
+import { ReceptionLayout } from './components/layout/ReceptionLayout';
+import { ReceptionDashboard as NewReceptionDashboard } from './components/reception/ReceptionDashboard';
+import { DailyCashPage } from './components/reception/DailyCashPage';
+import { RequireRole } from './components/auth/RequireRole';
+
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
+  const [receptionPage, setReceptionPage] = useState<'dashboard' | 'appointments' | 'patients' | 'cash'>('dashboard');
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<'doctor' | 'secretary' | 'admin'>('doctor');
   const [loading, setLoading] = useState(true);
@@ -136,7 +143,11 @@ const App: React.FC = () => {
       case Page.SETTINGS:
         return <Settings user={user} />;
       case Page.ADMIN:
-        return <AdminDashboard />;
+        return (
+          <RequireRole allowedRoles={['admin', 'doctor']}>
+            <AdminDashboard />
+          </RequireRole>
+        );
       default:
         return <Dashboard />;
     }
@@ -147,7 +158,22 @@ const App: React.FC = () => {
       <BrandingProvider>
         <EnvErrorBanner />
         <PreviewWarningBanner />
-        <SecretaryDashboard />
+        <ReceptionLayout
+          activePage={receptionPage}
+          setActivePage={setReceptionPage}
+          user={user}
+          onLogout={handleLogout}
+        >
+          {receptionPage === 'dashboard' && <NewReceptionDashboard />}
+          {receptionPage === 'appointments' && <ReceptionDashboard />}
+          {receptionPage === 'patients' && <AddPatient />}
+          {receptionPage === 'cash' && (
+            <DailyCashPage
+              secretaryId={user?.id || ''}
+              secretaryName={user?.email?.split('@')[0] || 'السكرتيرة'}
+            />
+          )}
+        </ReceptionLayout>
         <Toaster position="top-center" reverseOrder={false} />
       </BrandingProvider>
     );
