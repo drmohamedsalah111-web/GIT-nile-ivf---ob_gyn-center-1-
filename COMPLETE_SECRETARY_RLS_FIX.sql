@@ -2,8 +2,32 @@
 -- COMPLETE SECRETARY RLS POLICIES FIX
 -- ========================================
 -- Fix all RLS policies to allow secretary full access
--- to appointments, patients, and doctors tables
+-- Uses get_user_role() RPC to avoid recursion issues
 -- ========================================
+
+-- ========================================
+-- STEP 0: CREATE get_user_role() FUNCTION
+-- ========================================
+-- Drop function if exists
+DROP FUNCTION IF EXISTS get_user_role();
+
+-- Create function to get user role from doctors table
+CREATE OR REPLACE FUNCTION get_user_role()
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  user_role_val TEXT;
+BEGIN
+  SELECT user_role INTO user_role_val
+  FROM doctors
+  WHERE user_id = auth.uid()
+  LIMIT 1;
+  
+  RETURN COALESCE(user_role_val, 'doctor');
+END;
+$$;
 
 -- ========================================
 -- 1. APPOINTMENTS TABLE
@@ -22,11 +46,7 @@ CREATE POLICY "secretaries_view_all_appointments" ON appointments
   FOR SELECT
   USING (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   );
 
 -- Secretaries can CREATE appointments
@@ -34,11 +54,7 @@ CREATE POLICY "secretaries_create_all_appointments" ON appointments
   FOR INSERT
   WITH CHECK (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   );
 
 -- Secretaries can UPDATE appointments
@@ -46,19 +62,11 @@ CREATE POLICY "secretaries_update_all_appointments" ON appointments
   FOR UPDATE
   USING (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   )
   WITH CHECK (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   );
 
 -- Secretaries can DELETE appointments
@@ -66,11 +74,7 @@ CREATE POLICY "secretaries_delete_all_appointments" ON appointments
   FOR DELETE
   USING (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   );
 
 -- ========================================
@@ -90,11 +94,7 @@ CREATE POLICY "secretaries_view_all_patients" ON patients
   FOR SELECT
   USING (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   );
 
 -- Secretaries can CREATE patients
@@ -102,11 +102,7 @@ CREATE POLICY "secretaries_create_all_patients" ON patients
   FOR INSERT
   WITH CHECK (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   );
 
 -- Secretaries can UPDATE patients
@@ -114,19 +110,11 @@ CREATE POLICY "secretaries_update_all_patients" ON patients
   FOR UPDATE
   USING (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   )
   WITH CHECK (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   );
 
 -- Secretaries can DELETE patients
@@ -134,11 +122,7 @@ CREATE POLICY "secretaries_delete_all_patients" ON patients
   FOR DELETE
   USING (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   );
 
 -- ========================================
@@ -152,11 +136,7 @@ CREATE POLICY "secretaries_view_all_doctors" ON doctors
   FOR SELECT
   USING (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   );
 
 -- ========================================
@@ -167,17 +147,14 @@ DROP POLICY IF EXISTS "secretaries_create_invoices" ON invoices;
 DROP POLICY IF EXISTS "secretaries_update_invoices" ON invoices;
 DROP POLICY IF EXISTS "secretaries_view_all_invoices" ON invoices;
 DROP POLICY IF EXISTS "secretaries_create_all_invoices" ON invoices;
+DROP POLICY IF EXISTS "secretaries_update_all_invoices" ON invoices;
 
 -- Secretaries can VIEW all invoices
 CREATE POLICY "secretaries_view_all_invoices" ON invoices
   FOR SELECT
   USING (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   );
 
 -- Secretaries can CREATE invoices
@@ -185,11 +162,7 @@ CREATE POLICY "secretaries_create_all_invoices" ON invoices
   FOR INSERT
   WITH CHECK (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   );
 
 -- Secretaries can UPDATE invoices
@@ -197,19 +170,11 @@ CREATE POLICY "secretaries_update_all_invoices" ON invoices
   FOR UPDATE
   USING (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   )
   WITH CHECK (
     auth.uid() IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM doctors 
-      WHERE user_id = auth.uid() 
-      AND user_role = 'secretary'
-    )
+    AND get_user_role() = 'secretary'
   );
 
 -- ========================================
