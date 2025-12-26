@@ -29,6 +29,8 @@ import FinancePage from './components/pages/FinancePage';
 import { Login } from './pages/Login';
 import SaaSManagement from './pages/admin/SaaSManagement';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import AdminLoginPage from './pages/AdminLoginPage';
+import { adminAuthService } from './services/adminAuthService';
 
 import LabReferencesModal from './src/components/LabReferencesModal';
 
@@ -46,6 +48,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showLabReferences, setShowLabReferences] = useState(false);
   const [isAdminLogin, setIsAdminLogin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
 
   // Helper function to get clinic ID based on user role
   const getClinicId = (): string | null => {
@@ -111,11 +114,19 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await authService.logout();
-      localStorage.removeItem('adminLogin'); // Clear admin login flag
-      setUser(null);
-      setActivePage(Page.HOME);
-      setIsAdminLogin(false);
+      // Check if this is an admin session
+      if (adminAuthService.isAuthenticated()) {
+        await adminAuthService.logout();
+        setShowAdminLogin(false);
+        setIsAdminLogin(false);
+        setActivePage(Page.HOME);
+      } else {
+        await authService.logout();
+        localStorage.removeItem('adminLogin'); // Clear admin login flag
+        setUser(null);
+        setActivePage(Page.HOME);
+        setIsAdminLogin(false);
+      }
     } catch (error) {
       console.error('Logout error:', error);
       localStorage.removeItem('adminLogin');
@@ -135,10 +146,57 @@ const App: React.FC = () => {
     );
   }
 
+  // 🔐 إذا كانت صفحة دخول الأدمن مفتوحة
+  if (showAdminLogin) {
+    return (
+      <>
+        <AdminLoginPage 
+          onLoginSuccess={() => {
+            setShowAdminLogin(false);
+            setIsAdminLogin(true);
+            setActivePage(Page.SUPER_ADMIN);
+          }} 
+        />
+        <Toaster position="top-center" reverseOrder={false} />
+      </>
+    );
+  }
+
+  // إذا كان الأدمن مسجل دخول
+  if (isAdminLogin && adminAuthService.isAuthenticated()) {
+    return (
+      <ThemeProvider>
+        <BrandingProvider clinicId={null}>
+          <div className="min-h-screen bg-background font-[Tajawal]">
+            <EnvErrorBanner />
+            <PreviewWarningBanner />
+            
+            {activePage === Page.SUPER_ADMIN ? (
+              <SuperAdminDashboard 
+                onLogout={handleLogout}
+                onNavigate={(page) => setActivePage(page)}
+              />
+            ) : activePage === Page.SAAS_MANAGEMENT ? (
+              <SaaSManagement 
+                onBack={() => setActivePage(Page.SUPER_ADMIN)}
+              />
+            ) : null}
+
+            <Toaster position="top-center" reverseOrder={false} />
+          </div>
+        </BrandingProvider>
+      </ThemeProvider>
+    );
+  }
+
+  // صفحة دخول المستخدم العادي
   if (!user) {
     return (
       <>
-        <Login onLoginSuccess={() => window.location.reload()} />
+        <Login 
+          onLoginSuccess={() => window.location.reload()}
+          onAdminAccess={() => setShowAdminLogin(true)}
+        />
         <Toaster position="top-center" reverseOrder={false} />
       </>
     );
