@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText, Brain, TestTube, DollarSign, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText, Brain, TestTube, DollarSign, CreditCard, Shield } from 'lucide-react';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
 import { authService } from '../services/authService';
@@ -54,7 +54,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
     { id: Page.INFERTILITY_WORKUP, label: 'ESHRE Diagnosis', arLabel: 'تشخيص العقم', icon: TestTube },
     { id: Page.FINANCE, label: 'Finance', arLabel: '💰 الماليات', icon: DollarSign },
     { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
-    { id: Page.SAAS_MANAGEMENT, label: 'SaaS Management', arLabel: '💼 إدارة الاشتراكات', icon: CreditCard, adminOnly: true },
   ];
 
   const receptionistMenuItems = [
@@ -133,6 +132,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
             );
           })}
         </ul>
+
+        {/* Admin Button - زر الأدمن الكبير */}
+        {userRole === 'admin' && (
+          <div className="px-4 mt-6 pt-6 border-t border-borderColor">
+            <button
+              onClick={() => setPage(Page.SUPER_ADMIN)}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            >
+              <div className="flex items-center justify-center gap-3">
+                <Shield className="w-6 h-6" />
+                <div className="text-center">
+                  <div className="text-lg">🔐 لوحة الأدمن</div>
+                  <div className="text-xs opacity-90">Admin Dashboard</div>
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
       </nav>
 
       <div className="p-4 border-t border-borderColor">

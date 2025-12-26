@@ -28,6 +28,7 @@ import InfertilityWorkup from './src/pages/InfertilityWorkup';
 import FinancePage from './components/pages/FinancePage';
 import { Login } from './pages/Login';
 import SaaSManagement from './pages/admin/SaaSManagement';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 
 import LabReferencesModal from './src/components/LabReferencesModal';
 
@@ -165,6 +166,12 @@ const App: React.FC = () => {
         return (
           <RequireRole allowedRoles={['admin']}>
             <SaaSManagement />
+          </RequireRole>
+        );
+      case Page.SUPER_ADMIN:
+        return (
+          <RequireRole allowedRoles={['admin']}>
+            <SuperAdminDashboard />
           </RequireRole>
         );
       default:
