@@ -5,3 +5,4 @@
 
 export { default as SmartInvoiceForm } from './SmartInvoiceForm';
 export { default as InvoicesManagementPage } from './InvoicesManagementPage';
+export { default as CollectionsManagement } from './CollectionsManagement';

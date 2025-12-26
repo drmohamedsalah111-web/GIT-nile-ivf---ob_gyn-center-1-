@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Clock, Plus, Search, Phone, User, History, ChevronDown, LogOut, Bell, Settings, FileText, CheckCircle, AlertCircle, Zap, RefreshCw, Receipt } from 'lucide-react';
+import { Calendar, Users, Clock, Plus, Search, Phone, User, History, ChevronDown, LogOut, Bell, Settings, FileText, CheckCircle, AlertCircle, Zap, RefreshCw, Receipt, DollarSign } from 'lucide-react';
 import { authService } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import { appointmentsService } from '../services/appointmentsService';
 import { visitsService } from '../services/visitsService';
 import { InvoicesManagementPage } from '../components/invoices';
+import CollectionsManagement from '../components/invoices/CollectionsManagement';
 import toast from 'react-hot-toast';
 
 const SecretaryDashboard: React.FC = () => {
-  const [activeView, setActiveView] = useState<'dashboard' | 'calendar' | 'patients' | 'waiting' | 'invoices'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'calendar' | 'patients' | 'waiting' | 'invoices' | 'collections'>('dashboard');
   const [secretary, setSecretary] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
@@ -385,6 +386,14 @@ const SecretaryDashboard: React.FC = () => {
                   <div className={`w-2 h-2 rounded-full ${activeView === 'invoices' ? 'bg-purple-600' : 'bg-gray-300'}`}></div>
                   <Receipt className="w-4 h-4" />
                   الفواتير
+                </button>
+                <button 
+                  onClick={() => setActiveView('collections')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeView === 'collections' ? 'bg-green-50 text-green-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <div className={`w-2 h-2 rounded-full ${activeView === 'collections' ? 'bg-green-600' : 'bg-gray-300'}`}></div>
+                  <DollarSign className="w-4 h-4" />
+                  التحصيل والمقبوضات
                   <span className="mr-auto bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">جديد</span>
                 </button>
               </nav>
@@ -875,6 +884,15 @@ const SecretaryDashboard: React.FC = () => {
                     secretaryName={secretary.name || secretary.email?.split('@')[0] || 'السكرتيرة'}
                   />
                 </div>
+              )}
+
+              {/* Collections View */}
+              {activeView === 'collections' && secretary && (
+                <CollectionsManagement
+                  doctorId={secretary.secretary_doctor_id}
+                  secretaryId={secretary.id}
+                  secretaryName={secretary.name || secretary.email?.split('@')[0] || 'السكرتيرة'}
+                />
               )}
 
             </div>
