@@ -23,6 +23,7 @@ import PatientMasterRecord from './pages/PatientMasterRecord';
 import Settings from './pages/Settings';
 import AdminDashboard from './pages/AdminDashboard';
 import InfertilityWorkup from './src/pages/InfertilityWorkup';
+import FinancePage from './components/pages/FinancePage';
 import { Login } from './pages/Login';
 
 import LabReferencesModal from './src/components/LabReferencesModal';
@@ -130,6 +131,8 @@ const App: React.FC = () => {
         return <ObstetricsDashboard />;
       case Page.PATIENT_RECORD:
         return <PatientMasterRecord />;
+      case Page.FINANCE:
+        return <FinancePage doctorId={user?.id} />;
       case Page.SETTINGS:
         return <Settings user={user} />;
       case Page.ADMIN:

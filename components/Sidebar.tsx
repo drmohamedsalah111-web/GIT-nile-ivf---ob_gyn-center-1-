@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText, Brain, TestTube } from 'lucide-react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText, Brain, TestTube, DollarSign } from 'lucide-react';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
 import { authService } from '../services/authService';
@@ -51,6 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
     { id: Page.IVF, label: 'IVF Center', arLabel: 'مركز الخصوبة', icon: Baby },
     { id: Page.SMART_IVF, label: 'Smart IVF', arLabel: '🧬 IVF الذكي', icon: Brain },
     { id: Page.INFERTILITY_WORKUP, label: 'ESHRE Diagnosis', arLabel: 'تشخيص العقم', icon: TestTube },
+    { id: Page.FINANCE, label: 'Finance', arLabel: '💰 الماليات', icon: DollarSign },
     { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
   ];
 
