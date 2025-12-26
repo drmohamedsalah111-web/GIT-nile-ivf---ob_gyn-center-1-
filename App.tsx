@@ -135,17 +135,6 @@ const App: React.FC = () => {
     );
   }
 
-
-  // دعم الأدمن المستقل
-  const isStandaloneAdmin = localStorage.getItem('adminLogin') === 'true' && localStorage.getItem('adminEmail');
-  if (!user && isStandaloneAdmin) {
-    return (
-      <>
-        <AdminDashboard />
-        <Toaster position="top-center" reverseOrder={false} />
-      </>
-    );
-  }
   if (!user) {
     return (
       <>
