@@ -8,7 +8,7 @@ export interface Patient {
     age: number;
     phone: string;
     husband_name: string;
-    history: string;
+    medical_history?: any;
     doctor_id?: string;
     created_at?: string;
     updated_at?: string;
@@ -58,7 +58,7 @@ export function usePatients() {
                 age: patient.age,
                 phone: patient.phone,
                 husbandName: patient.husband_name,
-                history: patient.history
+                history: patient.medical_history
             });
             
             setPatients(prev => [newPatient, ...prev]);
@@ -78,7 +78,7 @@ export function usePatients() {
             if (patient.age !== undefined) updateData.age = patient.age;
             if (patient.phone !== undefined) updateData.phone = patient.phone;
             if (patient.husband_name !== undefined) updateData.husband_name = patient.husband_name;
-            if (patient.history !== undefined) updateData.history = patient.history;
+            if (patient.medical_history !== undefined) updateData.medical_history = patient.medical_history;
 
             const { supabase } = await import('../../services/supabaseClient');
             const { error: updateError } = await supabase

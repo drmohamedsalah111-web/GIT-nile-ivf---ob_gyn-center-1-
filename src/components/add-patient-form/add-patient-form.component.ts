@@ -24,7 +24,7 @@ export class AddPatientFormComponent implements OnInit {
       age: ['', [Validators.min(1), Validators.max(150)]],
       phone: [''],
       husband_name: [''],
-      history: ['']
+      medical_history: ['']
     });
   }
 
@@ -71,7 +71,7 @@ export class AddPatientFormComponent implements OnInit {
     return this.form.get('husband_name');
   }
 
-  get history() {
-    return this.form.get('history');
+  get medical_history() {
+    return this.form.get('medical_history');
   }
 }

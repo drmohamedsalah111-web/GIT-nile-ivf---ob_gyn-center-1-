@@ -172,7 +172,7 @@ const SecretaryDashboard: React.FC = () => {
           age: patientForm.age ? parseInt(patientForm.age) : null,
           phone: patientForm.phone,
           husband_name: patientForm.husbandName || null,
-          history: patientForm.history || null,
+          medical_history: patientForm.history ? { notes: patientForm.history } : {},
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])

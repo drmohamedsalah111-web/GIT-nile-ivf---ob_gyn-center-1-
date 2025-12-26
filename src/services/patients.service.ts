@@ -7,7 +7,7 @@ interface AddPatientPayload {
   age?: number;
   phone?: string;
   husband_name?: string;
-  history?: string;
+  medical_history?: any;
 }
 
 interface AddPatientResponse {

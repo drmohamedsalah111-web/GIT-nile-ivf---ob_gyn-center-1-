@@ -7,7 +7,7 @@ export interface PatientData {
     doctor_id: string;
     user_id?: string;
     husband_name?: string;
-    history?: string;
+    medical_history?: any;
 }
 
 export const PatientService = {
@@ -24,7 +24,7 @@ export const PatientService = {
                     age: patientData.age,
                     phone: patientData.phone,
                     husband_name: patientData.husband_name || '',
-                    history: patientData.history || '',
+                    medical_history: patientData.medical_history || {},
                     doctor_id: patientData.doctor_id,
                 }])
                 .select()
@@ -52,7 +52,7 @@ export const patientService = {
           age: patientData.age,
           phone: patientData.phone,
           husband_name: patientData.husband_name || '',
-          history: patientData.history || '',
+          medical_history: patientData.medical_history || {},
           doctor_id: patientData.doctor_id,
         }])
         .select()

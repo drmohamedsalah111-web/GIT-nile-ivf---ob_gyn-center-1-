@@ -12,7 +12,7 @@ const Reception: React.FC = () => {
     age: '',
     phone: '',
     husbandName: '',
-    history: ''
+    medical_history: ''
   });
 
   // PowerSync hook
@@ -53,12 +53,12 @@ const Reception: React.FC = () => {
         age: parseInt(formData.age) || 0,
         phone: formData.phone,
         husband_name: formData.husbandName,
-        history: formData.history,
+        medical_history: formData.medical_history ? JSON.parse(formData.medical_history) : {},
         doctor_id: doctorId
       });
 
       toast.success("Patient registered successfully!", { id: toastId });
-      setFormData({ name: '', age: '', phone: '', husbandName: '', history: '' });
+      setFormData({ name: '', age: '', phone: '', husbandName: '', medical_history: '' });
     } catch (error) {
       // Provide more detailed error feedback for debugging
       const msg = (error && (error as any).message) ? (error as any).message : JSON.stringify(error);
@@ -153,8 +153,8 @@ const Reception: React.FC = () => {
                   <textarea
                     className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none h-32"
                     placeholder="G P A, Previous Operations, Allergies..."
-                    value={formData.history}
-                    onChange={e => setFormData({ ...formData, history: e.target.value })}
+                    value={formData.medical_history}
+                    onChange={e => setFormData({ ...formData, medical_history: e.target.value })}
                   />
                 </div>
               </div>

@@ -12,7 +12,7 @@ interface RequestBody {
   age?: number;
   phone?: string;
   husband_name?: string;
-  history?: string;
+  medical_history?: any;
 }
 
 serve(async (req: Request) => {
@@ -131,7 +131,7 @@ serve(async (req: Request) => {
       age: body.age || null,
       phone: body.phone || null,
       husband_name: body.husband_name || null,
-      history: body.history || null,
+      medical_history: body.medical_history || {},
       user_id: userId,
       doctor_id: doctorId,
     });
