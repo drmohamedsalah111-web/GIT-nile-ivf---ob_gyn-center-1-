@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText, Brain, TestTube, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText, Brain, TestTube, DollarSign, CreditCard } from 'lucide-react';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
 import { authService } from '../services/authService';
@@ -54,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
     { id: Page.INFERTILITY_WORKUP, label: 'ESHRE Diagnosis', arLabel: 'تشخيص العقم', icon: TestTube },
     { id: Page.FINANCE, label: 'Finance', arLabel: '💰 الماليات', icon: DollarSign },
     { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
+    { id: Page.SAAS_MANAGEMENT, label: 'SaaS Management', arLabel: '💼 إدارة الاشتراكات', icon: CreditCard, adminOnly: true },
   ];
 
   const receptionistMenuItems = [
@@ -102,7 +103,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
 
       <nav className="flex-1 overflow-y-auto py-4">
         <ul className="space-y-2 px-4">
-          {filteredMenuItems.map((item) => {
+          {filteredMenuItems.map((item: any) => {
+            // Hide admin-only items for non-admin users
+            if (item.adminOnly && userRole !== 'admin') {
+              return null;
+            }
+            
             const Icon = item.icon;
             const isActive = activePage === item.id;
             return (

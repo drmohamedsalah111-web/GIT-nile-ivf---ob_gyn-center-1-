@@ -415,5 +415,6 @@ export enum Page {
   FINANCE = 'finance',
   SETTINGS = 'settings',
   OBSTETRICS = 'obstetrics',
-  ADMIN = 'admin'
+  ADMIN = 'admin',
+  SAAS_MANAGEMENT = 'saas_management'
 }

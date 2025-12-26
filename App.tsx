@@ -8,6 +8,7 @@ import EnvErrorBanner from './components/EnvErrorBanner';
 import PreviewWarningBanner from './components/PreviewWarningBanner';
 import { BrandingProvider } from './context/BrandingContext';
 import { ThemeProvider } from './context/ThemeContext';
+import SubscriptionGuard from './components/auth/SubscriptionGuard';
 
 import { Page } from './types';
 import { authService } from './services/authService';
@@ -26,6 +27,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import InfertilityWorkup from './src/pages/InfertilityWorkup';
 import FinancePage from './components/pages/FinancePage';
 import { Login } from './pages/Login';
+import SaaSManagement from './pages/admin/SaaSManagement';
 
 import LabReferencesModal from './src/components/LabReferencesModal';
 
@@ -42,6 +44,16 @@ const App: React.FC = () => {
   const [userRole, setUserRole] = useState<'doctor' | 'secretary' | 'admin'>('doctor');
   const [loading, setLoading] = useState(true);
   const [showLabReferences, setShowLabReferences] = useState(false);
+
+  // Helper function to get clinic ID based on user role
+  const getClinicId = (): string | null => {
+    if (!user) return null;
+    if (userRole === 'doctor') return user.id;
+    if (userRole === 'secretary') return user.doctor_id || user.secretary_doctor_id || null;
+    return null;
+  };
+  
+  const clinicId = getClinicId();
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -149,6 +161,12 @@ const App: React.FC = () => {
             <AdminDashboard />
           </RequireRole>
         );
+      case Page.SAAS_MANAGEMENT:
+        return (
+          <RequireRole allowedRoles={['admin']}>
+            <SaaSManagement />
+          </RequireRole>
+        );
       default:
         return <Dashboard />;
     }
@@ -160,7 +178,13 @@ const App: React.FC = () => {
         <BrandingProvider>
           <EnvErrorBanner />
           <PreviewWarningBanner />
-          <SecretaryDashboard />
+          {clinicId ? (
+            <SubscriptionGuard clinicId={clinicId}>
+              <SecretaryDashboard />
+            </SubscriptionGuard>
+          ) : (
+            <SecretaryDashboard />
+          )}
           <Toaster position="top-center" reverseOrder={false} />
         </BrandingProvider>
       </ThemeProvider>
@@ -172,7 +196,9 @@ const App: React.FC = () => {
       <BrandingProvider>
       <EnvErrorBanner />
       <PreviewWarningBanner />
-      <div className="min-h-screen bg-background flex flex-col md:flex-row-reverse font-[Tajawal]">
+      {clinicId ? (
+        <SubscriptionGuard clinicId={clinicId}>
+          <div className="min-h-screen bg-background flex flex-col md:flex-row-reverse font-[Tajawal]">
         <div className="hidden md:flex">
           <Sidebar activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
         </div>
@@ -226,6 +252,20 @@ const App: React.FC = () => {
 
         <Toaster position="top-center" reverseOrder={false} />
       </div>
+        </SubscriptionGuard>
+      ) : (
+        <div className="min-h-screen bg-background flex flex-col md:flex-row-reverse font-[Tajawal]">
+          <div className="hidden md:flex">
+            <Sidebar activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
+          </div>
+          <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">
+            <div className="max-w-7xl mx-auto">
+              {renderContent()}
+            </div>
+          </main>
+          <BottomNav activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
+        </div>
+      )}
     </BrandingProvider>
   </ThemeProvider>
   );
