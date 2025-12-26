@@ -125,18 +125,18 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess }) =
         <div className="w-full max-w-md space-y-8">
           {/* Logo and Branding */}
           <div className="text-center">
-            {/* Admin Button - زر الأدمن المنفصل */}
-            <div className="absolute top-8 left-8">
+            {/* Admin Button - زر الأدمن المنفصل - واضح جداً */}
+            <div className="fixed top-4 left-4 z-50">
               <button
                 onClick={() => {
                   if (onAdminAccess) {
                     onAdminAccess();
                   }
                 }}
-                className="group flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-300 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="group flex items-center gap-3 px-6 py-3 rounded-xl font-bold text-lg transition-all duration-300 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-2xl hover:shadow-3xl transform hover:scale-110 animate-pulse"
               >
-                <Shield className="w-5 h-5" />
-                <span className="hidden md:inline">دخول الأدمن</span>
+                <Shield className="w-6 h-6" />
+                <span>🔐 دخول الأدمن</span>
               </button>
             </div>
 
