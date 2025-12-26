@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { User, Palette, FileText, Lock, Upload, Save, AlertCircle, CheckCircle, Facebook, MessageCircle, Loader, Database } from 'lucide-react';
+import { User, Palette, FileText, Lock, Upload, Save, AlertCircle, CheckCircle, Facebook, MessageCircle, Loader, Database, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
+import { prescriptionService } from '../services/prescriptionService';
 import { Doctor } from '../types';
 
 interface SettingsProps {
@@ -36,6 +37,22 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
     default_rx_notes: '',
   });
 
+  const [prescriptionStyleData, setPrescriptionStyleData] = useState({
+    template_type: 'modern' as 'modern' | 'classic' | 'minimal' | 'elegant',
+    primary_color: '#0891B2',
+    secondary_color: '#06B6D4',
+    accent_color: '#22D3EE',
+    header_text: 'عيادة متخصصة',
+    footer_text: 'العنوان | الهاتف',
+    font_family: 'tajawal' as 'tajawal' | 'cairo' | 'almarai' | 'inter',
+    font_size: 'medium' as 'small' | 'medium' | 'large',
+    paper_size: 'A4' as 'A4' | 'A5' | 'Letter',
+    show_watermark: false,
+    show_clinic_address: true,
+    show_clinic_phone: true,
+    show_doctor_signature: true,
+  });
+
   const [profileFormData, setProfileFormData] = useState({
     name: '',
     email: '',
@@ -65,6 +82,24 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
             phone: doctorProfile.phone || '',
             specialization: doctorProfile.specialization || '',
             doctor_image: doctorProfile.doctor_image || '',
+          });
+
+          // Load prescription style settings
+          const prescriptionSettings = await prescriptionService.getSettings(1);
+          setPrescriptionStyleData({
+            template_type: prescriptionSettings.template_type,
+            primary_color: prescriptionSettings.primary_color,
+            secondary_color: prescriptionSettings.secondary_color,
+            accent_color: prescriptionSettings.accent_color,
+            header_text: prescriptionSettings.header_text,
+            footer_text: prescriptionSettings.footer_text,
+            font_family: prescriptionSettings.font_family,
+            font_size: prescriptionSettings.font_size,
+            paper_size: prescriptionSettings.paper_size,
+            show_watermark: prescriptionSettings.show_watermark,
+            show_clinic_address: prescriptionSettings.show_clinic_address,
+            show_clinic_phone: prescriptionSettings.show_clinic_phone,
+            show_doctor_signature: prescriptionSettings.show_doctor_signature,
           });
         }
       } catch (error) {
@@ -154,11 +189,20 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
   const handlePrescriptionSave = async () => {
     try {
       setSaving(true);
+      
+      // Save content settings to branding
       await updateBranding({
         clinic_address: prescriptionFormData.clinic_address,
         clinic_phone: prescriptionFormData.clinic_phone,
         default_rx_notes: prescriptionFormData.default_rx_notes,
       });
+
+      // Save style settings to clinic_print_settings
+      await prescriptionService.saveSettings({
+        clinic_id: 1,
+        ...prescriptionStyleData,
+      });
+
       toast.success('تم تحديث إعدادات الروشتة بنجاح');
     } catch (error) {
       console.error('Save error:', error);
@@ -527,51 +571,279 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
       )}
 
       {activeTab === 'prescription' && (
-        <div className="bg-white rounded-lg shadow-md p-8 max-w-2xl">
-          <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal]">إعدادات الروشتة الطبية</h3>
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <h3 className="text-xl font-bold text-gray-900 mb-6 font-[Tajawal] flex items-center gap-2">
+            <FileText className="w-6 h-6" />
+            إعدادات الروشتة الطبية
+          </h3>
 
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">عنوان العيادة</label>
-            <textarea
-              value={prescriptionFormData.clinic_address}
-              onChange={(e) => setPrescriptionFormData(prev => ({ ...prev, clinic_address: e.target.value }))}
-              rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
-              placeholder="سيظهر في الجزء السفلي من الروشتة المطبوعة"
-            />
+          <div className="space-y-8">
+            {/* Content Settings Section */}
+            <div className="border-b pb-6">
+              <h4 className="text-lg font-semibold text-gray-800 mb-4 font-[Tajawal]">محتوى الروشتة</h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">عنوان العيادة</label>
+                  <textarea
+                    value={prescriptionFormData.clinic_address}
+                    onChange={(e) => setPrescriptionFormData(prev => ({ ...prev, clinic_address: e.target.value }))}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                    placeholder="سيظهر في الجزء السفلي من الروشتة المطبوعة"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">رقم هاتف العيادة</label>
+                  <input
+                    type="tel"
+                    value={prescriptionFormData.clinic_phone}
+                    onChange={(e) => setPrescriptionFormData(prev => ({ ...prev, clinic_phone: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                    placeholder="مثال: 201003418068"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">تعليمات الروشتة الافتراضية</label>
+                  <textarea
+                    value={prescriptionFormData.default_rx_notes}
+                    onChange={(e) => setPrescriptionFormData(prev => ({ ...prev, default_rx_notes: e.target.value }))}
+                    rows={5}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
+                    placeholder="أدخل التعليمات الافتراضية التي ستظهر في كل روشتة..."
+                  />
+                  <p className="text-xs text-gray-500 mt-2 font-[Tajawal]">ستظهر هذه التعليمات تلقائياً في جميع الروشتات الجديدة</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Style Settings Section */}
+            <div className="border-b pb-6">
+              <h4 className="text-lg font-semibold text-gray-800 mb-4 font-[Tajawal] flex items-center gap-2">
+                <Palette className="w-5 h-5" />
+                ستايل وتصميم الروشتة
+              </h4>
+
+              {/* Template Selector */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-3 font-[Tajawal]">قالب الروشتة</label>
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { id: 'modern', name: 'عصري', icon: '🎨', desc: 'تصميم عصري بألوان متدرجة' },
+                    { id: 'classic', name: 'كلاسيكي', icon: '📜', desc: 'تصميم تقليدي أنيق' },
+                    { id: 'minimal', name: 'بسيط', icon: '⚪', desc: 'تصميم بسيط ونظيف' },
+                    { id: 'elegant', name: 'أنيق', icon: '✨', desc: 'تصميم راقي ومميز' },
+                  ].map((template) => (
+                    <button
+                      key={template.id}
+                      onClick={() => setPrescriptionStyleData(prev => ({ ...prev, template_type: template.id as any }))}
+                      className={`p-4 border-2 rounded-lg transition-all text-center ${
+                        prescriptionStyleData.template_type === template.id
+                          ? 'border-teal-600 bg-teal-50 shadow-md'
+                          : 'border-gray-300 hover:border-gray-400 bg-white'
+                      }`}
+                    >
+                      <div className="text-3xl mb-2">{template.icon}</div>
+                      <div className="font-semibold text-sm font-[Tajawal]">{template.name}</div>
+                      <div className="text-xs text-gray-500 mt-1 font-[Tajawal]">{template.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Colors */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-3 font-[Tajawal]">ألوان الروشتة</label>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2 font-[Tajawal]">اللون الأساسي</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={prescriptionStyleData.primary_color}
+                        onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, primary_color: e.target.value }))}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={prescriptionStyleData.primary_color}
+                        onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, primary_color: e.target.value }))}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2 font-[Tajawal]">اللون الثانوي</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={prescriptionStyleData.secondary_color}
+                        onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, secondary_color: e.target.value }))}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={prescriptionStyleData.secondary_color}
+                        onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, secondary_color: e.target.value }))}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2 font-[Tajawal]">لون التمييز</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={prescriptionStyleData.accent_color}
+                        onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, accent_color: e.target.value }))}
+                        className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={prescriptionStyleData.accent_color}
+                        onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, accent_color: e.target.value }))}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Header & Footer Text */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-3 font-[Tajawal]">نصوص الرأس والذيل</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2 font-[Tajawal]">نص الرأس</label>
+                    <input
+                      type="text"
+                      value={prescriptionStyleData.header_text}
+                      onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, header_text: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-[Tajawal]"
+                      placeholder="مثال: عيادة متخصصة"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2 font-[Tajawal]">نص الذيل</label>
+                    <input
+                      type="text"
+                      value={prescriptionStyleData.footer_text}
+                      onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, footer_text: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-[Tajawal]"
+                      placeholder="مثال: العنوان | الهاتف"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Font & Paper Settings */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-3 font-[Tajawal]">الخط وحجم الورقة</label>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2 font-[Tajawal]">نوع الخط</label>
+                    <select
+                      value={prescriptionStyleData.font_family}
+                      onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, font_family: e.target.value as any }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-[Tajawal]"
+                    >
+                      <option value="tajawal">تجول (Tajawal)</option>
+                      <option value="cairo">كايرو (Cairo)</option>
+                      <option value="almarai">المرعي (Almarai)</option>
+                      <option value="inter">إنتر (Inter)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2 font-[Tajawal]">حجم الخط</label>
+                    <select
+                      value={prescriptionStyleData.font_size}
+                      onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, font_size: e.target.value as any }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-[Tajawal]"
+                    >
+                      <option value="small">صغير</option>
+                      <option value="medium">متوسط</option>
+                      <option value="large">كبير</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2 font-[Tajawal]">حجم الورقة</label>
+                    <select
+                      value={prescriptionStyleData.paper_size}
+                      onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, paper_size: e.target.value as any }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-[Tajawal]"
+                    >
+                      <option value="A4">A4</option>
+                      <option value="A5">A5</option>
+                      <option value="Letter">Letter</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Display Options */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3 font-[Tajawal]">خيارات العرض</label>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={prescriptionStyleData.show_clinic_address}
+                      onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, show_clinic_address: e.target.checked }))}
+                      className="w-5 h-5 text-teal-600 rounded focus:ring-teal-500"
+                    />
+                    <span className="text-sm text-gray-700 font-[Tajawal]">إظهار عنوان العيادة</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={prescriptionStyleData.show_clinic_phone}
+                      onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, show_clinic_phone: e.target.checked }))}
+                      className="w-5 h-5 text-teal-600 rounded focus:ring-teal-500"
+                    />
+                    <span className="text-sm text-gray-700 font-[Tajawal]">إظهار رقم هاتف العيادة</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={prescriptionStyleData.show_doctor_signature}
+                      onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, show_doctor_signature: e.target.checked }))}
+                      className="w-5 h-5 text-teal-600 rounded focus:ring-teal-500"
+                    />
+                    <span className="text-sm text-gray-700 font-[Tajawal]">إظهار توقيع الطبيب</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={prescriptionStyleData.show_watermark}
+                      onChange={(e) => setPrescriptionStyleData(prev => ({ ...prev, show_watermark: e.target.checked }))}
+                      className="w-5 h-5 text-teal-600 rounded focus:ring-teal-500"
+                    />
+                    <span className="text-sm text-gray-700 font-[Tajawal]">إظهار علامة مائية (Watermark)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Info Banner */}
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-900 font-[Tajawal] flex items-center gap-2">
+                <Eye className="w-4 h-4" />
+                <span>سيتم تطبيق هذه الإعدادات على جميع الروشتات الجديدة في النظام</span>
+              </p>
+            </div>
+
+            {/* Save Button */}
+            <button
+              onClick={handlePrescriptionSave}
+              disabled={saving}
+              className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
+            >
+              <Save size={18} />
+              {saving ? 'جاري الحفظ...' : 'حفظ جميع الإعدادات'}
+            </button>
           </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">رقم هاتف العيادة</label>
-            <input
-              type="tel"
-              value={prescriptionFormData.clinic_phone}
-              onChange={(e) => setPrescriptionFormData(prev => ({ ...prev, clinic_phone: e.target.value }))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
-              placeholder="مثال: 201003418068"
-            />
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 font-[Tajawal]">تعليمات الروشتة الافتراضية</label>
-            <textarea
-              value={prescriptionFormData.default_rx_notes}
-              onChange={(e) => setPrescriptionFormData(prev => ({ ...prev, default_rx_notes: e.target.value }))}
-              rows={5}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent font-[Tajawal]"
-              placeholder="أدخل التعليمات الافتراضية التي ستظهر في كل روشتة..."
-            />
-            <p className="text-xs text-gray-500 mt-2 font-[Tajawal]">ستظهر هذه التعليمات تلقائياً في جميع الروشتات الجديدة</p>
-          </div>
-
-          <button
-            onClick={handlePrescriptionSave}
-            disabled={saving}
-            className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-[Tajawal] font-semibold transition-colors"
-          >
-            <Save size={18} />
-            {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
-          </button>
         </div>
       )}
 
