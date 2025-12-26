@@ -219,7 +219,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
       await authService.updateDoctorProfile(user.id, {
         name: profileFormData.name,
         phone: profileFormData.phone,
-        specialization: profileFormData.specialization,
+        specialty: profileFormData.specialization,
         doctor_image: profileFormData.doctor_image,
       });
       toast.success('تم تحديث الملف الشخصي بنجاح');
