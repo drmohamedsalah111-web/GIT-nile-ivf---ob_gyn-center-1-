@@ -164,7 +164,12 @@ const App: React.FC = () => {
           user={user}
           onLogout={handleLogout}
         >
-          {receptionPage === 'dashboard' && <NewReceptionDashboard />}
+          {receptionPage === 'dashboard' && (
+            <NewReceptionDashboard 
+              userId={user?.id || ''}
+              userName={user?.email?.split('@')[0] || 'السكرتيرة'}
+            />
+          )}
           {receptionPage === 'appointments' && <ReceptionDashboard />}
           {receptionPage === 'patients' && <AddPatient />}
           {receptionPage === 'cash' && (

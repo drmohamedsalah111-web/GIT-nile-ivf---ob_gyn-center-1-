@@ -24,8 +24,8 @@ import { supabase } from '../../services/supabaseClient';
 import toast from 'react-hot-toast';
 
 interface ReceptionDashboardProps {
-  userId: string;
-  userName: string;
+  userId?: string;
+  userName?: string;
 }
 
 interface Appointment {
@@ -41,7 +41,10 @@ interface Appointment {
   };
 }
 
-export const ReceptionDashboard: React.FC<ReceptionDashboardProps> = ({ userId, userName }) => {
+export const ReceptionDashboard: React.FC<ReceptionDashboardProps> = ({ 
+  userId = '', 
+  userName = 'السكرتيرة' 
+}) => {
   const [waitingQueue, setWaitingQueue] = useState<Appointment[]>([]);
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
   const [stats, setStats] = useState({
@@ -58,7 +61,7 @@ export const ReceptionDashboard: React.FC<ReceptionDashboardProps> = ({ userId, 
     // Refresh every 30 seconds
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [userId]);
+  }, []);
 
   const fetchData = async () => {
     try {
