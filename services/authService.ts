@@ -70,7 +70,7 @@ export const authService: AuthService = {
 
   getCurrentUser: async () => {
     try {
-      // 1. First try to get the current session
+      // 1. First try to get the current session silently
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       
       // 2. If we have a session, try to refresh it
@@ -78,11 +78,10 @@ export const authService: AuthService = {
         try {
           const { data, error } = await supabase.auth.refreshSession();
           if (!error && data?.user) {
-            console.log('✅ Session refreshed successfully');
             return data.user;
           }
-        } catch (refreshError: any) {
-          console.log('Session refresh attempt:', refreshError?.message);
+        } catch (e) {
+          // Ignore refresh errors
         }
       }
 
@@ -92,15 +91,10 @@ export const authService: AuthService = {
       }
 
       // 4. Try strict server verification (Secure)
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (user) {
-        return user;
-      }
-      
-      // 5. No valid session
-      return null;
-    } catch (error: any) {
-      console.log('Auth check result: No active session');
+      const { data: { user } } = await supabase.auth.getUser();
+      return user || null;
+    } catch (error) {
+      // Silently return null on error
       return null;
     }
   },
@@ -271,7 +265,7 @@ export const authService: AuthService = {
       // 1. Try to use the secure RPC function first (Bypasses RLS)
       const { data: rpcRole, error: rpcError } = await supabase.rpc('get_my_role');
       if (!rpcError && rpcRole) {
-        console.log('Role fetched via RPC:', rpcRole);
+        console.log('✓ Role fetched via RPC');
         return rpcRole;
       }
 
@@ -282,21 +276,18 @@ export const authService: AuthService = {
         .eq('user_id', userId)
         .single();
 
-      if (error || !data) {
-        console.warn('Failed to fetch user role, defaulting to doctor');
-        return 'doctor';
+      if (!error && data) {
+        // Smart Inference: If secretary_doctor_id exists, it MUST be a secretary
+        if (data.secretary_doctor_id) {
+          return 'secretary';
+        }
+        return data.user_role || 'doctor';
       }
 
-      // Smart Inference: If secretary_doctor_id exists, it MUST be a secretary
-      if (data.secretary_doctor_id) {
-        console.log('Inferred Secretary Role from secretary_doctor_id');
-        return 'secretary';
-      }
-
-      console.log('Fetched User Role:', data.user_role); // Debug log
-      return data.user_role || 'doctor';
-    } catch (error: any) {
-      console.warn('Error fetching user role:', error?.message);
+      // Default fallback
+      return 'doctor';
+    } catch (error) {
+      // Silently default to doctor on error
       return 'doctor';
     }
   },

@@ -398,20 +398,27 @@ export async function getSubscriptionHistory(
  * @returns Array of all subscriptions with plan details
  */
 export async function getAllClinicSubscriptions(): Promise<ClinicSubscriptionWithPlan[]> {
-  const { data, error } = await supabase
-    .from('clinic_subscriptions')
-    .select(`
-      *,
-      plan:subscription_plans(*)
-    `)
-    .order('end_date', { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from('clinic_subscriptions')
+      .select(`
+        *,
+        plan:subscription_plans(*)
+      `)
+      .order('end_date', { ascending: true });
 
-  if (error) {
-    console.error('Error fetching all subscriptions:', error);
-    throw new Error(`Failed to fetch subscriptions: ${error.message}`);
+    if (error) {
+      console.warn('Warning: Could not fetch subscriptions -', error.message);
+      // Return empty array instead of throwing
+      return [];
+    }
+
+    return (data || []) as ClinicSubscriptionWithPlan[];
+  } catch (error: any) {
+    // Silently return empty array on error
+    console.warn('Subscriptions fetch error:', error?.message);
+    return [];
   }
-
-  return data as ClinicSubscriptionWithPlan[];
 }
 
 /**

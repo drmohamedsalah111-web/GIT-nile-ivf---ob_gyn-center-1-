@@ -45,27 +45,27 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setLoading(true);
       setError(null);
 
-      // Get current user and fetch their doctor branding
-      const user = await authService.getCurrentUser();
+      // Get current user - may return null if not logged in
+      let user;
+      try {
+        user = await authService.getCurrentUser();
+      } catch (e) {
+        user = null;
+      }
+
       if (!user) {
         setBranding(getDefaultBranding());
+        setLoading(false);
         return;
       }
 
-      // Get doctor branding from Supabase with error handling
+      // Get doctor branding from Supabase with comprehensive error handling
       try {
         const { data: results, error: fetchError } = await supabase
           .from('doctors')
           .select('*')
           .eq('user_id', user.id)
           .limit(1);
-
-        if (fetchError) {
-          console.warn('Warning: Could not fetch doctor branding -', fetchError.message);
-          // Use default branding if fetch fails (e.g., RLS policy issue)
-          setBranding(getDefaultBranding());
-          return;
-        }
 
         if (results && results.length > 0) {
           const doctor = results[0] as any;
@@ -94,13 +94,12 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } else {
           setBranding(getDefaultBranding());
         }
-      } catch (queryError: any) {
-        console.warn('Query error while fetching branding:', queryError?.message);
+      } catch (queryError) {
+        // Use default branding on any query error
         setBranding(getDefaultBranding());
       }
-    } catch (err: any) {
-      console.warn('Branding initialization - using defaults:', err?.message);
-      setError(null); // Don't show error to user, just use defaults
+    } catch (err) {
+      // Use default branding on any error
       setBranding(getDefaultBranding());
     } finally {
       setLoading(false);
