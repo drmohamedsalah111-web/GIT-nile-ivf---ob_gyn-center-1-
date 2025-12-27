@@ -5,14 +5,15 @@
 // ============================================================================
 
 import React, { useState } from 'react';
-import { Shield, CreditCard, Users, DollarSign, Settings, BarChart3, Database, Lock, Home } from 'lucide-react';
+import { Shield, CreditCard, Users, DollarSign, Settings, BarChart3, Database, Lock, Home, FileText } from 'lucide-react';
 import SaaSManagement from './admin/SaaSManagement';
 import ClinicsManagement from './admin/ClinicsManagement';
 import UsersManagement from './admin/UsersManagement';
 import AdminAnalytics from './admin/AdminAnalytics';
+import LandingContentEditor from './admin/LandingContentEditor';
 
 const SuperAdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'subscriptions' | 'clinics' | 'users' | 'analytics' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'subscriptions' | 'clinics' | 'users' | 'analytics' | 'landing' | 'settings'>('overview');
 
   const switchToNormalMode = () => {
     localStorage.removeItem('adminLogin');
@@ -59,6 +60,16 @@ const SuperAdminDashboard: React.FC = () => {
       color: 'bg-purple-500',
       count: 'إدارة كاملة',
       action: () => setActiveTab('analytics')
+    },
+    {
+      id: 'landing',
+      title: 'محتوى صفحة الهبوط',
+      titleEn: 'Landing Page Content',
+      description: 'تعديل محتوى ونصوص صفحة الهبوط',
+      icon: FileText,
+      color: 'bg-pink-500',
+      count: 'إدارة كاملة',
+      action: () => setActiveTab('landing')
     },
     {
       id: 'settings',
@@ -118,6 +129,10 @@ const SuperAdminDashboard: React.FC = () => {
         <AdminAnalytics />
       </div>
     );
+  }
+
+  if (activeTab === 'landing') {
+    return <LandingContentEditor onBack={() => setActiveTab('overview')} />;
   }
 
   if (activeTab === 'subscriptions') {
