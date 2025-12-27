@@ -3,24 +3,14 @@
 -- ============================================================================
 -- Created: 2025-12-27
 -- Purpose: إدارة الأقساط الخاصة بدورات الحقن المجهري والعمليات الكبيرة
+-- 
+-- ملاحظة مهمة: هذا السكريبت يفترض وجود الجداول التالية:
+--   - doctors (مع user_id, user_role, secretary_doctor_id)
+--   - patients (مع id)
+--   - ivf_cycles (مع id, patient_id, doctor_id)
+-- 
+-- إذا كانت هذه الجداول غير موجودة، قم بتشغيل IVF_JOURNEY_SCHEMA.sql أولاً
 -- ============================================================================
-
--- ============================================================================
--- 0. التأكد من وجود جدول ivf_cycles
--- ============================================================================
--- إذا لم يكن الجدول موجوداً، سيتم إنشاؤه
-CREATE TABLE IF NOT EXISTS ivf_cycles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-  doctor_id UUID NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
-  cycle_number INTEGER NOT NULL DEFAULT 1,
-  protocol_type TEXT,
-  start_date DATE NOT NULL,
-  end_date DATE,
-  status TEXT NOT NULL DEFAULT 'assessment',
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
 
 -- ============================================================================
 -- 1. جدول الباقات والأسعار (IVF Packages)
