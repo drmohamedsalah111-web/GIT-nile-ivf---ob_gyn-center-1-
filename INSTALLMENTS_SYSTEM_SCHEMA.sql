@@ -45,9 +45,10 @@ CREATE TABLE IF NOT EXISTS ivf_packages (
 COMMENT ON TABLE ivf_packages IS 'باقات الحقن المجهري مع خطط الأقساط';
 
 -- ============================================================================
--- 2. جدول الأقساط (Installments)
+-- 2. جدول الأقساط (IVF Installments)
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS installments (
+-- ملاحظة: تم تسمية الجدول ivf_installments بدلاً من installments لتجنب التضارب
+CREATE TABLE IF NOT EXISTS ivf_installments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   
   -- الربط بالدورة والمريضة
@@ -90,15 +91,15 @@ CREATE TABLE IF NOT EXISTS installments (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-COMMENT ON TABLE installments IS 'أقساط الدفع الخاصة بدورات الحقن المجهري';
+COMMENT ON TABLE ivf_installments IS 'أقساط الدفع الخاصة بدورات الحقن المجهري';
 
 -- ============================================================================
 -- 3. جدول تاريخ الدفعات (Payment History)
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS installment_payments (
+CREATE TABLE IF NOT EXISTS ivf_installment_payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   
-  installment_id UUID NOT NULL REFERENCES installments(id) ON DELETE CASCADE,
+  installment_id UUID NOT NULL REFERENCES ivf_installments(id) ON DELETE CASCADE,
   cycle_id UUID NOT NULL REFERENCES ivf_cycles(id) ON DELETE CASCADE,
   patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   doctor_id UUID NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
@@ -121,7 +122,7 @@ CREATE TABLE IF NOT EXISTS installment_payments (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-COMMENT ON TABLE installment_payments IS 'سجل كل دفعة للأقساط (للتدقيق)';
+COMMENT ON TABLE ivf_installment_payments IS 'سجل كل دفعة للأقساط (للتدقيق)';
 
 -- ============================================================================
 -- 4. الفهارس (Indexes)
@@ -129,16 +130,16 @@ COMMENT ON TABLE installment_payments IS 'سجل كل دفعة للأقساط (�
 CREATE INDEX IF NOT EXISTS idx_packages_doctor ON ivf_packages(doctor_id);
 CREATE INDEX IF NOT EXISTS idx_packages_active ON ivf_packages(is_active);
 
-CREATE INDEX IF NOT EXISTS idx_installments_cycle ON installments(cycle_id);
-CREATE INDEX IF NOT EXISTS idx_installments_patient ON installments(patient_id);
-CREATE INDEX IF NOT EXISTS idx_installments_doctor ON installments(doctor_id);
-CREATE INDEX IF NOT EXISTS idx_installments_status ON installments(status);
-CREATE INDEX IF NOT EXISTS idx_installments_due_date ON installments(due_date);
+CREATE INDEX IF NOT EXISTS idx_ivf_installments_cycle ON ivf_installments(cycle_id);
+CREATE INDEX IF NOT EXISTS idx_ivf_installments_patient ON ivf_installments(patient_id);
+CREATE INDEX IF NOT EXISTS idx_ivf_installments_doctor ON ivf_installments(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_ivf_installments_status ON ivf_installments(status);
+CREATE INDEX IF NOT EXISTS idx_ivf_installments_due_date ON ivf_installments(due_date);
 
-CREATE INDEX IF NOT EXISTS idx_payments_installment ON installment_payments(installment_id);
-CREATE INDEX IF NOT EXISTS idx_payments_patient ON installment_payments(patient_id);
-CREATE INDEX IF NOT EXISTS idx_payments_doctor ON installment_payments(doctor_id);
-CREATE INDEX IF NOT EXISTS idx_payments_date ON installment_payments(payment_date DESC);
+CREATE INDEX IF NOT EXISTS idx_ivf_payments_installment ON ivf_installment_payments(installment_id);
+CREATE INDEX IF NOT EXISTS idx_ivf_payments_patient ON ivf_installment_payments(patient_id);
+CREATE INDEX IF NOT EXISTS idx_ivf_payments_doctor ON ivf_installment_payments(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_ivf_payments_date ON ivf_installment_payments(payment_date DESC);
 
 -- ============================================================================
 -- 5. دوال مساعدة للـ RLS (Helper Functions for RLS)
@@ -199,34 +200,34 @@ DROP POLICY IF EXISTS "Doctors can manage their packages" ON ivf_packages;
 CREATE POLICY "Doctors can manage their packages" ON ivf_packages
   FOR ALL USING (doctor_id = get_doctor_id());
 
--- installments
-ALTER TABLE installments ENABLE ROW LEVEL SECURITY;
+-- ivf_installments
+ALTER TABLE ivf_installments ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Doctors can manage their installments" ON installments;
-CREATE POLICY "Doctors can manage their installments" ON installments
+DROP POLICY IF EXISTS "Doctors can manage their installments" ON ivf_installments;
+CREATE POLICY "Doctors can manage their installments" ON ivf_installments
   FOR ALL USING (doctor_id = get_doctor_id());
 
-DROP POLICY IF EXISTS "Secretaries can view and pay installments" ON installments;
-CREATE POLICY "Secretaries can view and pay installments" ON installments
+DROP POLICY IF EXISTS "Secretaries can view and pay installments" ON ivf_installments;
+CREATE POLICY "Secretaries can view and pay installments" ON ivf_installments
   FOR SELECT USING (doctor_id = get_secretary_doctor_id());
 
-DROP POLICY IF EXISTS "Secretaries can update installments for payment" ON installments;
-CREATE POLICY "Secretaries can update installments for payment" ON installments
+DROP POLICY IF EXISTS "Secretaries can update installments for payment" ON ivf_installments;
+CREATE POLICY "Secretaries can update installments for payment" ON ivf_installments
   FOR UPDATE USING (doctor_id = get_secretary_doctor_id());
 
--- installment_payments
-ALTER TABLE installment_payments ENABLE ROW LEVEL SECURITY;
+-- ivf_installment_payments
+ALTER TABLE ivf_installment_payments ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Doctors can view their payments" ON installment_payments;
-CREATE POLICY "Doctors can view their payments" ON installment_payments
+DROP POLICY IF EXISTS "Doctors can view their payments" ON ivf_installment_payments;
+CREATE POLICY "Doctors can view their payments" ON ivf_installment_payments
   FOR SELECT USING (doctor_id = get_doctor_id());
 
-DROP POLICY IF EXISTS "Secretaries can view payments" ON installment_payments;
-CREATE POLICY "Secretaries can view payments" ON installment_payments
+DROP POLICY IF EXISTS "Secretaries can view payments" ON ivf_installment_payments;
+CREATE POLICY "Secretaries can view payments" ON ivf_installment_payments
   FOR SELECT USING (doctor_id = get_secretary_doctor_id());
 
-DROP POLICY IF EXISTS "Users can insert payments" ON installment_payments;
-CREATE POLICY "Users can insert payments" ON installment_payments
+DROP POLICY IF EXISTS "Users can insert payments" ON ivf_installment_payments;
+CREATE POLICY "Users can insert payments" ON ivf_installment_payments
   FOR INSERT WITH CHECK (
     doctor_id = get_doctor_id() OR doctor_id = get_secretary_doctor_id()
   );
@@ -250,9 +251,9 @@ CREATE TRIGGER update_ivf_packages_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_installments_updated_at ON installments;
-CREATE TRIGGER update_installments_updated_at
-  BEFORE UPDATE ON installments
+DROP TRIGGER IF EXISTS update_ivf_installments_updated_at ON ivf_installments;
+CREATE TRIGGER update_ivf_installments_updated_at
+  BEFORE UPDATE ON ivf_installments
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
@@ -299,7 +300,7 @@ BEGIN
     v_installment_number := v_installment_number + 1;
     v_amount := v_package.total_price * ((v_installment->>'percentage')::DECIMAL / 100);
     
-    INSERT INTO installments (
+    INSERT INTO ivf_installments (
       cycle_id,
       patient_id,
       doctor_id,
@@ -339,4 +340,4 @@ SELECT
   COUNT(*) as tables_created
 FROM information_schema.tables
 WHERE table_schema = 'public'
-  AND table_name IN ('ivf_packages', 'installments', 'installment_payments');
+  AND table_name IN ('ivf_packages', 'ivf_installments', 'ivf_installment_payments');
