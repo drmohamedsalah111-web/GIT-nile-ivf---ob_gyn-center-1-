@@ -34,9 +34,16 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
         const actualRole = await authService.getUserRole(data.user.id);
         
         if (actualRole !== selectedRole) {
-          toast.error(`⚠️ هذا الحساب مسجل كـ ${actualRole === 'doctor' ? 'طبيب' : 'سكرتيرة'}`);
-          await authService.logout();
+          // Show user-friendly message and auto-switch role
+          toast.error(`هذا الحساب مسجل كـ ${actualRole === 'doctor' ? 'طبيب' : 'سكرتيرة'}. جاري التبديل...`);
+          setSelectedRole(actualRole as UserRole);
           setLoading(false);
+          
+          // Try login again with correct role after a short delay
+          setTimeout(() => {
+            setLoading(true);
+            onLoginSuccess();
+          }, 1500);
           return;
         }
         
