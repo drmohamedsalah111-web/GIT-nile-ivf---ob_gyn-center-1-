@@ -5,7 +5,8 @@
 // Date: December 26, 2025
 // ============================================================================
 
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+import { useEffect, useState } from 'react';
 import { 
   getAllClinicSubscriptions, 
   getSubscriptionStats,
@@ -16,9 +17,9 @@ import type {
   SubscriptionStats,
   SubscriptionExpiryNotification 
 } from '../../types/subscription';
-import SubscriptionStatsCards from './SubscriptionStatsCards';
-import SubscriptionsDataTable from './SubscriptionsDataTable';
-import ExpiringSubscriptionsAlert from './ExpiringSubscriptionsAlert';
+import SubscriptionStatsCards from './SubscriptionStatsCards.tsx';
+import SubscriptionsDataTable from './SubscriptionsDataTable.tsx';
+import ExpiringSubscriptionsAlert from './ExpiringSubscriptionsAlert.tsx';
 
 /**
  * SaaSManagement Component

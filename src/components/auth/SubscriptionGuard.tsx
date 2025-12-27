@@ -9,8 +9,8 @@ import React, { useEffect, useState } from 'react';
 import { checkSubscriptionValidity } from '../../services/subscriptionService';
 import { getCachedSubscriptionValidation, cacheSubscriptionValidation } from '../../utils/subscriptionHelpers';
 import type { SubscriptionValidation } from '../../types/subscription';
-import SubscriptionExpiredScreen from './SubscriptionExpiredScreen';
-import SubscriptionExpiringBanner from './SubscriptionExpiringBanner';
+import SubscriptionExpiredScreen from './SubscriptionExpiredScreen.tsx';
+import SubscriptionExpiringBanner from './SubscriptionExpiringBanner.tsx';
 
 /**
  * Props for SubscriptionGuard component

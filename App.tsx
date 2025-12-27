@@ -168,7 +168,7 @@ const App: React.FC = () => {
   if (isAdminLogin && adminAuthService.isAuthenticated()) {
     return (
       <ThemeProvider>
-        <BrandingProvider clinicId={null}>
+        <BrandingProvider>
           <div className="min-h-screen bg-background font-[Tajawal]">
             <EnvErrorBanner />
             <PreviewWarningBanner />
@@ -176,12 +176,10 @@ const App: React.FC = () => {
             {activePage === Page.SUPER_ADMIN ? (
               <SuperAdminDashboard 
                 onLogout={handleLogout}
-                onNavigate={(page) => setActivePage(page)}
+                onNavigate={(page) => setActivePage(page as Page)}
               />
             ) : activePage === Page.SAAS_MANAGEMENT ? (
-              <SaaSManagement 
-                onBack={() => setActivePage(Page.SUPER_ADMIN)}
-              />
+              <SaaSManagement />
             ) : null}
 
             <Toaster position="top-center" reverseOrder={false} />

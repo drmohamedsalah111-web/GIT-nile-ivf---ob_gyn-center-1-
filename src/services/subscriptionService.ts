@@ -5,7 +5,7 @@
 // Date: December 26, 2025
 // ============================================================================
 
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../../services/supabaseClient';
 import type {
   SubscriptionPlan,
   ClinicSubscription,

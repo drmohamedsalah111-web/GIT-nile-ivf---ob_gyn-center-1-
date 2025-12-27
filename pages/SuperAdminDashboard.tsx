@@ -12,7 +12,12 @@ import UsersManagement from './admin/UsersManagement';
 import AdminAnalytics from './admin/AdminAnalytics';
 import LandingContentEditor from './admin/LandingContentEditor';
 
-const SuperAdminDashboard: React.FC = () => {
+interface SuperAdminDashboardProps {
+  onLogout?: () => Promise<void>;
+  onNavigate?: (page: string) => void;
+}
+
+const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'subscriptions' | 'clinics' | 'users' | 'analytics' | 'landing' | 'settings'>('overview');
 
   const switchToNormalMode = () => {
@@ -147,22 +152,6 @@ const SuperAdminDashboard: React.FC = () => {
           </button>
         </div>
         <SaaSManagement />
-      </div>
-    );
-  }
-
-  if (activeTab === 'clinics') {
-    return (
-      <div>
-        <div className="mb-6">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className="flex items-center gap-2 text-teal-600 hover:text-teal-700 font-semibold"
-          >
-            ← العودة للوحة التحكم
-          </button>
-        </div>
-        <ClinicsManagement />
       </div>
     );
   }
