@@ -325,7 +325,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
                   <div className="flex items-baseline justify-end gap-2 mb-6">
                     <span className={index === 1 ? 'text-teal-100' : 'text-gray-500'}>/شهرياً</span>
                     <span className={`text-5xl font-bold ${index === 1 ? 'text-teal-600' : 'text-teal-600'}`}>
-                      ₪{plan.price?.toLocaleString('ar-SA')}
+                      ج.م&nbsp;{plan.price?.toLocaleString('ar-EG')}
                     </span>
                   </div>
                   <ul className="space-y-4 mb-8 text-right">
