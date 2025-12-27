@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS invoices (
   invoice_number TEXT UNIQUE,
   
   -- نوع الفاتورة
-  invoice_type TEXT DEFAULT 'Service' CHECK (
-    invoice_type IN ('Service', 'Package', 'Installment', 'Other')
+  invoice_type TEXT DEFAULT 'service' CHECK (
+    invoice_type IN ('service', 'package', 'installment', 'other')
   ),
   
   -- المبالغ المالية
@@ -32,13 +32,13 @@ CREATE TABLE IF NOT EXISTS invoices (
   
   -- معلومات الدفع
   payment_method TEXT NOT NULL CHECK (
-    payment_method IN ('Cash', 'Visa', 'Bank Transfer', 'Insurance', 'Deferred')
+    payment_method IN ('cash', 'visa', 'bank_transfer', 'insurance', 'deferred')
   ),
   payment_reference TEXT,
   
   -- الحالة
-  status TEXT DEFAULT 'Paid' CHECK (
-    status IN ('Draft', 'Paid', 'Cancelled', 'Refunded')
+  status TEXT DEFAULT 'paid' CHECK (
+    status IN ('draft', 'paid', 'cancelled', 'refunded')
   ),
   
   -- الربط بالأقساط (اختياري)
