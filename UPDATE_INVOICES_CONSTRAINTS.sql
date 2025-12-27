@@ -1,0 +1,46 @@
+-- ============================================================================
+-- تحديث constraints جدول الفواتير (Update Invoices Constraints)
+-- ============================================================================
+-- هذا السكريبت يحدّث الـ check constraints لتتوافق مع التطبيق
+-- ============================================================================
+
+-- ============================================================================
+-- 1. حذف الـ constraints القديمة
+-- ============================================================================
+ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_invoice_type_check;
+ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_payment_method_check;
+ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_status_check;
+
+-- ============================================================================
+-- 2. إضافة الـ constraints الجديدة (lowercase)
+-- ============================================================================
+
+-- نوع الفاتورة (service, package, installment, other)
+ALTER TABLE invoices ADD CONSTRAINT invoices_invoice_type_check 
+  CHECK (invoice_type IN ('service', 'package', 'installment', 'other'));
+
+-- طريقة الدفع (cash, visa, bank_transfer, insurance, deferred)
+ALTER TABLE invoices ADD CONSTRAINT invoices_payment_method_check 
+  CHECK (payment_method IN ('cash', 'visa', 'bank_transfer', 'insurance', 'deferred'));
+
+-- الحالة (draft, paid, cancelled, refunded)
+ALTER TABLE invoices ADD CONSTRAINT invoices_status_check 
+  CHECK (status IN ('draft', 'paid', 'cancelled', 'refunded'));
+
+-- ============================================================================
+-- 3. تحديث القيم الافتراضية
+-- ============================================================================
+ALTER TABLE invoices ALTER COLUMN invoice_type SET DEFAULT 'service';
+ALTER TABLE invoices ALTER COLUMN status SET DEFAULT 'paid';
+
+-- ============================================================================
+-- التحقق من النجاح
+-- ============================================================================
+SELECT 
+  '✅ تم تحديث constraints جدول الفواتير بنجاح' as status,
+  constraint_name,
+  check_clause
+FROM information_schema.check_constraints
+WHERE constraint_schema = 'public'
+  AND constraint_name LIKE 'invoices_%_check'
+ORDER BY constraint_name;
