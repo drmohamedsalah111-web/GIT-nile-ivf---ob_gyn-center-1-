@@ -237,9 +237,14 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
           </form>
 
           {/* Footer Text */}
-          <p className="text-center text-sm text-gray-500 mt-8">
-            جميع الحقوق محفوظة © 2025 نظام Nile
-          </p>
+          <div className="text-center mt-8">
+            <div className="inline-block px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-blue-600 shadow-lg">
+              <span className="text-white font-bold text-base tracking-wide" style={{letterSpacing:'1px'}}>
+                برمجة و تطوير د محمد صلاح جبر 2026
+              </span>
+            </div>
+            <p className="text-sm text-gray-400 mt-2">جميع الحقوق محفوظة © 2026 نظام Nile</p>
+          </div>
         </div>
       </div>
     </div>
