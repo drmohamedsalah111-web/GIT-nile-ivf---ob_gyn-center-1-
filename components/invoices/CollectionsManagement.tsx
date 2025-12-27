@@ -124,10 +124,10 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
   };
 
   const calculateStats = (invoiceList: Invoice[]) => {
-    const pending = invoiceList.filter(inv => inv.status !== 'Paid').length;
-    const paid = invoiceList.filter(inv => inv.status === 'Paid').length;
+    const pending = invoiceList.filter(inv => inv.status?.toLowerCase() !== 'paid').length;
+    const paid = invoiceList.filter(inv => inv.status?.toLowerCase() === 'paid').length;
     const pendingAmount = invoiceList
-      .filter(inv => inv.status !== 'Paid')
+      .filter(inv => inv.status?.toLowerCase() !== 'paid')
       .reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
     const totalAmount = invoiceList.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
 
@@ -144,9 +144,9 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
     let filtered = [...invoices];
 
     if (activeTab === 'pending') {
-      filtered = filtered.filter(inv => inv.status !== 'Paid');
+      filtered = filtered.filter(inv => inv.status?.toLowerCase() !== 'paid');
     } else if (activeTab === 'paid') {
-      filtered = filtered.filter(inv => inv.status === 'Paid');
+      filtered = filtered.filter(inv => inv.status?.toLowerCase() === 'paid');
     }
 
     if (searchQuery) {

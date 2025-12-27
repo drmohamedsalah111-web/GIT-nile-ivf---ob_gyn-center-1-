@@ -79,29 +79,35 @@ export const DailyCashPage: React.FC<DailyCashPageProps> = ({ secretaryId, secre
         .eq('created_by', secretaryId)
         .gte('created_at', `${selectedDate}T00:00:00`)
         .lte('created_at', `${selectedDate}T23:59:59`)
-        .eq('status', 'Paid')
+        .in('status', ['paid', 'Paid'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const invoiceList = data || [];
+      const invoiceList = (data || []).map((inv: any) => ({
+        ...inv,
+        patients: Array.isArray(inv.patients) ? inv.patients[0] : inv.patients
+      }));
       setInvoices(invoiceList);
 
       // Calculate summary
       const totalCash = invoiceList
-        .filter(inv => inv.payment_method === 'Cash')
+        .filter(inv => inv.payment_method?.toLowerCase() === 'cash')
         .reduce((sum, inv) => sum + inv.total_amount, 0);
 
       const totalVisa = invoiceList
-        .filter(inv => inv.payment_method === 'Visa')
+        .filter(inv => inv.payment_method?.toLowerCase() === 'visa')
         .reduce((sum, inv) => sum + inv.total_amount, 0);
 
       const totalBank = invoiceList
-        .filter(inv => inv.payment_method === 'Bank Transfer')
+        .filter(inv => 
+          inv.payment_method?.toLowerCase() === 'bank_transfer' || 
+          inv.payment_method?.toLowerCase() === 'bank transfer'
+        )
         .reduce((sum, inv) => sum + inv.total_amount, 0);
 
       const totalInsurance = invoiceList
-        .filter(inv => inv.payment_method === 'Insurance')
+        .filter(inv => inv.payment_method?.toLowerCase() === 'insurance')
         .reduce((sum, inv) => sum + inv.total_amount, 0);
 
       setSummary({
@@ -476,18 +482,18 @@ export const DailyCashPage: React.FC<DailyCashPageProps> = ({ secretaryId, secre
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
-                        invoice.payment_method === 'Cash' ? 'bg-green-100 text-green-700' :
-                        invoice.payment_method === 'Visa' ? 'bg-blue-100 text-blue-700' :
-                        invoice.payment_method === 'Bank Transfer' ? 'bg-purple-100 text-purple-700' :
+                        invoice.payment_method?.toLowerCase() === 'cash' ? 'bg-green-100 text-green-700' :
+                        invoice.payment_method?.toLowerCase() === 'visa' ? 'bg-blue-100 text-blue-700' :
+                        (invoice.payment_method?.toLowerCase() === 'bank_transfer' || invoice.payment_method?.toLowerCase() === 'bank transfer') ? 'bg-purple-100 text-purple-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
-                        {invoice.payment_method === 'Cash' && <Banknote className="w-4 h-4" />}
-                        {invoice.payment_method === 'Visa' && <CreditCard className="w-4 h-4" />}
-                        {invoice.payment_method === 'Bank Transfer' && <Receipt className="w-4 h-4" />}
-                        {invoice.payment_method === 'Cash' ? 'نقداً' :
-                         invoice.payment_method === 'Visa' ? 'فيزا' :
-                         invoice.payment_method === 'Bank Transfer' ? 'تحويل بنكي' :
-                         invoice.payment_method === 'Insurance' ? 'تأمين' :
+                        {invoice.payment_method?.toLowerCase() === 'cash' && <Banknote className="w-4 h-4" />}
+                        {invoice.payment_method?.toLowerCase() === 'visa' && <CreditCard className="w-4 h-4" />}
+                        {(invoice.payment_method?.toLowerCase() === 'bank_transfer' || invoice.payment_method?.toLowerCase() === 'bank transfer') && <Receipt className="w-4 h-4" />}
+                        {invoice.payment_method?.toLowerCase() === 'cash' ? 'نقداً' :
+                         invoice.payment_method?.toLowerCase() === 'visa' ? 'فيزا' :
+                         (invoice.payment_method?.toLowerCase() === 'bank_transfer' || invoice.payment_method?.toLowerCase() === 'bank transfer') ? 'تحويل بنكي' :
+                         invoice.payment_method?.toLowerCase() === 'insurance' ? 'تأمين' :
                          invoice.payment_method}
                       </span>
                     </td>

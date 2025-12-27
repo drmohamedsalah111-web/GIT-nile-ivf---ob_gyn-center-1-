@@ -70,7 +70,7 @@ export const FinancePage: React.FC<FinancePageProps> = ({ doctorId }) => {
         .eq('clinic_id', doctorId)
         .gte('created_at', `${today}T00:00:00`)
         .lte('created_at', `${today}T23:59:59`)
-        .eq('status', 'Paid');
+        .in('status', ['paid', 'Paid']);
 
       const todayRevenue = todayInvoices?.reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0;
 
@@ -82,7 +82,7 @@ export const FinancePage: React.FC<FinancePageProps> = ({ doctorId }) => {
         .select('total_amount')
         .eq('clinic_id', doctorId)
         .gte('created_at', monthStart.toISOString())
-        .eq('status', 'Paid');
+        .in('status', ['paid', 'Paid']);
 
       const monthRevenue = monthInvoices?.reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0;
 
@@ -432,12 +432,11 @@ export const FinancePage: React.FC<FinancePageProps> = ({ doctorId }) => {
       {renderContent()}
 
       {/* Invoice Modal */}
-      {showInvoiceModal && selectedPatient && (
+      {selectedPatient && (
         <QuickInvoiceModal
           clinicId={doctorId}
-          patientId={selectedPatient.id}
-          patientName={selectedPatient.name}
           doctorId={doctorId}
+          isOpen={showInvoiceModal}
           onClose={() => {
             setShowInvoiceModal(false);
             setSelectedPatient(null);

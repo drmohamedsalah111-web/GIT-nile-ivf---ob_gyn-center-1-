@@ -134,9 +134,9 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
             phone
           )
         `)
-        .eq('created_by', secretaryId)
+        .eq('clinic_id', doctorId) // عرض فواتير العيادة بالكامل
         .gte('created_at', `${startDate}T00:00:00`)
-        .eq('status', 'Paid')
+        .in('status', ['paid', 'Paid'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -173,15 +173,18 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
     const totalMonth = monthInvoices.reduce((sum, inv) => sum + inv.total_amount, 0);
 
     const cashToday = todayInvoices
-      .filter(inv => inv.payment_method === 'Cash')
+      .filter(inv => inv.payment_method?.toLowerCase() === 'cash')
       .reduce((sum, inv) => sum + inv.total_amount, 0);
 
     const visaToday = todayInvoices
-      .filter(inv => inv.payment_method === 'Visa')
+      .filter(inv => inv.payment_method?.toLowerCase() === 'visa')
       .reduce((sum, inv) => sum + inv.total_amount, 0);
 
     const bankToday = todayInvoices
-      .filter(inv => inv.payment_method === 'Bank Transfer')
+      .filter(inv => 
+        inv.payment_method?.toLowerCase() === 'bank_transfer' || 
+        inv.payment_method?.toLowerCase() === 'bank transfer'
+      )
       .reduce((sum, inv) => sum + inv.total_amount, 0);
 
     setStats({
@@ -211,7 +214,10 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
 
     // Payment method filter
     if (paymentMethodFilter !== 'all') {
-      filtered = filtered.filter(inv => inv.payment_method === paymentMethodFilter);
+      filtered = filtered.filter(inv => 
+        inv.payment_method?.toLowerCase() === paymentMethodFilter.toLowerCase() ||
+        inv.payment_method?.toLowerCase().replace(' ', '_') === paymentMethodFilter.toLowerCase()
+      );
     }
 
     setFilteredInvoices(filtered);
