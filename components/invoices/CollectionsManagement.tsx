@@ -75,7 +75,8 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
     totalPaid: 0,
     totalInvoices: 0,
     collectionRate: 0,
-    pendingAmount: 0
+    pendingAmount: 0,
+    totalCollected: 0
   });
 
   useEffect(() => {
