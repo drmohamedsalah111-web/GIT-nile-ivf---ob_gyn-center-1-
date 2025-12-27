@@ -434,7 +434,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
             </div>
             
             <p className="text-sm">
-              © 2025 نايل IVF. جميع الحقوق محفوظة.
+              © 2026 نايل IVF. جميع الحقوق محفوظة.<br />
+              <span style={{fontWeight:'bold', color:'#16a34a'}}>برمجة و تطوير د محمد صلاح جبر</span>
             </p>
             
             <button
