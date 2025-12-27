@@ -1,28 +1,23 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
-import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
-import { LogIn, AlertCircle, Mail, Lock, User, Phone, Stethoscope, Facebook, MessageCircle, UserCheck, Shield, ArrowLeft, Heart } from 'lucide-react';
+import { LogIn, Mail, Lock, Stethoscope, Shield, Eye, EyeOff, LayoutGrid, Heart, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface LoginProps {
   onLoginSuccess: () => void;
   onAdminAccess?: () => void;
-  onBack?: () => void; // للرجوع لصفحة الهبوط
+  onBack?: () => void;
 }
+
+type UserRole = 'doctor' | 'secretary';
 
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showSignup, setShowSignup] = useState(false);
-  const [isSecretary, setIsSecretary] = useState(false);
-  const [doctors, setDoctors] = useState<any[]>([]);
-  const [signupData, setSignupData] = useState({
-    name: '',
-    specialization: '',
-    phone: '',
-    doctorId: '',
-  });
+  const [selectedRole, setSelectedRole] = useState<UserRole>('doctor');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,441 +38,234 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!email || !password || !signupData.name) {
-      toast.error('الرجاء ملء البيانات المطلوبة');
-      return;
-    }
-
-    if (isSecretary && !signupData.doctorId) {
-      toast.error('يرجى اختيار الطبيب المسؤول');
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const role = isSecretary ? 'secretary' : 'doctor';
-      const { session } = await authService.signup(email, password, signupData, role, signupData.doctorId);
-      
-      if (session) {
-        toast.success('تم التسجيل بنجاح!');
-        // Force reload to ensure user role is correctly loaded
-        window.location.reload();
-      } else {
-        toast.success('تم التسجيل بنجاح! يرجى التحقق من بريدك الإلكتروني');
-        setShowSignup(false);
-        setIsSecretary(false);
-        setEmail('');
-        setPassword('');
-        setSignupData({ name: '', specialization: '', phone: '', doctorId: '' });
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'فشل التسجيل');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadDoctors = async () => {
-    try {
-      // استخدام الدالة الآمنة التي تعمل حتى للمستخدمين غير المسجلين
-      const { data: doctorsData, error } = await supabase
-        .rpc('get_doctors_list');
-
-      if (!error && doctorsData) {
-        setDoctors(doctorsData);
-      } else if (error) {
-        console.error('Failed to load doctors via RPC:', error);
-        // محاولة بديلة باستخدام الطريقة التقليدية
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('doctors')
-          .select('id, name, email')
-          .eq('user_role', 'doctor');
-        
-        if (!fallbackError && fallbackData) {
-          setDoctors(fallbackData);
-        } else {
-          toast.error('فشل تحميل قائمة الأطباء');
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load doctors:', error);
-      toast.error('حدث خطأ في تحميل قائمة الأطباء');
-    }
-  };
-
-  // Fallback branding for login page
-  const branding = {
-    clinic_name: 'Nile IVF Center',
-    logo_url: null
-  };
-
   return (
-    <div className="min-h-screen flex font-[Tajawal]" dir="rtl">
-      {/* زر الرجوع لصفحة الهبوط */}
-      {onBack && (
-        <button
-          onClick={onBack}
-          className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm hover:bg-gray-50 text-gray-700 rounded-lg shadow-lg transition-all"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="font-semibold">العودة للصفحة الرئيسية</span>
-        </button>
-      )}
+    <div className="min-h-screen flex font-['Cairo']" dir="rtl">
+      {/* Left Panel - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-teal-600 via-teal-700 to-teal-800 relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }} />
+        </div>
 
-      {/* Left Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white md:w-1/2">
-        <div className="w-full max-w-md space-y-8">
-          {/* Logo and Branding */}
-          <div className="text-center">
-            {/* Admin Button - زر الأدمن المنفصل - واضح جداً */}
-            <div className="fixed top-4 left-4 z-50">
-              <button
-                onClick={() => {
-                  if (onAdminAccess) {
-                    onAdminAccess();
-                  }
-                }}
-                className="group flex items-center gap-3 px-6 py-3 rounded-xl font-bold text-lg transition-all duration-300 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-2xl hover:shadow-3xl transform hover:scale-110 animate-pulse"
-              >
-                <Shield className="w-6 h-6" />
-                <span>🔐 دخول الأدمن</span>
-              </button>
+        {/* Super Admin Button - Glassmorphism */}
+        {onAdminAccess && (
+          <button
+            onClick={onAdminAccess}
+            className="absolute top-8 left-8 flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white hover:bg-white/20 transition-all duration-300 group z-10"
+          >
+            <Shield className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <span className="font-semibold">Super Admin</span>
+          </button>
+        )}
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col items-center justify-center w-full px-12 text-white">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center"
+          >
+            {/* Icon */}
+            <div className="mb-8 flex justify-center">
+              <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center border border-white/20 shadow-2xl">
+                <Heart className="w-12 h-12 text-white" fill="currentColor" />
+              </div>
             </div>
 
-            <div className="flex justify-center mb-6">
-              {branding?.logo_url ? (
-                <img
-                  src={branding.logo_url}
-                  alt="Nile IVF Center Logo"
-                  className="w-20 h-20 rounded-full object-cover border-4 border-teal-100"
-                />
-              ) : (
-                <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center">
-                  <Stethoscope className="text-white" size={32} />
-                </div>
-              )}
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              مركز د صلاح للخصوبة
+            {/* Heading */}
+            <h1 className="text-5xl font-bold mb-4 leading-tight">
+              مركز د. صلاح<br />للخصوبة
             </h1>
-            <p className="text-gray-600 text-lg mb-2">
-              معاكم خطوة بخطوة
+            
+            <p className="text-2xl text-teal-100 mb-8 font-light">
+              معكم خطوة بخطوة 💙
             </p>
-            <p className="text-gray-500 text-base">
-              {showSignup ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}
-            </p>
-          </div>
 
-          {/* Login Form */}
-          {!showSignup ? (
-            <form onSubmit={handleLogin} className="space-y-6">
+            <div className="flex items-center justify-center gap-3 text-teal-100">
+              <Sparkles className="w-5 h-5" />
+              <span className="text-lg">نظام إدارة متكامل وحديث</span>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Decorative Circles */}
+        <div className="absolute top-20 right-20 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 left-20 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
+      </div>
+
+      {/* Right Panel - Form */}
+      <div className="flex-1 flex flex-col bg-white">
+        {/* Back Button */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="absolute top-6 right-6 lg:right-auto lg:left-6 text-gray-500 hover:text-gray-700 transition-colors z-20"
+          >
+            ← العودة
+          </button>
+        )}
+
+        {/* Form Container */}
+        <div className="flex-1 flex items-center justify-center px-8 sm:px-12 lg:px-16">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="w-full max-w-md"
+          >
+            {/* Mobile Logo */}
+            <div className="lg:hidden text-center mb-8">
+              <div className="inline-flex w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-700 rounded-2xl items-center justify-center mb-4">
+                <Heart className="w-8 h-8 text-white" fill="currentColor" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800">مركز د. صلاح للخصوبة</h2>
+            </div>
+
+            {/* Welcome Text */}
+            <div className="text-center mb-8">
+              <h3 className="text-3xl font-bold text-gray-800 mb-2">مرحباً بك</h3>
+              <p className="text-gray-600">سجل دخولك للمتابعة</p>
+            </div>
+
+            {/* Role Switcher */}
+            <div className="mb-6">
+              <div className="bg-gray-100 p-1 rounded-xl flex gap-1 relative">
+                {/* Animated Background */}
+                <motion.div
+                  layoutId="activeRole"
+                  className="absolute inset-y-1 bg-white rounded-lg shadow-md"
+                  initial={false}
+                  animate={{
+                    x: selectedRole === 'doctor' ? 4 : '50%',
+                    width: 'calc(50% - 8px)'
+                  }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+
+                {/* Doctor Option */}
+                <button
+                  onClick={() => setSelectedRole('doctor')}
+                  className={`relative flex-1 py-3 px-4 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
+                    selectedRole === 'doctor' ? 'text-teal-700' : 'text-gray-500'
+                  }`}
+                >
+                  <Stethoscope className="w-5 h-5" />
+                  <span>طبيب</span>
+                </button>
+
+                {/* Secretary Option */}
+                <button
+                  onClick={() => setSelectedRole('secretary')}
+                  className={`relative flex-1 py-3 px-4 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 ${
+                    selectedRole === 'secretary' ? 'text-teal-700' : 'text-gray-500'
+                  }`}
+                >
+                  <LayoutGrid className="w-5 h-5" />
+                  <span>سكرتارية</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Login Form */}
+            <form onSubmit={handleLogin} className="space-y-5">
+              {/* Email Input */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
                   البريد الإلكتروني
                 </label>
                 <div className="relative">
-                  <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="doctor@example.com"
-                    disabled={loading}
+                    className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                    placeholder="example@clinic.com"
+                    dir="ltr"
                   />
                 </div>
               </div>
 
+              {/* Password Input */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
                   كلمة المرور
                 </label>
                 <div className="relative">
-                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
+                    className="w-full pr-11 pl-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
                     placeholder="••••••••"
-                    disabled={loading}
+                    dir="ltr"
                   />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    جاري التسجيل...
-                  </div>
-                ) : (
-                  'تسجيل الدخول'
-                )}
-              </button>
-            </form>
-          ) : (
-            /* Signup Form */
-            <form onSubmit={handleSignup} className="space-y-6">
-              <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
-                <div className="flex items-center gap-4">
                   <button
                     type="button"
-                    onClick={() => setIsSecretary(false)}
-                    className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
-                      !isSecretary
-                        ? 'bg-teal-600 text-white'
-                        : 'bg-white text-gray-700 border border-gray-300'
-                    }`}
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    <Stethoscope className="inline w-4 h-4 ml-2" />
-                    طبيب
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsSecretary(true);
-                      loadDoctors();
-                    }}
-                    className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
-                      isSecretary
-                        ? 'bg-teal-600 text-white'
-                        : 'bg-white text-gray-700 border border-gray-300'
-                    }`}
-                  >
-                    <UserCheck className="inline w-4 h-4 ml-2" />
-                    سكرتيرة
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  الاسم الكامل *
+              {/* Remember & Forgot */}
+              <div className="flex items-center justify-between text-sm">
+                <a href="#" className="text-teal-600 hover:text-teal-700 font-semibold">
+                  نسيت كلمة المرور؟
+                </a>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 text-teal-600 rounded" />
+                  <span className="text-gray-600">تذكرني</span>
                 </label>
-                <div className="relative">
-                  <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="text"
-                    value={signupData.name}
-                    onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder={isSecretary ? "آية محمد" : "د. أحمد محمد"}
-                    disabled={loading}
-                  />
-                </div>
               </div>
 
-              {!isSecretary && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    التخصص
-                  </label>
-                  <div className="relative">
-                    <Stethoscope className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                      type="text"
-                      value={signupData.specialization}
-                      onChange={(e) => setSignupData({ ...signupData, specialization: e.target.value })}
-                      className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                      placeholder="أمراض النساء والتوليد"
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {isSecretary && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    اختر الطبيب المسؤول *
-                  </label>
-                  <div className="relative">
-                    <Stethoscope className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
-                    <select
-                      value={signupData.doctorId}
-                      onChange={(e) => setSignupData({ ...signupData, doctorId: e.target.value })}
-                      className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 bg-white"
-                      disabled={loading || doctors.length === 0}
-                    >
-                      <option value="">-- اختر طبيب --</option>
-                      {doctors.map((doctor) => (
-                        <option key={doctor.id} value={doctor.id}>
-                          د. {doctor.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  رقم الهاتف
-                </label>
-                <div className="relative">
-                  <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="tel"
-                    value={signupData.phone}
-                    onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="+966501234567"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  البريد الإلكتروني *
-                </label>
-                <div className="relative">
-                  <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="doctor@example.com"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  كلمة المرور *
-                </label>
-                <div className="relative">
-                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pr-12 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200"
-                    placeholder="••••••••"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex gap-3 items-start">
-                <AlertCircle size={20} className="text-rose-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-rose-800">
-                  تأكد من أن كلمة المرور قوية وسهلة الحفظ
-                </p>
-              </div>
-
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className="w-full py-3.5 bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-lg font-bold text-lg hover:from-teal-700 hover:to-teal-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
               >
                 {loading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    جاري التسجيل...
-                  </div>
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>جاري تسجيل الدخول...</span>
+                  </>
                 ) : (
-                  isSecretary ? 'إنشاء حساب السكرتيرة' : 'إنشاء حساب'
+                  <>
+                    <LogIn className="w-5 h-5" />
+                    <span>تسجيل الدخول</span>
+                  </>
                 )}
               </button>
             </form>
-          )}
 
-          {/* Toggle between Login/Signup */}
-          <div className="text-center space-y-4">
-            <button
-              onClick={() => {
-                setShowSignup(!showSignup);
-                setEmail('');
-                setPassword('');
-                setSignupData({ name: '', specialization: '', phone: '', doctorId: '' });
-              }}
-              className="text-teal-600 hover:text-teal-700 font-semibold transition-colors duration-200"
-              disabled={loading}
-            >
-              {showSignup ? 'هل لديك حساب؟ تسجيل الدخول' : 'ليس لديك حساب؟ إنشاء حساب'}
-            </button>
-          </div>
-
-          {/* Footer with Copyright and Developer Credits */}
-          <div className="pt-8 border-t border-gray-200 text-center text-gray-500 text-sm">
-            <p>Copyright © 2025 مركز د صلاح للخصوبة. All Rights Reserved.</p>
-            <p className="mt-1">تم التطوير بواسطة د. محمد صلاح جبر</p>
-            
-            <div className="mt-4 flex items-center justify-center gap-4">
-              <a
-                href="https://www.facebook.com/profile.php?id=100000785193419"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors font-medium"
-              >
-                <Facebook size={16} />
-                <span>تابعنا على فيسبوك</span>
+            {/* Signup Link */}
+            <p className="text-center text-gray-600 mt-6">
+              ليس لديك حساب؟{' '}
+              <a href="#" className="text-teal-600 hover:text-teal-700 font-bold">
+                سجل الآن
               </a>
-              <span className="text-gray-300">|</span>
-              <a
-                href="https://wa.me/201003418068"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors font-medium"
-              >
-                <MessageCircle size={16} />
-                <span>راسلنا على واتساب</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Side - Decorative Banner */}
-      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-teal-600 to-cyan-700 relative overflow-hidden">
-        {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-20"
-          style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')`
-          }}
-        />
-
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-teal-600/80 to-cyan-700/80" />
-
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-center items-center text-white p-12 text-center">
-          <div className="max-w-md">
-            <h2 className="text-4xl font-bold mb-6 leading-tight">
-              نرافقكم في رحلة الأمل
-            </h2>
-            <p className="text-xl mb-8 opacity-90 leading-relaxed">
-              نحن هنا لمساعدتكم في تحقيق أحلامكم في بناء أسرة سعيدة
             </p>
-            <div className="flex items-center justify-center gap-2 text-lg">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              <span>مركز د صلاح للخصوبة</span>
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            </div>
-          </div>
+          </motion.div>
         </div>
 
-        {/* Decorative Elements */}
-        <div className="absolute top-10 right-10 w-20 h-20 border-2 border-white/20 rounded-full"></div>
-        <div className="absolute bottom-10 left-10 w-16 h-16 bg-white/10 rounded-full"></div>
-        <div className="absolute top-1/2 left-10 w-12 h-12 border border-white/30 rounded-full"></div>
+        {/* Footer - Developer Rights */}
+        <div className="py-6 px-8 border-t border-gray-100 bg-gray-50">
+          <div className="text-center">
+            <p className="text-xs text-gray-400 mb-1">
+              © 2025 Dr. Salah Fertility Center. All Rights Reserved.
+            </p>
+            <p className="text-xs text-gray-600 font-bold">
+              تم التطوير بواسطة د. محمد صلاح جبر
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
