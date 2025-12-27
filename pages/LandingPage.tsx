@@ -1,15 +1,68 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Heart, Shield, Users, Calendar, FileText, TrendingUp, 
   CheckCircle, ArrowRight, Star, Zap, Award, Lock
 } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
 
 interface LandingPageProps {
   onLogin: () => void;
   onAdminLogin: () => void;
 }
 
+interface ContentData {
+  hero?: any;
+  features?: any;
+  pricing?: any;
+  cta?: any;
+  footer?: any;
+}
+
 const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
+  const [content, setContent] = useState<ContentData>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchContent();
+  }, []);
+
+  const fetchContent = async () => {
+    try {
+      const { data } = await supabase
+        .from('landing_page_content')
+        .select('*');
+      
+      if (data) {
+        const contentMap: any = {};
+        data.forEach(item => {
+          contentMap[item.section] = item.content;
+        });
+        setContent(contentMap);
+      }
+    } catch (error) {
+      console.log('Using default content');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Default content fallback
+  const heroContent = content.hero || {
+    title: 'إدارة احترافية',
+    subtitle: 'لعيادات الخصوبة',
+    description: 'نظام متكامل لإدارة عيادات الحقن المجهري وأمراض النساء والتوليد.'
+  };
+
+  const pricingContent = content.pricing || {
+    title: 'خطط أسعار مرنة',
+    subtitle: 'ابدأ مجاناً لمدة 14 يوم',
+    plans: [
+      { name: 'الخطة الأساسية', price: 4999, features: ['حتى 50 مريض', 'مستخدم واحد', '1 جيجا تخزين', 'دعم فني أساسي'] },
+      { name: 'الخطة المتقدمة', price: 9999, features: ['حتى 200 مريض', '3 مستخدمين', '5 جيجا تخزين', 'دعم فني متقدم 24/7', 'تقارير متقدمة'] },
+      { name: 'الخطة الاحترافية', price: 19999, features: ['مرضى غير محدودين', 'مستخدمين غير محدودين', 'تخزين غير محدود', 'دعم VIP مخصص', 'تدريب شخصي', 'تخصيص كامل'] }
+    ]
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50 font-[Tajawal]">
       {/* Navbar */}
@@ -247,142 +300,72 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-800 mb-4">
-              خطط أسعار مرنة تناسب احتياجاتك
+              {pricingContent.title}
             </h2>
             <p className="text-xl text-gray-600">
-              ابدأ مجاناً لمدة 14 يوم، بدون بطاقة ائتمانية
+              {pricingContent.subtitle}
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Basic Plan */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-shadow">
-              <div className="text-right">
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">الخطة الأساسية</h3>
-                <div className="flex items-baseline justify-end gap-2 mb-6">
-                  <span className="text-gray-500">/شهرياً</span>
-                  <span className="text-5xl font-bold text-teal-600">₪4,999</span>
+            {pricingContent.plans && pricingContent.plans.map((plan: any, index: number) => (
+              <div
+                key={index}
+                className={`relative bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-shadow ${
+                  index === 1 ? 'ring-2 ring-teal-500 md:scale-105' : ''
+                }`}
+              >
+                {index === 1 && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-gray-800 px-4 py-1 rounded-full text-sm font-bold shadow-lg">
+                    ⭐ الأكثر شعبية
+                  </div>
+                )}
+                <div className="text-right">
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">{plan.name}</h3>
+                  <div className="flex items-baseline justify-end gap-2 mb-6">
+                    <span className={index === 1 ? 'text-teal-100' : 'text-gray-500'}>/شهرياً</span>
+                    <span className={`text-5xl font-bold ${index === 1 ? 'text-teal-600' : 'text-teal-600'}`}>
+                      ₪{plan.price?.toLocaleString('ar-SA')}
+                    </span>
+                  </div>
+                  <ul className="space-y-4 mb-8 text-right">
+                    {plan.features && plan.features.map((feature: string, fIdx: number) => (
+                      <li key={fIdx} className="flex items-start gap-3 justify-end">
+                        <span className={index === 1 ? 'text-gray-700' : 'text-gray-600'}>{feature}</span>
+                        <CheckCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                          index === 1 ? 'text-yellow-400' : 'text-green-500'
+                        }`} />
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={onLogin}
+                    className={`w-full py-3 rounded-xl font-bold transition-colors ${
+                      index === 1
+                        ? 'bg-gradient-to-r from-teal-500 to-blue-600 text-white hover:shadow-lg'
+                        : 'border-2 border-teal-500 text-teal-600 hover:bg-teal-50'
+                    }`}
+                  >
+                    ابدأ التجربة المجانية
+                  </button>
                 </div>
-                <ul className="space-y-4 mb-8 text-right">
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-gray-600">حتى 50 مريض</span>
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  </li>
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-gray-600">مستخدم واحد</span>
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  </li>
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-gray-600">1 جيجا تخزين</span>
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  </li>
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-gray-600">دعم فني أساسي</span>
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  </li>
-                </ul>
-                <button
-                  onClick={onLogin}
-                  className="w-full py-3 border-2 border-teal-500 text-teal-600 rounded-xl font-bold hover:bg-teal-50 transition-colors"
-                >
-                  ابدأ التجربة المجانية
-                </button>
               </div>
-            </div>
-
-            {/* Standard Plan - Popular */}
-            <div className="bg-gradient-to-br from-teal-500 to-blue-600 rounded-2xl p-8 shadow-2xl transform scale-105 relative">
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-gray-800 px-4 py-1 rounded-full text-sm font-bold shadow-lg">
-                ⭐ الأكثر شعبية
-              </div>
-              <div className="text-right">
-                <h3 className="text-2xl font-bold text-white mb-2">الخطة المتقدمة</h3>
-                <div className="flex items-baseline justify-end gap-2 mb-6">
-                  <span className="text-teal-100">/شهرياً</span>
-                  <span className="text-5xl font-bold text-white">₪9,999</span>
-                </div>
-                <ul className="space-y-4 mb-8 text-right">
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-white">حتى 200 مريض</span>
-                    <CheckCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                  </li>
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-white">3 مستخدمين</span>
-                    <CheckCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                  </li>
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-white">5 جيجا تخزين</span>
-                    <CheckCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                  </li>
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-white">دعم فني متقدم 24/7</span>
-                    <CheckCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                  </li>
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-white">تقارير متقدمة</span>
-                    <CheckCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                  </li>
-                </ul>
-                <button
-                  onClick={onLogin}
-                  className="w-full py-3 bg-white text-teal-600 rounded-xl font-bold hover:bg-gray-50 transition-colors shadow-lg"
-                >
-                  ابدأ التجربة المجانية
-                </button>
-              </div>
-            </div>
-
-            {/* Enterprise Plan */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-shadow">
-              <div className="text-right">
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">الخطة الاحترافية</h3>
-                <div className="flex items-baseline justify-end gap-2 mb-6">
-                  <span className="text-gray-500">/شهرياً</span>
-                  <span className="text-5xl font-bold text-teal-600">₪19,999</span>
-                </div>
-                <ul className="space-y-4 mb-8 text-right">
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-gray-600">مرضى غير محدودين</span>
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  </li>
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-gray-600">مستخدمين غير محدودين</span>
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  </li>
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-gray-600">تخزين غير محدود</span>
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  </li>
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-gray-600">دعم VIP مخصص</span>
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  </li>
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-gray-600">تدريب شخصي</span>
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  </li>
-                  <li className="flex items-start gap-3 justify-end">
-                    <span className="text-gray-600">تخصيص كامل</span>
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  </li>
-                </ul>
-                <button
-                  onClick={onLogin}
-                  className="w-full py-3 border-2 border-teal-500 text-teal-600 rounded-xl font-bold hover:bg-teal-50 transition-colors"
-                >
-                  تواصل معنا
-                </button>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-teal-600 to-blue-600">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+      <section className="py-20 bg-gradient-to-r from-teal-500 to-blue-600 relative overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl"></div>
+        </div>
+
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            جاهز لتحويل عيادتك إلى مستوى جديد؟
+            جاهز للبدء؟
           </h2>
           <p className="text-xl text-teal-50 mb-8">
             انضم إلى مئات الأطباء الذين يثقون في نايل IVF
