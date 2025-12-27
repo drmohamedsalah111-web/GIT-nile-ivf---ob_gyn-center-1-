@@ -70,38 +70,38 @@ export const authService: AuthService = {
 
   getCurrentUser: async () => {
     try {
-      // 1. First try to refresh the session if it exists
+      // 1. First try to get the current session
       const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
+      // 2. If we have a session, try to refresh it
       if (currentSession?.refresh_token) {
         try {
           const { data, error } = await supabase.auth.refreshSession();
-          if (error) {
-            console.warn('⚠️ Session refresh failed:', error.message);
-          } else if (data?.user) {
+          if (!error && data?.user) {
             console.log('✅ Session refreshed successfully');
             return data.user;
           }
-        } catch (refreshError) {
-          console.warn('⚠️ Session refresh error:', refreshError);
+        } catch (refreshError: any) {
+          console.log('Session refresh attempt:', refreshError?.message);
         }
       }
 
-      // 2. Try strict server verification (Secure)
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      return user;
-    } catch (error: any) {
-      // 3. If Network Error ("Failed to fetch"), Fallback to Local Session
-      if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
-        console.warn('Offline mode: Verifying local session...');
-        const { data: { session } } = await supabase.auth.getSession();
-        // If we have a valid local session, allow access
-        if (session?.user) {
-          return session.user;
-        }
+      // 3. Return current user if session exists
+      if (currentSession?.user) {
+        return currentSession.user;
       }
-      // Real auth error? Re-throw
-      throw error;
+
+      // 4. Try strict server verification (Secure)
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (user) {
+        return user;
+      }
+      
+      // 5. No valid session
+      return null;
+    } catch (error: any) {
+      console.log('Auth check result: No active session');
+      return null;
     }
   },
 

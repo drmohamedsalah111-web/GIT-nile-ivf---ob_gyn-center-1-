@@ -52,48 +52,55 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
 
-      // Get doctor branding from Supabase
-      const { data: results, error: fetchError } = await supabase
-        .from('doctors')
-        .select('*')
-        .eq('user_id', user.id)
-        .limit(1);
+      // Get doctor branding from Supabase with error handling
+      try {
+        const { data: results, error: fetchError } = await supabase
+          .from('doctors')
+          .select('*')
+          .eq('user_id', user.id)
+          .limit(1);
 
-      if (fetchError) {
-        console.error('Error fetching doctor branding:', fetchError);
-        throw fetchError;
-      }
+        if (fetchError) {
+          console.warn('Warning: Could not fetch doctor branding -', fetchError.message);
+          // Use default branding if fetch fails (e.g., RLS policy issue)
+          setBranding(getDefaultBranding());
+          return;
+        }
 
-      if (results && results.length > 0) {
-        const doctor = results[0] as any;
-        setBranding({
-          id: doctor.id,
-          name: doctor.name || '',
-          clinic_name: doctor.clinic_name || null,
-          logo_url: doctor.clinic_image || null,
-          clinic_address: doctor.clinic_address || null,
-          clinic_phone: doctor.clinic_phone || null,
-          primary_color: doctor.primary_color || '#2d5a6b',
-          secondary_color: doctor.secondary_color || '#00838f',
-          accent_color: doctor.accent_color || '#00bcd4',
-          background_color: doctor.background_color || '#ffffff',
-          text_color: doctor.text_color || '#1f2937',
-          header_font: doctor.header_font || 'Tajawal',
-          body_font: doctor.body_font || 'Tajawal',
-          button_style: doctor.button_style || 'rounded',
-          card_style: doctor.card_style || 'shadow',
-          default_rx_notes: doctor.default_rx_notes || null,
-          prescription_header: doctor.prescription_header || null,
-          prescription_footer: doctor.prescription_footer || null,
-          clinic_watermark: doctor.clinic_watermark || null,
-          updated_at: doctor.updated_at || new Date().toISOString(),
-        });
-      } else {
+        if (results && results.length > 0) {
+          const doctor = results[0] as any;
+          setBranding({
+            id: doctor.id,
+            name: doctor.name || '',
+            clinic_name: doctor.clinic_name || null,
+            logo_url: doctor.clinic_image || null,
+            clinic_address: doctor.clinic_address || null,
+            clinic_phone: doctor.clinic_phone || null,
+            primary_color: doctor.primary_color || '#2d5a6b',
+            secondary_color: doctor.secondary_color || '#00838f',
+            accent_color: doctor.accent_color || '#00bcd4',
+            background_color: doctor.background_color || '#ffffff',
+            text_color: doctor.text_color || '#1f2937',
+            header_font: doctor.header_font || 'Tajawal',
+            body_font: doctor.body_font || 'Tajawal',
+            button_style: doctor.button_style || 'rounded',
+            card_style: doctor.card_style || 'shadow',
+            default_rx_notes: doctor.default_rx_notes || null,
+            prescription_header: doctor.prescription_header || null,
+            prescription_footer: doctor.prescription_footer || null,
+            clinic_watermark: doctor.clinic_watermark || null,
+            updated_at: doctor.updated_at || new Date().toISOString(),
+          });
+        } else {
+          setBranding(getDefaultBranding());
+        }
+      } catch (queryError: any) {
+        console.warn('Query error while fetching branding:', queryError?.message);
         setBranding(getDefaultBranding());
       }
-    } catch (err) {
-      console.error('Failed to fetch doctor branding:', err);
-      setError('فشل تحميل إعدادات الهوية البصرية');
+    } catch (err: any) {
+      console.warn('Branding initialization - using defaults:', err?.message);
+      setError(null); // Don't show error to user, just use defaults
       setBranding(getDefaultBranding());
     } finally {
       setLoading(false);
