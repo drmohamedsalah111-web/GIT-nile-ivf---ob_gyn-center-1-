@@ -84,7 +84,7 @@ export const DailyIncomeReport: React.FC<DailyIncomeReportProps> = ({ clinicId }
       inv.patients?.name || 'غير محدد',
       inv.total_amount,
       inv.payment_method,
-      inv.invoice_type === 'Service' ? 'خدمة' : 'قسط',
+      inv.invoice_type === 'service' || inv.invoice_type === 'Service' ? 'خدمة' : 'قسط',
       new Date(inv.created_at).toLocaleTimeString('ar-EG'),
     ]);
 
@@ -353,16 +353,16 @@ export const DailyIncomeReport: React.FC<DailyIncomeReportProps> = ({ clinicId }
                   <td className="px-6 py-4">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        invoice.invoice_type === 'Service'
+                        invoice.invoice_type === 'service' || invoice.invoice_type === 'Service'
                           ? 'bg-blue-100 text-blue-700'
-                          : invoice.invoice_type === 'Installment'
+                          : invoice.invoice_type === 'installment' || invoice.invoice_type === 'Installment'
                           ? 'bg-green-100 text-green-700'
                           : 'bg-amber-100 text-amber-700'
                       }`}
                     >
-                      {invoice.invoice_type === 'Service'
+                      {invoice.invoice_type === 'service' || invoice.invoice_type === 'Service'
                         ? 'خدمة'
-                        : invoice.invoice_type === 'Installment'
+                        : invoice.invoice_type === 'installment' || invoice.invoice_type === 'Installment'
                         ? 'قسط'
                         : 'باقة'}
                     </span>

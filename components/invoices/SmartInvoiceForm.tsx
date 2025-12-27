@@ -392,7 +392,7 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
           payment_method: invoice.paymentMethod,
           payment_reference: invoice.paymentReference || null,
           status: 'Paid',
-          invoice_type: 'Service',
+          invoice_type: 'service',
           notes: invoice.notes || null,
           created_by: secretaryId,
           created_at: new Date().toISOString()

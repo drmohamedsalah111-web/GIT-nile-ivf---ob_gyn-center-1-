@@ -2,6 +2,7 @@
 -- تحديث constraints جدول الفواتير (Update Invoices Constraints)
 -- ============================================================================
 -- هذا السكريبت يحدّث الـ check constraints لتتوافق مع التطبيق
+-- ملاحظة: التطبيق يستخدم PascalCase مثل 'Service', 'Installment'
 -- ============================================================================
 
 -- ============================================================================
@@ -12,20 +13,20 @@ ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_payment_method_check;
 ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_status_check;
 
 -- ============================================================================
--- 2. إضافة الـ constraints الجديدة (lowercase)
+-- 2. إضافة الـ constraints الجديدة (تقبل كلا الحالتين)
 -- ============================================================================
 
--- نوع الفاتورة (service, package, installment, other)
+-- نوع الفاتورة (يقبل uppercase و lowercase)
 ALTER TABLE invoices ADD CONSTRAINT invoices_invoice_type_check 
-  CHECK (invoice_type IN ('service', 'package', 'installment', 'other'));
+  CHECK (invoice_type IN ('service', 'package', 'installment', 'other', 'Service', 'Package', 'Installment', 'Other'));
 
--- طريقة الدفع (cash, visa, bank_transfer, insurance, deferred)
+-- طريقة الدفع (يقبل uppercase و lowercase)
 ALTER TABLE invoices ADD CONSTRAINT invoices_payment_method_check 
-  CHECK (payment_method IN ('cash', 'visa', 'bank_transfer', 'insurance', 'deferred'));
+  CHECK (payment_method IN ('cash', 'visa', 'bank_transfer', 'insurance', 'deferred', 'Cash', 'Visa', 'Bank Transfer', 'Insurance', 'Deferred'));
 
--- الحالة (draft, paid, cancelled, refunded)
+-- الحالة (يقبل uppercase و lowercase)
 ALTER TABLE invoices ADD CONSTRAINT invoices_status_check 
-  CHECK (status IN ('draft', 'paid', 'cancelled', 'refunded'));
+  CHECK (status IN ('draft', 'paid', 'cancelled', 'refunded', 'Draft', 'Paid', 'Cancelled', 'Refunded'));
 
 -- ============================================================================
 -- 3. تحديث القيم الافتراضية

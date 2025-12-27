@@ -76,7 +76,7 @@ export interface Invoice {
   total_amount: number;
   payment_method: 'Cash' | 'Visa' | 'Bank Transfer' | 'Insurance' | 'Deferred';
   payment_reference?: string;
-  invoice_type: 'Service' | 'Installment' | 'Package';
+  invoice_type: 'service' | 'installment' | 'package';
   case_id?: string;
   installment_id?: string;
   status: 'Draft' | 'Paid' | 'Cancelled' | 'Refunded';
@@ -463,7 +463,7 @@ export const invoicesAPI = {
         tax: 0,
         total_amount: total,
         payment_method: paymentMethod,
-        invoice_type: 'Service',
+        invoice_type: 'service',
         status: 'Paid',
         notes,
         created_by: (await supabase.auth.getUser()).data.user?.id,
@@ -511,7 +511,7 @@ export const invoicesAPI = {
         tax: 0,
         total_amount: amount,
         payment_method: paymentMethod,
-        invoice_type: 'Installment',
+        invoice_type: 'installment',
         case_id: caseId,
         installment_id: installmentId,
         status: 'Paid',
@@ -605,11 +605,11 @@ export const invoicesAPI = {
     data.forEach((invoice) => {
       summary.total += invoice.total_amount;
 
-      if (invoice.invoice_type === 'Service') {
+      if (invoice.invoice_type === 'service' || invoice.invoice_type === 'Service') {
         summary.serviceRevenue += invoice.total_amount;
-      } else if (invoice.invoice_type === 'Installment') {
+      } else if (invoice.invoice_type === 'installment' || invoice.invoice_type === 'Installment') {
         summary.installmentRevenue += invoice.total_amount;
-      } else if (invoice.invoice_type === 'Package') {
+      } else if (invoice.invoice_type === 'package' || invoice.invoice_type === 'Package') {
         summary.packageRevenue += invoice.total_amount;
       }
 
