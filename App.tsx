@@ -66,27 +66,33 @@ const App: React.FC = () => {
     const initializeApp = async () => {
       try {
         setLoading(true);
-        const currentUser = await authService.getCurrentUser();
-        
-        // Check if this is an admin login session
-        const adminLoginFlag = localStorage.getItem('adminLogin');
-        if (adminLoginFlag === 'true' && currentUser) {
-          setIsAdminLogin(true);
-          setActivePage(Page.SUPER_ADMIN);
-        }
-        
-        setUser(currentUser);
-        
-        if (currentUser) {
-          const role = await authService.getUserRole(currentUser.id);
-          console.log('Current User Role:', role); // Debug log
-          setUserRole((role as any) || 'doctor');
+        try {
+          const currentUser = await authService.getCurrentUser();
           
-          if (role === 'secretary') {
-            toast.success('تم تسجيل الدخول كسكرتيرة', { icon: '👩‍💼' });
-          } else {
-            // toast('تم تسجيل الدخول كطبيب', { icon: '👨‍⚕️' });
+          // Check if this is an admin login session
+          const adminLoginFlag = localStorage.getItem('adminLogin');
+          if (adminLoginFlag === 'true' && currentUser) {
+            setIsAdminLogin(true);
+            setActivePage(Page.SUPER_ADMIN);
           }
+          
+          setUser(currentUser);
+          
+          if (currentUser) {
+            const role = await authService.getUserRole(currentUser.id);
+            console.log('Current User Role:', role); // Debug log
+            setUserRole((role as any) || 'doctor');
+            
+            if (role === 'secretary') {
+              toast.success('تم تسجيل الدخول كسكرتيرة', { icon: '👩‍💼' });
+            } else {
+              // toast('تم تسجيل الدخول كطبيب', { icon: '👨‍⚕️' });
+            }
+          }
+        } catch (authError: any) {
+          // Session not yet initialized, this is normal on first load
+          console.log('Session not yet ready:', authError?.message);
+          setUser(null);
         }
       } catch (error: any) {
         console.error('App init error:', error?.message || error);
@@ -103,6 +109,8 @@ const App: React.FC = () => {
         authService.getUserRole(nextUser.id).then(role => {
           console.log('Auth State Change Role:', role); // Debug log
           setUserRole((role as any) || 'doctor');
+        }).catch(err => {
+          console.log('Error fetching role on auth change:', err);
         });
       }
     });

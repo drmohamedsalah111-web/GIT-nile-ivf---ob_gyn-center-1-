@@ -402,8 +402,7 @@ export async function getAllClinicSubscriptions(): Promise<ClinicSubscriptionWit
     .from('clinic_subscriptions')
     .select(`
       *,
-      plan:subscription_plans(*),
-      clinic:doctors(id, name, email, phone)
+      plan:subscription_plans(*)
     `)
     .order('end_date', { ascending: true });
 
