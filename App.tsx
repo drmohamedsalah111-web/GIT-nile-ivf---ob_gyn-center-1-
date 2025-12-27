@@ -30,6 +30,7 @@ import { Login } from './pages/Login';
 import SaaSManagement from './pages/admin/SaaSManagement';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import AdminLoginPage from './pages/AdminLoginPage';
+import LandingPage from './pages/LandingPage';
 import { adminAuthService } from './services/adminAuthService';
 
 import LabReferencesModal from './src/components/LabReferencesModal';
@@ -49,6 +50,7 @@ const App: React.FC = () => {
   const [showLabReferences, setShowLabReferences] = useState(false);
   const [isAdminLogin, setIsAdminLogin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [showLanding, setShowLanding] = useState(true); // Show landing page initially
 
   // Helper function to get clinic ID based on user role
   const getClinicId = (): string | null => {
@@ -191,11 +193,29 @@ const App: React.FC = () => {
 
   // صفحة دخول المستخدم العادي
   if (!user) {
+    // عرض صفحة الهبوط أولاً
+    if (showLanding) {
+      return (
+        <>
+          <LandingPage 
+            onLogin={() => setShowLanding(false)}
+            onAdminLogin={() => {
+              setShowLanding(false);
+              setShowAdminLogin(true);
+            }}
+          />
+          <Toaster position="top-center" reverseOrder={false} />
+        </>
+      );
+    }
+    
+    // صفحة تسجيل الدخول العادية
     return (
       <>
         <Login 
           onLoginSuccess={() => window.location.reload()}
           onAdminAccess={() => setShowAdminLogin(true)}
+          onBack={() => setShowLanding(true)}
         />
         <Toaster position="top-center" reverseOrder={false} />
       </>

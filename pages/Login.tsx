@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { authService } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
-import { LogIn, AlertCircle, Mail, Lock, User, Phone, Stethoscope, Facebook, MessageCircle, UserCheck, Shield } from 'lucide-react';
+import { LogIn, AlertCircle, Mail, Lock, User, Phone, Stethoscope, Facebook, MessageCircle, UserCheck, Shield, ArrowLeft, Heart } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: () => void;
   onAdminAccess?: () => void;
+  onBack?: () => void; // للرجوع لصفحة الهبوط
 }
 
-export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess }) => {
+export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -120,6 +121,17 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess }) =
 
   return (
     <div className="min-h-screen flex font-[Tajawal]" dir="rtl">
+      {/* زر الرجوع لصفحة الهبوط */}
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm hover:bg-gray-50 text-gray-700 rounded-lg shadow-lg transition-all"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="font-semibold">العودة للصفحة الرئيسية</span>
+        </button>
+      )}
+
       {/* Left Side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-white md:w-1/2">
         <div className="w-full max-w-md space-y-8">
