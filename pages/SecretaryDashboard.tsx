@@ -982,7 +982,7 @@ const SecretaryDashboard: React.FC = () => {
               {activeView === 'invoices' && secretary && (
                 <div>
                   <InvoicesManagementPage
-                    secretaryId={secretary.id}
+                    secretaryId={secretary.user_id || secretary.id}
                     doctorId={secretary.secretary_doctor_id}
                     secretaryName={secretary.name || secretary.email?.split('@')[0] || 'السكرتيرة'}
                   />
@@ -993,7 +993,7 @@ const SecretaryDashboard: React.FC = () => {
               {activeView === 'collections' && secretary && (
                 <CollectionsManagement
                   doctorId={secretary.secretary_doctor_id}
-                  secretaryId={secretary.id}
+                  secretaryId={secretary.user_id || secretary.id}
                   secretaryName={secretary.name || secretary.email?.split('@')[0] || 'السكرتيرة'}
                 />
               )}

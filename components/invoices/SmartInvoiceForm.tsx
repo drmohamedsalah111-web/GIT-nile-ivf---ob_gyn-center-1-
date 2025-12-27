@@ -389,9 +389,9 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
             : invoice.discount,
           tax: (invoice.subtotal * invoice.tax) / 100,
           total_amount: invoice.total,
-          payment_method: invoice.paymentMethod,
+          payment_method: invoice.paymentMethod.toLowerCase().replace(' ', '_'),
           payment_reference: invoice.paymentReference || null,
-          status: 'Paid',
+          status: 'paid',
           invoice_type: 'service',
           notes: invoice.notes || null,
           created_by: secretaryId,
@@ -405,10 +405,11 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
       // Create invoice items
       const invoiceItems = invoice.items.map(item => ({
         invoice_id: invoiceData.id,
+        service_name: item.description,
         description: item.description,
         quantity: item.quantity,
         unit_price: item.unitPrice,
-        total: item.total
+        total_price: item.total
       }));
 
       const { error: itemsError } = await supabase
