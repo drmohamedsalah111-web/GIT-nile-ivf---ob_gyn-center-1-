@@ -29,9 +29,25 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
 
     setLoading(true);
     try {
-      await authService.login(email, password);
-      toast.success('تم تسجيل الدخول بنجاح');
-      window.location.reload();
+      const data = await authService.login(email, password);
+      
+      if (data && data.user) {
+        // تحقق من دور المستخدم في قاعدة البيانات
+        const actualRole = await authService.getUserRole(data.user.id);
+        
+        // تحقق من تطابق الدور المختار مع الدور الفعلي
+        if (actualRole !== selectedRole) {
+          toast.error(`⚠️ هذا الحساب مسجل كـ ${actualRole === 'doctor' ? 'طبيب' : 'سكرتيرة'} وليس ${selectedRole === 'doctor' ? 'طبيب' : 'سكرتيرة'}`, {
+            duration: 4000
+          });
+          await authService.logout();
+          setLoading(false);
+          return;
+        }
+        
+        toast.success(`✅ مرحباً! تم تسجيل الدخول كـ ${selectedRole === 'doctor' ? 'طبيب' : 'سكرتيرة'}`);
+        onLoginSuccess();
+      }
     } catch (error: any) {
       toast.error(error.message || 'فشل تسجيل الدخول');
       setLoading(false);
