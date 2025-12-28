@@ -94,7 +94,7 @@ export interface InvoiceItem {
   description?: string;
   quantity: number;
   unit_price: number;
-  total_price: number;
+  total: number;
   created_at: string;
 }
 
@@ -449,7 +449,7 @@ export const invoicesAPI = {
     discount = 0,
     notes?: string
   ) {
-    const subtotal = items.reduce((sum, item) => sum + (item.total_price || 0), 0);
+    const subtotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
     const total = subtotal - discount;
 
     const { data: invoice, error: invoiceError } = await supabase

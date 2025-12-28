@@ -49,50 +49,71 @@ CREATE INDEX IF NOT EXISTS idx_service_requests_status ON service_requests(statu
 CREATE INDEX IF NOT EXISTS idx_service_requests_requested_by ON service_requests(requested_by);
 CREATE INDEX IF NOT EXISTS idx_service_requests_created_at ON service_requests(created_at DESC);
 
+-- Add role column to doctors table if not exists
+ALTER TABLE doctors 
+ADD COLUMN IF NOT EXISTS role text DEFAULT 'doctor' CHECK (role IN ('doctor', 'secretary', 'admin', 'nurse'));
+
 -- Enable RLS
 ALTER TABLE service_requests ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for service_requests
+DROP POLICY IF EXISTS "Doctors can insert service requests" ON service_requests;
 CREATE POLICY "Doctors can insert service requests"
     ON service_requests FOR INSERT
     WITH CHECK (
         auth.uid() IN (SELECT user_id FROM doctors WHERE id = requested_by)
     );
 
+DROP POLICY IF EXISTS "Doctors can view their own requests" ON service_requests;
 CREATE POLICY "Doctors can view their own requests"
     ON service_requests FOR SELECT
     USING (
         auth.uid() IN (SELECT user_id FROM doctors WHERE id = requested_by)
     );
 
+DROP POLICY IF EXISTS "Secretary can view all service requests" ON service_requests;
 CREATE POLICY "Secretary can view all service requests"
     ON service_requests FOR SELECT
     USING (
         EXISTS (
             SELECT 1 FROM doctors 
             WHERE user_id = auth.uid() 
-            AND role = 'secretary'
+            AND (role = 'secretary' OR role = 'admin')
         )
     );
 
+DROP POLICY IF EXISTS "Secretary can update service requests" ON service_requests;
 CREATE POLICY "Secretary can update service requests"
     ON service_requests FOR UPDATE
     USING (
         EXISTS (
             SELECT 1 FROM doctors 
             WHERE user_id = auth.uid() 
-            AND role = 'secretary'
+            AND (role = 'secretary' OR role = 'admin')
         )
     );
 
 -- 3. Update invoices table to link with appointments
 -- --------------------------------------------
 
+-- Add missing columns to invoices table
 ALTER TABLE invoices 
+ADD COLUMN IF NOT EXISTS patient_id uuid REFERENCES patients(id) ON DELETE SET NULL,
+ADD COLUMN IF NOT EXISTS clinic_id uuid REFERENCES doctors(clinic_id) ON DELETE SET NULL,
 ADD COLUMN IF NOT EXISTS appointment_id uuid REFERENCES appointments(id) ON DELETE SET NULL,
-ADD COLUMN IF NOT EXISTS is_from_service_request boolean DEFAULT false;
+ADD COLUMN IF NOT EXISTS total_amount numeric(10,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS paid_amount numeric(10,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS payment_method text DEFAULT 'cash' CHECK (payment_method IN ('cash', 'visa', 'bank_transfer', 'insurance')),
+ADD COLUMN IF NOT EXISTS status text DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'partially_paid', 'cancelled', 'refunded')),
+ADD COLUMN IF NOT EXISTS is_from_service_request boolean DEFAULT false,
+ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now(),
+ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
 
 CREATE INDEX IF NOT EXISTS idx_invoices_appointment ON invoices(appointment_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_patient ON invoices(patient_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_clinic ON invoices(clinic_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON invoices(created_at DESC);
 
 -- 4. Create function to auto-update appointment amounts
 -- --------------------------------------------
@@ -105,7 +126,7 @@ BEGIN
         UPDATE appointments
         SET 
             amount_required = (
-                SELECT COALESCE(SUM(total), 0)
+                SELECT COALESCE(SUM(total_amount), 0)
                 FROM invoices
                 WHERE appointment_id = NEW.appointment_id
             ),
@@ -116,7 +137,7 @@ BEGIN
             ),
             payment_status = CASE
                 WHEN (SELECT COALESCE(SUM(paid_amount), 0) FROM invoices WHERE appointment_id = NEW.appointment_id) >= 
-                     (SELECT COALESCE(SUM(total), 0) FROM invoices WHERE appointment_id = NEW.appointment_id)
+                     (SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE appointment_id = NEW.appointment_id)
                 THEN 'paid'::payment_status_enum
                 WHEN (SELECT COALESCE(SUM(paid_amount), 0) FROM invoices WHERE appointment_id = NEW.appointment_id) > 0
                 THEN 'partially_paid'::payment_status_enum
@@ -132,7 +153,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Create trigger for invoice updates
 DROP TRIGGER IF EXISTS trg_update_appointment_totals ON invoices;
 CREATE TRIGGER trg_update_appointment_totals
-    AFTER INSERT OR UPDATE OF paid_amount, total
+    AFTER INSERT OR UPDATE OF paid_amount, total_amount
     ON invoices
     FOR EACH ROW
     WHEN (NEW.appointment_id IS NOT NULL)
@@ -203,8 +224,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE VIEW secretary_queue_view AS
 SELECT 
     a.id as appointment_id,
-    a.date as appointment_date,
-    a.time as appointment_time,
+    a.appointment_date,
+    a.appointment_date::time as appointment_time,
     a.status as appointment_status,
     a.payment_status,
     a.checked_in_at,
@@ -213,7 +234,6 @@ SELECT
     p.id as patient_id,
     p.name as patient_name,
     p.phone as patient_phone,
-    p.total_debt as patient_old_debt,
     d.name as doctor_name,
     -- Count pending service requests
     (SELECT COUNT(*) FROM service_requests sr 
@@ -221,8 +241,8 @@ SELECT
 FROM appointments a
 JOIN patients p ON a.patient_id = p.id
 LEFT JOIN doctors d ON a.doctor_id = d.id
-WHERE a.date = CURRENT_DATE
-ORDER BY a.time ASC;
+WHERE a.appointment_date::date = CURRENT_DATE
+ORDER BY a.appointment_date ASC;
 
 -- Grant access to secretary role
 GRANT SELECT ON secretary_queue_view TO authenticated;
@@ -233,8 +253,8 @@ GRANT SELECT ON secretary_queue_view TO authenticated;
 CREATE OR REPLACE VIEW doctor_queue_view AS
 SELECT 
     a.id as appointment_id,
-    a.date as appointment_date,
-    a.time as appointment_time,
+    a.appointment_date,
+    a.appointment_date::time as appointment_time,
     a.status as appointment_status,
     a.payment_status,
     a.checked_in_at,
@@ -250,8 +270,8 @@ SELECT
     END as access_status
 FROM appointments a
 JOIN patients p ON a.patient_id = p.id
-WHERE a.date = CURRENT_DATE
-ORDER BY a.time ASC;
+WHERE a.appointment_date::date = CURRENT_DATE
+ORDER BY a.appointment_date ASC;
 
 GRANT SELECT ON doctor_queue_view TO authenticated;
 

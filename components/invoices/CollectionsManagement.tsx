@@ -130,14 +130,18 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
     const pendingAmount = invoiceList
       .filter(inv => inv.status?.toLowerCase() !== 'paid')
       .reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+    const totalCollected = invoiceList
+      .filter(inv => inv.status?.toLowerCase() === 'paid')
+      .reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
     const totalAmount = invoiceList.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
 
     setStats({
       totalPending: pending,
       totalPaid: paid,
       totalInvoices: invoiceList.length,
-      collectionRate: totalAmount > 0 ? Math.round((paid / invoiceList.length) * 100) : 0,
-      pendingAmount
+      collectionRate: totalAmount > 0 ? Math.round((totalCollected / totalAmount) * 100) : 0,
+      pendingAmount,
+      totalCollected
     });
   };
 
@@ -457,9 +461,7 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
                 إجمالي المقبوضات
               </h3>
               <p className="text-3xl font-bold text-purple-600">
-                {(stats.totalInvoices > 0 && stats.totalInvoices > 0
-                  ? ((stats.totalInvoices - stats.totalPending) * 100)
-                  : 0).toLocaleString('ar-EG')} ج.م
+                {stats.totalCollected.toLocaleString('ar-EG')} ج.م
               </p>
               <p className="text-sm text-gray-600 mt-2">المجموع الذي تم تحصيله</p>
             </div>
