@@ -151,10 +151,10 @@ CREATE POLICY "Doctors can view all clinic service requests"
     );
 
 
--- Drop and recreate doctor_financial_monitor_view to avoid column rename conflicts
+-- Drop and recreate doctor_financial_monitor_view to enforce global standards
 DROP VIEW IF EXISTS doctor_financial_monitor_view;
 
--- Enhanced doctor-only financial monitor view (smart, with control columns)
+-- Doctor financial monitor view: global standards, clinic-linked, smart alerts
 CREATE OR REPLACE VIEW doctor_financial_monitor_view AS
 SELECT 
     i.id as invoice_id,
@@ -176,9 +176,7 @@ SELECT
     d.name as doctor_name,
     d.clinic_id,
     (i.total - i.paid_amount) as outstanding_amount,
-    -- Smart overdue days
     EXTRACT(DAY FROM NOW() - i.created_at) as overdue_days,
-    -- Smart alert level
     CASE 
         WHEN i.paid_amount < i.total AND EXTRACT(DAY FROM NOW() - i.created_at) > 7 THEN 'urgent'
         WHEN i.paid_amount < i.total AND EXTRACT(DAY FROM NOW() - i.created_at) > 3 THEN 'high'
@@ -197,8 +195,19 @@ LEFT JOIN appointments a ON i.appointment_id = a.id
 LEFT JOIN patients p ON i.patient_id = p.id
 LEFT JOIN doctors d ON a.doctor_id = d.id
 LEFT JOIN service_requests sr ON sr.appointment_id = a.id
-WHERE d.user_id = auth.uid()
+WHERE d.clinic_id = (SELECT clinic_id FROM doctors WHERE user_id = auth.uid())
 ORDER BY i.created_at DESC;
+
+-- Doctor can see all audit logs for his clinic (global standard)
+DROP VIEW IF EXISTS doctor_audit_log_view;
+CREATE OR REPLACE VIEW doctor_audit_log_view AS
+SELECT l.*
+FROM financial_audit_log l
+JOIN doctors d ON d.id = l.performed_by
+WHERE d.clinic_id = (SELECT clinic_id FROM doctors WHERE user_id = auth.uid());
+
+GRANT SELECT ON doctor_financial_monitor_view TO authenticated;
+GRANT SELECT ON doctor_audit_log_view TO authenticated;
 
 -- Smart daily summary for doctor
 CREATE OR REPLACE VIEW doctor_daily_summary AS
