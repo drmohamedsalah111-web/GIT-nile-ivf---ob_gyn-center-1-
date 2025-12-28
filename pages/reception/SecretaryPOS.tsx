@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import toast from 'react-hot-toast';
-import { 
-  CreditCard, 
-  DollarSign, 
-  Lock, 
-  Unlock, 
+import {
+  CreditCard,
+  DollarSign,
+  Lock,
+  Unlock,
   AlertCircle,
   Bell,
   CheckCircle,
   Clock,
   User
 } from 'lucide-react';
+
 
 interface QueueItem {
   appointment_id: string;
@@ -26,8 +27,10 @@ interface QueueItem {
   patient_phone: string;
   patient_old_debt: number;
   doctor_name: string;
+  doctor_id: string;
   pending_requests: number;
 }
+
 
 interface ServiceRequest {
   id: string;
@@ -67,7 +70,7 @@ const SecretaryPOS: React.FC = () => {
     // Setup realtime subscriptions
     const serviceRequestSubscription = supabase
       .channel('service_requests_channel')
-      .on('postgres_changes', 
+      .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'service_requests' },
         (payload) => {
           toast.success('🔔 طلب خدمة جديد من الطبيب!', { duration: 5000 });
@@ -158,8 +161,8 @@ const SecretaryPOS: React.FC = () => {
   const addServiceToInvoice = (service: Service) => {
     const existing = selectedServices.find(s => s.service.id === service.id);
     if (existing) {
-      setSelectedServices(selectedServices.map(s => 
-        s.service.id === service.id 
+      setSelectedServices(selectedServices.map(s =>
+        s.service.id === service.id
           ? { ...s, quantity: s.quantity + 1 }
           : s
       ));
@@ -176,27 +179,40 @@ const SecretaryPOS: React.FC = () => {
     if (quantity <= 0) {
       removeServiceFromInvoice(serviceId);
     } else {
-      setSelectedServices(selectedServices.map(s => 
+      setSelectedServices(selectedServices.map(s =>
         s.service.id === serviceId ? { ...s, quantity } : s
       ));
     }
   };
 
   const calculateTotal = () => {
-    return selectedServices.reduce((sum, item) => 
+    return selectedServices.reduce((sum, item) =>
       sum + (item.service.price * item.quantity), 0
     );
   };
 
   const handleSaveInvoice = async () => {
     if (!selectedAppointment) return;
-    
+
     setIsLoading(true);
     try {
+      // 1. Fetch clinic_id for the doctor
+      const { data: doctorData, error: doctorError } = await supabase
+        .from('doctors')
+        .select('clinic_id')
+        .eq('id', selectedAppointment.doctor_id)
+        .single();
+
+      if (doctorError || !doctorData?.clinic_id) {
+        throw new Error('Could not find clinic info for this doctor');
+      }
+
       // Create invoice
       const invoiceData = {
         appointment_id: selectedAppointment.appointment_id,
         patient_id: selectedAppointment.patient_id,
+        doctor_id: selectedAppointment.doctor_id,
+        clinic_id: doctorData.clinic_id,
         total: calculateTotal(),
         paid_amount: amountPaid,
         payment_method: paymentMethod,
@@ -236,17 +252,17 @@ const SecretaryPOS: React.FC = () => {
       }
 
       toast.success('✅ تم حفظ الفاتورة بنجاح');
-      
+
       // Clear form
       setSelectedServices([]);
       setAmountPaid(0);
-      
+
       // Reload queue
       await loadQueue();
-      
+
       // Open receipt in new window
       window.open(`/pos/receipt/${invoice.id}`, '_blank');
-      
+
     } catch (err: any) {
       console.error('Error saving invoice:', err);
       toast.error('فشل حفظ الفاتورة: ' + err.message);
@@ -263,7 +279,7 @@ const SecretaryPOS: React.FC = () => {
 
     // Check if payment is complete or override is provided
     const needsOverride = totalPaid < totalRequired;
-    
+
     if (needsOverride && !overridePassword) {
       setShowOverride(true);
       toast.error('المبلغ المدفوع أقل من المطلوب. أدخل كلمة مرور المسؤول للمتابعة.');
@@ -287,15 +303,15 @@ const SecretaryPOS: React.FC = () => {
       }
 
       toast.success('✅ تم تسجيل حضور المريض بنجاح!');
-      
+
       // Reload queue
       await loadQueue();
-      
+
       // Clear selection
       setSelectedAppointment(null);
       setOverridePassword('');
       setShowOverride(false);
-      
+
     } catch (err: any) {
       console.error('Error checking in patient:', err);
       toast.error('فشل تسجيل الحضور: ' + err.message);
@@ -308,7 +324,7 @@ const SecretaryPOS: React.FC = () => {
     try {
       const { error } = await supabase
         .from('service_requests')
-        .update({ 
+        .update({
           status: 'fulfilled',
           fulfilled_at: new Date().toISOString()
         })
@@ -319,18 +335,18 @@ const SecretaryPOS: React.FC = () => {
       toast.success('✅ تم تحصيل الخدمة');
       loadServiceRequests();
       loadQueue();
-      
+
     } catch (err: any) {
       console.error('Error fulfilling service request:', err);
       toast.error('فشل تحديث الطلب');
     }
   };
 
-  const totalRequired = selectedAppointment 
+  const totalRequired = selectedAppointment
     ? selectedAppointment.amount_required + calculateTotal()
     : 0;
-  
-  const totalPaid = selectedAppointment 
+
+  const totalPaid = selectedAppointment
     ? selectedAppointment.amount_paid + amountPaid
     : 0;
 
@@ -382,15 +398,13 @@ const SecretaryPOS: React.FC = () => {
                 <button
                   key={item.appointment_id}
                   onClick={() => handleSelectAppointment(item)}
-                  className={`w-full text-right p-3 rounded-lg border-2 transition ${
-                    selectedAppointment?.appointment_id === item.appointment_id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-blue-300'
-                  } ${
-                    item.payment_status === 'paid' && item.checked_in_at
+                  className={`w-full text-right p-3 rounded-lg border-2 transition ${selectedAppointment?.appointment_id === item.appointment_id
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-blue-300'
+                    } ${item.payment_status === 'paid' && item.checked_in_at
                       ? 'bg-green-50'
                       : ''
-                  }`}
+                    }`}
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -428,7 +442,7 @@ const SecretaryPOS: React.FC = () => {
           {selectedAppointment ? (
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h2 className="text-2xl font-bold mb-4">بناء الفاتورة</h2>
-              
+
               {/* Patient Info */}
               <div className="bg-gray-50 p-4 rounded-lg mb-4">
                 <h3 className="font-bold text-lg mb-2">{selectedAppointment.patient_name}</h3>
@@ -585,11 +599,10 @@ const SecretaryPOS: React.FC = () => {
                 <button
                   onClick={handleCheckIn}
                   disabled={!canCheckIn || isLoading}
-                  className={`px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 text-white ${
-                    canCheckIn 
-                      ? 'bg-green-500 hover:bg-green-600' 
-                      : 'bg-gray-400 cursor-not-allowed'
-                  }`}
+                  className={`px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 text-white ${canCheckIn
+                    ? 'bg-green-500 hover:bg-green-600'
+                    : 'bg-gray-400 cursor-not-allowed'
+                    }`}
                 >
                   {canCheckIn ? (
                     <>
