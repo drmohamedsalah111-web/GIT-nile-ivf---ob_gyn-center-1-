@@ -140,19 +140,36 @@ export const servicesAPI = {
   /**
    * Create a new service
    */
-  async createService(service: Partial<Service>) {
+  async createService(service: Partial<Service> | Partial<Service>[]) {
     try {
-      const { data, error } = await supabase
-        .from('services')
-        .insert(service)
-        .select()
-        .single();
+      // Prevent accidental inserts without a clinic_id which cause FK errors
+      const isArray = Array.isArray(service);
+      const items = isArray ? service : [service];
+
+      if (items.some((s) => !s || !('clinic_id' in s) || !s.clinic_id)) {
+        console.warn('servicesAPI.createService: missing clinic_id on one or more items, aborting insert');
+        throw new Error('Missing clinic_id: cannot create service without clinic_id');
+      }
+
+      // When inserting many default services, use ignoreDuplicates to avoid 409s
+      const q = supabase.from('services').insert(service as any).select();
+
+      // If bulk insert, ask PostgREST to ignore duplicate unique-key conflicts
+      // (Supported by Supabase JS through .options)
+      if (isArray) {
+        // @ts-ignore - Supabase client supports .options for PostgREST
+        q.options({ ignoreDuplicates: true });
+      }
+
+      const { data, error } = await q;
 
       if (error) throw error;
-      return data as Service;
+
+      // If a single object was inserted, return the single service shape
+      if (!isArray) return (data && data[0]) as Service;
+      return data as Service[];
     } catch (err: any) {
-      // Reformat/augment error so callers can inspect message/details easily
-      console.error('servicesAPI.createService error', err);
+      console.error('servicesAPI.createService error', err?.message ?? err);
       throw err;
     }
   },
@@ -222,6 +239,31 @@ export const servicesAPI = {
       .eq('id', id);
 
     if (error) throw error;
+  },
+
+  /**
+   * Initialize a list of default services for a clinic.
+   * This is safe to call repeatedly; duplicates are ignored server-side.
+   */
+  async initializeDefaultServices(defaultServices: Partial<Service>[], clinicId: string) {
+    if (!clinicId) {
+      console.warn('initializeDefaultServices: missing clinicId, aborting');
+      return;
+    }
+
+    const servicesWithId = defaultServices.map((s) => ({ ...s, clinic_id: clinicId }));
+
+    // Use ignoreDuplicates to avoid 409 Conflict on repeated runs
+    const q = supabase.from('services').insert(servicesWithId).select();
+    // @ts-ignore
+    q.options({ ignoreDuplicates: true });
+
+    const { data, error } = await q;
+    if (error) {
+      console.error('initializeDefaultServices error', error);
+      throw error;
+    }
+    return data as Service[];
   },
 };
 

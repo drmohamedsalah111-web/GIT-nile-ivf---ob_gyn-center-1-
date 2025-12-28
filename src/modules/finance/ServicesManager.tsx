@@ -62,6 +62,13 @@ export const ServicesManager: React.FC<ServicesManagerProps> = ({ clinicId }) =>
   }, [services, searchTerm, categoryFilter]);
 
   const fetchServices = async () => {
+    if (!clinicId) {
+      console.log('⏳ Waiting for clinicId to fetch services...');
+      setServices([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const data = await servicesAPI.getServices(clinicId, true); // Include inactive
@@ -93,6 +100,11 @@ export const ServicesManager: React.FC<ServicesManagerProps> = ({ clinicId }) =>
   };
 
   const handleAddService = async () => {
+    if (!clinicId) {
+      console.log('⏳ Waiting for clinicId to initialize services...');
+      toast.error('لم يتم تهيئة العيادة بعد');
+      return;
+    }
     if (!newService.name || !newService.price) {
       toast.error('أدخل اسم الخدمة والسعر');
       return;
