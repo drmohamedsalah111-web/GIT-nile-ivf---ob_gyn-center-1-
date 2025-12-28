@@ -234,6 +234,7 @@ const FinanceDashboard: React.FC = () => {
             </tbody>
           </table>
         </div>
+      </>
       )}
 
       {activeTab === 'invoices' && doctorId && (
