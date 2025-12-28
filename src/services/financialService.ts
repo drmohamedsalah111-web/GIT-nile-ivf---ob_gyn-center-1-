@@ -163,7 +163,33 @@ export const servicesAPI = {
 
       const { data, error } = await q;
 
-      if (error) throw error;
+      if (error) {
+        const isConflict = error?.status === 409 || /unique|duplicate|conflict/i.test(error?.message || '');
+
+        // If conflict and single-item insert, return the existing service instead of throwing
+        if (isConflict && !isArray) {
+          try {
+            const item = items[0] as Partial<Service>;
+            if (item && item.clinic_id && item.name) {
+              const { data: existing, error: fetchErr } = await supabase
+                .from('services')
+                .select('*')
+                .eq('clinic_id', item.clinic_id)
+                .ilike('name', item.name as string)
+                .maybeSingle();
+
+              if (!fetchErr && existing) {
+                console.info('servicesAPI.createService: service exists, returning existing record', existing.id);
+                return existing as Service;
+              }
+            }
+          } catch (fetchEx) {
+            console.error('servicesAPI.createService: failed to fetch existing service after conflict', fetchEx);
+          }
+        }
+
+        throw error;
+      }
 
       // If a single object was inserted, return the single service shape
       if (!isArray) return (data && data[0]) as Service;
