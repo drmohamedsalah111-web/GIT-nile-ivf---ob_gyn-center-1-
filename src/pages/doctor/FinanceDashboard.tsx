@@ -37,19 +37,19 @@ const FinanceDashboard: React.FC = () => {
   // KPI Cards
   const kpis = [
     {
-      label: 'الدخل اليوم',
+      label: 'إجمالي الدخل (من نظام السكرتيرة)',
       value: formatCurrency(stats.totalRevenue),
       color: brandColors.teal,
       compare: '+12%',
     },
     {
-      label: 'المبالغ المعلقة',
+      label: 'المبالغ المعلقة (من الفواتير)',
       value: formatCurrency(stats.outstandingDebt),
       color: brandColors.rose,
       compare: '',
     },
     {
-      label: 'المصروفات',
+      label: 'المصروفات (من السكرتيرة)',
       value: formatCurrency(stats.expenses.reduce((a, e) => a + (e.amount || 0), 0)),
       color: brandColors.yellow,
       compare: '',
@@ -95,7 +95,10 @@ const FinanceDashboard: React.FC = () => {
   return (
     <div className={styles['dashboard-bg']} dir="rtl">
       <div className="flex flex-col md:flex-row md:justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">لوحة تحكم الطبيب المالية</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">
+          لوحة ماليات الطبيب
+          <span className="block text-base text-teal-600 font-normal mt-1">كل البيانات حية من نظام السكرتيرة (POS)</span>
+        </h1>
         <div className="flex gap-2">
           {(['today', 'week', 'month', 'year'] as DateRange[]).map(r => (
             <button
@@ -122,7 +125,7 @@ const FinanceDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* Revenue Trend */}
         <div className={styles['chart-card']} style={{ gridColumn: 'span 2 / span 2' }}>
-          <div className={styles['section-title']}>منحنى الإيرادات</div>
+          <div className={styles['section-title']}>منحنى الإيرادات (من الفواتير)</div>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={revenueTrend} >
               <XAxis dataKey="date" />
@@ -134,7 +137,7 @@ const FinanceDashboard: React.FC = () => {
         </div>
         {/* Payment Mix */}
         <div className={styles['chart-card']}>
-          <div className={styles['section-title']}>توزيع طرق الدفع</div>
+          <div className={styles['section-title']}>توزيع طرق الدفع (من الفواتير)</div>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie data={paymentMix} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label>
@@ -149,7 +152,7 @@ const FinanceDashboard: React.FC = () => {
       </div>
       {/* Top Services */}
       <div className={styles['chart-card']}>
-        <div className={styles['section-title']}>الخدمات الأعلى دخلاً</div>
+        <div className={styles['section-title']}>الخدمات الأعلى دخلاً (من الفواتير)</div>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={topServices} layout="vertical">
             <XAxis type="number" />
@@ -160,7 +163,7 @@ const FinanceDashboard: React.FC = () => {
       </div>
       {/* Last Transactions */}
       <div className={styles['chart-card']}>
-        <div className={styles['section-title']}>آخر 5 معاملات</div>
+        <div className={styles['section-title']}>آخر 5 معاملات (من نظام السكرتيرة)</div>
         <div className="overflow-x-auto">
           <table className={styles['table']}>
             <thead>
