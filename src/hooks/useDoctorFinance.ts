@@ -26,7 +26,25 @@ function getRangeStart(range: DateRange) {
   return subDays(startOfToday(), 364);
 }
 
-export function useDoctorFinance(clinicId?: string, range: DateRange = 'week') {
+export function useDoctorFinance(arg1?: string | DateRange, arg2: DateRange = 'week') {
+  // Support two call signatures:
+  // - useDoctorFinance(clinicId?: string, range?: DateRange)
+  // - useDoctorFinance(range?: DateRange)
+  let clinicId: string | undefined;
+  let range: DateRange = 'week';
+
+  const isRange = (v: any): v is DateRange => v === 'today' || v === 'week' || v === 'month' || v === 'year';
+  if (arg1 === undefined) {
+    clinicId = undefined;
+    range = arg2;
+  } else if (isRange(arg1)) {
+    clinicId = undefined;
+    range = arg1;
+  } else {
+    clinicId = arg1 as string;
+    range = arg2;
+  }
+
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
