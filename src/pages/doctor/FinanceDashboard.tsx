@@ -222,7 +222,7 @@ const FinanceDashboard: React.FC = () => {
                   <td>{tx.patient_name || '-'}</td>
                   <td>{tx.service_name || '-'}</td>
                   <td>{formatCurrency(Number(tx.paid_amount || 0))}</td>
-                  <td>{tx.created_by_name || '-'}</td>
+                  <td>{tx.created_by || '-'}</td>
                   <td>{new Date(tx.created_at).toLocaleTimeString('ar-EG')}</td>
                   <td>
                     {tx.status === 'paid' && <span className={`${styles['status-badge']} ${styles['status-paid']}`}>مدفوع</span>}
