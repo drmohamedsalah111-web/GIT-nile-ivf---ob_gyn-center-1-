@@ -151,10 +151,9 @@ CREATE POLICY "Doctors can view all clinic service requests"
     );
 
 
--- Drop and recreate doctor_financial_monitor_view to enforce global standards
+-- Drop and recreate doctor_financial_monitor_view to ensure all clinic and patient invoices are visible to the doctor
 DROP VIEW IF EXISTS doctor_financial_monitor_view;
 
--- Doctor financial monitor view: global standards, clinic-linked, smart alerts
 CREATE OR REPLACE VIEW doctor_financial_monitor_view AS
 SELECT 
     i.id as invoice_id,
@@ -195,7 +194,11 @@ LEFT JOIN appointments a ON i.appointment_id = a.id
 LEFT JOIN patients p ON i.patient_id = p.id
 LEFT JOIN doctors d ON a.doctor_id = d.id
 LEFT JOIN service_requests sr ON sr.appointment_id = a.id
-WHERE d.clinic_id = (SELECT clinic_id FROM doctors WHERE user_id = auth.uid())
+WHERE (
+    d.user_id = auth.uid() -- الطبيب هو صاحب الموعد
+    OR i.clinic_id = (SELECT clinic_id FROM doctors WHERE user_id = auth.uid()) -- الفاتورة تخص عيادة الطبيب
+    OR i.patient_id IN (SELECT id FROM patients WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid())) -- الفاتورة تخص مريض للطبيب
+)
 ORDER BY i.created_at DESC;
 
 -- Doctor can see all audit logs for his clinic (global standard)
