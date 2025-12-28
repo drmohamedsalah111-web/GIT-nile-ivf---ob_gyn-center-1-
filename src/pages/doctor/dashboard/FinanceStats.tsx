@@ -9,6 +9,8 @@ function formatCurrency(amount: number) {
 const FinanceStats: React.FC = () => {
   const [range, setRange] = useState<DateRange>('month');
   const { total_revenue, pending_debt, daily_series, patient_count, recent, loading } = useDoctorFinance(range);
+  const todayKey = new Date().toISOString().split('T')[0];
+  const incomeToday = daily_series.find(d => d.date === todayKey)?.amount || 0;
 
   return (
     <div className="space-y-6 font-[Tajawal]" dir="rtl">
@@ -29,7 +31,7 @@ const FinanceStats: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="text-sm text-gray-500">دخل اليوم</div>
-          <div className="text-2xl font-bold text-green-600 mt-2">{formatCurrency(total_revenue)}</div>
+          <div className="text-2xl font-bold text-green-600 mt-2">{formatCurrency(incomeToday)}</div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
@@ -77,10 +79,10 @@ const FinanceStats: React.FC = () => {
                 {!loading && recent.length === 0 && <tr><td colSpan={5} className="py-4 text-center text-gray-500">لا توجد معاملات</td></tr>}
                 {!loading && recent.map((inv) => (
                   <tr key={inv.id} className="border-t">
-                    <td className="py-2 text-right">{inv.patient_id || '-'}</td>
+                    <td className="py-2 text-right">{(inv as any).patient_name || inv.patient_id || '-'}</td>
                     <td className="py-2 text-right">{inv.service_name || '-'}</td>
-                    <td className="py-2 text-right">{formatCurrency(Number(inv.paid_amount || 0))}</td>
-                    <td className="py-2 text-right">{inv.created_by || '-'}</td>
+                    <td className="py-2 text-right">{formatCurrency(Number(inv.paid_amount || inv.total_amount || 0))}</td>
+                    <td className="py-2 text-right">{(inv as any).created_by_name || inv.created_by || '-'}</td>
                     <td className="py-2 text-right">{new Date(inv.created_at).toLocaleString('ar-EG')}</td>
                   </tr>
                 ))}

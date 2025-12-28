@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 import { ServicesManager, DailyIncomeReport, QuickInvoiceModal } from '../../src/modules/finance';
+import FinanceStats from '../../src/pages/doctor/dashboard/FinanceStats';
 import toast from 'react-hot-toast';
 
 interface FinancePageProps {
@@ -362,7 +363,7 @@ export const FinancePage: React.FC<FinancePageProps> = ({ doctorId }) => {
       case 'dashboard':
         return (
           <>
-            <StatsCards />
+            <FinanceStats />
             <QuickActions />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <PatientInvoiceList />

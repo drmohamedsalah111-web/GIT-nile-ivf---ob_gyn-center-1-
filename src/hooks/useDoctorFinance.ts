@@ -14,6 +14,8 @@ type InvoiceRow = {
   created_by?: string | null;
   payment_method?: string | null;
   status?: string | null;
+  patient_name?: string | null;
+  created_by_name?: string | null;
 };
 
 function getRangeStart(range: DateRange) {
@@ -46,7 +48,38 @@ export function useDoctorFinance(range: DateRange = 'month') {
 
         if (err) throw err;
         if (!mounted) return;
-        setInvoices(data || []);
+        const rows = data || [];
+
+        // Fetch patient names and creator names for display
+        try {
+          const patientIds = Array.from(new Set(rows.map(r => r.patient_id).filter(Boolean)));
+          const creatorIds = Array.from(new Set(rows.map(r => r.created_by).filter(Boolean)));
+
+          const [patientsRes, creatorsRes] = await Promise.all([
+            patientIds.length ? supabase.from('patients').select('id,name').in('id', patientIds) : Promise.resolve({ data: [] }),
+            creatorIds.length ? supabase.from('profiles').select('id,full_name,name,email').in('id', creatorIds) : Promise.resolve({ data: [] }),
+          ] as any);
+
+          const patients = patientsRes?.data || [];
+          const creators = creatorsRes?.data || [];
+
+          const patientMap: Record<string, string> = {};
+          patients.forEach((p: any) => { patientMap[p.id] = p.name || p.full_name || p.email || p.id; });
+
+          const creatorMap: Record<string, string> = {};
+          creators.forEach((c: any) => { creatorMap[c.id] = c.full_name || c.name || c.email || c.id; });
+
+          const enriched = rows.map((r: InvoiceRow) => ({
+            ...r,
+            patient_name: r.patient_id ? patientMap[r.patient_id] || null : null,
+            created_by_name: r.created_by ? creatorMap[r.created_by] || null : null,
+          }));
+
+          setInvoices(enriched as any);
+        } catch (e) {
+          // if enrichment fails, still set base rows
+          setInvoices(rows);
+        }
       } catch (e: any) {
         if (!mounted) return;
         setError(e.message || String(e));
