@@ -98,6 +98,21 @@ export const ServicesManager: React.FC<ServicesManagerProps> = ({ clinicId }) =>
       return;
     }
 
+    // Prevent duplicate service (same name in the same clinic)
+    try {
+      const existing = services.find(s => s.name.trim().toLowerCase() === (newService.name || '').trim().toLowerCase());
+      if (existing) {
+        if (!existing.is_active) {
+          toast.error('الخدمة موجودة ولكن معطلة. قم بتفعيلها بدلاً من الإضافة.');
+        } else {
+          toast.error('الخدمة موجودة بالفعل.');
+        }
+        return;
+      }
+    } catch (e) {
+      // non-blocking — proceed to try create
+    }
+
     try {
       await servicesAPI.createService({
         ...newService,
@@ -116,8 +131,17 @@ export const ServicesManager: React.FC<ServicesManagerProps> = ({ clinicId }) =>
       });
       fetchServices();
     } catch (error: any) {
+      // Log detailed error for debugging (server error may contain details)
       console.error('Error adding service:', error);
-      toast.error('خطأ في إضافة الخدمة');
+      try {
+        // Supabase error shape may include .message, .details, .hint
+        const msg = error?.message || error?.error_description || JSON.stringify(error);
+        const details = error?.details || error?.hint;
+        console.error('Service create error details:', { msg, details, raw: error });
+      } catch (logErr) {
+        console.error('Error logging service create error', logErr);
+      }
+      toast.error(error?.message || 'خطأ في إضافة الخدمة');
     }
   };
 

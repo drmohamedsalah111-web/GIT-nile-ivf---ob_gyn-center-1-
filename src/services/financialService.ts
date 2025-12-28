@@ -141,14 +141,20 @@ export const servicesAPI = {
    * Create a new service
    */
   async createService(service: Partial<Service>) {
-    const { data, error } = await supabase
-      .from('services')
-      .insert(service)
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .insert(service)
+        .select()
+        .single();
 
-    if (error) throw error;
-    return data as Service;
+      if (error) throw error;
+      return data as Service;
+    } catch (err: any) {
+      // Reformat/augment error so callers can inspect message/details easily
+      console.error('servicesAPI.createService error', err);
+      throw err;
+    }
   },
 
   /**
