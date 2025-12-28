@@ -82,3 +82,52 @@
   background: #fee2e2;
   color: #b91c1c;
 }
+
+/* Tabs */
+.tabs {
+  background: #ffffff;
+  padding: 0.35rem;
+  border-radius: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  box-shadow: 0 2px 12px rgba(15,23,42,0.04);
+}
+.tab-button {
+  border: none;
+  background: transparent;
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.6rem;
+  font-weight: 600;
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, transform 0.08s;
+}
+.tab-button:hover {
+  background: #f8fafc;
+}
+.tab-active {
+  background: #0f766e;
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(16,185,129,0.12);
+  transform: translateY(-1px);
+}
+
+/* Responsive KPI grid tweaks when using module styles */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+@media (min-width: 768px) {
+  .kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* Make chart cards more compact */
+.chart-card { padding: 1rem; }
+
+/* Table responsive */
+.table-wrapper { overflow-x: auto; border-radius: 1rem; }

@@ -118,19 +118,16 @@ const FinanceDashboard: React.FC = () => {
   return (
     <div className={styles['dashboard-bg']} dir="rtl">
       {/* Tabs Navigation */}
-      <div className="flex flex-wrap gap-2 mb-6 bg-white rounded-lg p-2 shadow-sm">
+      <div className={`${styles.tabs} mb-6`}>
         {TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === tab.id
-                ? 'bg-teal-500 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
+            className={`${styles['tab-button']} ${activeTab === tab.id ? styles['tab-active'] : ''}`}
+            aria-pressed={activeTab === tab.id}
           >
             <tab.icon className="w-4 h-4" />
-            {tab.label}
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>
