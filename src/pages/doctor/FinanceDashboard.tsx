@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFinancialStats, DateRange } from '../../hooks/useFinancialStats';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend
 } from 'recharts';
 import styles from './FinanceDashboard.module.css';
+import { InvoicesManagementPage } from '../../../components/invoices';
+import CollectionsManagement from '../../../components/invoices/CollectionsManagement';
+import { DollarSign, TrendingUp, Package, CreditCard, AlertCircle, Settings, FileText, Users, Calendar, Wallet, PieChart as PieChartIcon, List } from 'lucide-react';
+import { authService } from '../../../services/authService';
 
 const brandColors = {
   teal: '#14b8a6',
@@ -32,7 +36,26 @@ function formatCurrency(amount: number) {
 
 const FinanceDashboard: React.FC = () => {
   const [dateRange, setDateRange] = useState<DateRange>('today');
-  const stats = useFinancialStats(dateRange);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'collections'>('dashboard');
+  const [doctorId, setDoctorId] = useState<string | null>(null);
+  const stats = useFinancialStats(dateRange, doctorId);
+
+  useEffect(() => {
+    const getDoctorId = async () => {
+      const user = await authService.getCurrentUser();
+      if (user) {
+        setDoctorId(user.id);
+      }
+    };
+    getDoctorId();
+  }, []);
+
+  // Tabs configuration
+  const TABS = [
+    { id: 'dashboard' as const, label: 'لوحة التحكم', icon: PieChartIcon },
+    { id: 'invoices' as const, label: 'الفواتير', icon: FileText },
+    { id: 'collections' as const, label: 'التحصيل والمقبوضات', icon: DollarSign },
+  ];
 
   // KPI Cards
   const kpis = [
@@ -94,23 +117,43 @@ const FinanceDashboard: React.FC = () => {
 
   return (
     <div className={styles['dashboard-bg']} dir="rtl">
-      <div className="flex flex-col md:flex-row md:justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">
-          لوحة ماليات الطبيب
-          <span className="block text-base text-teal-600 font-normal mt-1">كل البيانات حية من نظام السكرتيرة (POS)</span>
-        </h1>
-        <div className="flex gap-2">
-          {(['today', 'week', 'month', 'year'] as DateRange[]).map(r => (
-            <button
-              key={r}
-              className={`px-4 py-2 rounded-full font-bold border ${dateRange === r ? 'bg-teal-500 text-white' : 'bg-white text-teal-700 border-teal-500'}`}
-              onClick={() => setDateRange(r)}
-            >
-              {dateRangeLabels[r]}
-            </button>
-          ))}
-        </div>
+      {/* Tabs Navigation */}
+      <div className="flex flex-wrap gap-2 mb-6 bg-white rounded-lg p-2 shadow-sm">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === tab.id
+                ? 'bg-teal-500 text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        ))}
       </div>
+
+      {activeTab === 'dashboard' && (
+        <>
+          <div className="flex flex-col md:flex-row md:justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">
+              لوحة ماليات الطبيب
+              <span className="block text-base text-teal-600 font-normal mt-1">كل البيانات حية من نظام السكرتيرة (POS)</span>
+            </h1>
+            <div className="flex gap-2">
+              {(['today', 'week', 'month', 'year'] as DateRange[]).map(r => (
+                <button
+                  key={r}
+                  className={`px-4 py-2 rounded-full font-bold border ${dateRange === r ? 'bg-teal-500 text-white' : 'bg-white text-teal-700 border-teal-500'}`}
+                  onClick={() => setDateRange(r)}
+                >
+                  {dateRangeLabels[r]}
+                </button>
+              ))}
+            </div>
+          </div>
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         {kpis.map((kpi, i) => (
@@ -194,7 +237,35 @@ const FinanceDashboard: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'invoices' && doctorId && (
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800 mb-6">
+            إدارة الفواتير
+            <span className="block text-base text-teal-600 font-normal mt-1">من نظام السكرتيرة (POS)</span>
+          </h1>
+          <InvoicesManagementPage
+            secretaryId={null}
+            doctorId={doctorId}
+            secretaryName="الطبيب"
+          />
+        </div>
+      )}
+
+      {activeTab === 'collections' && doctorId && (
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800 mb-6">
+            التحصيل والمقبوضات
+            <span className="block text-base text-teal-600 font-normal mt-1">من نظام السكرتيرة (POS)</span>
+          </h1>
+          <CollectionsManagement
+            doctorId={doctorId}
+            secretaryId={null}
+            secretaryName="الطبيب"
+          />
+        </div>
+      )}
     </div>
   );
 };

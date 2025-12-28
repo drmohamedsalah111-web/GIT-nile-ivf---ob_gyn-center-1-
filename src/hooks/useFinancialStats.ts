@@ -45,7 +45,7 @@ function getDateRange(range: DateRange): { from: Date; to: Date } {
   return { from, to: now };
 }
 
-export function useFinancialStats(dateRange: DateRange = 'today') {
+export function useFinancialStats(dateRange: DateRange = 'today', doctorId?: string | null) {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,17 +56,21 @@ export function useFinancialStats(dateRange: DateRange = 'today') {
       setLoading(true);
       const { from, to } = getDateRange(dateRange);
       // Fetch invoices
-      const { data: invoicesData } = await supabase
+      let invoicesQuery = supabase
         .from('invoices')
         .select('*')
         .gte('created_at', from.toISOString())
         .lte('created_at', to.toISOString());
+      if (doctorId) invoicesQuery = invoicesQuery.eq('doctor_id', doctorId).or(`clinic_id.eq.${doctorId}`);
+      const { data: invoicesData } = await invoicesQuery;
       // Fetch expenses
-      const { data: expensesData } = await supabase
+      let expensesQuery = supabase
         .from('expenses')
         .select('*')
         .gte('created_at', from.toISOString())
         .lte('created_at', to.toISOString());
+      if (doctorId) expensesQuery = expensesQuery.eq('doctor_id', doctorId).or(`clinic_id.eq.${doctorId}`);
+      const { data: expensesData } = await expensesQuery;
       if (isMounted) {
         setInvoices(invoicesData || []);
         setExpenses(expensesData || []);
@@ -83,7 +87,7 @@ export function useFinancialStats(dateRange: DateRange = 'today') {
       isMounted = false;
       supabase.removeChannel(subInvoices);
     };
-  }, [dateRange]);
+  }, [dateRange, doctorId]);
 
   const stats = useMemo<FinancialStats>(() => {
     let totalRevenue = 0;
