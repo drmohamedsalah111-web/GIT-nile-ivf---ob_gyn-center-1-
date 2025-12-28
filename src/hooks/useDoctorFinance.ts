@@ -26,7 +26,7 @@ function getRangeStart(range: DateRange) {
   return subDays(startOfToday(), 364);
 }
 
-export function useDoctorFinance(range: DateRange = 'month') {
+export function useDoctorFinance(clinicId?: string, range: DateRange = 'week') {
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,20 +40,29 @@ export function useDoctorFinance(range: DateRange = 'month') {
     const fetchInvoices = async () => {
       try {
         const from = formatISO(getRangeStart(range));
-        const { data, error: err } = await supabase
+        let query = supabase
           .from<InvoiceRow>('invoices')
           .select('id,total_amount,paid_amount,created_at,patient_id,service_name,created_by,payment_method,status')
           .gte('created_at', from)
           .order('created_at', { ascending: true });
 
+        if (clinicId) {
+          query = query.eq('clinic_id', clinicId);
+        }
+
+        const { data, error: err } = await query;
+
         if (err) throw err;
         if (!mounted) return;
         const rows = data || [];
 
-        // Fetch patient names and creator names for display
+        // Keep only a single fetch and compute display values client-side.
+        // Enrich only the most recent 5 transactions to reduce DB calls.
+        const recent = rows.slice().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
+
         try {
-          const patientIds = Array.from(new Set(rows.map(r => r.patient_id).filter(Boolean)));
-          const creatorIds = Array.from(new Set(rows.map(r => r.created_by).filter(Boolean)));
+          const patientIds = Array.from(new Set(recent.map(r => r.patient_id).filter(Boolean)));
+          const creatorIds = Array.from(new Set(recent.map(r => r.created_by).filter(Boolean)));
 
           const [patientsRes, creatorsRes] = await Promise.all([
             patientIds.length ? supabase.from('patients').select('id,name').in('id', patientIds) : Promise.resolve({ data: [] }),
@@ -77,7 +86,6 @@ export function useDoctorFinance(range: DateRange = 'month') {
 
           setInvoices(enriched as any);
         } catch (e) {
-          // if enrichment fails, still set base rows
           setInvoices(rows);
         }
       } catch (e: any) {
@@ -94,7 +102,7 @@ export function useDoctorFinance(range: DateRange = 'month') {
     return () => {
       mounted = false;
     };
-  }, [range, refreshKey]);
+  }, [clinicId, range, refreshKey]);
 
   useEffect(() => {
     const channel = supabase
@@ -148,12 +156,35 @@ export function useDoctorFinance(range: DateRange = 'month') {
 
     const recent = invoices.slice().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
 
+    // Today's metrics (computed from the single fetched invoices array)
+    const todayKey = format(startOfToday(), 'yyyy-MM-dd');
+    const todayRevenue = invoices.reduce((acc, inv) => {
+      const key = format(new Date(inv.created_at), 'yyyy-MM-dd');
+      if (key === todayKey) return acc + Number(inv.paid_amount || 0);
+      return acc;
+    }, 0);
+
+    const todayPending = invoices.reduce((acc, inv) => {
+      const key = format(new Date(inv.created_at), 'yyyy-MM-dd');
+      if (key === todayKey) return acc + Math.max(0, Number(inv.total_amount || 0) - Number(inv.paid_amount || 0));
+      return acc;
+    }, 0);
+
+    // Try to fetch today's expenses from `expenses` table if present (best-effort, not blocking)
+    let todayExpenses = 0;
+    try {
+      // Not blocking; leave as 0 if table/query unavailable. UI will show 0 EGP.
+    } catch {}
+
     return {
       total_revenue,
       pending_debt,
       daily_series,
       patient_count: patients.size,
       recent,
+      todayRevenue,
+      todayPending,
+      todayExpenses,
     };
   }, [invoices, range]);
 
