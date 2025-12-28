@@ -544,11 +544,22 @@ export const invoicesAPI = {
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false });
 
+    const normalizeDateForFilter = (d?: string) => {
+      if (!d) return d;
+      try {
+        const parsed = new Date(d);
+        if (isNaN(parsed.getTime())) return d;
+        return parsed.toISOString();
+      } catch (e) {
+        return d;
+      }
+    };
+
     if (startDate) {
-      query = query.gte('created_at', startDate);
+      query = query.gte('created_at', normalizeDateForFilter(startDate));
     }
     if (endDate) {
-      query = query.lte('created_at', endDate);
+      query = query.lte('created_at', normalizeDateForFilter(endDate));
     }
     if (status) {
       query = query.eq('status', status);
