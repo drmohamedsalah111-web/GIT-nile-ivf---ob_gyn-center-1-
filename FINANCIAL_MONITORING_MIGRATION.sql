@@ -65,6 +65,17 @@ BEGIN
     END IF;
 END $$;
 
+-- Ensure doctors table has role column (idempotent)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'doctors' AND column_name = 'role'
+    ) THEN
+        ALTER TABLE doctors ADD COLUMN role text;
+    END IF;
+END $$;
+
 -- ============================================
 -- Ensure service_requests table exists (idempotent)
 DO $$
@@ -140,11 +151,15 @@ CREATE POLICY "Doctors can view all clinic service requests"
     );
 
 
+-- Drop and recreate doctor_financial_monitor_view to avoid column rename conflicts
+DROP VIEW IF EXISTS doctor_financial_monitor_view;
+
+-- Enhanced doctor-only financial monitor view (smart, with control columns)
 CREATE OR REPLACE VIEW doctor_financial_monitor_view AS
 SELECT 
     i.id as invoice_id,
     i.created_at as invoice_date,
-    COALESCE(i.total, 0) as invoice_total, -- fallback to 0 if column missing
+    COALESCE(i.total, 0) as invoice_total,
     COALESCE(i.paid_amount, 0) as paid_amount,
     i.payment_method,
     i.status as invoice_status,
@@ -160,14 +175,20 @@ SELECT
     d.id as doctor_id,
     d.name as doctor_name,
     d.clinic_id,
-    -- Calculate outstanding amount
     (i.total - i.paid_amount) as outstanding_amount,
-    -- Flag for collections issues
+    -- Smart overdue days
+    EXTRACT(DAY FROM NOW() - i.created_at) as overdue_days,
+    -- Smart alert level
+    CASE 
+        WHEN i.paid_amount < i.total AND EXTRACT(DAY FROM NOW() - i.created_at) > 7 THEN 'urgent'
+        WHEN i.paid_amount < i.total AND EXTRACT(DAY FROM NOW() - i.created_at) > 3 THEN 'high'
+        WHEN i.paid_amount < i.total THEN 'normal'
+        ELSE 'none'
+    END as alert_level,
     CASE 
         WHEN i.paid_amount < i.total AND i.created_at < NOW() - INTERVAL '1 day' THEN true
         ELSE false
     END as needs_followup,
-    -- Service request info if applicable
     sr.service_name as requested_service,
     sr.status as service_request_status,
     sr.requested_at
@@ -176,10 +197,36 @@ LEFT JOIN appointments a ON i.appointment_id = a.id
 LEFT JOIN patients p ON i.patient_id = p.id
 LEFT JOIN doctors d ON a.doctor_id = d.id
 LEFT JOIN service_requests sr ON sr.appointment_id = a.id
+WHERE d.user_id = auth.uid()
 ORDER BY i.created_at DESC;
 
-GRANT SELECT ON doctor_financial_monitor_view TO authenticated;
+-- Smart daily summary for doctor
+CREATE OR REPLACE VIEW doctor_daily_summary AS
+SELECT 
+    d.id as doctor_id,
+    d.name as doctor_name,
+    d.clinic_id,
+    CURRENT_DATE as report_date,
+    COUNT(DISTINCT a.id) as total_appointments,
+    COUNT(DISTINCT CASE WHEN a.checked_in_at IS NOT NULL THEN a.id END) as checked_in_count,
+    COUNT(DISTINCT CASE WHEN a.payment_status = 'paid' THEN a.id END) as fully_paid_count,
+    COUNT(DISTINCT CASE WHEN a.payment_status = 'partially_paid' THEN a.id END) as partial_paid_count,
+    COUNT(DISTINCT CASE WHEN a.payment_status = 'pending' THEN a.id END) as pending_payment_count,
+    COALESCE(SUM(i.total), 0) as total_billed,
+    COALESCE(SUM(i.paid_amount), 0) as total_collected,
+    COALESCE(SUM(i.total - i.paid_amount), 0) as total_outstanding,
+    COUNT(DISTINCT sr.id) as total_service_requests,
+    COUNT(DISTINCT CASE WHEN sr.status = 'requested' THEN sr.id END) as pending_service_requests,
+    COUNT(DISTINCT CASE WHEN sr.status = 'fulfilled' THEN sr.id END) as fulfilled_service_requests
+FROM doctors d
+LEFT JOIN appointments a ON a.doctor_id = d.id AND a.appointment_date = CURRENT_DATE
+LEFT JOIN invoices i ON i.appointment_id = a.id
+LEFT JOIN service_requests sr ON sr.appointment_id = a.id
+WHERE d.user_id = auth.uid()
+GROUP BY d.id, d.name, d.clinic_id;
 
+GRANT SELECT ON doctor_financial_monitor_view TO authenticated;
+GRANT SELECT ON doctor_daily_summary TO authenticated;
 
 CREATE OR REPLACE VIEW daily_financial_summary AS
 SELECT 
