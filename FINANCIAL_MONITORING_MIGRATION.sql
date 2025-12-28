@@ -37,28 +37,31 @@ BEGIN
     END IF;
 END $$;
 
--- Ensure appointments table has payment_status column (idempotent)
+-- Ensure appointments table has payment_status and checked_in_at columns (idempotent)
 DO $$
 BEGIN
-    -- Create enum type if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_status_enum') THEN
-        CREATE TYPE payment_status_enum AS ENUM ('pending', 'paid', 'partially_paid', 'refunded');
-    END IF;
-    
-    -- Add payment_status column if it doesn't exist
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'appointments' AND column_name = 'payment_status'
     ) THEN
-        ALTER TABLE appointments ADD COLUMN payment_status payment_status_enum DEFAULT 'pending';
+        ALTER TABLE appointments ADD COLUMN payment_status text DEFAULT 'pending';
     END IF;
-    
-    -- Add checked_in_at column if it doesn't exist
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'appointments' AND column_name = 'checked_in_at'
     ) THEN
-        ALTER TABLE appointments ADD COLUMN checked_in_at timestamptz NULL;
+        ALTER TABLE appointments ADD COLUMN checked_in_at timestamptz;
+    END IF;
+END $$;
+
+-- Ensure appointments table has appointment_status column (idempotent)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'appointments' AND column_name = 'appointment_status'
+    ) THEN
+        ALTER TABLE appointments ADD COLUMN appointment_status text DEFAULT 'scheduled';
     END IF;
 END $$;
 
@@ -279,6 +282,7 @@ CREATE INDEX IF NOT EXISTS idx_financial_audit_log_action_type ON financial_audi
 ALTER TABLE financial_audit_log ENABLE ROW LEVEL SECURITY;
 
 -- Doctors can view audit logs for their clinic
+DROP POLICY IF EXISTS "Doctors can view clinic audit logs" ON financial_audit_log;
 CREATE POLICY "Doctors can view clinic audit logs"
     ON financial_audit_log FOR SELECT
     USING (
@@ -291,6 +295,7 @@ CREATE POLICY "Doctors can view clinic audit logs"
     );
 
 -- Secretary actions are logged
+DROP POLICY IF EXISTS "Secretary can insert audit logs" ON financial_audit_log;
 CREATE POLICY "Secretary can insert audit logs"
     ON financial_audit_log FOR INSERT
     WITH CHECK (
