@@ -3,7 +3,7 @@ import { useFinancialStats, DateRange } from '../../hooks/useFinancialStats';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend
 } from 'recharts';
-import 'tailwindcss/tailwind.css';
+import styles from './FinanceDashboard.module.css';
 
 const brandColors = {
   teal: '#14b8a6',
@@ -93,7 +93,7 @@ const FinanceDashboard: React.FC = () => {
     .slice(0, 5);
 
   return (
-    <div className="bg-gray-50 min-h-screen p-6" dir="rtl">
+    <div className={styles['dashboard-bg']} dir="rtl">
       <div className="flex flex-col md:flex-row md:justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">لوحة تحكم الطبيب المالية</h1>
         <div className="flex gap-2">
@@ -111,18 +111,18 @@ const FinanceDashboard: React.FC = () => {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         {kpis.map((kpi, i) => (
-          <div key={i} className="bg-white rounded-xl shadow p-6 flex flex-col items-center" style={{ borderTop: `4px solid ${kpi.color}` }}>
-            <div className="text-2xl font-bold mb-2" style={{ color: kpi.color }}>{kpi.value}</div>
-            <div className="text-gray-600 text-lg mb-1">{kpi.label}</div>
-            {kpi.compare && <div className="text-xs text-green-600">{kpi.compare}</div>}
+          <div key={i} className={styles['kpi-card']} style={{ borderTop: `5px solid ${kpi.color}` }}>
+            <div className={styles['kpi-value']} style={{ color: kpi.color }}>{kpi.value}</div>
+            <div className={styles['kpi-label']}>{kpi.label}</div>
+            {kpi.compare && <div className={styles['kpi-compare']}>{kpi.compare}</div>}
           </div>
         ))}
       </div>
       {/* Charts */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* Revenue Trend */}
-        <div className="bg-white rounded-xl shadow p-4 col-span-2">
-          <h2 className="text-lg font-bold mb-2">منحنى الإيرادات</h2>
+        <div className={styles['chart-card']} style={{ gridColumn: 'span 2 / span 2' }}>
+          <div className={styles['section-title']}>منحنى الإيرادات</div>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={revenueTrend} >
               <XAxis dataKey="date" />
@@ -133,8 +133,8 @@ const FinanceDashboard: React.FC = () => {
           </ResponsiveContainer>
         </div>
         {/* Payment Mix */}
-        <div className="bg-white rounded-xl shadow p-4">
-          <h2 className="text-lg font-bold mb-2">توزيع طرق الدفع</h2>
+        <div className={styles['chart-card']}>
+          <div className={styles['section-title']}>توزيع طرق الدفع</div>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie data={paymentMix} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label>
@@ -148,8 +148,8 @@ const FinanceDashboard: React.FC = () => {
         </div>
       </div>
       {/* Top Services */}
-      <div className="bg-white rounded-xl shadow p-4 mb-8">
-        <h2 className="text-lg font-bold mb-2">الخدمات الأعلى دخلاً</h2>
+      <div className={styles['chart-card']}>
+        <div className={styles['section-title']}>الخدمات الأعلى دخلاً</div>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={topServices} layout="vertical">
             <XAxis type="number" />
@@ -159,32 +159,32 @@ const FinanceDashboard: React.FC = () => {
         </ResponsiveContainer>
       </div>
       {/* Last Transactions */}
-      <div className="bg-white rounded-xl shadow p-4">
-        <h2 className="text-lg font-bold mb-2">آخر 5 معاملات</h2>
+      <div className={styles['chart-card']}>
+        <div className={styles['section-title']}>آخر 5 معاملات</div>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-right">
+          <table className={styles['table']}>
             <thead>
-              <tr className="bg-gray-100">
-                <th className="py-2 px-4">المريض</th>
-                <th className="py-2 px-4">الخدمة</th>
-                <th className="py-2 px-4">المبلغ</th>
-                <th className="py-2 px-4">السكرتيرة</th>
-                <th className="py-2 px-4">الوقت</th>
-                <th className="py-2 px-4">الحالة</th>
+              <tr>
+                <th>المريض</th>
+                <th>الخدمة</th>
+                <th>المبلغ</th>
+                <th>السكرتيرة</th>
+                <th>الوقت</th>
+                <th>الحالة</th>
               </tr>
             </thead>
             <tbody>
               {lastTransactions.map((tx, i) => (
                 <tr key={i}>
-                  <td className="py-2 px-4">{tx.patient_name || '-'}</td>
-                  <td className="py-2 px-4">{tx.service_name || '-'}</td>
-                  <td className="py-2 px-4">{formatCurrency(Number(tx.paid_amount || 0))}</td>
-                  <td className="py-2 px-4">{tx.created_by_name || '-'}</td>
-                  <td className="py-2 px-4">{new Date(tx.created_at).toLocaleTimeString('ar-EG')}</td>
-                  <td className="py-2 px-4">
-                    {tx.status === 'paid' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">مدفوع</span>}
-                    {tx.status === 'partial' && <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs">جزئي</span>}
-                    {tx.status === 'pending' && <span className="bg-rose-100 text-rose-700 px-2 py-1 rounded-full text-xs">غير مدفوع</span>}
+                  <td>{tx.patient_name || '-'}</td>
+                  <td>{tx.service_name || '-'}</td>
+                  <td>{formatCurrency(Number(tx.paid_amount || 0))}</td>
+                  <td>{tx.created_by_name || '-'}</td>
+                  <td>{new Date(tx.created_at).toLocaleTimeString('ar-EG')}</td>
+                  <td>
+                    {tx.status === 'paid' && <span className={`${styles['status-badge']} ${styles['status-paid']}`}>مدفوع</span>}
+                    {tx.status === 'partial' && <span className={`${styles['status-badge']} ${styles['status-partial']}`}>جزئي</span>}
+                    {tx.status === 'pending' && <span className={`${styles['status-badge']} ${styles['status-pending']}`}>غير مدفوع</span>}
                   </td>
                 </tr>
               ))}

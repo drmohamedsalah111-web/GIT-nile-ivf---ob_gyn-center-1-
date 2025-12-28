@@ -1,0 +1,84 @@
+.dashboard-bg {
+  background: linear-gradient(135deg, #f0fdfa 0%, #fdf2f8 100%);
+  min-height: 100vh;
+}
+.kpi-card {
+  background: #fff;
+  border-radius: 1.5rem;
+  box-shadow: 0 2px 16px 0 rgba(20,184,166,0.08);
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-top: 5px solid #14b8a6;
+  transition: box-shadow 0.2s;
+}
+.kpi-card:hover {
+  box-shadow: 0 4px 32px 0 rgba(225,29,72,0.12);
+}
+.kpi-label {
+  color: #64748b;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+.kpi-value {
+  color: #14b8a6;
+  font-size: 2.2rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+.kpi-compare {
+  color: #22c55e;
+  font-size: 0.9rem;
+}
+.section-title {
+  color: #e11d48;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  text-align: right;
+}
+.chart-card {
+  background: #fff;
+  border-radius: 1.5rem;
+  box-shadow: 0 2px 16px 0 rgba(20,184,166,0.08);
+  padding: 1.5rem 1rem;
+  margin-bottom: 2rem;
+}
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  box-shadow: 0 2px 16px 0 rgba(20,184,166,0.08);
+}
+.table th, .table td {
+  padding: 1rem 1.2rem;
+  text-align: right;
+}
+.table th {
+  background: #f0fdfa;
+  color: #14b8a6;
+  font-weight: bold;
+}
+.status-badge {
+  display: inline-block;
+  padding: 0.3rem 1rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: bold;
+}
+.status-paid {
+  background: #d1fae5;
+  color: #059669;
+}
+.status-partial {
+  background: #fef9c3;
+  color: #b45309;
+}
+.status-pending {
+  background: #fee2e2;
+  color: #b91c1c;
+}
