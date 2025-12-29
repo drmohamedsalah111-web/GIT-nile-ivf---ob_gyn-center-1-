@@ -29,6 +29,7 @@ import Settings from './pages/Settings';
 import AdminDashboard from './pages/AdminDashboard';
 import InfertilityWorkup from './src/pages/InfertilityWorkup';
 import FinancePage from './components/pages/FinancePage';
+import DoctorFinancialMonitor from './pages/doctor/DoctorFinancialMonitor';
 import { Login } from './pages/Login';
 import SaaSManagement from './pages/admin/SaaSManagement';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
@@ -327,7 +328,7 @@ const App: React.FC = () => {
                               <Route path="/infertility" element={<InfertilityWorkup />} />
                               <Route path="/obstetrics" element={<ObstetricsDashboard />} />
                               <Route path="/records" element={<PatientMasterRecord />} />
-                              <Route path="/finance" element={<FinancePage doctorId={doctorId || user?.id} />} />
+                              <Route path="/finance" element={<DoctorFinancialMonitor />} />
                               <Route path="/settings" element={<Settings user={user} />} />
                               <Route path="/admin" element={
                                 <RequireRole allowedRoles={['admin', 'doctor']}>
