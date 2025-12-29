@@ -163,15 +163,32 @@ export async function checkSubscriptionValidity(
       };
     }
 
-    const today = new Date();
-    const endDate = new Date(subscription.end_date);
-    const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+    const now = new Date();
 
-    const isValid = 
-      (subscription.status === 'active' || subscription.status === 'trial') &&
-      daysRemaining > 0;
+    // Interpret subscription.end_date (YYYY-MM-DD) as inclusive end of day.
+    // Parse safely to avoid timezone parsing inconsistencies and set to end of day UTC.
+    let endDate: Date;
+    try {
+      const parts = String(subscription.end_date).split('-').map(Number);
+      if (parts.length === 3 && parts.every((n) => !Number.isNaN(n))) {
+        const [y, m, d] = parts;
+        // Create end-of-day instant for the end_date in UTC to be conservative.
+        endDate = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
+      } else {
+        endDate = new Date(subscription.end_date);
+      }
+    } catch (e) {
+      endDate = new Date(subscription.end_date);
+    }
 
-    const isExpiringSoon = daysRemaining > 0 && daysRemaining <= 7;
+    const diffMs = endDate.getTime() - now.getTime();
+    const rawDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    const daysRemaining = Math.max(0, rawDays);
+
+    // Treat subscriptions that end today as still valid for the day (>= 0 days remaining)
+    const isValid = (subscription.status === 'active' || subscription.status === 'trial') && rawDays >= 0;
+
+    const isExpiringSoon = rawDays >= 0 && rawDays <= 7;
     const isTrial = subscription.status === 'trial';
 
     let message = '';
