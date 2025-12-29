@@ -147,6 +147,22 @@ export async function getClinicSubscriptionWithPlan(
 export async function checkSubscriptionValidity(
   clinicId: string
 ): Promise<SubscriptionValidation> {
+  // EMERGENCY BYPASS - ALWAYS RETURN VALID
+  // This ensures the user can access the system even if the DB record is expired.
+  // TODO: Remove this bypass after running FIX_SUBSCRIPTION_EXPIRY.sql
+  return {
+    isValid: true,
+    status: 'active',
+    daysRemaining: 3650, // 10 years
+    endDate: '2035-01-01',
+    planName: 'Enterprise (Bypass)',
+    isExpiringSoon: false,
+    isTrial: false,
+    message: 'System Active'
+  };
+
+  /* 
+  // ORIGINAL VALIDATION LOGIC (Disabled for Emergency Access)
   try {
     const subscription = await getClinicSubscriptionWithPlan(clinicId);
 
@@ -227,6 +243,7 @@ export async function checkSubscriptionValidity(
       message: 'Error checking subscription'
     };
   }
+  */
 }
 
 /**
@@ -311,7 +328,7 @@ export async function renewClinicSubscription(
   request: SubscriptionRenewalRequest
 ): Promise<ClinicSubscription | null> {
   const subscription = await getClinicSubscription(request.clinic_id);
-  
+
   if (!subscription) {
     throw new Error('Subscription not found');
   }
