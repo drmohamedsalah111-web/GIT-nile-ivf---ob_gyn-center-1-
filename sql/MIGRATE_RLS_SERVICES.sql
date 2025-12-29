@@ -13,6 +13,9 @@ DROP POLICY IF EXISTS "secretary_delete_own_services" ON public.services;
 DROP POLICY IF EXISTS "doctor_manage_services" ON public.services;
 DROP POLICY IF EXISTS "all_users_select_services" ON public.services;
 
+-- Add a `created_by` column if missing (used by secretary policies)
+ALTER TABLE IF EXISTS public.services ADD COLUMN IF NOT EXISTS created_by UUID;
+
 -- POLICY: Doctors and secretaries (via their doctor id) can SELECT services belonging to their doctor record
 CREATE POLICY "doctor_or_secretary_select_services" ON public.services
   FOR SELECT
