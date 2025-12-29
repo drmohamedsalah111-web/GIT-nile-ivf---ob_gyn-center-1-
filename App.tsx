@@ -46,21 +46,15 @@ const App: React.FC = () => {
   const [receptionPage, setReceptionPage] = useState<'dashboard' | 'appointments' | 'patients' | 'cash'>('dashboard');
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<'doctor' | 'secretary' | 'admin'>('doctor');
+  const [doctorId, setDoctorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showLabReferences, setShowLabReferences] = useState(false);
   const [isAdminLogin, setIsAdminLogin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [showLanding, setShowLanding] = useState(true); // Show landing page initially
 
-  // Helper function to get clinic ID based on user role
-  const getClinicId = (): string | null => {
-    if (!user) return null;
-    if (userRole === 'doctor') return user.id;
-    if (userRole === 'secretary') return user.doctor_id || user.secretary_doctor_id || null;
-    return null;
-  };
-  
-  const clinicId = getClinicId();
+  // Clinic ID should be the `doctors.id` (not auth.user.id). Use `doctorId` state.
+  const clinicId = doctorId;
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -82,11 +76,22 @@ const App: React.FC = () => {
             const role = await authService.getUserRole(currentUser.id);
             console.log('Current User Role:', role); // Debug log
             setUserRole((role as any) || 'doctor');
-            
+            // Fetch the doctor's DB record (doctors.id) and store as doctorId
+            try {
+              const doctor = await authService.getDoctorProfile(currentUser.id);
+              if (doctor && doctor.id) {
+                setDoctorId(doctor.id);
+              } else {
+                // Ensure a doctor record exists (creates one if missing)
+                const ensured = await authService.ensureDoctorRecord(currentUser.id, currentUser.email || '');
+                if (ensured && ensured.id) setDoctorId(ensured.id);
+              }
+            } catch (e) {
+              console.warn('Failed to load or ensure doctor record:', e);
+            }
+
             if (role === 'secretary') {
               toast.success('تم تسجيل الدخول كسكرتيرة', { icon: '👩‍💼' });
-            } else {
-              // toast('تم تسجيل الدخول كطبيب', { icon: '👨‍⚕️' });
             }
           }
         } catch (authError: any) {
@@ -111,6 +116,19 @@ const App: React.FC = () => {
           setUserRole((role as any) || 'doctor');
         }).catch(err => {
           console.log('Error fetching role on auth change:', err);
+        });
+
+        // refresh doctorId on auth state change
+        authService.getDoctorProfile(nextUser.id).then(doctor => {
+          if (doctor && doctor.id) setDoctorId(doctor.id);
+        }).catch(async () => {
+          try {
+            const ensured = await authService.ensureDoctorRecord(nextUser.id, nextUser.email || '');
+            if (ensured && ensured.id) setDoctorId(ensured.id);
+          } catch (e) {
+            console.warn('Failed to ensure doctor on auth change:', e);
+            setDoctorId(null);
+          }
         });
       }
     });
