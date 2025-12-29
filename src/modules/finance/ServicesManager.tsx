@@ -18,9 +18,11 @@ import {
   ToggleRight,
   Save,
   X,
+  Download,
 } from 'lucide-react';
 import { servicesAPI, Service } from '../../services/financialService';
 import toast from 'react-hot-toast';
+import { defaultServices } from '../../data/defaultServices';
 
 interface ServicesManagerProps {
   clinicId: string;
@@ -32,7 +34,7 @@ export const ServicesManager: React.FC<ServicesManagerProps> = ({ clinicId }) =>
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  
+
   // Add Service Modal
   const [showAddModal, setShowAddModal] = useState(false);
   const [newService, setNewService] = useState<Partial<Service>>({
@@ -52,6 +54,9 @@ export const ServicesManager: React.FC<ServicesManagerProps> = ({ clinicId }) =>
   // Bulk Price Update
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [inflationPercentage, setInflationPercentage] = useState<number>(0);
+
+  // Default Services Initialization
+  const [isInitializing, setIsInitializing] = useState(false);
 
   useEffect(() => {
     fetchServices();
@@ -207,6 +212,35 @@ export const ServicesManager: React.FC<ServicesManagerProps> = ({ clinicId }) =>
     }
   };
 
+  const handleInitializeDefaultServices = async () => {
+    if (!clinicId) {
+      toast.error('لم يتم تهيئة العيادة بعد');
+      return;
+    }
+
+    if (!confirm(`سيتم إضافة ${defaultServices.length} خدمة افتراضية. المتكررة سيتم تجاهلها. هل تريد المتابعة؟`)) {
+      return;
+    }
+
+    try {
+      setIsInitializing(true);
+      const servicesWithClinicId = defaultServices.map(s => ({
+        ...s,
+        clinic_id: clinicId,
+        is_active: true,
+      }));
+
+      await servicesAPI.initializeDefaultServices(servicesWithClinicId, clinicId);
+      toast.success('تم تحميل الخدمات الافتراضية بنجاح! 🎉');
+      fetchServices();
+    } catch (error: any) {
+      console.error('Error initializing services:', error);
+      toast.error('حدث خطأ أثناء التحميل');
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
   const getCategoryColor = (category: string) => {
     const colors: any = {
       Outpatient: 'bg-blue-100 text-blue-700',
@@ -238,6 +272,16 @@ export const ServicesManager: React.FC<ServicesManagerProps> = ({ clinicId }) =>
           </p>
         </div>
         <div className="flex gap-3">
+          {services.length === 0 && (
+            <button
+              onClick={handleInitializeDefaultServices}
+              disabled={isInitializing}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-5 h-5" />
+              {isInitializing ? 'جاري التحميل...' : `تحميل ${defaultServices.length} خدمة جاهزة`}
+            </button>
+          )}
           <button
             onClick={() => setShowBulkModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
@@ -316,9 +360,8 @@ export const ServicesManager: React.FC<ServicesManagerProps> = ({ clinicId }) =>
             {filteredServices.map((service) => (
               <tr
                 key={service.id}
-                className={`hover:bg-gray-50 transition-colors ${
-                  !service.is_active ? 'opacity-50' : ''
-                }`}
+                className={`hover:bg-gray-50 transition-colors ${!service.is_active ? 'opacity-50' : ''
+                  }`}
               >
                 {/* Service Name */}
                 <td className="px-6 py-4">
