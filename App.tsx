@@ -118,7 +118,10 @@ const App: React.FC = () => {
             try {
               const doctor = await authService.getDoctorProfile(currentUser.id);
               if (doctor && doctor.id) {
-                setDoctorId(doctor.id);
+                // For secretaries, we use the linked doctor's ID as the "Clinic ID" / "Doctor ID" context
+                // For doctors, we use their own ID
+                const activeId = doctor.secretary_doctor_id || doctor.id;
+                setDoctorId(activeId);
               } else {
                 // Ensure a doctor record exists (creates one if missing)
                 const ensured = await authService.ensureDoctorRecord(currentUser.id, currentUser.email || '');
@@ -158,7 +161,10 @@ const App: React.FC = () => {
 
         // refresh doctorId on auth state change
         authService.getDoctorProfile(nextUser.id).then(doctor => {
-          if (doctor && doctor.id) setDoctorId(doctor.id);
+          if (doctor && doctor.id) {
+            const activeId = doctor.secretary_doctor_id || doctor.id;
+            setDoctorId(activeId);
+          }
         }).catch(async () => {
           try {
             const ensured = await authService.ensureDoctorRecord(nextUser.id, nextUser.email || '');
