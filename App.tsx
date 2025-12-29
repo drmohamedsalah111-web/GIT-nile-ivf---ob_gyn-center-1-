@@ -267,7 +267,7 @@ const App: React.FC = () => {
       case Page.PATIENT_RECORD:
         return <PatientMasterRecord />;
       case Page.FINANCE:
-        return <FinancePage doctorId={user?.id} />;
+        return <FinancePage doctorId={doctorId || user?.id} />;
       case Page.SETTINGS:
         return <Settings user={user} />;
       case Page.ADMIN:

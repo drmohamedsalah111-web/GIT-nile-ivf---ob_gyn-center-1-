@@ -1,0 +1,9 @@
+/* Minimal styles for finance components */
+.finance-dashboard, .new-collection, .close-day, .doctor-report { padding: 12px; }
+.stats { display:flex; gap:16px; margin-bottom:8px; }
+.actions { margin:8px 0; display:flex; gap:8px; align-items:center; }
+table { width:100%; border-collapse:collapse; margin-top:8px; }
+table th, table td { border:1px solid #ddd; padding:6px; text-align:left; }
+.error { color: #b00020; margin:6px 0; }
+ul { list-style:none; padding:0; margin:0; }
+ul li { padding:6px; border:1px solid #eee; cursor:pointer; }

@@ -1,0 +1,42 @@
+<div class="new-collection">
+  <h2>New collection</h2>
+
+  <div *ngIf="dayClosed">Day is closed. New collections are disabled.</div>
+  <div *ngIf="error" class="error">{{ error }}</div>
+
+  <div>
+    <label>Search patient</label>
+    <input type="text" (input)="searchPatients($any($event.target).value)" placeholder="name or phone" />
+    <ul *ngIf="patients.length">
+      <li *ngFor="let p of patients" (click)="selectPatient(p)">{{ p.full_name }} ({{ p.phone }})</li>
+    </ul>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <div>
+      <label>Appointment</label>
+      <select formControlName="appointmentId">
+        <option [ngValue]="null">-- none --</option>
+        <option *ngFor="let a of appointments" [value]="a.id">{{ a.start_at }} - {{ a.status }}</option>
+      </select>
+    </div>
+
+    <div>
+      <label>Service</label>
+      <select formControlName="serviceId">
+        <option [ngValue]="null">Select</option>
+        <option *ngFor="let s of services" [value]="s.id">{{ s.name }} - {{ s.price }}</option>
+      </select>
+    </div>
+
+    <div>
+      <label>Price</label>
+      <input formControlName="price" readonly />
+    </div>
+
+    <div>
+      <button type="submit" [disabled]="loading || dayClosed">Submit</button>
+      <button type="button" (click)="cancel()">Cancel</button>
+    </div>
+  </form>
+</div>

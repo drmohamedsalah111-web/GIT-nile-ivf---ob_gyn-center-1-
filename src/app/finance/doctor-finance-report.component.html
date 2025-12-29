@@ -1,0 +1,33 @@
+<div class="doctor-report">
+  <h2>Doctor finance report</h2>
+  <app-date-range-selector (rangeSelected)="onRangeSelected($event)"></app-date-range-selector>
+
+  <div *ngIf="loading">Loading...</div>
+  <div *ngIf="error" class="error">{{ error }}</div>
+
+  <div *ngIf="!loading && !error">
+    <div><strong>Total revenue:</strong> {{ totalRevenue | number:'1.2-2' }}</div>
+    <div><strong>Services:</strong> {{ serviceCount }}</div>
+
+    <h3>Breakdown by service</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>Count</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let b of breakdown">
+          <td>{{ b.service_name || b.service_id }}</td>
+          <td>{{ b.count }}</td>
+          <td>{{ b.total | number:'1.2-2' }}</td>
+        </tr>
+        <tr *ngIf="!breakdown.length">
+          <td colspan="3">No data for selected range</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
