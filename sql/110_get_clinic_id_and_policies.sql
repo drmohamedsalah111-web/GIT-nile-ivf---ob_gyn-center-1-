@@ -58,7 +58,7 @@ CREATE POLICY services_select_by_clinic ON public.services
 
 DROP POLICY IF EXISTS services_modify_by_clinic ON public.services;
 CREATE POLICY services_modify_by_clinic ON public.services
-  FOR INSERT, UPDATE, DELETE
+  FOR ALL
   USING (clinic_id = get_clinic_id())
   WITH CHECK (clinic_id = get_clinic_id());
 
