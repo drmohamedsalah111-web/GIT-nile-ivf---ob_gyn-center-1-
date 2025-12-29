@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import toast from 'react-hot-toast';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  AlertCircle, 
+import {
+  DollarSign,
+  TrendingUp,
+  AlertCircle,
   CheckCircle,
   Clock,
   Eye,
@@ -67,18 +67,32 @@ interface CollectionItem {
   visit_date: string;
 }
 
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  AreaChart, Area
+} from 'recharts';
+
+interface ChartDataPoint {
+  date: string;
+  total_billed: number;
+  total_collected: number;
+  outstanding: number;
+  collection_rate: number;
+}
+
 const DoctorFinancialMonitor: React.FC = () => {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [invoices, setInvoices] = useState<InvoiceDetail[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [collections, setCollections] = useState<CollectionItem[]>([]);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [activeTab, setActiveTab] = useState<'summary' | 'invoices' | 'audit' | 'collections'>('summary');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month'>('today');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadFinancialData();
-    
+
     // Auto-refresh every 30 seconds
     const interval = setInterval(loadFinancialData, 30000);
     return () => clearInterval(interval);
@@ -91,7 +105,8 @@ const DoctorFinancialMonitor: React.FC = () => {
         loadSummary(),
         loadInvoices(),
         loadAuditLogs(),
-        loadCollections()
+        loadCollections(),
+        loadChartData()
       ]);
     } catch (error) {
       console.error('Error loading financial data:', error);
@@ -169,6 +184,30 @@ const DoctorFinancialMonitor: React.FC = () => {
     }
   };
 
+  const loadChartData = async () => {
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) return;
+
+    // Default to last 30 days
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+
+    const { data, error } = await supabase.rpc('get_doctor_financial_report', {
+      p_doctor_id: (await supabase.from('doctors').select('id').eq('user_id', user.user.id).single()).data?.id,
+      p_start_date: start.toISOString().split('T')[0],
+      p_end_date: end.toISOString().split('T')[0]
+    });
+
+    if (error) {
+      console.error('Error loading chart data:', error);
+    } else {
+      // Sort by date just in case
+      const sorted = (data || []).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      setChartData(sorted);
+    }
+  };
+
   const getActionIcon = (actionType: string) => {
     switch (actionType) {
       case 'invoice_created':
@@ -204,8 +243,8 @@ const DoctorFinancialMonitor: React.FC = () => {
     }
   };
 
-  const collectionRate = summary 
-    ? summary.total_billed > 0 
+  const collectionRate = summary
+    ? summary.total_billed > 0
       ? ((summary.total_collected / summary.total_billed) * 100).toFixed(1)
       : '0'
     : '0';
@@ -227,6 +266,51 @@ const DoctorFinancialMonitor: React.FC = () => {
             تحديث
           </button>
         </div>
+
+        {/* Charts Section */}
+        {chartData.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Revenue Trend Chart */}
+            <div className="bg-white p-4 rounded-xl shadow">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-blue-500" />
+                تحليل الإيرادات (آخر 30 يوم)
+              </h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="total_billed" name="إجمالي الفواتير" fill="#3b82f6" />
+                    <Bar dataKey="total_collected" name="المحصل الفعلي" fill="#22c55e" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Collection Efficiency Chart */}
+            <div className="bg-white p-4 rounded-xl shadow">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-purple-500" />
+                كفاءة التحصيل
+              </h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis unit="%" />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="collection_rate" name="نسبة التحصيل" stroke="#8884d8" fill="#8884d8" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Summary Cards */}
         {summary && (
@@ -271,47 +355,43 @@ const DoctorFinancialMonitor: React.FC = () => {
 
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow mb-6">
-          <div className="border-b flex">
+          <div className="border-b flex overflow-x-auto">
             <button
               onClick={() => setActiveTab('summary')}
-              className={`px-6 py-3 font-medium ${
-                activeTab === 'summary'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
+              className={`px-6 py-3 font-medium whitespace-nowrap ${activeTab === 'summary'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-600 hover:text-blue-600'
+                }`}
             >
               <Users className="w-4 h-4 inline ml-2" />
               ملخص المواعيد
             </button>
             <button
               onClick={() => setActiveTab('invoices')}
-              className={`px-6 py-3 font-medium ${
-                activeTab === 'invoices'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
+              className={`px-6 py-3 font-medium whitespace-nowrap ${activeTab === 'invoices'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-600 hover:text-blue-600'
+                }`}
             >
               <FileText className="w-4 h-4 inline ml-2" />
               الفواتير
             </button>
             <button
               onClick={() => setActiveTab('audit')}
-              className={`px-6 py-3 font-medium ${
-                activeTab === 'audit'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
+              className={`px-6 py-3 font-medium whitespace-nowrap ${activeTab === 'audit'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-600 hover:text-blue-600'
+                }`}
             >
               <Eye className="w-4 h-4 inline ml-2" />
               سجل الأنشطة
             </button>
             <button
               onClick={() => setActiveTab('collections')}
-              className={`px-6 py-3 font-medium ${
-                activeTab === 'collections'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
+              className={`px-6 py-3 font-medium whitespace-nowrap ${activeTab === 'collections'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-600 hover:text-blue-600'
+                }`}
             >
               <AlertCircle className="w-4 h-4 inline ml-2" />
               متابعة التحصيل ({collections.length})
@@ -347,31 +427,28 @@ const DoctorFinancialMonitor: React.FC = () => {
                 <div className="mb-4 flex gap-2">
                   <button
                     onClick={() => setDateFilter('today')}
-                    className={`px-4 py-2 rounded-lg ${
-                      dateFilter === 'today'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className={`px-4 py-2 rounded-lg ${dateFilter === 'today'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                   >
                     اليوم
                   </button>
                   <button
                     onClick={() => setDateFilter('week')}
-                    className={`px-4 py-2 rounded-lg ${
-                      dateFilter === 'week'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className={`px-4 py-2 rounded-lg ${dateFilter === 'week'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                   >
                     آخر أسبوع
                   </button>
                   <button
                     onClick={() => setDateFilter('month')}
-                    className={`px-4 py-2 rounded-lg ${
-                      dateFilter === 'month'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className={`px-4 py-2 rounded-lg ${dateFilter === 'month'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                   >
                     آخر شهر
                   </button>
