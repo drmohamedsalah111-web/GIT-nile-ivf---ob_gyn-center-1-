@@ -71,6 +71,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   AreaChart, Area
 } from 'recharts';
+import { ServicesManager } from '../../src/modules/finance/ServicesManager';
 
 interface ChartDataPoint {
   date: string;
@@ -86,7 +87,8 @@ const DoctorFinancialMonitor: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [collections, setCollections] = useState<CollectionItem[]>([]);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [activeTab, setActiveTab] = useState<'summary' | 'invoices' | 'audit' | 'collections'>('summary');
+  const [doctorId, setDoctorId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'summary' | 'invoices' | 'audit' | 'collections' | 'services'>('summary');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month'>('today');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -99,8 +101,18 @@ const DoctorFinancialMonitor: React.FC = () => {
   }, [dateFilter]);
 
   const loadFinancialData = async () => {
-    setIsLoading(true);
     try {
+      setIsLoading(true);
+
+      // Get doctor ID first
+      const { data: user } = await supabase.auth.getUser();
+      if (user.user) {
+        const { data: doctor } = await supabase.from('doctors').select('id').eq('user_id', user.user.id).single();
+        if (doctor?.id) {
+          setDoctorId(doctor.id);
+        }
+      }
+
       await Promise.all([
         loadSummary(),
         loadInvoices(),
@@ -396,6 +408,16 @@ const DoctorFinancialMonitor: React.FC = () => {
               <AlertCircle className="w-4 h-4 inline ml-2" />
               متابعة التحصيل ({collections.length})
             </button>
+            <button
+              onClick={() => setActiveTab('services')}
+              className={`px-6 py-3 font-medium whitespace-nowrap ${activeTab === 'services'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-600 hover:text-blue-600'
+                }`}
+            >
+              <DollarSign className="w-4 h-4 inline ml-2" />
+              الخدمات والأسعار
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -546,6 +568,19 @@ const DoctorFinancialMonitor: React.FC = () => {
                     </p>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Services Tab */}
+            {activeTab === 'services' && (
+              <div className="mt-4">
+                {doctorId ? (
+                  <ServicesManager clinicId={doctorId} />
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500">جاري التحميل...</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
