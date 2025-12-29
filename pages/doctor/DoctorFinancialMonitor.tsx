@@ -72,6 +72,7 @@ import {
   AreaChart, Area
 } from 'recharts';
 import { ServicesManager } from '../../src/modules/finance/ServicesManager';
+import AdvancedFinancialDashboard from './AdvancedFinancialDashboard';
 
 interface ChartDataPoint {
   date: string;
@@ -88,7 +89,7 @@ const DoctorFinancialMonitor: React.FC = () => {
   const [collections, setCollections] = useState<CollectionItem[]>([]);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [doctorId, setDoctorId] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'summary' | 'invoices' | 'audit' | 'collections' | 'services'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'invoices' | 'audit' | 'collections' | 'services' | 'analytics'>('summary');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month'>('today');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -418,6 +419,16 @@ const DoctorFinancialMonitor: React.FC = () => {
               <DollarSign className="w-4 h-4 inline ml-2" />
               الخدمات والأسعار
             </button>
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`px-6 py-3 font-medium whitespace-nowrap ${activeTab === 'analytics'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-600 hover:text-blue-600'
+                }`}
+            >
+              <TrendingUp className="w-4 h-4 inline ml-2" />
+              التحليلات المتقدمة
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -581,6 +592,13 @@ const DoctorFinancialMonitor: React.FC = () => {
                     <p className="text-gray-500">جاري التحميل...</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Analytics Tab */}
+            {activeTab === 'analytics' && (
+              <div className="mt-4">
+                <AdvancedFinancialDashboard />
               </div>
             )}
           </div>
