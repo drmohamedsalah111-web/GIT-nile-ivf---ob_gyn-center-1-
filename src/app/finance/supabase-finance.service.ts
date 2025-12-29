@@ -1,30 +1,269 @@
 import { Injectable } from '@angular/core';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import {
-  Appointment,
-  DailyClosure,
-  DoctorReport,
-  DoctorReportItem,
-  FinanceSummary,
-  Payment,
+import { environment } from 'src/environments/environment';
+import type {
   Patient,
+  Appointment,
   Service,
+  Payment,
   ServiceCharge,
-} from './types';
+  FinanceSummary,
+  LedgerRow,
+  DoctorReport,
+  DoctorBreakdownRow,
+} from './finance.types';
+import { getCairoTodayRangeISO } from './finance-date.util';
 
 @Injectable({ providedIn: 'root' })
 export class SupabaseFinanceService {
   private supabase: SupabaseClient;
 
   constructor() {
-    // Read config from environment. Adjust if you use a different env system.
-    const url = (window as any)?.['VITE_SUPABASE_URL'] || (window as any)?.['SUPABASE_URL'] || (process as any)?.env?.VITE_SUPABASE_URL;
-    const key = (window as any)?.['VITE_SUPABASE_ANON_KEY'] || (window as any)?.['SUPABASE_ANON_KEY'] || (process as any)?.env?.VITE_SUPABASE_ANON_KEY;
-    if (!url || !key) {
-      throw new Error('Supabase config not found. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
-    }
-    this.supabase = createClient(url, key);
+    this.supabase = createClient(environment.supabaseUrl, environment.supabaseAnonKey);
   }
+
+  private async getUserId(): Promise<string> {
+    const { data, error } = await this.supabase.auth.getUser();
+    if (error) throw new Error(`Auth error: ${error.message}`);
+    const id = data.user?.id;
+    if (!id) throw new Error('No authenticated user');
+    return id;
+  }
+
+  async isTodayClosed(): Promise<boolean> {
+    const { fromISO, toISO } = getCairoTodayRangeISO();
+    const { data, error } = await this.supabase
+      .from('daily_closures')
+      .select('id')
+      .gte('closure_date', fromISO)
+      .lt('closure_date', toISO)
+      .limit(1);
+    if (error) throw new Error(`Unable to check closure: ${error.message}`);
+    return Array.isArray(data) && data.length > 0;
+  }
+
+  async getTodaySummary(): Promise<FinanceSummary> {
+    const { fromISO, toISO } = getCairoTodayRangeISO();
+
+    const paymentsRes = await this.supabase
+      .from<Payment>('payments')
+      .select('amount')
+      .gte('created_at', fromISO)
+      .lt('created_at', toISO);
+    if (paymentsRes.error) throw new Error(`Failed to fetch payments: ${paymentsRes.error.message}`);
+    const payments = paymentsRes.data ?? [];
+    const todayTotal = payments.reduce((s, p) => s + (p.amount ?? 0), 0);
+
+    const servicesRes = await this.supabase
+      .from<ServiceCharge>('service_charges')
+      .select('id')
+      .gte('created_at', fromISO)
+      .lt('created_at', toISO);
+    if (servicesRes.error) throw new Error(`Failed to fetch service charges: ${servicesRes.error.message}`);
+    const servicesCount = servicesRes.data ? servicesRes.data.length : 0;
+
+    const paymentsCount = payments.length;
+    const isClosed = await this.isTodayClosed();
+
+    return { todayTotal, paymentsCount, servicesCount, isClosed };
+  }
+
+  async getTodayLedger(): Promise<LedgerRow[]> {
+    const { fromISO, toISO } = getCairoTodayRangeISO();
+
+    const payRes = await this.supabase
+      .from<Payment>('payments')
+      .select('*')
+      .gte('created_at', fromISO)
+      .lt('created_at', toISO)
+      .order('created_at', { ascending: false });
+    if (payRes.error) throw new Error(`Failed to fetch payments: ${payRes.error.message}`);
+    const payments = payRes.data ?? [];
+
+    const patientIds = Array.from(new Set(payments.map((p) => p.patient_id).filter(Boolean)));
+    const appointmentIds = Array.from(new Set(payments.map((p) => p.appointment_id).filter(Boolean) as string[]));
+
+    let serviceCharges: ServiceCharge[] = [];
+    if (appointmentIds.length > 0) {
+      const scRes = await this.supabase
+        .from<ServiceCharge>('service_charges')
+        .select('*')
+        .in('appointment_id', appointmentIds);
+      if (scRes.error) throw new Error(`Failed to fetch service charges: ${scRes.error.message}`);
+      serviceCharges = scRes.data ?? [];
+    }
+
+    const serviceIds = Array.from(new Set(serviceCharges.map((s) => s.service_id).filter(Boolean)));
+
+    const [patientsRes, servicesRes] = await Promise.all([
+      this.supabase.from<Patient>('patients').select('*').in('id', patientIds),
+      this.supabase.from<Service>('services').select('*').in('id', serviceIds),
+    ]);
+    if (patientsRes.error) throw new Error(`Failed to fetch patients: ${patientsRes.error.message}`);
+    if (servicesRes.error) throw new Error(`Failed to fetch services: ${servicesRes.error.message}`);
+
+    const patientsMap = new Map((patientsRes.data ?? []).map((p) => [p.id, p]));
+    const servicesMap = new Map((servicesRes.data ?? []).map((s) => [s.id, s]));
+
+    const ledger: LedgerRow[] = payments.map((p) => {
+      const sc = serviceCharges.find((s) => s.appointment_id === p.appointment_id);
+      const serviceName = sc ? (servicesMap.get(sc.service_id)?.name ?? 'Unknown') : 'Unknown';
+      const patientName = patientsMap.get(p.patient_id)?.full_name ?? 'Unknown';
+      const time = p.created_at;
+      return { time, patientName, serviceName, amount: p.amount } as LedgerRow;
+    });
+
+    return ledger;
+  }
+
+  async searchPatients(term: string): Promise<Patient[]> {
+    if (!term || term.trim() === '') return [];
+    const q = `%${term.trim()}%`;
+    const { data, error } = await this.supabase
+      .from<Patient>('patients')
+      .select('*')
+      .or(`full_name.ilike.${q},phone.ilike.${q}`)
+      .limit(20);
+    if (error) throw new Error(`Failed to search patients: ${error.message}`);
+    return data ?? [];
+  }
+
+  async getAppointmentsForPatient(patientId: string): Promise<Appointment[]> {
+    const { data, error } = await this.supabase
+      .from<Appointment>('appointments')
+      .select('*')
+      .eq('patient_id', patientId)
+      .order('start_at', { ascending: false })
+      .limit(100);
+    if (error) throw new Error(`Failed to fetch appointments: ${error.message}`);
+    return data ?? [];
+  }
+
+  async getServices(): Promise<Service[]> {
+    const { data, error } = await this.supabase.from<Service>('services').select('*').order('name');
+    if (error) throw new Error(`Failed to fetch services: ${error.message}`);
+    return data ?? [];
+  }
+
+  async createChargeAndPayment(input: {
+    patientId: string;
+    appointmentId: string;
+    serviceId: string;
+  }): Promise<void> {
+    const closed = await this.isTodayClosed();
+    if (closed) throw new Error('Cannot create charge: day is already closed');
+
+    const apptRes = await this.supabase
+      .from<Appointment>('appointments')
+      .select('*')
+      .eq('id', input.appointmentId)
+      .single();
+    if (apptRes.error) throw new Error(`Failed to fetch appointment: ${apptRes.error.message}`);
+    const appointment = apptRes.data;
+    if (!appointment) throw new Error('Appointment not found');
+    const doctorId = appointment.doctor_id;
+
+    const svcRes = await this.supabase.from<Service>('services').select('*').eq('id', input.serviceId).single();
+    if (svcRes.error) throw new Error(`Failed to fetch service: ${svcRes.error.message}`);
+    const service = svcRes.data;
+    if (!service) throw new Error('Service not found');
+    const price = service.price;
+
+    const now = new Date().toISOString();
+    const scInsert = await this.supabase.from('service_charges').insert({
+      service_id: input.serviceId,
+      appointment_id: input.appointmentId,
+      doctor_id: doctorId,
+      price_at_time: price,
+      created_at: now,
+    });
+    if (scInsert.error) throw new Error(`Failed to insert service charge: ${scInsert.error.message}`);
+
+    const userId = await this.getUserId();
+    const payInsert = await this.supabase.from('payments').insert({
+      patient_id: input.patientId,
+      appointment_id: input.appointmentId,
+      amount: price,
+      payment_method: 'cash',
+      created_by: userId,
+      created_at: now,
+    });
+    if (payInsert.error) throw new Error(`Failed to insert payment: ${payInsert.error.message}`);
+  }
+
+  async closeDay(countedCash: number): Promise<{ systemTotal: number; difference: number }> {
+    const { fromISO, toISO } = getCairoTodayRangeISO();
+
+    const payRes = await this.supabase
+      .from<Payment>('payments')
+      .select('amount')
+      .gte('created_at', fromISO)
+      .lt('created_at', toISO);
+    if (payRes.error) throw new Error(`Failed to fetch payments: ${payRes.error.message}`);
+    const payments = payRes.data ?? [];
+    const systemTotal = payments.reduce((s, p) => s + (p.amount ?? 0), 0);
+
+    const userId = await this.getUserId();
+    const now = new Date().toISOString();
+
+    const insertRes = await this.supabase.from('daily_closures').insert({
+      closure_date: fromISO,
+      total_cash: countedCash,
+      closed_by: userId,
+      closed_at: now,
+    });
+    if (insertRes.error) throw new Error(`Failed to insert daily closure: ${insertRes.error.message}`);
+
+    return { systemTotal, difference: countedCash - systemTotal };
+  }
+
+  async getDoctorReport(rangeISO: { fromISO: string; toISO: string }): Promise<DoctorReport> {
+    const userId = await this.getUserId();
+    const res = await this.supabase
+      .from<ServiceCharge>('service_charges')
+      .select('*')
+      .gte('created_at', rangeISO.fromISO)
+      .lt('created_at', rangeISO.toISO)
+      .eq('doctor_id', userId);
+    if (res.error) throw new Error(`Failed to fetch service charges: ${res.error.message}`);
+    const charges = res.data ?? [];
+    const totalRevenue = charges.reduce((s, c) => s + (c.price_at_time ?? 0), 0);
+    const servicesCount = charges.length;
+    return { totalRevenue, servicesCount };
+  }
+
+  async getDoctorBreakdownByService(rangeISO: { fromISO: string; toISO: string }): Promise<DoctorBreakdownRow[]> {
+    const userId = await this.getUserId();
+    const res = await this.supabase
+      .from<ServiceCharge>('service_charges')
+      .select('*')
+      .gte('created_at', rangeISO.fromISO)
+      .lt('created_at', rangeISO.toISO)
+      .eq('doctor_id', userId);
+    if (res.error) throw new Error(`Failed to fetch service charges: ${res.error.message}`);
+    const charges = res.data ?? [];
+
+    const agg = new Map<string, { count: number; total: number }>();
+    for (const c of charges) {
+      const cur = agg.get(c.service_id) ?? { count: 0, total: 0 };
+      cur.count += 1;
+      cur.total += c.price_at_time ?? 0;
+      agg.set(c.service_id, cur);
+    }
+
+    const serviceIds = Array.from(agg.keys());
+    const servicesRes = await this.supabase.from<Service>('services').select('*').in('id', serviceIds);
+    if (servicesRes.error) throw new Error(`Failed to fetch services: ${servicesRes.error.message}`);
+    const servicesMap = new Map((servicesRes.data ?? []).map((s) => [s.id, s]));
+
+    const rows: DoctorBreakdownRow[] = [];
+    for (const [serviceId, { count, total }] of agg.entries()) {
+      rows.push({ serviceId, serviceName: servicesMap.get(serviceId)?.name ?? 'Unknown', count, total });
+    }
+    return rows;
+  }
+}
+
 
   // Get Cairo date string YYYY-MM-DD using Intl timezone support
   private getCairoDateString(date?: Date): string {
