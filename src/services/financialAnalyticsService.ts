@@ -79,11 +79,16 @@ export const financialAnalyticsService = {
             const targetClinicId = info.clinic_id;
             const actualDoctorId = info.id;
 
+            let orFilter = `doctor_id.eq.${actualDoctorId}`;
+            if (targetClinicId && targetClinicId !== actualDoctorId) {
+                orFilter += `,clinic_id.eq.${targetClinicId}`;
+            }
+
             // Fetch from unified view
             const { data: allInvoices, error: invError } = await supabase
                 .from('unified_invoices_view')
                 .select('id, total_amount, source_type')
-                .or(`clinic_id.eq.${targetClinicId},doctor_id.eq.${actualDoctorId}`)
+                .or(orFilter)
                 .gte('created_at', startDate)
                 .lte('created_at', endDate);
 
@@ -135,10 +140,15 @@ export const financialAnalyticsService = {
     async getPaymentMethodsDistribution(doctorId: string, startDate: string, endDate: string) {
         try {
             const info = await financialAnalyticsService.resolveDoctorInfo(doctorId);
+            let orFilter = `doctor_id.eq.${info.id}`;
+            if (info.clinic_id && info.clinic_id !== info.id) {
+                orFilter += `,clinic_id.eq.${info.clinic_id}`;
+            }
+
             const { data: allInvoices, error } = await supabase
                 .from('unified_invoices_view')
                 .select('payment_method, total_amount')
-                .or(`clinic_id.eq.${info.clinic_id},doctor_id.eq.${info.id}`)
+                .or(orFilter)
                 .gte('created_at', startDate)
                 .lte('created_at', endDate);
 
@@ -167,10 +177,15 @@ export const financialAnalyticsService = {
     async getTopServices(doctorId: string, startDate: string, endDate: string, limit: number = 10) {
         try {
             const info = await financialAnalyticsService.resolveDoctorInfo(doctorId);
+            let orFilter = `doctor_id.eq.${info.id}`;
+            if (info.clinic_id && info.clinic_id !== info.id) {
+                orFilter += `,clinic_id.eq.${info.clinic_id}`;
+            }
+
             const { data: allInvoices, error } = await supabase
                 .from('unified_invoices_view')
                 .select('id, source_type')
-                .or(`clinic_id.eq.${info.clinic_id},doctor_id.eq.${info.id}`)
+                .or(orFilter)
                 .gte('created_at', startDate)
                 .lte('created_at', endDate);
 
@@ -217,9 +232,14 @@ export const financialAnalyticsService = {
             const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString();
 
             const fetchRevenue = async (start: string, end?: string) => {
+                let orFilter = `doctor_id.eq.${info.id}`;
+                if (info.clinic_id && info.clinic_id !== info.id) {
+                    orFilter += `,clinic_id.eq.${info.clinic_id}`;
+                }
+
                 let q = supabase.from('unified_invoices_view')
                     .select('total_amount')
-                    .or(`clinic_id.eq.${info.clinic_id},doctor_id.eq.${info.id}`)
+                    .or(orFilter)
                     .gte('created_at', start);
 
                 if (end) {

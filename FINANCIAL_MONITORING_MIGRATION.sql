@@ -1,4 +1,78 @@
 -- ============================================
+-- 0) Ensure POS Schema exists (Dependency resolution)
+-- ============================================
+
+-- POS invoices (secretary-managed)
+CREATE TABLE IF NOT EXISTS public.pos_invoices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id UUID NOT NULL REFERENCES public.doctors(id) ON DELETE CASCADE,
+  patient_id UUID NOT NULL REFERENCES public.patients(id) ON DELETE CASCADE,
+  appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
+  invoice_number TEXT UNIQUE,
+  subtotal DECIMAL(12,2) DEFAULT 0 CHECK (subtotal >= 0),
+  discount DECIMAL(12,2) DEFAULT 0 CHECK (discount >= 0),
+  tax DECIMAL(12,2) DEFAULT 0 CHECK (tax >= 0),
+  total_amount DECIMAL(12,2) DEFAULT 0 CHECK (total_amount >= 0),
+  paid_amount DECIMAL(12,2) DEFAULT 0 CHECK (paid_amount >= 0),
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft','partial','paid','cancelled')),
+  created_by UUID REFERENCES auth.users(id), -- secretary user id
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_pos_invoices_clinic ON public.pos_invoices(clinic_id);
+CREATE INDEX IF NOT EXISTS idx_pos_invoices_patient ON public.pos_invoices(patient_id);
+CREATE INDEX IF NOT EXISTS idx_pos_invoices_status ON public.pos_invoices(status);
+
+-- POS invoice items
+CREATE TABLE IF NOT EXISTS public.pos_invoice_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  invoice_id UUID NOT NULL REFERENCES public.pos_invoices(id) ON DELETE CASCADE,
+  service_id UUID REFERENCES public.services(id) ON DELETE SET NULL,
+  description TEXT NOT NULL,
+  quantity INTEGER DEFAULT 1 CHECK (quantity > 0),
+  unit_price DECIMAL(12,2) DEFAULT 0 CHECK (unit_price >= 0),
+  total_price DECIMAL(12,2) DEFAULT 0 CHECK (total_price >= 0),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pos_invoice_items_invoice ON public.pos_invoice_items(invoice_id);
+
+-- Pending orders created by doctor
+CREATE TABLE IF NOT EXISTS public.pending_orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id UUID NOT NULL REFERENCES public.doctors(id) ON DELETE CASCADE,
+  appointment_id UUID NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE,
+  requested_by UUID REFERENCES auth.users(id), -- doctor user id
+  request_type TEXT NOT NULL, -- e.g., 'lab', 'extra_service'
+  details JSONB DEFAULT '{}'::jsonb,
+  status TEXT DEFAULT 'open' CHECK (status IN ('open','collected','cancelled')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_orders_app ON public.pending_orders(appointment_id);
+
+-- Invoice payments (POS)
+CREATE TABLE IF NOT EXISTS public.pos_invoice_payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  invoice_id UUID NOT NULL REFERENCES public.pos_invoices(id) ON DELETE CASCADE,
+  amount DECIMAL(12,2) NOT NULL CHECK (amount >= 0),
+  payment_method TEXT NOT NULL,
+  payment_reference TEXT,
+  created_by UUID REFERENCES auth.users(id), -- secretary
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pos_invoice_payments_invoice ON public.pos_invoice_payments(invoice_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.pos_invoices TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.pos_invoice_items TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.pos_invoice_payments TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.pending_orders TO authenticated;
+
+-- ============================================
 -- MODIFIED BILLING SYSTEM: Doctor Financial Monitoring
 -- الدكتور يشوف كل حاجة مالية بس ما يعدلش
 -- ============================================
@@ -196,6 +270,7 @@ SELECT
     v.source_type,
     a.id as appointment_id,
     a.appointment_date as appointment_date,
+    a.appointment_date::time as appointment_time,
     a.payment_status,
     p.id as patient_id,
     p.name as patient_name,
@@ -203,7 +278,18 @@ SELECT
     d.id as doctor_id,
     d.name as doctor_name,
     d.clinic_id,
-    (v.total_amount - v.paid_amount) as outstanding_amount
+    (v.total_amount - v.paid_amount) as outstanding_amount,
+    -- Compatibility columns for the UI
+    CASE 
+        WHEN v.paid_amount < v.total_amount AND v.created_at < NOW() - INTERVAL '1 day' THEN true
+        ELSE false
+    END as needs_followup,
+    CASE 
+        WHEN v.paid_amount < v.total_amount AND EXTRACT(DAY FROM NOW() - v.created_at) > 7 THEN 'urgent'
+        WHEN v.paid_amount < v.total_amount AND EXTRACT(DAY FROM NOW() - v.created_at) > 3 THEN 'high'
+        WHEN v.paid_amount < v.total_amount THEN 'normal'
+        ELSE 'none'
+    END as alert_level
 FROM unified_invoices_view v
 LEFT JOIN appointments a ON v.appointment_id = a.id
 LEFT JOIN patients p ON v.patient_id = p.id
@@ -258,24 +344,19 @@ SELECT
     d.id as doctor_id,
     d.name as doctor_name,
     d.clinic_id,
-    -- Today's statistics
-    COUNT(DISTINCT a.id) as total_appointments,
-    COUNT(DISTINCT CASE WHEN a.checked_in_at IS NOT NULL THEN a.id END) as checked_in_count,
-    COUNT(DISTINCT CASE WHEN a.payment_status = 'paid' THEN a.id END) as fully_paid_count,
-    COUNT(DISTINCT CASE WHEN a.payment_status = 'partially_paid' THEN a.id END) as partial_paid_count,
-    COUNT(DISTINCT CASE WHEN a.payment_status = 'pending' THEN a.id END) as pending_payment_count,
-    -- Financial totals
-    COALESCE(SUM(i.total), 0) as total_billed,
-    COALESCE(SUM(i.paid_amount), 0) as total_collected,
-    COALESCE(SUM(i.total - i.paid_amount), 0) as total_outstanding,
-    -- Service requests
-    COUNT(DISTINCT sr.id) as total_service_requests,
-    COUNT(DISTINCT CASE WHEN sr.status = 'requested' THEN sr.id END) as pending_service_requests,
-    COUNT(DISTINCT CASE WHEN sr.status = 'fulfilled' THEN sr.id END) as fulfilled_service_requests
+    -- Today's statistics from unified view
+    COUNT(DISTINCT v.appointment_id) as total_appointments,
+    COUNT(DISTINCT CASE WHEN v.status IN ('paid', 'Paid') THEN v.id END) as fully_paid_count,
+    COALESCE(SUM(v.total_amount), 0) as total_billed,
+    COALESCE(SUM(v.paid_amount), 0) as total_collected,
+    COALESCE(SUM(v.total_amount - v.paid_amount), 0) as total_outstanding,
+    -- Service requests (still from table)
+    (SELECT COUNT(*) FROM service_requests sr WHERE sr.requested_at::date = CURRENT_DATE AND sr.requested_by = d.id) as total_service_requests,
+    (SELECT COUNT(*) FROM service_requests sr WHERE sr.requested_at::date = CURRENT_DATE AND sr.requested_by = d.id AND sr.status = 'requested') as pending_service_requests,
+    (SELECT COUNT(*) FROM service_requests sr WHERE sr.requested_at::date = CURRENT_DATE AND sr.requested_by = d.id AND sr.status = 'fulfilled') as fulfilled_service_requests
 FROM doctors d
-LEFT JOIN appointments a ON a.doctor_id = d.id AND a.appointment_date = CURRENT_DATE
-LEFT JOIN invoices i ON i.appointment_id = a.id
-LEFT JOIN service_requests sr ON sr.appointment_id = a.id
+LEFT JOIN unified_invoices_view v ON (v.clinic_id = d.clinic_id OR v.doctor_id = d.id) AND v.created_at::date = CURRENT_DATE
+WHERE d.user_id = auth.uid()
 GROUP BY d.id, d.name, d.clinic_id;
 
 GRANT SELECT ON daily_financial_summary TO authenticated;

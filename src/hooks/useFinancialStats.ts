@@ -79,7 +79,11 @@ export function useFinancialStats(dateRange: DateRange = 'today', doctorId?: str
           .lte('created_at', to.toISOString());
 
         if (actualDoctorId || targetClinicId) {
-          query = query.or(`clinic_id.eq.${targetClinicId},doctor_id.eq.${actualDoctorId}`);
+          let orFilter = `doctor_id.eq.${actualDoctorId}`;
+          if (targetClinicId && targetClinicId !== actualDoctorId) {
+            orFilter += `,clinic_id.eq.${targetClinicId}`;
+          }
+          query = query.or(orFilter);
         }
 
         const { data: invData, error: invErr } = await query;
