@@ -132,6 +132,9 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
           patients (
             name,
             phone
+          ),
+          invoice_items (
+            description
           )
         `)
         .eq('clinic_id', doctorId) // عرض فواتير العيادة بالكامل
@@ -181,8 +184,8 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
       .reduce((sum, inv) => sum + inv.total_amount, 0);
 
     const bankToday = todayInvoices
-      .filter(inv => 
-        inv.payment_method?.toLowerCase() === 'bank_transfer' || 
+      .filter(inv =>
+        inv.payment_method?.toLowerCase() === 'bank_transfer' ||
         inv.payment_method?.toLowerCase() === 'bank transfer'
       )
       .reduce((sum, inv) => sum + inv.total_amount, 0);
@@ -214,7 +217,7 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
 
     // Payment method filter
     if (paymentMethodFilter !== 'all') {
-      filtered = filtered.filter(inv => 
+      filtered = filtered.filter(inv =>
         inv.payment_method?.toLowerCase() === paymentMethodFilter.toLowerCase() ||
         inv.payment_method?.toLowerCase().replace(' ', '_') === paymentMethodFilter.toLowerCase()
       );
@@ -334,12 +337,11 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
             </div>
             <div class="row" style="font-size: 14px; color: #6b7280;">
               <span>طريقة الدفع:</span>
-              <span>${
-                invoice.payment_method === 'Cash' ? '💵 نقداً' :
-                invoice.payment_method === 'Visa' ? '💳 فيزا' :
-                invoice.payment_method === 'Bank Transfer' ? '🏦 تحويل بنكي' :
-                invoice.payment_method
-              }</span>
+              <span>${invoice.payment_method === 'Cash' ? '💵 نقداً' :
+        invoice.payment_method === 'Visa' ? '💳 فيزا' :
+          invoice.payment_method === 'Bank Transfer' ? '🏦 تحويل بنكي' :
+            invoice.payment_method
+      }</span>
             </div>
           </div>
 
@@ -516,6 +518,9 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
                   المريض
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  الخدمة
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                   المبلغ
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
@@ -570,24 +575,28 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
                       </div>
                     </td>
                     <td className="px-6 py-4">
+                      <div className="text-xs text-gray-500 max-w-[150px] truncate" title={invoice.invoice_items?.map(i => i.description).join(', ')}>
+                        {invoice.invoice_items?.map(i => i.description).join(', ') || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
                       <div className="text-lg font-bold text-purple-600">
                         {invoice.total_amount.toLocaleString()} ج.م
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                        invoice.payment_method === 'Cash' ? 'bg-green-100 text-green-700' :
-                        invoice.payment_method === 'Visa' ? 'bg-blue-100 text-blue-700' :
-                        invoice.payment_method === 'Bank Transfer' ? 'bg-purple-100 text-purple-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
+                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${invoice.payment_method === 'Cash' ? 'bg-green-100 text-green-700' :
+                          invoice.payment_method === 'Visa' ? 'bg-blue-100 text-blue-700' :
+                            invoice.payment_method === 'Bank Transfer' ? 'bg-purple-100 text-purple-700' :
+                              'bg-gray-100 text-gray-700'
+                        }`}>
                         {invoice.payment_method === 'Cash' && <Banknote className="w-3 h-3" />}
                         {invoice.payment_method === 'Visa' && <CreditCard className="w-3 h-3" />}
                         {invoice.payment_method === 'Bank Transfer' && <Building2 className="w-3 h-3" />}
                         {invoice.payment_method === 'Cash' ? 'نقداً' :
-                         invoice.payment_method === 'Visa' ? 'فيزا' :
-                         invoice.payment_method === 'Bank Transfer' ? 'تحويل بنكي' :
-                         invoice.payment_method}
+                          invoice.payment_method === 'Visa' ? 'فيزا' :
+                            invoice.payment_method === 'Bank Transfer' ? 'تحويل بنكي' :
+                              invoice.payment_method}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -696,9 +705,9 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
                   <span>طريقة الدفع:</span>
                   <span>
                     {selectedInvoice.payment_method === 'Cash' ? 'نقداً' :
-                     selectedInvoice.payment_method === 'Visa' ? 'فيزا' :
-                     selectedInvoice.payment_method === 'Bank Transfer' ? 'تحويل بنكي' :
-                     selectedInvoice.payment_method}
+                      selectedInvoice.payment_method === 'Visa' ? 'فيزا' :
+                        selectedInvoice.payment_method === 'Bank Transfer' ? 'تحويل بنكي' :
+                          selectedInvoice.payment_method}
                   </span>
                 </div>
               </div>
