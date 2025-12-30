@@ -25,20 +25,24 @@ export const financialAnalyticsService = {
      */
     getDashboardStats: async (period: 'day' | 'week' | 'month' | 'year' = 'month'): Promise<FinancialStats> => {
         try {
+            const user = await supabase.auth.getUser();
+            const userId = user.data.user?.id;
+
+            if (!userId) throw new Error('User not authenticated');
+
             const { data, error } = await supabase
                 .rpc('get_doctor_financial_report', {
-                    p_doctor_id: (await supabase.auth.getUser()).data.user?.id,
+                    p_doctor_id: userId,
                     p_start_date: getStartDate(period),
-                    p_end_date: new Date().toISOString()
+                    p_end_date: new Date().toISOString().split('T')[0]
                 });
 
             if (error) throw error;
 
             const stats = (data || []).reduce((acc: any, curr: any) => ({
-                totalRevenue: acc.totalRevenue + (curr.total_billed || 0),
-                totalExpenses: 0,
-                outstandingDebt: acc.outstandingDebt + (curr.outstanding || 0),
-                collected: acc.collected + (curr.total_collected || 0)
+                totalRevenue: acc.totalRevenue + (Number(curr.total_billed) || 0),
+                outstandingDebt: acc.outstandingDebt + (Number(curr.outstanding) || 0),
+                collected: acc.collected + (Number(curr.total_collected) || 0)
             }), { totalRevenue: 0, outstandingDebt: 0, collected: 0 });
 
             return {

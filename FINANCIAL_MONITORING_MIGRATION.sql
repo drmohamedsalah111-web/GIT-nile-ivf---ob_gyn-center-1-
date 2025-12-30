@@ -192,12 +192,12 @@ SELECT
 FROM invoices i
 LEFT JOIN appointments a ON i.appointment_id = a.id
 LEFT JOIN patients p ON i.patient_id = p.id
-LEFT JOIN doctors d ON a.doctor_id = d.id
+LEFT JOIN doctors d ON (a.doctor_id = d.id OR i.clinic_id = d.clinic_id)
 LEFT JOIN service_requests sr ON sr.appointment_id = a.id
 WHERE (
-    d.user_id = auth.uid() -- الطبيب هو صاحب الموعد
-    OR i.clinic_id = (SELECT clinic_id FROM doctors WHERE user_id = auth.uid()) -- الفاتورة تخص عيادة الطبيب
-    OR i.patient_id IN (SELECT id FROM patients WHERE doctor_id = (SELECT id FROM doctors WHERE user_id = auth.uid())) -- الفاتورة تخص مريض للطبيب
+    d.user_id = auth.uid() -- الطبيب هو صاحب الموعد أو في عيادته
+    OR i.clinic_id IN (SELECT clinic_id FROM doctors WHERE user_id = auth.uid()) -- الفاتورة تخص عيادة الطبيب
+    OR i.patient_id IN (SELECT id FROM patients WHERE doctor_id IN (SELECT id FROM doctors WHERE user_id = auth.uid())) -- الفاتورة تخص مريض للطبيب
 )
 ORDER BY i.created_at DESC;
 
@@ -277,14 +277,19 @@ CREATE OR REPLACE FUNCTION get_doctor_financial_report(
     p_end_date date DEFAULT NULL
 )
 RETURNS TABLE(
-    date date,
+    report_date date,
     total_appointments bigint,
     total_billed numeric,
     total_collected numeric,
     outstanding numeric,
     collection_rate numeric
 ) AS $$
+DECLARE
+    v_actual_doctor_id uuid;
 BEGIN
+    -- Resolve doctor_id if user_id is passed
+    SELECT id INTO v_actual_doctor_id FROM doctors WHERE user_id = p_doctor_id OR id = p_doctor_id LIMIT 1;
+    
     -- Default to last 30 days if no dates provided
     IF p_start_date IS NULL THEN
         p_start_date := CURRENT_DATE - INTERVAL '30 days';
@@ -295,8 +300,11 @@ BEGIN
     END IF;
     
     RETURN QUERY
+    WITH date_series AS (
+        SELECT generate_series(p_start_date::timestamp, p_end_date::timestamp, '1 day')::date as d
+    )
     SELECT 
-        a.appointment_date,
+        ds.d as report_date,
         COUNT(DISTINCT a.id) as total_appointments,
         COALESCE(SUM(i.total), 0) as total_billed,
         COALESCE(SUM(i.paid_amount), 0) as total_collected,
@@ -306,12 +314,11 @@ BEGIN
             THEN ROUND((COALESCE(SUM(i.paid_amount), 0) / COALESCE(SUM(i.total), 1)) * 100, 2)
             ELSE 0
         END as collection_rate
-    FROM appointments a
-    LEFT JOIN invoices i ON i.appointment_id = a.id
-    WHERE a.doctor_id = p_doctor_id
-    AND a.appointment_date BETWEEN p_start_date AND p_end_date
-    GROUP BY a.appointment_date
-    ORDER BY a.appointment_date DESC;
+    FROM date_series ds
+    LEFT JOIN invoices i ON i.created_at::date = ds.d AND (i.clinic_id IN (SELECT clinic_id FROM doctors WHERE id = v_actual_doctor_id))
+    LEFT JOIN appointments a ON a.id = i.appointment_id
+    GROUP BY ds.d
+    ORDER BY ds.d DESC;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
