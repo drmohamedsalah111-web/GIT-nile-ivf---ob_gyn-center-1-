@@ -40,6 +40,7 @@ interface Invoice {
   payment_method?: string;
   created_at: string;
   payment_history?: any[];
+  invoice_items?: { description: string }[];
 }
 
 interface PaymentRecord {
@@ -100,7 +101,8 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
           total_amount,
           status,
           payment_method,
-          created_at
+          created_at,
+          invoice_items(description)
         `)
         .eq('clinic_id', doctorId)
         .order('created_at', { ascending: false });
@@ -227,6 +229,7 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
       'رقم الفاتورة': inv.invoice_number,
       'اسم المريضة': inv.patient?.name || '-',
       'الهاتف': inv.patient?.phone || '-',
+      'الخدمة': inv.invoice_items?.map(item => item.description).join(' - ') || '-',
       'المبلغ': inv.total_amount,
       'الحالة': inv.status,
       'التاريخ': new Date(inv.created_at).toLocaleDateString('ar-EG')
@@ -310,31 +313,28 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
       <div className="flex gap-2 mb-6 border-b border-gray-200">
         <button
           onClick={() => setActiveTab('pending')}
-          className={`px-6 py-3 font-medium border-b-2 transition-colors ${
-            activeTab === 'pending'
+          className={`px-6 py-3 font-medium border-b-2 transition-colors ${activeTab === 'pending'
               ? 'border-green-600 text-green-600'
               : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           الفواتير المتبقية ({stats.totalPending})
         </button>
         <button
           onClick={() => setActiveTab('paid')}
-          className={`px-6 py-3 font-medium border-b-2 transition-colors ${
-            activeTab === 'paid'
+          className={`px-6 py-3 font-medium border-b-2 transition-colors ${activeTab === 'paid'
               ? 'border-green-600 text-green-600'
               : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           الفواتير المدفوعة ({stats.totalPaid})
         </button>
         <button
           onClick={() => setActiveTab('reports')}
-          className={`px-6 py-3 font-medium border-b-2 transition-colors ${
-            activeTab === 'reports'
+          className={`px-6 py-3 font-medium border-b-2 transition-colors ${activeTab === 'reports'
               ? 'border-green-600 text-green-600'
               : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           التقارير
         </button>
@@ -371,6 +371,7 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
               <tr>
                 <th className="px-4 py-3 rounded-r-lg">رقم الفاتورة</th>
                 <th className="px-4 py-3">اسم المريضة</th>
+                <th className="px-4 py-3">الخدمة</th>
                 <th className="px-4 py-3">الهاتف</th>
                 <th className="px-4 py-3">المبلغ</th>
                 <th className="px-4 py-3">طريقة الدفع</th>
@@ -384,6 +385,11 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
                   <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-gray-900">{invoice.invoice_number}</td>
                     <td className="px-4 py-3 text-gray-600">{invoice.patient?.name || '-'}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">
+                      <div className="max-w-[150px] truncate" title={invoice.invoice_items?.map(i => i.description).join(', ')}>
+                        {invoice.invoice_items?.map(i => i.description).join(', ') || '-'}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-gray-600">
                       <a href={`tel:${invoice.patient?.phone}`} className="text-green-600 hover:underline">
                         {invoice.patient?.phone || '-'}
