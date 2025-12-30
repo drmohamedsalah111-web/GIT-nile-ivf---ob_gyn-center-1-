@@ -35,6 +35,7 @@ import SaaSManagement from './pages/admin/SaaSManagement';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import AdminLoginPage from './pages/AdminLoginPage';
 import LandingPage from './pages/LandingPage';
+import PrescriptionPage from './pages/PrescriptionPage';
 import { adminAuthService } from './services/adminAuthService';
 
 import LabReferencesModal from './src/components/LabReferencesModal';
@@ -335,6 +336,7 @@ const App: React.FC = () => {
                               <Route path="/obstetrics" element={<ObstetricsDashboard />} />
                               <Route path="/records" element={<PatientMasterRecord />} />
                               <Route path="/finance" element={<DoctorFinancialMonitor />} />
+                              <Route path="/prescription" element={<PrescriptionPage />} />
                               <Route path="/settings" element={<Settings user={user} />} />
                               <Route path="/admin" element={
                                 <RequireRole allowedRoles={['admin', 'doctor']}>
