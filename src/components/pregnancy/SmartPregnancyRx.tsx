@@ -7,6 +7,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { medicationsService, NewMedicationInput } from '../../services/medicationsService';
 import {
   Search,
   Plus,
@@ -135,6 +136,8 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
   // State
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newMed, setNewMed] = useState<Partial<NewMedicationInput> | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [prescription, setPrescription] = useState<PrescriptionItem[]>([]);
@@ -151,13 +154,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
 
   const fetchMedications = async () => {
     try {
-      const { data, error } = await supabase
-        .from('pregnancy_medications')
-        .select('*')
-        .eq('is_active', true)
-        .order('use_count', { ascending: false });
-
-      if (error) throw error;
+      const data = await medicationsService.fetchAll();
       setMedications(data || []);
     } catch (err) {
       console.error('Error fetching medications:', err);
@@ -235,6 +232,47 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
     // Increment use count
     supabase.rpc('increment_medication_use', { med_id: medication.id }).catch(console.error);
   }, [prescription]);
+
+  // ============================================================
+  // AUTOCOMPLETE SUGGESTIONS
+  // ============================================================
+  const suggestionResults = useMemo(() => {
+    if (!searchTerm) return [];
+    const s = searchTerm.toLowerCase();
+    return medications.filter(m => (
+      m.trade_name.toLowerCase().includes(s) || m.generic_name.toLowerCase().includes(s) || (m.category||'').toLowerCase().includes(s)
+    )).slice(0, 8);
+  }, [medications, searchTerm]);
+
+  // ============================================================
+  // ADD NEW MEDICATION HANDLERS
+  // ============================================================
+  const openAddModalFor = (prefill?: Partial<NewMedicationInput>) => {
+    setNewMed(prefill || { category: 'Other', category_color: '#78716C', form: 'Tablet', strength: '' });
+    setShowAddModal(true);
+  };
+
+  const handleSaveNewMedication = async () => {
+    if (!newMed || !newMed.trade_name || !newMed.generic_name || !newMed.category || !newMed.category_color || !newMed.form || !newMed.strength) {
+      toast.error('Please fill required fields');
+      return;
+    }
+
+    try {
+      const created = await medicationsService.addMedication(newMed as NewMedicationInput);
+      toast.success('Medication added to master list');
+      // refresh
+      const all = await medicationsService.fetchAll();
+      setMedications(all || []);
+      // auto-add to prescription
+      addToPrescription(created as any);
+      setShowAddModal(false);
+      setNewMed(null);
+    } catch (err) {
+      console.error('Failed to add medication:', err);
+      toast.error('Failed to add medication');
+    }
+  };
 
   const removeFromPrescription = useCallback((index: number) => {
     setPrescription(prev => prev.filter((_, i) => i !== index));
@@ -461,6 +499,38 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
           className="mt-2 w-full px-2 py-1 text-sm border border-borderColor rounded bg-background text-textMain placeholder:text-textSecondary/50 focus:ring-1 focus:ring-brand focus:border-brand transition-colors"
         />
       </div>
+
+      {/* Add Medication Modal */}
+      {showAddModal && newMed && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+            <h3 className="text-lg font-semibold mb-3">Add Medication to Master List</h3>
+            <div className="grid grid-cols-1 gap-3">
+              <input placeholder="Trade name" value={newMed.trade_name || ''} onChange={e => setNewMed({ ...newMed, trade_name: e.target.value })} className="p-2 border rounded" />
+              <input placeholder="Generic name" value={newMed.generic_name || ''} onChange={e => setNewMed({ ...newMed, generic_name: e.target.value })} className="p-2 border rounded" />
+              <div className="grid grid-cols-2 gap-2">
+                <input placeholder="Strength (eg. 500mg)" value={newMed.strength || ''} onChange={e => setNewMed({ ...newMed, strength: e.target.value })} className="p-2 border rounded" />
+                <input placeholder="Form (Tablet/Capsule)" value={newMed.form || ''} onChange={e => setNewMed({ ...newMed, form: e.target.value })} className="p-2 border rounded" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <select value={newMed.category || 'Other'} onChange={e => setNewMed({ ...newMed, category: e.target.value })} className="p-2 border rounded">
+                  {Object.keys(CATEGORY_CONFIG).map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input placeholder="Category color (hex)" value={newMed.category_color || ''} onChange={e => setNewMed({ ...newMed, category_color: e.target.value })} className="p-2 border rounded" />
+              </div>
+              <input placeholder="Default dose" value={newMed.default_dose || ''} onChange={e => setNewMed({ ...newMed, default_dose: e.target.value })} className="p-2 border rounded" />
+              <input placeholder="Default frequency" value={newMed.default_frequency || ''} onChange={e => setNewMed({ ...newMed, default_frequency: e.target.value })} className="p-2 border rounded" />
+              <input placeholder="Default duration" value={newMed.default_duration || ''} onChange={e => setNewMed({ ...newMed, default_duration: e.target.value })} className="p-2 border rounded" />
+              <textarea placeholder="Warnings (optional)" value={newMed.warnings || ''} onChange={e => setNewMed({ ...newMed, warnings: e.target.value })} className="p-2 border rounded" />
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => { setShowAddModal(false); setNewMed(null); }} className="px-4 py-2 border rounded">Cancel</button>
+              <button onClick={handleSaveNewMedication} className="px-4 py-2 bg-brand text-white rounded">Save & Add</button>
+            </div>
+          </div>
+        </div>
+      )}
     );
   };
 
@@ -523,6 +593,23 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
                   <X className="w-4 h-4" />
                 </button>
               )}
+                {/* Suggestions dropdown */}
+                {suggestionResults.length > 0 && (
+                  <div className="absolute left-0 right-0 mt-12 bg-white border border-borderColor rounded shadow-lg z-50 max-h-64 overflow-auto">
+                    {suggestionResults.map(m => (
+                      <div key={m.id} className="px-3 py-2 hover:bg-gray-50 flex items-center justify-between cursor-pointer" onClick={() => addToPrescription(m as any)}>
+                        <div>
+                          <div className="font-medium">{m.trade_name} <span className="text-xs text-textSecondary">{m.strength}</span></div>
+                          <div className="text-xs text-textSecondary italic">{m.generic_name} • {m.category}</div>
+                        </div>
+                        <div className="text-sm text-brand font-medium">Add</div>
+                      </div>
+                    ))}
+                    <div className="px-3 py-2 border-t text-sm text-center">
+                      <button onClick={() => openAddModalFor({ trade_name: searchTerm, generic_name: '', category: 'Other', category_color: '#78716C', form: 'Tablet', strength: '' })} className="text-sm text-blue-600">Add "{searchTerm}" to master list</button>
+                    </div>
+                  </div>
+                )}
             </div>
           </div>
 
