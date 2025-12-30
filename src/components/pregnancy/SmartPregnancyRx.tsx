@@ -191,7 +191,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
 
   const groupedMedications = useMemo(() => {
     const groups: Record<string, Medication[]> = {};
-    
+
     filteredMedications.forEach(med => {
       if (!groups[med.category]) {
         groups[med.category] = [];
@@ -240,7 +240,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
     if (!searchTerm) return [];
     const s = searchTerm.toLowerCase();
     return medications.filter(m => (
-      m.trade_name.toLowerCase().includes(s) || m.generic_name.toLowerCase().includes(s) || (m.category||'').toLowerCase().includes(s)
+      m.trade_name.toLowerCase().includes(s) || m.generic_name.toLowerCase().includes(s) || (m.category || '').toLowerCase().includes(s)
     )).slice(0, 8);
   }, [medications, searchTerm]);
 
@@ -279,7 +279,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
   }, []);
 
   const updatePrescriptionItem = useCallback((index: number, updates: Partial<PrescriptionItem>) => {
-    setPrescription(prev => 
+    setPrescription(prev =>
       prev.map((item, i) => i === index ? { ...item, ...updates } : item)
     );
   }, []);
@@ -306,10 +306,10 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
   }, [prescription, onSave]);
 
   const copyToClipboard = useCallback(() => {
-    const text = prescription.map(item => 
+    const text = prescription.map(item =>
       `${item.medication.trade_name} (${item.medication.strength}) - ${item.dose} ${item.frequency} for ${item.duration}`
     ).join('\n');
-    
+
     navigator.clipboard.writeText(text);
     toast.success('Copied to clipboard!');
   }, [prescription]);
@@ -321,7 +321,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
   const CategoryBadge: React.FC<{ category: string; count?: number }> = ({ category, count }) => {
     const config = CATEGORY_CONFIG[category] || { color: '#78716C', icon: '💊' };
     const isSelected = selectedCategory === category;
-    
+
     return (
       <button
         onClick={() => setSelectedCategory(isSelected ? null : category)}
@@ -361,26 +361,25 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
         className={`
           relative p-3 rounded-lg border-2 cursor-pointer
           transition-all duration-200 hover:shadow-md
-          ${
-            isInPrescription 
-            ? 'bg-surface/50 border-borderColor cursor-not-allowed opacity-60' 
+          ${isInPrescription
+            ? 'bg-surface/50 border-borderColor cursor-not-allowed opacity-60'
             : 'bg-surface hover:scale-[1.02] border-borderColor hover:shadow-lg'
           }
         `}
-        style={{ 
+        style={{
           borderColor: isInPrescription ? undefined : config.color,
           borderLeftWidth: '4px'
         }}
       >
         {/* Trade Name */}
         <div className="font-semibold text-textMain">{medication.trade_name}</div>
-        
+
         {/* Generic Name */}
         <div className="text-sm text-textSecondary italic">{medication.generic_name}</div>
-        
+
         {/* Form & Strength */}
         <div className="flex items-center gap-2 mt-1">
-          <span 
+          <span
             className="text-xs px-2 py-0.5 rounded-full font-medium"
             style={{ backgroundColor: `${config.color}20`, color: config.color }}
           >
@@ -423,7 +422,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
     const isEditing = editingItem === index;
 
     return (
-      <div 
+      <div
         className="p-3 bg-surface rounded-lg border border-borderColor hover:shadow-md transition-all"
         style={{ borderLeftWidth: '4px', borderLeftColor: config.color }}
       >
@@ -499,38 +498,6 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
           className="mt-2 w-full px-2 py-1 text-sm border border-borderColor rounded bg-background text-textMain placeholder:text-textSecondary/50 focus:ring-1 focus:ring-brand focus:border-brand transition-colors"
         />
       </div>
-
-      {/* Add Medication Modal */}
-      {showAddModal && newMed && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-            <h3 className="text-lg font-semibold mb-3">Add Medication to Master List</h3>
-            <div className="grid grid-cols-1 gap-3">
-              <input placeholder="Trade name" value={newMed.trade_name || ''} onChange={e => setNewMed({ ...newMed, trade_name: e.target.value })} className="p-2 border rounded" />
-              <input placeholder="Generic name" value={newMed.generic_name || ''} onChange={e => setNewMed({ ...newMed, generic_name: e.target.value })} className="p-2 border rounded" />
-              <div className="grid grid-cols-2 gap-2">
-                <input placeholder="Strength (eg. 500mg)" value={newMed.strength || ''} onChange={e => setNewMed({ ...newMed, strength: e.target.value })} className="p-2 border rounded" />
-                <input placeholder="Form (Tablet/Capsule)" value={newMed.form || ''} onChange={e => setNewMed({ ...newMed, form: e.target.value })} className="p-2 border rounded" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <select value={newMed.category || 'Other'} onChange={e => setNewMed({ ...newMed, category: e.target.value })} className="p-2 border rounded">
-                  {Object.keys(CATEGORY_CONFIG).map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <input placeholder="Category color (hex)" value={newMed.category_color || ''} onChange={e => setNewMed({ ...newMed, category_color: e.target.value })} className="p-2 border rounded" />
-              </div>
-              <input placeholder="Default dose" value={newMed.default_dose || ''} onChange={e => setNewMed({ ...newMed, default_dose: e.target.value })} className="p-2 border rounded" />
-              <input placeholder="Default frequency" value={newMed.default_frequency || ''} onChange={e => setNewMed({ ...newMed, default_frequency: e.target.value })} className="p-2 border rounded" />
-              <input placeholder="Default duration" value={newMed.default_duration || ''} onChange={e => setNewMed({ ...newMed, default_duration: e.target.value })} className="p-2 border rounded" />
-              <textarea placeholder="Warnings (optional)" value={newMed.warnings || ''} onChange={e => setNewMed({ ...newMed, warnings: e.target.value })} className="p-2 border rounded" />
-            </div>
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => { setShowAddModal(false); setNewMed(null); }} className="px-4 py-2 border rounded">Cancel</button>
-              <button onClick={handleSaveNewMedication} className="px-4 py-2 bg-brand text-white rounded">Save & Add</button>
-            </div>
-          </div>
-        </div>
-      )}
     );
   };
 
@@ -593,23 +560,23 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
                   <X className="w-4 h-4" />
                 </button>
               )}
-                {/* Suggestions dropdown */}
-                {suggestionResults.length > 0 && (
-                  <div className="absolute left-0 right-0 mt-12 bg-white border border-borderColor rounded shadow-lg z-50 max-h-64 overflow-auto">
-                    {suggestionResults.map(m => (
-                      <div key={m.id} className="px-3 py-2 hover:bg-gray-50 flex items-center justify-between cursor-pointer" onClick={() => addToPrescription(m as any)}>
-                        <div>
-                          <div className="font-medium">{m.trade_name} <span className="text-xs text-textSecondary">{m.strength}</span></div>
-                          <div className="text-xs text-textSecondary italic">{m.generic_name} • {m.category}</div>
-                        </div>
-                        <div className="text-sm text-brand font-medium">Add</div>
+              {/* Suggestions dropdown */}
+              {suggestionResults.length > 0 && (
+                <div className="absolute left-0 right-0 mt-12 bg-white border border-borderColor rounded shadow-lg z-50 max-h-64 overflow-auto">
+                  {suggestionResults.map(m => (
+                    <div key={m.id} className="px-3 py-2 hover:bg-gray-50 flex items-center justify-between cursor-pointer" onClick={() => addToPrescription(m as any)}>
+                      <div>
+                        <div className="font-medium">{m.trade_name} <span className="text-xs text-textSecondary">{m.strength}</span></div>
+                        <div className="text-xs text-textSecondary italic">{m.generic_name} • {m.category}</div>
                       </div>
-                    ))}
-                    <div className="px-3 py-2 border-t text-sm text-center">
-                      <button onClick={() => openAddModalFor({ trade_name: searchTerm, generic_name: '', category: 'Other', category_color: '#78716C', form: 'Tablet', strength: '' })} className="text-sm text-blue-600">Add "{searchTerm}" to master list</button>
+                      <div className="text-sm text-brand font-medium">Add</div>
                     </div>
+                  ))}
+                  <div className="px-3 py-2 border-t text-sm text-center">
+                    <button onClick={() => openAddModalFor({ trade_name: searchTerm, generic_name: '', category: 'Other', category_color: '#78716C', form: 'Tablet', strength: '' })} className="text-sm text-blue-600">Add "{searchTerm}" to master list</button>
                   </div>
-                )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -656,7 +623,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{config.icon}</span>
-                          <span 
+                          <span
                             className="font-semibold"
                             style={{ color: config.color }}
                           >
@@ -749,6 +716,38 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
           )}
         </div>
       </div>
+
+      {/* Add Medication Modal */}
+      {showAddModal && newMed && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+            <h3 className="text-lg font-semibold mb-3">Add Medication to Master List</h3>
+            <div className="grid grid-cols-1 gap-3">
+              <input placeholder="Trade name" value={newMed.trade_name || ''} onChange={e => setNewMed({ ...newMed, trade_name: e.target.value })} className="p-2 border rounded" />
+              <input placeholder="Generic name" value={newMed.generic_name || ''} onChange={e => setNewMed({ ...newMed, generic_name: e.target.value })} className="p-2 border rounded" />
+              <div className="grid grid-cols-2 gap-2">
+                <input placeholder="Strength (eg. 500mg)" value={newMed.strength || ''} onChange={e => setNewMed({ ...newMed, strength: e.target.value })} className="p-2 border rounded" />
+                <input placeholder="Form (Tablet/Capsule)" value={newMed.form || ''} onChange={e => setNewMed({ ...newMed, form: e.target.value })} className="p-2 border rounded" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <select value={newMed.category || 'Other'} onChange={e => setNewMed({ ...newMed, category: e.target.value })} className="p-2 border rounded">
+                  {Object.keys(CATEGORY_CONFIG).map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input placeholder="Category color (hex)" value={newMed.category_color || ''} onChange={e => setNewMed({ ...newMed, category_color: e.target.value })} className="p-2 border rounded" />
+              </div>
+              <input placeholder="Default dose" value={newMed.default_dose || ''} onChange={e => setNewMed({ ...newMed, default_dose: e.target.value })} className="p-2 border rounded" />
+              <input placeholder="Default frequency" value={newMed.default_frequency || ''} onChange={e => setNewMed({ ...newMed, default_frequency: e.target.value })} className="p-2 border rounded" />
+              <input placeholder="Default duration" value={newMed.default_duration || ''} onChange={e => setNewMed({ ...newMed, default_duration: e.target.value })} className="p-2 border rounded" />
+              <textarea placeholder="Warnings (optional)" value={newMed.warnings || ''} onChange={e => setNewMed({ ...newMed, warnings: e.target.value })} className="p-2 border rounded" />
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => { setShowAddModal(false); setNewMed(null); }} className="px-4 py-2 border rounded">Cancel</button>
+              <button onClick={handleSaveNewMedication} className="px-4 py-2 bg-brand text-white rounded">Save & Add</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
