@@ -5,9 +5,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Pill, Plus, Trash2, Printer, X, Edit2, Save } from 'lucide-react';
+import { Pill, Plus, Trash2, Printer, X, Edit2, Save, Sparkles } from 'lucide-react';
 import { supabase } from '../../../services/supabaseClient';
 import { useBranding } from '../../../context/BrandingContext';
+import { SmartPregnancyRx } from '../pregnancy/SmartPregnancyRx';
 import toast from 'react-hot-toast';
 
 interface PrescriptionItem {
@@ -38,7 +39,7 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewForm, setShowNewForm] = useState(false);
-  
+
   // New prescription form
   const [newItems, setNewItems] = useState<PrescriptionItem[]>([]);
   const [newDrug, setNewDrug] = useState('');
@@ -92,27 +93,32 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
     setNewItems(newItems.filter((_, i) => i !== index));
   };
 
-  const handleCreatePrescription = async () => {
-    if (newItems.length === 0) {
+  const handleCreatePrescription = async (items: any[]) => {
+    if (items.length === 0) {
       toast.error('أضف دواء واحد على الأقل');
       return;
     }
 
     try {
+      // Map SmartPregnancyRx items to DB schema
+      const dbItems = items.map(item => ({
+        drug: item.medication.trade_name,
+        dose: `${item.dose} ${item.frequency}`,
+        instructions: item.notes
+      }));
+
       const { error } = await supabase
         .from('pregnancy_prescriptions')
         .insert({
           pregnancy_id: pregnancyId,
-          items: newItems,
-          notes: newNotes.trim() || null
+          items: dbItems,
+          notes: null // Notes are now per-item or handled differently
         });
 
       if (error) throw error;
 
       toast.success('تم حفظ الروشتة بنجاح');
       setShowNewForm(false);
-      setNewItems([]);
-      setNewNotes('');
       fetchPrescriptions();
     } catch (error: any) {
       console.error('Error creating prescription:', error);
@@ -343,7 +349,7 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
 
     printWindow.document.write(printContent);
     printWindow.document.close();
-    
+
     setTimeout(() => {
       printWindow.print();
     }, 250);
@@ -373,108 +379,24 @@ export const PregnancyPrescriptionPanel: React.FC<PregnancyPrescriptionPanelProp
 
         <button
           onClick={() => setShowNewForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-lg hover:from-teal-700 hover:to-emerald-700 transition-all shadow-md group"
         >
-          <Plus className="w-5 h-5" />
-          روشتة جديدة
+          <Sparkles className="w-5 h-5 group-hover:animate-pulse" />
+          <span className="font-bold">روشتة ذكية جديدة</span>
         </button>
       </div>
 
-      {/* New Prescription Form */}
+      {/* Smart Prescription Builder Modal */}
       {showNewForm && (
-        <div className="bg-white border-2 border-teal-200 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h4 className="text-lg font-semibold text-gray-900">روشتة جديدة</h4>
-            <button
-              onClick={() => {
-                setShowNewForm(false);
-                setNewItems([]);
-                setNewNotes('');
-              }}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Add Drug Form */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">اسم الدواء</label>
-              <input
-                type="text"
-                value={newDrug}
-                onChange={(e) => setNewDrug(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleAddDrug()}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                placeholder="مثال: Folic Acid 5mg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">الجرعة</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newDose}
-                  onChange={(e) => setNewDose(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddDrug()}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  placeholder="مثال: قرص واحد يومياً"
-                />
-                <button
-                  onClick={handleAddDrug}
-                  className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* New Items List */}
-          {newItems.length > 0 && (
-            <div className="mb-4 space-y-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                الأدوية المضافة ({newItems.length})
-              </label>
-              {newItems.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="font-semibold text-gray-900">{item.drug}</div>
-                    <div className="text-sm text-gray-600">{item.dose}</div>
-                  </div>
-                  <button
-                    onClick={() => handleRemoveNewDrug(index)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Notes */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">ملاحظات (اختياري)</label>
-            <textarea
-              value={newNotes}
-              onChange={(e) => setNewNotes(e.target.value)}
-              rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-              placeholder="أدخل أي ملاحظات أو تعليمات إضافية..."
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-hidden flex flex-col relative text-left" dir="ltr">
+            <SmartPregnancyRx
+              patientId={pregnancyId} // Using pregnancyId as fallback link
+              patientName={patientName || 'المريضة'}
+              onSave={handleCreatePrescription}
+              onClose={() => setShowNewForm(false)}
             />
           </div>
-
-          {/* Save Button */}
-          <button
-            onClick={handleCreatePrescription}
-            disabled={newItems.length === 0}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-          >
-            <Save className="w-5 h-5" />
-            حفظ الروشتة ({newItems.length} دواء)
-          </button>
         </div>
       )}
 
