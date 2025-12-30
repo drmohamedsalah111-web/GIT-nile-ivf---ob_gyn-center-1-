@@ -5,6 +5,7 @@ import { useBranding } from '../context/BrandingContext';
 import { authService } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import { ThemeSwitcher } from './theme/ThemeSwitcher';
+import { useTheme } from '../context/ThemeContext';
 
 interface SidebarProps {
   activePage: Page;
@@ -14,6 +15,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout }) => {
   const { branding } = useBranding();
+  const { isDarkMode } = useTheme();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,16 +46,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
   }, []);
 
   const doctorMenuItems = [
-    { id: Page.HOME, label: 'Dashboard', arLabel: 'الرئيسية', icon: LayoutDashboard },
-    { id: Page.RECEPTION, label: 'Reception', arLabel: 'الاستقبال', icon: Users },
-    { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: FileText },
-    { id: Page.GYNECOLOGY, label: 'Gynecology', arLabel: 'عيادة النساء', icon: Activity },
-    { id: Page.OBSTETRICS, label: 'Obstetrics', arLabel: 'متابعة الحمل', icon: Heart },
-    { id: Page.IVF, label: 'IVF Center', arLabel: 'مركز الخصوبة', icon: Baby },
-    { id: Page.SMART_IVF, label: 'Smart IVF', arLabel: '🧬 IVF الذكي', icon: Brain },
-    { id: Page.INFERTILITY_WORKUP, label: 'ESHRE Diagnosis', arLabel: 'تشخيص العقم', icon: TestTube },
-    { id: Page.FINANCE, label: 'Finance', arLabel: '💰 الماليات', icon: DollarSign },
-    { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings },
+    { id: Page.HOME, label: 'Dashboard', arLabel: 'الرئيسية', icon: LayoutDashboard, color: '#3B82F6' }, // Blue
+    { id: Page.RECEPTION, label: 'Reception', arLabel: 'الاستقبال', icon: Users, color: '#6366F1' }, // Indigo
+    { id: Page.PATIENT_RECORD, label: 'Patient Records', arLabel: 'سجلات المرضى', icon: FileText, color: '#10B981' }, // Emerald
+    { id: Page.GYNECOLOGY, label: 'Gynecology', arLabel: 'عيادة النساء', icon: Activity, color: '#F43F5E' }, // Rose
+    { id: Page.OBSTETRICS, label: 'Obstetrics', arLabel: 'متابعة الحمل', icon: Heart, color: '#EC4899' }, // Pink
+    { id: Page.IVF, label: 'IVF Center', arLabel: 'مركز الخصوبة', icon: Baby, color: '#8B5CF6' }, // Violet
+    { id: Page.SMART_IVF, label: 'Smart IVF', arLabel: '🧬 IVF الذكي', icon: Brain, color: '#06B6D4' }, // Cyan
+    { id: Page.INFERTILITY_WORKUP, label: 'ESHRE Diagnosis', arLabel: 'تشخيص العقم', icon: TestTube, color: '#F59E0B' }, // Amber
+    { id: Page.FINANCE, label: 'Finance', arLabel: '💰 الماليات', icon: DollarSign, color: '#22C55E' }, // Green
+    { id: Page.SETTINGS, label: 'Settings', arLabel: 'الإعدادات', icon: Settings, color: '#6B7280' }, // Gray
   ];
 
   const receptionistMenuItems = [
@@ -81,100 +83,89 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
 
   return (
     // Hidden on mobile, visible from md and up
-    <div className="hidden md:w-64 md:flex md:flex-col bg-background/80 backdrop-blur-xl h-screen shadow-2xl fixed md:static inset-y-0 right-0 z-40 no-print border-l border-white/10 overflow-hidden">
-      {/* Clinic Branding Header */}
-      <div className="relative p-6 border-b border-borderColor overflow-hidden group">
-        <div
-          className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500"
-          style={{ background: `linear-gradient(135deg, ${branding?.primary_color || '#2d5a6b'}, transparent)` }}
-        />
-        <div className="relative flex flex-col items-center z-10">
+    <div className={`hidden md:w-64 md:flex md:flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'} h-screen shadow-2xl fixed md:static inset-y-0 right-0 z-40 no-print border-l border-borderColor transition-colors duration-300`}>
+      {/* Clinic Branding Header - Cheerful & Bold */}
+      <div className={`p-8 border-b border-borderColor text-center ${isDarkMode ? 'bg-gray-800/50' : 'bg-brand/5'}`}>
+        <div className="flex flex-col items-center">
           {branding?.logo_url ? (
-            <div className="relative p-1 rounded-full bg-white shadow-xl mb-3 transform group-hover:scale-105 transition-transform duration-300">
+            <div className="p-1 rounded-2xl bg-white shadow-lg mb-4 transform hover:scale-105 transition-transform duration-300">
               <img
                 src={branding.logo_url}
                 alt="Logo"
-                className="w-16 h-16 rounded-full object-cover"
+                className="w-16 h-16 rounded-xl object-cover"
               />
             </div>
           ) : (
             <div
-              className="w-16 h-16 rounded-3xl flex items-center justify-center mb-3 shadow-lg transform group-hover:rotate-6 transition-transform duration-300"
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-inner"
               style={{ backgroundColor: `${branding?.primary_color}15` || '#2d5a6b15' }}
             >
               <Baby className="w-10 h-10" style={{ color: branding?.primary_color || '#2d5a6b' }} />
             </div>
           )}
           <h1
-            className="text-base font-bold text-center leading-tight mb-1"
+            className="text-lg font-black tracking-tight mb-1"
             style={{ color: branding?.text_color || '#1f2937', fontFamily: branding?.header_font || 'Tajawal' }}
           >
             {branding?.clinic_name || 'Nile IVF Center'}
           </h1>
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            <p className="text-[10px] uppercase tracking-[0.2em] font-medium opacity-60">
-              Premium EMR
-            </p>
-          </div>
+          <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-brand text-white shadow-sm">
+            Professional Suite
+          </span>
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-6 custom-scrollbar">
-        <ul className="space-y-1.5 px-3">
+      <nav className="flex-1 overflow-y-auto py-8">
+        <ul className="space-y-1.5 px-4 text-right">
           {filteredMenuItems.map((item: any) => {
             if (item.adminOnly && userRole !== 'admin') return null;
 
             const Icon = item.icon;
             const isActive = activePage === item.id;
             return (
-              <li key={item.id} className="relative group/item">
-                {isActive && (
-                  <div
-                    className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-8 rounded-l-full z-20"
-                    style={{ backgroundColor: branding?.primary_color || '#2d5a6b', boxShadow: `0 0 10px ${branding?.primary_color}` }}
-                  />
-                )}
+              <li key={item.id}>
                 <button
                   onClick={() => setPage(item.id)}
-                  className={`w-full flex items-center gap-3.5 px-4 py-3.5 transition-all duration-300 relative overflow-hidden ${isActive ? 'font-bold' : 'hover:translate-x-[-4px]'
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-200 group relative ${isActive
+                      ? 'text-white font-bold shadow-lg shadow-brand/20 scale-[1.02] z-10'
+                      : `${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-600 hover:text-brand hover:bg-brand/5'}`
                     }`}
                   style={{
-                    backgroundColor: isActive ? `${branding?.primary_color}10` : 'transparent',
-                    color: isActive ? branding?.primary_color || '#2d5a6b' : branding?.text_color || '#1f2937',
-                    borderRadius: '12px',
+                    backgroundColor: isActive ? (branding?.primary_color || '#2d5a6b') : 'transparent',
+                    borderRadius: '16px',
                     fontFamily: branding?.body_font || 'Tajawal'
                   }}
                 >
-                  {isActive && (
-                    <div
-                      className="absolute inset-0 opacity-5"
-                      style={{ background: `linear-gradient(to left, ${branding?.primary_color}, transparent)` }}
+                  <div
+                    className={`p-2 rounded-xl transition-colors duration-300 ${isActive ? 'bg-white/20' : isDarkMode ? 'bg-gray-800 group-hover:bg-gray-700' : 'bg-gray-50 group-hover:bg-brand/10'}`}
+                  >
+                    <Icon
+                      className="w-5 h-5"
+                      style={{ color: isActive ? '#FFFFFF' : item.color }}
                     />
+                  </div>
+                  <span className="flex-1 text-[15px]">{item.arLabel || item.label}</span>
+                  {isActive && (
+                    <div className="absolute left-2 w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                   )}
-                  <Icon
-                    className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover/item:rotate-12'}`}
-                    style={{ color: isActive ? branding?.primary_color || '#2d5a6b' : 'currentColor' }}
-                  />
-                  <span className="relative z-10 text-[14px]">{item.arLabel || item.label}</span>
                 </button>
               </li>
             );
           })}
         </ul>
 
-        {/* Admin Button - زر الأدمن الكبير */}
+        {/* Admin Section - Cheerful Pulse */}
         {userRole === 'admin' && (
-          <div className="px-4 mt-6 pt-6 border-t border-borderColor">
+          <div className="px-4 mt-8 pt-8 border-t border-borderColor">
             <button
               onClick={() => setPage(Page.SUPER_ADMIN)}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black py-4 px-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
             >
               <div className="flex items-center justify-center gap-3">
-                <Shield className="w-6 h-6" />
+                <Shield className="w-6 h-6 animate-bounce" />
                 <div className="text-center">
-                  <div className="text-lg">🔐 لوحة الأدمن</div>
-                  <div className="text-xs opacity-90">Admin Dashboard</div>
+                  <div className="text-lg">🔐 لوحة الإدارة</div>
+                  <div className="text-[10px] opacity-80 uppercase font-bold tracking-tighter">System Control</div>
                 </div>
               </div>
             </button>
@@ -182,86 +173,75 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
         )}
       </nav>
 
-      {/* Footer Section */}
-      <div className="mt-auto p-4 bg-surface/30 backdrop-blur-sm border-t border-borderColor/50">
+      {/* Footer Section - Friendly Support Card */}
+      <div className={`p-4 border-t border-borderColor ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-50/50'}`}>
         <div className="space-y-4">
-          {/* Theme Switcher Card */}
-          <div className="p-1.5 bg-background/50 rounded-2xl border border-borderColor/30">
+          <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white'} p-1.5 rounded-2xl border border-borderColor/50`}>
             <ThemeSwitcher variant="compact" />
           </div>
 
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-textMuted hover:text-error hover:bg-error/5 rounded-xl transition-all duration-300 group"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-300 group"
           >
-            <LogOut className="w-4 h-4 group-hover:translate-x-[-2px] transition-transform" />
-            <span>Sign Out</span>
+            <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <span>تسجيل الخروج</span>
           </button>
 
-          {/* Developer Credits Card - The Signature */}
-          <div className="relative group/dev overflow-hidden p-4 rounded-2xl bg-gradient-to-br from-background to-surface/50 border border-borderColor/60 shadow-sm hover:shadow-md transition-all duration-500">
-            {/* Animated Background Element */}
-            <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-primary/5 rounded-full blur-2xl group-hover/dev:scale-150 transition-transform duration-700" />
-
-            <div className="relative flex flex-col items-center gap-3 z-10 text-center">
-              <div className="flex flex-col items-center">
-                <span className="text-[9px] text-textMuted font-[Tajawal] uppercase tracking-[0.2em] mb-1.5 opacity-80">
-                  Powered & Developed By
+          {/* New Friendly Dev Card */}
+          <div className={`p-5 rounded-2xl border border-borderColor transition-all duration-300 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700 border-white/5' : 'bg-white hover:bg-brand/5 shadow-sm'}`}>
+            <div className="flex flex-col items-center gap-4">
+              <div className="text-center">
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] block mb-1">
+                  Technical Partner
                 </span>
-                <div className="flex flex-col items-center">
-                  <span className="text-[11px] font-bold" style={{ color: branding?.primary_color }}>
-                    المهندس و المطور
-                  </span>
-                  <span className="text-base font-black text-foreground tracking-tight">
-                    د. محمد صلاح جبر
-                  </span>
-                </div>
+                <span className="text-sm font-black text-foreground block">
+                  د. محمد صلاح جبر
+                </span>
+                <span className="text-[10px] items-center justify-center gap-1 font-bold text-brand mt-1 flex">
+                  <Activity size={10} /> Clinical Developer
+                </span>
               </div>
 
-              {/* Social Ecosystem */}
-              <div className="flex items-center justify-between w-full px-1">
-                <a
-                  href="https://www.facebook.com/profile.php?id=100000785193419"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-500/5 text-blue-600 hover:bg-blue-600 hover:text-white hover:scale-110 shadow-sm transition-all duration-300"
-                >
-                  <Facebook size={16} />
-                </a>
-
-                <div className="relative group/qr">
-                  <div className="w-10 h-10 p-1.5 bg-white rounded-xl shadow-inner border border-borderColor/40 cursor-help transform group-hover/qr:scale-110 transition-transform">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent('https://wa.me/201003418068')}`}
-                      alt="Support QR"
-                      className="w-full h-full grayscale group-hover/qr:grayscale-0 transition-all"
-                    />
-                  </div>
-                  {/* Tooltip QR */}
-                  <div className="absolute bottom-full mb-3 right-[-10px] w-36 bg-white p-3 rounded-2xl shadow-2xl border border-borderColor ring-1 ring-black/5 opacity-0 group-hover/qr:opacity-100 transition-all pointer-events-none scale-50 group-hover/qr:scale-100 origin-bottom-right z-50">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent('https://wa.me/201003418068')}`}
-                      alt="Support QR Large"
-                      className="w-full h-full rounded-lg"
-                    />
-                    <p className="text-[9px] font-extrabold mt-2 text-primary uppercase text-center tracking-tight">
-                      دعم فني مباشر
-                    </p>
-                  </div>
-                </div>
-
+              <div className="flex items-center justify-center gap-3 w-full">
                 <a
                   href="https://wa.me/201003418068"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-green-500/5 text-green-600 hover:bg-green-600 hover:text-white hover:scale-110 shadow-sm transition-all duration-300"
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-green-500 text-white shadow-lg shadow-green-500/20 hover:scale-110 transition-transform"
                 >
-                  <MessageCircle size={16} />
+                  <MessageCircle size={18} />
                 </a>
-              </div>
 
-              <div className="text-[10px] text-textMuted font-medium opacity-50">
-                © 2024-2026 • AI Medical Suite
+                <div className="relative group/qr">
+                  <div className="w-10 h-10 p-1 bg-white rounded-xl shadow-md border border-gray-100 cursor-zoom-in">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent('https://wa.me/201003418068')}`}
+                      alt="Support"
+                      className="w-full h-full"
+                    />
+                  </div>
+                  {/* Zoomed QR */}
+                  <div className="absolute bottom-full mb-4 right-1/2 translate-x-1/2 w-40 bg-white p-4 rounded-3xl shadow-2xl border border-borderColor opacity-0 group-hover:opacity-100 transition-all pointer-events-none scale-50 group-hover:scale-100 origin-bottom z-50">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent('https://wa.me/201003418068')}`}
+                      alt="Support QR"
+                      className="w-full h-full rounded-xl"
+                    />
+                    <div className="mt-3 text-[10px] font-black text-brand text-center uppercase tracking-tighter">
+                      Technical Support
+                    </div>
+                  </div>
+                </div>
+
+                <a
+                  href="https://www.facebook.com/profile.php?id=100000785193419"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:scale-110 transition-transform"
+                >
+                  <Facebook size={18} />
+                </a>
               </div>
             </div>
           </div>
