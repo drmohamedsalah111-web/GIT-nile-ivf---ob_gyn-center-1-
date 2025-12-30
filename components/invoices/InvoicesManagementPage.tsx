@@ -123,26 +123,23 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
       }
 
       const { data, error } = await supabase
-        .from('invoices')
+        .from('unified_invoices_view')
         .select(`
           id,
           invoice_number,
           created_at,
           total_amount,
           payment_method,
-          payment_reference,
           status,
+          source_type,
           patients (
             name,
             phone
-          ),
-          invoice_items (
-            description
           )
         `)
-        .eq('clinic_id', doctorId) // عرض فواتير العيادة بالكامل
+        .eq('clinic_id', doctorId)
         .gte('created_at', `${startDate}T00:00:00`)
-        .in('status', ['paid', 'Paid'])
+        .in('status', ['paid', 'Paid', 'pending', 'Pending'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -219,20 +216,29 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
     setFilteredInvoices(filtered);
   };
 
-  const handleViewInvoice = async (invoice: Invoice) => {
+  const handleViewInvoice = async (invoice: any) => {
     try {
-      // Fetch invoice items
+      const itemsTable = invoice.source_type === 'pos' ? 'pos_invoice_items' : 'invoice_items';
+      const descriptionCol = invoice.source_type === 'pos' ? 'description' : 'service_name';
+
       const { data: items, error } = await supabase
-        .from('invoice_items')
+        .from(itemsTable)
         .select('*')
         .eq('invoice_id', invoice.id)
         .order('created_at');
 
       if (error) throw error;
 
+      // Normalize items for display
+      const normalizedItems = (items || []).map((item: any) => ({
+        ...item,
+        description: item[descriptionCol] || item.description || 'خدمة',
+        total: item.total || item.total_price || 0
+      }));
+
       setSelectedInvoice({
         ...invoice,
-        invoice_items: items || []
+        invoice_items: normalizedItems
       });
       setShowInvoiceDetails(true);
     } catch (error) {
@@ -354,18 +360,19 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
     }, 250);
   };
 
-  const handleDeleteInvoice = async (invoiceId: string) => {
+  const handleDeleteInvoice = async (invoice: any) => {
     if (!confirm('هل أنت متأكد من حذف هذه الفاتورة؟ لا يمكن التراجع عن هذه العملية.')) {
       return;
     }
 
     try {
       const toastId = toast.loading('جاري الحذف...');
+      const targetTable = invoice.source_type === 'pos' ? 'pos_invoices' : 'invoices';
 
       const { error } = await supabase
-        .from('invoices')
+        .from(targetTable)
         .delete()
-        .eq('id', invoiceId);
+        .eq('id', invoice.id);
 
       if (error) throw error;
 
@@ -630,7 +637,7 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
                           <Printer className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteInvoice(invoice.id)}
+                          onClick={() => handleDeleteInvoice(invoice)}
                           className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="حذف"
                         >

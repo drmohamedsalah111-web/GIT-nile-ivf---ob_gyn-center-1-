@@ -54,7 +54,7 @@ export function useFinancialStats(dateRange: DateRange = 'today', doctorId?: str
       try {
         const { from, to } = getDateRange(dateRange);
 
-        // Fetch doctor info to get the clinic_id and the doctor record ID
+        // Fetch doctor info to resolve ID
         let targetClinicId = doctorId;
         let actualDoctorId = doctorId;
 
@@ -71,40 +71,19 @@ export function useFinancialStats(dateRange: DateRange = 'today', doctorId?: str
           }
         }
 
-        // Fetch standard invoices
-        let invQuery = supabase
-          .from('invoices')
+        // Fetch from unified view
+        let query = supabase
+          .from('unified_invoices_view')
           .select('*')
           .gte('created_at', from.toISOString())
           .lte('created_at', to.toISOString());
 
         if (actualDoctorId || targetClinicId) {
-          invQuery = invQuery.or(`clinic_id.eq.${targetClinicId},doctor_id.eq.${actualDoctorId},clinic_id.eq.${actualDoctorId}`);
+          query = query.or(`clinic_id.eq.${targetClinicId},doctor_id.eq.${actualDoctorId}`);
         }
 
-        const { data: invData, error: invErr } = await invQuery;
+        const { data: invData, error: invErr } = await query;
         if (invErr) throw invErr;
-
-        // Fetch POS invoices
-        let posQuery = supabase
-          .from('pos_invoices')
-          .select('*')
-          .gte('created_at', from.toISOString())
-          .lte('created_at', to.toISOString());
-
-        if (actualDoctorId || targetClinicId) {
-          posQuery = posQuery.or(`clinic_id.eq.${targetClinicId},clinic_id.eq.${actualDoctorId}`);
-        }
-
-        const { data: posData, error: posErr } = await posQuery;
-        if (posErr) {
-          console.warn('POS invoices table not found or error:', posErr.message);
-        }
-
-        const mergedInvoices = [
-          ...(invData || []),
-          ...(posData || []).map(p => ({ ...p, is_pos: true }))
-        ];
 
         // Fetch expenses
         let expensesQuery = supabase
@@ -121,7 +100,7 @@ export function useFinancialStats(dateRange: DateRange = 'today', doctorId?: str
         if (expErr) throw expErr;
 
         if (isMounted) {
-          setInvoices(mergedInvoices);
+          setInvoices(invData || []);
           setExpenses(expensesData || []);
           setLoading(false);
         }
@@ -130,17 +109,20 @@ export function useFinancialStats(dateRange: DateRange = 'today', doctorId?: str
         if (isMounted) setLoading(false);
       }
     };
+
     fetchData();
-    // Real-time subscription
-    const subInvoices = supabase
+
+    // Real-time subscription to underlying tables
+    const sub = supabase
       .channel('financial-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pos_invoices' }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchData)
       .subscribe();
+
     return () => {
       isMounted = false;
-      supabase.removeChannel(subInvoices);
+      supabase.removeChannel(sub);
     };
   }, [dateRange, doctorId]);
 

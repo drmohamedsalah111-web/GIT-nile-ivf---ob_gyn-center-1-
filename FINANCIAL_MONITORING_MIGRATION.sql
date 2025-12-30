@@ -152,54 +152,66 @@ CREATE POLICY "Doctors can view all clinic service requests"
 
 
 -- Drop and recreate doctor_financial_monitor_view to ensure all clinic and patient invoices are visible to the doctor
-DROP VIEW IF EXISTS doctor_financial_monitor_view;
+-- 1) Unified Invoices View (Standard + POS)
+CREATE OR REPLACE VIEW unified_invoices_view AS
+SELECT 
+    id,
+    clinic_id,
+    patient_id,
+    doctor_id,
+    COALESCE(total, total_amount, 0) as total_amount,
+    COALESCE(paid_amount, CASE WHEN status IN ('paid', 'Paid') THEN COALESCE(total, total_amount, 0) ELSE 0 END, 0) as paid_amount,
+    status,
+    payment_method,
+    created_at,
+    appointment_id,
+    'standard' as source_type
+FROM invoices
+UNION ALL
+SELECT 
+    id,
+    clinic_id,
+    patient_id,
+    NULL as doctor_id,
+    total_amount,
+    paid_amount,
+    status,
+    NULL as payment_method,
+    created_at,
+    appointment_id,
+    'pos' as source_type
+FROM pos_invoices;
+
+-- Drop and recreate doctor_financial_monitor_view to use unified data
+DROP VIEW IF EXISTS doctor_financial_monitor_view CASCADE;
 
 CREATE OR REPLACE VIEW doctor_financial_monitor_view AS
 SELECT 
-    i.id as invoice_id,
-    i.created_at as invoice_date,
-    COALESCE(i.total, 0) as invoice_total,
-    COALESCE(i.paid_amount, 0) as paid_amount,
-    i.payment_method,
-    i.status as invoice_status,
-    i.is_from_service_request,
+    v.id as invoice_id,
+    v.created_at as invoice_date,
+    v.total_amount as invoice_total,
+    v.paid_amount as paid_amount,
+    v.payment_method,
+    v.status as invoice_status,
+    v.source_type,
     a.id as appointment_id,
     a.appointment_date as appointment_date,
-    a.appointment_date::time as appointment_time,
     a.payment_status,
-    a.checked_in_at,
     p.id as patient_id,
     p.name as patient_name,
     p.phone as patient_phone,
     d.id as doctor_id,
     d.name as doctor_name,
     d.clinic_id,
-    (i.total - i.paid_amount) as outstanding_amount,
-    EXTRACT(DAY FROM NOW() - i.created_at) as overdue_days,
-    CASE 
-        WHEN i.paid_amount < i.total AND EXTRACT(DAY FROM NOW() - i.created_at) > 7 THEN 'urgent'
-        WHEN i.paid_amount < i.total AND EXTRACT(DAY FROM NOW() - i.created_at) > 3 THEN 'high'
-        WHEN i.paid_amount < i.total THEN 'normal'
-        ELSE 'none'
-    END as alert_level,
-    CASE 
-        WHEN i.paid_amount < i.total AND i.created_at < NOW() - INTERVAL '1 day' THEN true
-        ELSE false
-    END as needs_followup,
-    sr.service_name as requested_service,
-    sr.status as service_request_status,
-    sr.requested_at
-FROM invoices i
-LEFT JOIN appointments a ON i.appointment_id = a.id
-LEFT JOIN patients p ON i.patient_id = p.id
-LEFT JOIN doctors d ON (a.doctor_id = d.id OR i.clinic_id = d.clinic_id)
-LEFT JOIN service_requests sr ON sr.appointment_id = a.id
+    (v.total_amount - v.paid_amount) as outstanding_amount
+FROM unified_invoices_view v
+LEFT JOIN appointments a ON v.appointment_id = a.id
+LEFT JOIN patients p ON v.patient_id = p.id
+LEFT JOIN doctors d ON (a.doctor_id = d.id OR v.clinic_id = d.clinic_id OR v.doctor_id = d.id)
 WHERE (
-    d.user_id = auth.uid() -- الطبيب هو صاحب الموعد أو في عيادته
-    OR i.clinic_id IN (SELECT clinic_id FROM doctors WHERE user_id = auth.uid()) -- الفاتورة تخص عيادة الطبيب
-    OR i.patient_id IN (SELECT id FROM patients WHERE doctor_id IN (SELECT id FROM doctors WHERE user_id = auth.uid())) -- الفاتورة تخص مريض للطبيب
-)
-ORDER BY i.created_at DESC;
+    d.user_id = auth.uid() OR 
+    v.clinic_id IN (SELECT clinic_id FROM doctors WHERE user_id = auth.uid())
+);
 
 -- Doctor can see all audit logs for his clinic (global standard)
 DROP VIEW IF EXISTS doctor_audit_log_view;
@@ -312,50 +324,20 @@ BEGIN
     RETURN QUERY
     WITH date_series AS (
         SELECT generate_series(p_start_date::timestamp, p_end_date::timestamp, '1 day')::date as d
-    ),
-    all_invoices AS (
-        -- Standard Invoices
-        SELECT 
-            created_at::date as inv_date,
-            appointment_id,
-            COALESCE(total, total_amount, 0) as inv_total,
-            COALESCE(paid_amount, CASE WHEN status IN ('paid', 'Paid') THEN COALESCE(total, total_amount, 0) ELSE 0 END, 0) as inv_paid
-        FROM invoices
-        WHERE (
-            clinic_id = v_target_clinic_id 
-            OR clinic_id = v_actual_doctor_id 
-            OR doctor_id = v_actual_doctor_id 
-            OR clinic_id = p_doctor_id
-        )
-        
-        UNION ALL
-        
-        -- POS Invoices
-        SELECT 
-            created_at::date as inv_date,
-            appointment_id,
-            COALESCE(total_amount, 0) as inv_total,
-            COALESCE(paid_amount, 0) as inv_paid
-        FROM pos_invoices
-        WHERE (
-            clinic_id = v_target_clinic_id 
-            OR clinic_id = v_actual_doctor_id 
-            OR clinic_id = p_doctor_id
-        )
     )
     SELECT 
         ds.d as report_date,
-        COUNT(DISTINCT i.appointment_id) as total_appointments,
-        COALESCE(SUM(i.inv_total), 0) as total_billed,
-        COALESCE(SUM(i.inv_paid), 0) as total_collected,
-        COALESCE(SUM(i.inv_total - i.inv_paid), 0) as outstanding,
+        COUNT(DISTINCT i.appointment_id) FILTER (WHERE i.appointment_id IS NOT NULL) as total_appointments,
+        COALESCE(SUM(i.total_amount), 0) as total_billed,
+        COALESCE(SUM(i.paid_amount), 0) as total_collected,
+        COALESCE(SUM(i.total_amount - i.paid_amount), 0) as outstanding,
         CASE 
-            WHEN COALESCE(SUM(i.inv_total), 0) > 0 
-            THEN ROUND((COALESCE(SUM(i.inv_paid), 0) / COALESCE(SUM(i.inv_total), 1)) * 100, 2)
+            WHEN COALESCE(SUM(i.total_amount), 0) > 0 
+            THEN ROUND((COALESCE(SUM(i.paid_amount), 0) / COALESCE(SUM(i.total_amount), 1)) * 100, 2)
             ELSE 0
         END as collection_rate
     FROM date_series ds
-    LEFT JOIN all_invoices i ON i.inv_date = ds.d
+    LEFT JOIN unified_invoices_view i ON i.created_at::date = ds.d AND (i.clinic_id = v_target_clinic_id OR i.doctor_id = v_actual_doctor_id)
     GROUP BY ds.d
     ORDER BY ds.d DESC;
 END;
@@ -379,6 +361,13 @@ CREATE TABLE IF NOT EXISTS financial_audit_log (
     created_at timestamptz DEFAULT now()
 );
 
+-- 6) Performance Indexes for reporting
+CREATE INDEX IF NOT EXISTS idx_invoices_created_at_desc ON invoices(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pos_invoices_created_at_desc ON pos_invoices(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_invoices_clinic_created_at ON invoices(clinic_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pos_invoices_clinic_created_at ON pos_invoices(clinic_id, created_at DESC);
+
+-- Audit log indexes
 CREATE INDEX IF NOT EXISTS idx_financial_audit_log_created_at ON financial_audit_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_financial_audit_log_performed_by ON financial_audit_log(performed_by);
 CREATE INDEX IF NOT EXISTS idx_financial_audit_log_action_type ON financial_audit_log(action_type);
@@ -415,6 +404,9 @@ RETURNS TRIGGER AS $$
 DECLARE
     v_actor record;
     v_patient record;
+    v_total numeric;
+    v_paid numeric;
+    v_old_paid numeric;
 BEGIN
     -- Get actor info
     SELECT d.id, d.name, d.role INTO v_actor
@@ -430,8 +422,19 @@ BEGIN
     FROM patients p
     WHERE p.id = NEW.patient_id;
     
+    -- Resolve total and paid amounts based on table
+    IF TG_TABLE_NAME = 'invoices' THEN
+        v_total := COALESCE(NEW.total, NEW.total_amount, 0);
+        v_paid := COALESCE(NEW.paid_amount, 0);
+        v_old_paid := COALESCE(OLD.paid_amount, 0);
+    ELSE -- pos_invoices
+        v_total := COALESCE(NEW.total_amount, 0);
+        v_paid := COALESCE(NEW.paid_amount, 0);
+        v_old_paid := COALESCE(OLD.paid_amount, 0);
+    END IF;
+
     -- Log invoice creation
-    IF TG_TABLE_NAME = 'invoices' AND TG_OP = 'INSERT' THEN
+    IF TG_OP = 'INSERT' THEN
         INSERT INTO financial_audit_log (
             action_type,
             performed_by,
@@ -452,17 +455,18 @@ BEGIN
             NEW.id,
             NEW.patient_id,
             v_patient.name,
-            NEW.total,
+            v_total,
             jsonb_build_object(
                 'payment_method', NEW.payment_method,
-                'paid_amount', NEW.paid_amount,
-                'total', NEW.total
+                'paid_amount', v_paid,
+                'total', v_total,
+                'source', TG_TABLE_NAME
             )
         );
     END IF;
     
     -- Log payment updates
-    IF TG_TABLE_NAME = 'invoices' AND TG_OP = 'UPDATE' AND OLD.paid_amount != NEW.paid_amount THEN
+    IF TG_OP = 'UPDATE' AND v_old_paid != v_paid THEN
         INSERT INTO financial_audit_log (
             action_type,
             performed_by,
@@ -483,11 +487,12 @@ BEGIN
             NEW.id,
             NEW.patient_id,
             v_patient.name,
-            NEW.paid_amount - OLD.paid_amount,
+            v_paid - v_old_paid,
             jsonb_build_object(
-                'old_amount', OLD.paid_amount,
-                'new_amount', NEW.paid_amount,
-                'payment_method', NEW.payment_method
+                'old_amount', v_old_paid,
+                'new_amount', v_paid,
+                'payment_method', NEW.payment_method,
+                'source', TG_TABLE_NAME
             )
         );
     END IF;
@@ -502,35 +507,46 @@ CREATE TRIGGER trg_log_invoice_actions
     FOR EACH ROW
     EXECUTE FUNCTION log_financial_action();
 
+DROP TRIGGER IF EXISTS trg_log_pos_invoice_actions ON pos_invoices;
+CREATE TRIGGER trg_log_pos_invoice_actions
+    AFTER INSERT OR UPDATE ON pos_invoices
+    FOR EACH ROW
+    EXECUTE FUNCTION log_financial_action();
+
 -- 7. Create missing collections report
 -- --------------------------------------------
 
+-- 7. Create missing collections report
+-- --------------------------------------------
+
+DROP VIEW IF EXISTS collections_followup_report;
 CREATE OR REPLACE VIEW collections_followup_report AS
 SELECT 
     p.id as patient_id,
     p.name as patient_name,
     p.phone as patient_phone,
-    i.id as invoice_id,
-    i.created_at as invoice_date,
-    i.total as invoice_total,
-    i.paid_amount,
-    (i.total - i.paid_amount) as outstanding,
-    i.payment_method,
+    v.id as invoice_id,
+    v.created_at as invoice_date,
+    v.total_amount as invoice_total,
+    v.paid_amount,
+    (v.total_amount - v.paid_amount) as outstanding,
+    v.payment_method,
+    v.source_type,
     a.appointment_date as visit_date,
     d.name as doctor_name,
     -- Days since invoice
-    EXTRACT(DAY FROM NOW() - i.created_at) as days_outstanding,
+    EXTRACT(DAY FROM NOW() - v.created_at) as days_outstanding,
     -- Priority flag
     CASE 
-        WHEN EXTRACT(DAY FROM NOW() - i.created_at) > 7 THEN 'urgent'
-        WHEN EXTRACT(DAY FROM NOW() - i.created_at) > 3 THEN 'high'
+        WHEN EXTRACT(DAY FROM NOW() - v.created_at) > 7 THEN 'urgent'
+        WHEN EXTRACT(DAY FROM NOW() - v.created_at) > 3 THEN 'high'
         ELSE 'normal'
     END as priority
-FROM invoices i
-JOIN patients p ON i.patient_id = p.id
-LEFT JOIN appointments a ON i.appointment_id = a.id
-LEFT JOIN doctors d ON a.doctor_id = d.id
-WHERE i.paid_amount < i.total
+FROM unified_invoices_view v
+JOIN patients p ON v.patient_id = p.id
+LEFT JOIN appointments a ON v.appointment_id = a.id
+LEFT JOIN doctors d ON (a.doctor_id = d.id OR v.doctor_id = d.id)
+WHERE v.paid_amount < v.total_amount AND v.status != 'cancelled'
 ORDER BY days_outstanding DESC, outstanding DESC;
 
 GRANT SELECT ON collections_followup_report TO authenticated;

@@ -92,17 +92,18 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('invoices')
+        .from('unified_invoices_view')
         .select(`
           id,
           invoice_number,
           patient_id,
           patients:patient_id(name, phone),
           total_amount,
+          paid_amount,
           status,
+          source_type,
           payment_method,
-          created_at,
-          invoice_items(description)
+          created_at
         `)
         .eq('clinic_id', doctorId)
         .order('created_at', { ascending: false });
@@ -185,9 +186,10 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
 
     try {
       const newStatus = amount >= selectedInvoice.total_amount ? 'Paid' : selectedInvoice.status;
+      const targetTable = (selectedInvoice as any).source_type === 'pos' ? 'pos_invoices' : 'invoices';
 
       const { error: updateError } = await supabase
-        .from('invoices')
+        .from(targetTable)
         .update({
           status: newStatus,
           payment_method: paymentForm.method,
@@ -314,8 +316,8 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
         <button
           onClick={() => setActiveTab('pending')}
           className={`px-6 py-3 font-medium border-b-2 transition-colors ${activeTab === 'pending'
-              ? 'border-green-600 text-green-600'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
+            ? 'border-green-600 text-green-600'
+            : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
         >
           الفواتير المتبقية ({stats.totalPending})
@@ -323,8 +325,8 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
         <button
           onClick={() => setActiveTab('paid')}
           className={`px-6 py-3 font-medium border-b-2 transition-colors ${activeTab === 'paid'
-              ? 'border-green-600 text-green-600'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
+            ? 'border-green-600 text-green-600'
+            : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
         >
           الفواتير المدفوعة ({stats.totalPaid})
@@ -332,8 +334,8 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
         <button
           onClick={() => setActiveTab('reports')}
           className={`px-6 py-3 font-medium border-b-2 transition-colors ${activeTab === 'reports'
-              ? 'border-green-600 text-green-600'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
+            ? 'border-green-600 text-green-600'
+            : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
         >
           التقارير
