@@ -59,24 +59,18 @@ export const financialAnalyticsService = {
      */
     getRevenueByCategory: async (doctorId: string, startDate: string, endDate: string) => {
         try {
-            const { data, error } = await supabase
-                .from('invoice_items')
-                .select(`
-                    total,
-                    service_id,
-                    invoice_id,
-                    invoices!inner(clinic_id, created_at)
-                `)
-                .eq('invoices.clinic_id', doctorId)
-                .gte('invoices.created_at', startDate)
-                .lte('invoices.created_at', endDate);
+            // Simplified query without complex joins for now
+            const { data: invoices, error } = await supabase
+                .from('invoices')
+                .select('id, total, created_at')
+                .eq('clinic_id', doctorId)
+                .gte('created_at', startDate)
+                .lte('created_at', endDate);
 
             if (error) throw error;
 
-            // Group by category (we'll need to join with services table)
-            const categoryTotals: Record<string, number> = {};
-
             // For now, return mock data structured correctly
+            // TODO: Join with services table to get actual categories
             return [
                 { category: 'IVF Services', value: 45000, color: '#8B5CF6' },
                 { category: 'Obstetrics', value: 32000, color: '#F59E0B' },
@@ -126,17 +120,23 @@ export const financialAnalyticsService = {
      */
     getTopServices: async (doctorId: string, startDate: string, endDate: string, limit: number = 10) => {
         try {
+            // First get invoices, then get items separately
+            const { data: invoices, error: invError } = await supabase
+                .from('invoices')
+                .select('id')
+                .eq('clinic_id', doctorId)
+                .gte('created_at', startDate)
+                .lte('created_at', endDate);
+
+            if (invError) throw invError;
+            if (!invoices || invoices.length === 0) return [];
+
+            const invoiceIds = invoices.map(inv => inv.id);
+
             const { data, error } = await supabase
                 .from('invoice_items')
-                .select(`
-                    service_name,
-                    total,
-                    invoice_id,
-                    invoices!inner(clinic_id, created_at)
-                `)
-                .eq('invoices.clinic_id', doctorId)
-                .gte('invoices.created_at', startDate)
-                .lte('invoices.created_at', endDate);
+                .select('service_name, total')
+                .in('invoice_id', invoiceIds);
 
             if (error) throw error;
 
