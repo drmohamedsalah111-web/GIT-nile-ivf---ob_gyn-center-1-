@@ -8,8 +8,11 @@ import { TrendingUp, TrendingDown, DollarSign, CreditCard, Package, Calendar } f
 import { financialAnalyticsService } from '../../src/services/financialAnalyticsService';
 import { supabase } from '../../services/supabaseClient';
 
-const AdvancedFinancialDashboard: React.FC = () => {
-    const [doctorId, setDoctorId] = useState<string>('');
+interface AdvancedFinancialDashboardProps {
+    doctorId: string;
+}
+
+const AdvancedFinancialDashboard: React.FC<AdvancedFinancialDashboardProps> = ({ doctorId }) => {
     const [loading, setLoading] = useState(true);
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
@@ -20,7 +23,14 @@ const AdvancedFinancialDashboard: React.FC = () => {
     const [growthData, setGrowthData] = useState<any>(null);
 
     useEffect(() => {
-        initializeDashboard();
+        // Set default date range (last 30 days) on mount
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - 30);
+        setDateRange({
+            start: start.toISOString().split('T')[0],
+            end: end.toISOString().split('T')[0]
+        });
     }, []);
 
     useEffect(() => {
@@ -28,26 +38,6 @@ const AdvancedFinancialDashboard: React.FC = () => {
             loadAnalytics();
         }
     }, [doctorId, dateRange]);
-
-    const initializeDashboard = async () => {
-        // Get doctor ID
-        const { data: user } = await supabase.auth.getUser();
-        if (user.user) {
-            const { data: doctor } = await supabase.from('doctors').select('id').eq('user_id', user.user.id).single();
-            if (doctor?.id) {
-                setDoctorId(doctor.id);
-
-                // Set default date range (last 30 days)
-                const end = new Date();
-                const start = new Date();
-                start.setDate(start.getDate() - 30);
-                setDateRange({
-                    start: start.toISOString().split('T')[0],
-                    end: end.toISOString().split('T')[0]
-                });
-            }
-        }
-    };
 
     const loadAnalytics = async () => {
         try {

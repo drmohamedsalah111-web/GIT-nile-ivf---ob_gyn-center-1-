@@ -598,7 +598,7 @@ const DoctorFinancialMonitor: React.FC = () => {
             {/* Analytics Tab */}
             {activeTab === 'analytics' && (
               <div className="mt-4">
-                <AdvancedFinancialDashboard />
+                <AdvancedFinancialDashboard doctorId={doctorId} />
               </div>
             )}
           </div>
