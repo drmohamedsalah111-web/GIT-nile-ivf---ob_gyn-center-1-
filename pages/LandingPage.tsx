@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Heart, Shield, Users, Calendar, FileText, TrendingUp, 
-  CheckCircle, ArrowRight, Star, Zap, Award, Lock
+import {
+  Heart, Shield, Users, Calendar, FileText, TrendingUp,
+  CheckCircle, ArrowRight, Star, Zap, Award, Lock, Facebook, MessageCircle
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 
@@ -31,7 +31,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
       const { data } = await supabase
         .from('landing_page_content')
         .select('*');
-      
+
       if (data) {
         const contentMap: any = {};
         data.forEach(item => {
@@ -110,7 +110,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
               <div className="inline-block px-4 py-2 bg-teal-100 text-teal-700 rounded-full text-sm font-semibold mb-4">
                 ⚡ النظام الأكثر تطوراً في الشرق الأوسط
               </div>
-              
+
               <h1 className="text-5xl md:text-6xl font-bold leading-tight">
                 <span className="bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
                   إدارة احترافية
@@ -118,7 +118,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
                 <br />
                 <span className="text-gray-800">لعيادات الخصوبة</span>
               </h1>
-              
+
               <p className="text-xl text-gray-600 leading-relaxed">
                 نظام متكامل لإدارة عيادات الحقن المجهري وأمراض النساء والتوليد.
                 تتبع دقيق، تقارير شاملة، وتجربة مستخدم استثنائية.
@@ -166,7 +166,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
                       </div>
                       <div className="text-2xl font-bold text-teal-600">✓</div>
                     </div>
-                    
+
                     <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl">
                       <Users className="w-8 h-8 text-purple-600" />
                       <div className="text-right flex-1">
@@ -175,7 +175,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
                       </div>
                       <div className="text-2xl font-bold text-purple-600">↑</div>
                     </div>
-                    
+
                     <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-xl">
                       <TrendingUp className="w-8 h-8 text-orange-600" />
                       <div className="text-right flex-1">
@@ -187,7 +187,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Floating badges */}
               <div className="absolute -top-6 -right-6 bg-white rounded-2xl shadow-xl p-4 animate-bounce">
                 <div className="flex items-center gap-2">
@@ -198,7 +198,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-4">
                 <div className="flex items-center gap-2">
                   <Shield className="w-6 h-6 text-green-500" />
@@ -311,9 +311,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
             {pricingContent.plans && pricingContent.plans.map((plan: any, index: number) => (
               <div
                 key={index}
-                className={`relative bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-shadow ${
-                  index === 1 ? 'ring-2 ring-teal-500 md:scale-105' : ''
-                }`}
+                className={`relative bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-shadow ${index === 1 ? 'ring-2 ring-teal-500 md:scale-105' : ''
+                  }`}
               >
                 {index === 1 && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-gray-800 px-4 py-1 rounded-full text-sm font-bold shadow-lg">
@@ -332,19 +331,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
                     {plan.features && plan.features.map((feature: string, fIdx: number) => (
                       <li key={fIdx} className="flex items-start gap-3 justify-end">
                         <span className={index === 1 ? 'text-gray-700' : 'text-gray-600'}>{feature}</span>
-                        <CheckCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                          index === 1 ? 'text-yellow-400' : 'text-green-500'
-                        }`} />
+                        <CheckCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${index === 1 ? 'text-yellow-400' : 'text-green-500'
+                          }`} />
                       </li>
                     ))}
                   </ul>
                   <button
                     onClick={onLogin}
-                    className={`w-full py-3 rounded-xl font-bold transition-colors ${
-                      index === 1
+                    className={`w-full py-3 rounded-xl font-bold transition-colors ${index === 1
                         ? 'bg-gradient-to-r from-teal-500 to-blue-600 text-white hover:shadow-lg'
                         : 'border-2 border-teal-500 text-teal-600 hover:bg-teal-50'
-                    }`}
+                      }`}
                   >
                     ابدأ التجربة المجانية
                   </button>
@@ -424,7 +421,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
               </ul>
             </div>
           </div>
-          
+
           <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-blue-600 rounded-lg flex items-center justify-center">
@@ -432,12 +429,32 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
               </div>
               <span className="text-white font-bold">نايل IVF</span>
             </div>
-            
-            <p className="text-sm">
-              © 2026 نايل IVF. جميع الحقوق محفوظة.<br />
-              <span style={{fontWeight:'bold', color:'#16a34a'}}>برمجة و تطوير د محمد صلاح جبر</span>
-            </p>
-            
+
+            <div className="flex flex-col items-center gap-4">
+              <p className="text-sm text-center">
+                جميع الحقوق محفوظة © 2026 نايل IVF. نظام متكامل لإدارة الخصوبة.<br />
+                <span className="inline-block mt-3 px-4 py-2 bg-green-600/20 text-green-400 rounded-lg font-bold border border-green-600/30">
+                  برمجة و تطوير د محمد صلاح جبر
+                </span>
+              </p>
+
+              <div className="flex items-center gap-6 mt-2">
+                <a href="https://www.facebook.com/profile.php?id=100000785193419" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">
+                  <Facebook size={24} />
+                </a>
+                <a href="https://wa.me/201003418068" target="_blank" rel="noopener noreferrer" className="hover:text-green-500 transition-colors">
+                  <MessageCircle size={24} />
+                </a>
+                <div className="p-1 bg-white rounded-lg">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent('https://wa.me/201003418068')}`}
+                    alt="Support QR"
+                    className="w-[40px] h-[40px]"
+                  />
+                </div>
+              </div>
+            </div>
+
             <button
               onClick={onAdminLogin}
               className="flex items-center gap-2 text-gray-500 hover:text-teal-400 transition-colors text-sm"

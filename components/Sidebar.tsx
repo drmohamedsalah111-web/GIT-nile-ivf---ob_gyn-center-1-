@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText, Brain, TestTube, DollarSign, CreditCard, Shield } from 'lucide-react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText, Brain, TestTube, DollarSign, CreditCard, Shield, Facebook, MessageCircle, QrCode } from 'lucide-react';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
 import { authService } from '../services/authService';
@@ -107,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
             if (item.adminOnly && userRole !== 'admin') {
               return null;
             }
-            
+
             const Icon = item.icon;
             const isActive = activePage === item.id;
             return (
@@ -157,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
         <div className="mb-3">
           <ThemeSwitcher variant="compact" />
         </div>
-        
+
         <button
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-4 py-2 text-sm text-textMuted hover:text-error transition-colors"
@@ -166,12 +166,68 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout 
           <span>Sign Out</span>
         </button>
 
-        {/* Developer Credits */}
-        <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-          <p className="text-xs text-gray-400 font-[Tajawal] leading-tight">
-            برمجة وتطوير<br />
-            د. محمد صلاح جبر
-          </p>
+        {/* Developer Credits - Professional Copyright Style */}
+        <div className="mt-6 pt-6 border-t border-borderColor/50 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[10px] text-textMuted font-[Tajawal] uppercase tracking-widest opacity-70">
+                © 2026 جميع الحقوق محفوظة
+              </span>
+              <div className="flex flex-col items-center">
+                <span className="text-[11px] font-bold text-primary" style={{ color: branding?.primary_color }}>
+                  برمجة و تطوير
+                </span>
+                <span className="text-sm font-extrabold text-foreground">
+                  د. محمد صلاح جبر
+                </span>
+              </div>
+            </div>
+
+            {/* Social Links & QR */}
+            <div className="flex items-center justify-center gap-3 w-full">
+              <a
+                href="https://www.facebook.com/profile.php?id=100000785193419"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 rounded-full bg-blue-500/10 text-blue-600 hover:bg-blue-600 hover:text-white transition-all duration-300"
+                title="Facebook"
+              >
+                <Facebook size={16} />
+              </a>
+              <a
+                href="https://wa.me/201003418068"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 rounded-full bg-green-500/10 text-green-600 hover:bg-green-600 hover:text-white transition-all duration-300"
+                title="WhatsApp"
+              >
+                <MessageCircle size={16} />
+              </a>
+
+              <div className="relative group cursor-pointer">
+                <div className="p-1 bg-white rounded-lg shadow-sm border border-borderColor/50 group-hover:border-primary/50 transition-colors">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=50x50&data=${encodeURIComponent('https://wa.me/201003418068')}`}
+                    alt="Support QR"
+                    className="w-[30px] h-[30px] grayscale group-hover:grayscale-0 transition-all"
+                  />
+                </div>
+                {/* Expanded QR on Hover */}
+                <div className="absolute bottom-full right-0 mb-4 p-3 bg-white rounded-2xl shadow-2xl border border-borderColor opacity-0 group-hover:opacity-100 transition-all pointer-events-none scale-50 group-hover:scale-100 origin-bottom-right z-50">
+                  <div className="w-[120px] bg-white">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent('https://wa.me/201003418068')}`}
+                      alt="Support QR Large"
+                      className="w-full h-full"
+                    />
+                    <p className="text-[10px] font-bold mt-2 text-center text-textSecondary uppercase tracking-tighter">
+                      امسح للتواصل المباشر
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

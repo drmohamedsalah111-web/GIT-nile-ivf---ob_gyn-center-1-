@@ -66,7 +66,7 @@ export function useFinancialStats(dateRange: DateRange = 'today', doctorId?: str
             .single();
 
           if (doctorData) {
-            targetClinicId = doctorData.clinic_id;
+            targetClinicId = doctorData.clinic_id || doctorData.id;
             actualDoctorId = doctorData.id;
           }
         }

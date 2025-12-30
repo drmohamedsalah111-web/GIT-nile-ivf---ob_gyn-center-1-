@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
-import { Mail, Lock, Heart, Eye, EyeOff, Shield, Stethoscope, Users } from 'lucide-react';
+import { Mail, Lock, Heart, Eye, EyeOff, Shield, Stethoscope, Users, Facebook, MessageCircle } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -20,7 +20,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       toast.error('الرجاء ملء جميع الحقول');
       return;
@@ -29,16 +29,16 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
     setLoading(true);
     try {
       const data = await authService.login(email, password);
-      
+
       if (data && data.user) {
         const actualRole = await authService.getUserRole(data.user.id);
-        
+
         if (actualRole !== selectedRole) {
           // Show user-friendly message and auto-switch role
           toast.error(`هذا الحساب مسجل كـ ${actualRole === 'doctor' ? 'طبيب' : 'سكرتيرة'}. جاري التبديل...`);
           setSelectedRole(actualRole as UserRole);
           setLoading(false);
-          
+
           // Try login again with correct role after a short delay
           setTimeout(() => {
             setLoading(true);
@@ -46,7 +46,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
           }, 1500);
           return;
         }
-        
+
         toast.success(`✅ مرحباً! تم تسجيل الدخول`);
         onLoginSuccess();
       }
@@ -97,9 +97,9 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
 
           <h1 className="text-5xl font-bold mb-4">نظام Nile</h1>
           <p className="text-xl text-teal-100 mb-2">لإدارة عيادات النساء والتوليد</p>
-          
+
           <div className="my-6 h-1 w-16 bg-white/40 mx-auto rounded-full" />
-          
+
           <p className="text-lg text-teal-50 leading-relaxed">
             نظام متكامل وحديث لإدارة الحقن المجهري والعقم وأمراض النساء والتوليد
           </p>
@@ -146,11 +146,10 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
               <button
                 type="button"
                 onClick={() => setSelectedRole('doctor')}
-                className={`py-4 px-4 rounded-2xl font-bold transition-all duration-300 flex flex-col items-center gap-2 border-2 ${
-                  selectedRole === 'doctor'
+                className={`py-4 px-4 rounded-2xl font-bold transition-all duration-300 flex flex-col items-center gap-2 border-2 ${selectedRole === 'doctor'
                     ? 'bg-teal-500 text-white border-teal-500 shadow-lg scale-105'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <Stethoscope className="w-6 h-6" />
                 <span className="text-sm">طبيب</span>
@@ -159,11 +158,10 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
               <button
                 type="button"
                 onClick={() => setSelectedRole('secretary')}
-                className={`py-4 px-4 rounded-2xl font-bold transition-all duration-300 flex flex-col items-center gap-2 border-2 ${
-                  selectedRole === 'secretary'
+                className={`py-4 px-4 rounded-2xl font-bold transition-all duration-300 flex flex-col items-center gap-2 border-2 ${selectedRole === 'secretary'
                     ? 'bg-teal-500 text-white border-teal-500 shadow-lg scale-105'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <Users className="w-6 h-6" />
                 <span className="text-sm">سكرتيرة</span>
@@ -217,11 +215,10 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all duration-300 flex items-center justify-center gap-2 mt-8 ${
-                loading
+              className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all duration-300 flex items-center justify-center gap-2 mt-8 ${loading
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 shadow-lg hover:shadow-xl hover:scale-105'
-              }`}
+                }`}
             >
               {loading ? (
                 <>
@@ -236,14 +233,52 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
             </button>
           </form>
 
-          {/* Footer Text */}
-          <div className="text-center mt-8">
-            <div className="inline-block px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-blue-600 shadow-lg">
-              <span className="text-white font-bold text-base tracking-wide" style={{letterSpacing:'1px'}}>
-                برمجة و تطوير د محمد صلاح جبر 2026
-              </span>
+          {/* Footer Text - Professional Copyright */}
+          <div className="text-center mt-12 pt-8 border-t border-gray-200">
+            <div className="flex flex-col items-center gap-4">
+              <div className="inline-block px-6 py-3 rounded-2xl bg-gradient-to-r from-teal-600 to-blue-700 shadow-xl transform hover:scale-105 transition-transform duration-300">
+                <span className="text-white font-bold text-lg tracking-wide">
+                  برمجة و تطوير د محمد صلاح جبر 2026
+                </span>
+              </div>
+
+              <div className="flex items-center gap-6">
+                <a
+                  href="https://www.facebook.com/profile.php?id=100000785193419"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-3 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-all duration-300 shadow-md hover:shadow-lg"
+                  title="Facebook"
+                >
+                  <Facebook size={20} />
+                </a>
+                <a
+                  href="https://wa.me/201003418068"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-3 rounded-full bg-green-100 text-green-600 hover:bg-green-600 hover:text-white transition-all duration-300 shadow-md hover:shadow-lg"
+                  title="WhatsApp"
+                >
+                  <MessageCircle size={20} />
+                </a>
+                <div className="group relative">
+                  <div className="p-1 bg-white rounded-xl shadow-md border border-gray-100 group-hover:border-teal-500 transition-colors">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent('https://wa.me/201003418068')}`}
+                      alt="Support QR"
+                      className="w-[50px] h-[50px]"
+                    />
+                  </div>
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    تواصل معنا عبر الواتساب
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-500 font-medium">
+                جميع الحقوق محفوظة © 2026 نظام Nile المتكامل
+              </p>
             </div>
-            <p className="text-sm text-gray-400 mt-2">جميع الحقوق محفوظة © 2026 نظام Nile</p>
           </div>
         </div>
       </div>

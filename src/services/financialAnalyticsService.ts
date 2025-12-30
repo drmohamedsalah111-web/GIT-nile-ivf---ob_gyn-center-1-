@@ -76,7 +76,8 @@ export const financialAnalyticsService = {
     async getRevenueByCategory(doctorId: string, startDate: string, endDate: string) {
         try {
             const info = await financialAnalyticsService.resolveDoctorInfo(doctorId);
-            const targetClinicId = info.clinic_id;
+            // If clinic_id is null, it means the doctor is the clinic owner/solo practitioner
+            const targetClinicId = info.clinic_id || info.id;
             const actualDoctorId = info.id;
 
             let orFilter = `doctor_id.eq.${actualDoctorId}`;

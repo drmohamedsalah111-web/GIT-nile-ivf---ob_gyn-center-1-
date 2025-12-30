@@ -225,7 +225,15 @@ CREATE POLICY "Doctors can view all clinic service requests"
     );
 
 
--- Drop and recreate doctor_financial_monitor_view to ensure all clinic and patient invoices are visible to the doctor
+-- Drop and recreate financial monitoring system
+DROP VIEW IF EXISTS unified_invoices_view CASCADE;
+DROP VIEW IF EXISTS doctor_financial_monitor_view CASCADE;
+DROP VIEW IF EXISTS doctor_audit_log_view CASCADE;
+DROP VIEW IF EXISTS doctor_daily_summary CASCADE;
+DROP VIEW IF EXISTS daily_financial_summary CASCADE;
+DROP VIEW IF EXISTS collections_followup_report CASCADE;
+DROP VIEW IF EXISTS pos_daily_summary CASCADE;
+
 -- 1) Unified Invoices View (Standard + POS)
 CREATE OR REPLACE VIEW unified_invoices_view AS
 SELECT 
@@ -233,8 +241,13 @@ SELECT
     clinic_id,
     patient_id,
     doctor_id,
-    COALESCE(total, total_amount, 0) as total_amount,
-    COALESCE(paid_amount, CASE WHEN status IN ('paid', 'Paid') THEN COALESCE(total, total_amount, 0) ELSE 0 END, 0) as paid_amount,
+    -- Use GREATEST to pick the non-zero value between 'total' and 'total_amount'
+    GREATEST(COALESCE(total, 0), COALESCE(total_amount, 0)) as total_amount,
+    -- Handle paid_amount and fallback to total if status is Paid but paid_amount is 0
+    GREATEST(
+        COALESCE(paid_amount, 0), 
+        CASE WHEN status IN ('paid', 'Paid') THEN GREATEST(COALESCE(total, 0), COALESCE(total_amount, 0)) ELSE 0 END
+    ) as paid_amount,
     status,
     payment_method,
     created_at,
@@ -256,9 +269,7 @@ SELECT
     'pos' as source_type
 FROM pos_invoices;
 
--- Drop and recreate doctor_financial_monitor_view to use unified data
-DROP VIEW IF EXISTS doctor_financial_monitor_view CASCADE;
-
+-- 2) Complete financial monitoring for doctors
 CREATE OR REPLACE VIEW doctor_financial_monitor_view AS
 SELECT 
     v.id as invoice_id,
@@ -299,43 +310,35 @@ WHERE (
     v.clinic_id IN (SELECT clinic_id FROM doctors WHERE user_id = auth.uid())
 );
 
--- Doctor can see all audit logs for his clinic (global standard)
-DROP VIEW IF EXISTS doctor_audit_log_view;
+-- 3) Doctor can see all audit logs for his clinic
 CREATE OR REPLACE VIEW doctor_audit_log_view AS
 SELECT l.*
 FROM financial_audit_log l
 JOIN doctors d ON d.id = l.performed_by
 WHERE d.clinic_id = (SELECT clinic_id FROM doctors WHERE user_id = auth.uid());
 
-GRANT SELECT ON doctor_financial_monitor_view TO authenticated;
-GRANT SELECT ON doctor_audit_log_view TO authenticated;
-
--- Smart daily summary for doctor
+-- 4) Smart daily summary for doctor
 CREATE OR REPLACE VIEW doctor_daily_summary AS
 SELECT 
     d.id as doctor_id,
     d.name as doctor_name,
     d.clinic_id,
     CURRENT_DATE as report_date,
-    COUNT(DISTINCT a.id) as total_appointments,
-    COUNT(DISTINCT CASE WHEN a.checked_in_at IS NOT NULL THEN a.id END) as checked_in_count,
-    COUNT(DISTINCT CASE WHEN a.payment_status = 'paid' THEN a.id END) as fully_paid_count,
-    COUNT(DISTINCT CASE WHEN a.payment_status = 'partially_paid' THEN a.id END) as partial_paid_count,
-    COUNT(DISTINCT CASE WHEN a.payment_status = 'pending' THEN a.id END) as pending_payment_count,
-    COALESCE(SUM(i.total), 0) as total_billed,
-    COALESCE(SUM(i.paid_amount), 0) as total_collected,
-    COALESCE(SUM(i.total - i.paid_amount), 0) as total_outstanding,
-    COUNT(DISTINCT sr.id) as total_service_requests,
-    COUNT(DISTINCT CASE WHEN sr.status = 'requested' THEN sr.id END) as pending_service_requests,
-    COUNT(DISTINCT CASE WHEN sr.status = 'fulfilled' THEN sr.id END) as fulfilled_service_requests
+    COUNT(DISTINCT v.appointment_id) as total_appointments,
+    COUNT(DISTINCT CASE WHEN v.status IN ('paid', 'Paid') THEN v.id END) as fully_paid_count,
+    COALESCE(SUM(v.total_amount), 0) as total_billed,
+    COALESCE(SUM(v.paid_amount), 0) as total_collected,
+    COALESCE(SUM(v.total_amount - v.paid_amount), 0) as total_outstanding,
+    (SELECT COUNT(*) FROM service_requests sr WHERE sr.requested_at::date = CURRENT_DATE AND sr.requested_by = d.id) as total_service_requests,
+    (SELECT COUNT(*) FROM service_requests sr WHERE sr.requested_at::date = CURRENT_DATE AND sr.requested_by = d.id AND sr.status = 'requested') as pending_service_requests,
+    (SELECT COUNT(*) FROM service_requests sr WHERE sr.requested_at::date = CURRENT_DATE AND sr.requested_by = d.id AND sr.status = 'fulfilled') as fulfilled_service_requests
 FROM doctors d
-LEFT JOIN appointments a ON a.doctor_id = d.id AND a.appointment_date = CURRENT_DATE
-LEFT JOIN invoices i ON i.appointment_id = a.id
-LEFT JOIN service_requests sr ON sr.appointment_id = a.id
+LEFT JOIN unified_invoices_view v ON (v.clinic_id = d.clinic_id OR v.doctor_id = d.id) AND v.created_at::date = CURRENT_DATE
 WHERE d.user_id = auth.uid()
 GROUP BY d.id, d.name, d.clinic_id;
 
 GRANT SELECT ON doctor_financial_monitor_view TO authenticated;
+GRANT SELECT ON doctor_audit_log_view TO authenticated;
 GRANT SELECT ON doctor_daily_summary TO authenticated;
 
 CREATE OR REPLACE VIEW daily_financial_summary AS
