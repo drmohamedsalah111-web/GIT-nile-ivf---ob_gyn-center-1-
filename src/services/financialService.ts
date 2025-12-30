@@ -277,19 +277,48 @@ export const servicesAPI = {
       return;
     }
 
-    const servicesWithId = defaultServices.map((s) => ({ ...s, clinic_id: clinicId }));
+    const servicesWithId = defaultServices.map((s) => ({
+      ...s,
+      clinic_id: clinicId,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }));
 
-    // Use ignoreDuplicates to avoid 409 Conflict on repeated runs
-    const q = supabase.from('services').insert(servicesWithId).select();
-    // @ts-ignore
-    q.options({ ignoreDuplicates: true });
+    try {
+      // Insert services one by one to handle duplicates gracefully
+      const results = [];
+      for (const service of servicesWithId) {
+        try {
+          const { data, error } = await supabase
+            .from('services')
+            .insert(service)
+            .select()
+            .single();
 
-    const { data, error } = await q;
-    if (error) {
+          if (error) {
+            // If it's a duplicate, skip it silently
+            if (error.code === '23505') {
+              console.log(`Service "${service.name}" already exists, skipping...`);
+              continue;
+            }
+            // For other errors, log but continue
+            console.warn(`Error inserting service "${service.name}":`, error.message);
+            continue;
+          }
+
+          if (data) results.push(data);
+        } catch (e) {
+          console.warn('Error inserting service:', e);
+        }
+      }
+
+      console.log(`Successfully added ${results.length} out of ${servicesWithId.length} services`);
+      return results as Service[];
+    } catch (error) {
       console.error('initializeDefaultServices error', error);
       throw error;
     }
-    return data as Service[];
   },
 };
 
