@@ -65,7 +65,7 @@ export const financialAnalyticsService = {
             // Get invoices for the period
             const { data: invoices, error: invError } = await supabase
                 .from('invoices')
-                .select('id, total, created_at')
+                .select('id, total_amount, created_at')
                 .eq('clinic_id', doctorId)
                 .gte('created_at', startDate)
                 .lte('created_at', endDate);
@@ -140,7 +140,7 @@ export const financialAnalyticsService = {
         try {
             const { data, error } = await supabase
                 .from('invoices')
-                .select('payment_method, total')
+                .select('payment_method, total_amount')
                 .eq('clinic_id', doctorId)
                 .gte('created_at', startDate)
                 .lte('created_at', endDate);
@@ -150,7 +150,7 @@ export const financialAnalyticsService = {
             const methodTotals: Record<string, number> = {};
             data?.forEach((invoice: any) => {
                 const method = invoice.payment_method || 'cash';
-                methodTotals[method] = (methodTotals[method] || 0) + (invoice.total || 0);
+                methodTotals[method] = (methodTotals[method] || 0) + (invoice.total_amount || 0);
             });
 
             return Object.entries(methodTotals).map(([name, value]) => ({
@@ -184,7 +184,7 @@ export const financialAnalyticsService = {
 
             const { data, error } = await supabase
                 .from('invoice_items')
-                .select('service_name, total')
+                .select('service_name, total_price')
                 .in('invoice_id', invoiceIds);
 
             if (error) throw error;
@@ -193,7 +193,7 @@ export const financialAnalyticsService = {
             const serviceTotals: Record<string, number> = {};
             data?.forEach((item: any) => {
                 const serviceName = item.service_name || 'غير محدد';
-                serviceTotals[serviceName] = (serviceTotals[serviceName] || 0) + (item.total || 0);
+                serviceTotals[serviceName] = (serviceTotals[serviceName] || 0) + (item.total_price || 0);
             });
 
             // Convert to array and sort
@@ -220,19 +220,19 @@ export const financialAnalyticsService = {
             const [thisMonth, lastMonth] = await Promise.all([
                 supabase
                     .from('invoices')
-                    .select('total')
+                    .select('total_amount')
                     .eq('clinic_id', doctorId)
                     .gte('created_at', thisMonthStart.toISOString()),
                 supabase
                     .from('invoices')
-                    .select('total')
+                    .select('total_amount')
                     .eq('clinic_id', doctorId)
                     .gte('created_at', lastMonthStart.toISOString())
                     .lte('created_at', lastMonthEnd.toISOString())
             ]);
 
-            const thisMonthTotal = thisMonth.data?.reduce((sum, inv) => sum + (inv.total || 0), 0) || 0;
-            const lastMonthTotal = lastMonth.data?.reduce((sum, inv) => sum + (inv.total || 0), 0) || 0;
+            const thisMonthTotal = thisMonth.data?.reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0;
+            const lastMonthTotal = lastMonth.data?.reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0;
 
             const growthRate = lastMonthTotal > 0
                 ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100
