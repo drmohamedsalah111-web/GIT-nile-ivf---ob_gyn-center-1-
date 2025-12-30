@@ -8,6 +8,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { medicationsService, NewMedicationInput } from '../../services/medicationsService';
+import { useBranding } from '../../../context/BrandingContext';
 import {
   Search,
   Plus,
@@ -134,6 +135,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
   onClose
 }) => {
   // State
+  const { branding } = useBranding();
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -230,7 +232,9 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
     toast.success(`${medication.trade_name} added`);
 
     // Increment use count
-    supabase.rpc('increment_medication_use', { med_id: medication.id }).catch(console.error);
+    supabase.rpc('increment_medication_use', { med_id: medication.id }).then(({ error }) => {
+      if (error) console.error('Error incrementing use count:', error);
+    });
   }, [prescription]);
 
   // ============================================================
@@ -313,6 +317,150 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
     navigator.clipboard.writeText(text);
     toast.success('Copied to clipboard!');
   }, [prescription]);
+
+  const handlePrint = useCallback(() => {
+    if (prescription.length === 0) {
+      toast.error('أضف دواء واحد على الأقل للطباعة');
+      return;
+    }
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html dir="rtl">
+      <head>
+        <meta charset="UTF-8">
+        <title>روشتة طبية</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 15mm;
+          }
+          body {
+            font-family: 'Tajawal', 'Arial', sans-serif;
+            direction: rtl;
+            margin: 0;
+            padding: 20px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 3px solid ${branding?.primary_color || '#0891B2'};
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+          }
+          .header h1 {
+            color: ${branding?.primary_color || '#0891B2'};
+            margin: 0 0 10px 0;
+            font-size: 28px;
+          }
+          .header p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 14px;
+          }
+          .patient-info {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+          }
+          .patient-info p {
+            margin: 5px 0;
+            font-size: 14px;
+          }
+          .rx-symbol {
+            font-size: 48px;
+            color: ${branding?.primary_color || '#0891B2'};
+            text-align: center;
+            margin: 20px 0;
+          }
+          .medications {
+            margin: 20px 0;
+          }
+          .medication-item {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 10px;
+          }
+          .medication-item:last-child {
+            border-bottom: none;
+          }
+          .medication-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #111827;
+            margin-bottom: 5px;
+            text-align: left;
+            direction: ltr;
+          }
+          .medication-dose {
+            color: #4b5563;
+            font-size: 14px;
+            text-align: right;
+          }
+          .notes {
+            margin-top: 30px;
+            padding: 15px;
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            border-radius: 4px;
+          }
+          .footer {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 2px solid #e5e7eb;
+            text-align: center;
+            color: #6b7280;
+            font-size: 12px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>${branding?.clinic_name || 'عيادة متخصصة'}</h1>
+          ${branding?.clinic_address ? `<p>${branding.clinic_address}</p>` : ''}
+          ${branding?.clinic_phone ? `<p>📞 ${branding.clinic_phone}</p>` : ''}
+        </div>
+
+        <div class="patient-info">
+          <p><strong>اسم المريضة:</strong> ${patientName || 'غير محدد'}</p>
+          <p><strong>التاريخ:</strong> ${new Date().toLocaleDateString('ar-EG')}</p>
+        </div>
+
+        <div class="rx-symbol">℞</div>
+
+        <div class="medications">
+          ${prescription.map((item, index) => `
+            <div class="medication-item">
+              <div class="medication-name">${index + 1}. ${item.medication.trade_name} (${item.medication.strength})</div>
+              <div class="medication-dose">${item.dose} - ${item.frequency} - ${item.duration}</div>
+              ${item.notes ? `<div style="font-size: 12px; color: #666; margin-top: 4px;">${item.notes}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="footer">
+          <p>تاريخ الإصدار: ${new Date().toLocaleDateString('ar-EG')}</p>
+          ${branding?.default_rx_notes ? `<p style="margin-top: 10px;">${branding.default_rx_notes}</p>` : ''}
+        </div>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (!printWindow) {
+      toast.error('فشل فتح نافذة الطباعة');
+      return;
+    }
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  }, [prescription, branding, patientName]);
 
   // ============================================================
   // RENDER: Category Badge
@@ -698,7 +846,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
                   Copy
                 </button>
                 <button
-                  onClick={() => window.print()}
+                  onClick={handlePrint}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-borderColor rounded-lg text-textMain bg-background hover:bg-surface transition-colors"
                 >
                   <Printer className="w-4 h-4" />
