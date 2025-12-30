@@ -54,33 +54,57 @@ export function useFinancialStats(dateRange: DateRange = 'today', doctorId?: str
       try {
         const { from, to } = getDateRange(dateRange);
 
-        // Fetch doctor info to get the clinic_id if doctorId is a user_id
+        // Fetch doctor info to get the clinic_id and the doctor record ID
         let targetClinicId = doctorId;
+        let actualDoctorId = doctorId;
+
         if (doctorId) {
           const { data: doctorData } = await supabase
             .from('doctors')
-            .select('clinic_id')
+            .select('id, clinic_id')
             .or(`user_id.eq.${doctorId},id.eq.${doctorId}`)
             .single();
 
-          if (doctorData?.clinic_id) {
+          if (doctorData) {
             targetClinicId = doctorData.clinic_id;
+            actualDoctorId = doctorData.id;
           }
         }
 
-        // Fetch invoices
-        let invoicesQuery = supabase
+        // Fetch standard invoices
+        let invQuery = supabase
           .from('invoices')
           .select('*')
           .gte('created_at', from.toISOString())
           .lte('created_at', to.toISOString());
 
-        if (targetClinicId) {
-          invoicesQuery = invoicesQuery.eq('clinic_id', targetClinicId);
+        if (actualDoctorId || targetClinicId) {
+          invQuery = invQuery.or(`clinic_id.eq.${targetClinicId},doctor_id.eq.${actualDoctorId},clinic_id.eq.${actualDoctorId}`);
         }
 
-        const { data: invoicesData, error: invErr } = await invoicesQuery;
+        const { data: invData, error: invErr } = await invQuery;
         if (invErr) throw invErr;
+
+        // Fetch POS invoices
+        let posQuery = supabase
+          .from('pos_invoices')
+          .select('*')
+          .gte('created_at', from.toISOString())
+          .lte('created_at', to.toISOString());
+
+        if (actualDoctorId || targetClinicId) {
+          posQuery = posQuery.or(`clinic_id.eq.${targetClinicId},clinic_id.eq.${actualDoctorId}`);
+        }
+
+        const { data: posData, error: posErr } = await posQuery;
+        if (posErr) {
+          console.warn('POS invoices table not found or error:', posErr.message);
+        }
+
+        const mergedInvoices = [
+          ...(invData || []),
+          ...(posData || []).map(p => ({ ...p, is_pos: true }))
+        ];
 
         // Fetch expenses
         let expensesQuery = supabase
@@ -89,15 +113,15 @@ export function useFinancialStats(dateRange: DateRange = 'today', doctorId?: str
           .gte('created_at', from.toISOString())
           .lte('created_at', to.toISOString());
 
-        if (targetClinicId) {
-          expensesQuery = expensesQuery.eq('clinic_id', targetClinicId);
+        if (actualDoctorId || targetClinicId) {
+          expensesQuery = expensesQuery.or(`clinic_id.eq.${targetClinicId},clinic_id.eq.${actualDoctorId}`);
         }
 
         const { data: expensesData, error: expErr } = await expensesQuery;
         if (expErr) throw expErr;
 
         if (isMounted) {
-          setInvoices(invoicesData || []);
+          setInvoices(mergedInvoices);
           setExpenses(expensesData || []);
           setLoading(false);
         }
@@ -109,8 +133,10 @@ export function useFinancialStats(dateRange: DateRange = 'today', doctorId?: str
     fetchData();
     // Real-time subscription
     const subInvoices = supabase
-      .channel('invoices-changes')
+      .channel('financial-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pos_invoices' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchData)
       .subscribe();
     return () => {
       isMounted = false;
