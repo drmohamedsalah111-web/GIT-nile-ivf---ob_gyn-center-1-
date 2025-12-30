@@ -57,27 +57,76 @@ export const financialAnalyticsService = {
     /**
      * Get revenue breakdown by service category
      */
+    /**
+     * Get revenue breakdown by service category
+     */
     getRevenueByCategory: async (doctorId: string, startDate: string, endDate: string) => {
         try {
-            // Simplified query without complex joins for now
-            const { data: invoices, error } = await supabase
+            // Get invoices for the period
+            const { data: invoices, error: invError } = await supabase
                 .from('invoices')
                 .select('id, total, created_at')
                 .eq('clinic_id', doctorId)
                 .gte('created_at', startDate)
                 .lte('created_at', endDate);
 
-            if (error) throw error;
+            if (invError) throw invError;
+            if (!invoices || invoices.length === 0) {
+                return [];
+            }
 
-            // For now, return mock data structured correctly
-            // TODO: Join with services table to get actual categories
-            return [
-                { category: 'IVF Services', value: 45000, color: '#8B5CF6' },
-                { category: 'Obstetrics', value: 32000, color: '#F59E0B' },
-                { category: 'Gynecology', value: 18000, color: '#EF4444' },
-                { category: 'Lab Tests', value: 12000, color: '#10B981' },
-                { category: 'Procedures', value: 8000, color: '#3B82F6' },
-            ];
+            const invoiceIds = invoices.map(inv => inv.id);
+
+            // Get invoice items
+            const { data: items, error: itemsError } = await supabase
+                .from('invoice_items')
+                .select('service_name, total_price, service_id')
+                .in('invoice_id', invoiceIds);
+
+            if (itemsError) throw itemsError;
+
+            // Get all services to map categories
+            const { data: services, error: servicesError } = await supabase
+                .from('services')
+                .select('id, name, category')
+                .eq('clinic_id', doctorId);
+
+            if (servicesError) throw servicesError;
+
+            // Create service name to category map
+            const serviceMap = new Map<string, string>();
+            services?.forEach(s => {
+                serviceMap.set(s.name.toLowerCase(), s.category);
+            });
+
+            // Aggregate by category
+            const categoryTotals: Record<string, number> = {};
+
+            items?.forEach((item: any) => {
+                const serviceName = (item.service_name || '').toLowerCase();
+                let category = serviceMap.get(serviceName) || 'Other';
+
+                categoryTotals[category] = (categoryTotals[category] || 0) + (item.total_price || 0);
+            });
+
+            // Convert to array with colors
+            const categoryColors: Record<string, string> = {
+                'IVF': '#8B5CF6',
+                'Outpatient': '#3B82F6',
+                'Procedure': '#10B981',
+                'Lab': '#F59E0B',
+                'Antenatal': '#EC4899',
+                'Pharmacy': '#6366F1',
+                'Other': '#9CA3AF'
+            };
+
+            return Object.entries(categoryTotals)
+                .map(([category, value]) => ({
+                    category,
+                    value,
+                    color: categoryColors[category] || '#9CA3AF'
+                }))
+                .sort((a, b) => b.value - a.value);
         } catch (error) {
             console.error('Error fetching revenue by category:', error);
             return [];
