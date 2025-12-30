@@ -72,19 +72,18 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('today');
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('today');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showInvoiceDetails, setShowInvoiceDetails] = useState(false);
 
   const [stats, setStats] = useState({
-    totalToday: 0,
-    totalWeek: 0,
-    totalMonth: 0,
-    countToday: 0,
-    cashToday: 0,
-    visaToday: 0,
-    bankToday: 0
+    total: 0,
+    count: 0,
+    cash: 0,
+    visa: 0,
+    bank: 0,
+    totalMonth: 0 // Keep for the month card if still needed, but we'll focus on dynamic
   });
 
   useEffect(() => {
@@ -113,6 +112,10 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
         case 'month':
           const monthAgo = new Date(now.setMonth(now.getMonth() - 1));
           startDate = monthAgo.toISOString().split('T')[0];
+          break;
+        case 'year':
+          const yearAgo = new Date(now.setFullYear(now.getFullYear() - 1));
+          startDate = yearAgo.toISOString().split('T')[0];
           break;
         case 'all':
           startDate = '2020-01-01';
@@ -155,49 +158,39 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
   };
 
   const calculateStats = (invoicesList: Invoice[]) => {
-    const today = new Date().toISOString().split('T')[0];
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const total = invoicesList.reduce((sum, inv) => sum + inv.total_amount, 0);
+    const count = invoicesList.length;
 
-    const todayInvoices = invoicesList.filter(
-      inv => inv.created_at.startsWith(today)
-    );
-
-    const weekInvoices = invoicesList.filter(
-      inv => inv.created_at >= weekAgo
-    );
-
-    const monthInvoices = invoicesList.filter(
-      inv => inv.created_at >= monthAgo
-    );
-
-    const totalToday = todayInvoices.reduce((sum, inv) => sum + inv.total_amount, 0);
-    const totalWeek = weekInvoices.reduce((sum, inv) => sum + inv.total_amount, 0);
-    const totalMonth = monthInvoices.reduce((sum, inv) => sum + inv.total_amount, 0);
-
-    const cashToday = todayInvoices
+    const cash = invoicesList
       .filter(inv => inv.payment_method?.toLowerCase() === 'cash')
       .reduce((sum, inv) => sum + inv.total_amount, 0);
 
-    const visaToday = todayInvoices
+    const visa = invoicesList
       .filter(inv => inv.payment_method?.toLowerCase() === 'visa')
       .reduce((sum, inv) => sum + inv.total_amount, 0);
 
-    const bankToday = todayInvoices
+    const bank = invoicesList
       .filter(inv =>
         inv.payment_method?.toLowerCase() === 'bank_transfer' ||
         inv.payment_method?.toLowerCase() === 'bank transfer'
       )
       .reduce((sum, inv) => sum + inv.total_amount, 0);
 
+    // Still need totalMonth for the 4th card (though we switched it to 'Bank')
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    const monthStartStr = monthStart.toISOString().split('T')[0];
+    const totalMonth = invoicesList
+      .filter(inv => inv.created_at >= monthStartStr)
+      .reduce((sum, inv) => sum + inv.total_amount, 0);
+
     setStats({
-      totalToday,
-      totalWeek,
-      totalMonth,
-      countToday: todayInvoices.length,
-      cashToday,
-      visaToday,
-      bankToday
+      total,
+      count,
+      cash,
+      visa,
+      bank,
+      totalMonth
     });
   };
 
@@ -423,10 +416,15 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
             <Clock className="w-5 h-5 text-gray-400" />
           </div>
           <div className="text-2xl font-bold text-green-600 mb-1">
-            {stats.totalToday.toLocaleString()} ج.م
+            {stats.total.toLocaleString()} ج.م
           </div>
-          <div className="text-sm text-gray-600">إجمالي اليوم</div>
-          <div className="text-xs text-gray-400 mt-1">{stats.countToday} فاتورة</div>
+          <div className="text-sm text-gray-600">إجمالي {
+            dateFilter === 'today' ? 'اليوم' :
+              dateFilter === 'week' ? 'الأسبوع' :
+                dateFilter === 'month' ? 'الشهر' :
+                  dateFilter === 'year' ? 'السنة' : 'الفترة'
+          }</div>
+          <div className="text-xs text-gray-400 mt-1">{stats.count} فاتورة</div>
         </div>
 
         <div className="bg-white rounded-xl p-6 border-2 border-blue-200 shadow-sm">
@@ -434,9 +432,14 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
             <Banknote className="w-8 h-8 text-blue-500" />
           </div>
           <div className="text-2xl font-bold text-blue-600 mb-1">
-            {stats.cashToday.toLocaleString()} ج.م
+            {stats.cash.toLocaleString()} ج.م
           </div>
-          <div className="text-sm text-gray-600">نقداً اليوم</div>
+          <div className="text-sm text-gray-600">نقداً {
+            dateFilter === 'today' ? 'اليوم' :
+              dateFilter === 'week' ? 'الأسبوع' :
+                dateFilter === 'month' ? 'الشهر' :
+                  dateFilter === 'year' ? 'السنة' : 'الفترة'
+          }</div>
         </div>
 
         <div className="bg-white rounded-xl p-6 border-2 border-purple-200 shadow-sm">
@@ -444,9 +447,14 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
             <CreditCard className="w-8 h-8 text-purple-500" />
           </div>
           <div className="text-2xl font-bold text-purple-600 mb-1">
-            {stats.visaToday.toLocaleString()} ج.م
+            {stats.visa.toLocaleString()} ج.م
           </div>
-          <div className="text-sm text-gray-600">فيزا اليوم</div>
+          <div className="text-sm text-gray-600">فيزا {
+            dateFilter === 'today' ? 'اليوم' :
+              dateFilter === 'week' ? 'الأسبوع' :
+                dateFilter === 'month' ? 'الشهر' :
+                  dateFilter === 'year' ? 'السنة' : 'الفترة'
+          }</div>
         </div>
 
         <div className="bg-white rounded-xl p-6 border-2 border-amber-200 shadow-sm">
@@ -454,9 +462,14 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
             <TrendingUp className="w-8 h-8 text-amber-500" />
           </div>
           <div className="text-2xl font-bold text-amber-600 mb-1">
-            {stats.totalMonth.toLocaleString()} ج.م
+            {stats.bank.toLocaleString()} ج.م
           </div>
-          <div className="text-sm text-gray-600">إجمالي الشهر</div>
+          <div className="text-sm text-gray-600">بنك {
+            dateFilter === 'today' ? 'اليوم' :
+              dateFilter === 'week' ? 'الأسبوع' :
+                dateFilter === 'month' ? 'الشهر' :
+                  dateFilter === 'year' ? 'السنة' : 'الفترة'
+          }</div>
         </div>
       </div>
 
@@ -484,6 +497,7 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
             <option value="today">اليوم</option>
             <option value="week">آخر 7 أيام</option>
             <option value="month">آخر 30 يوم</option>
+            <option value="year">آخر سنة</option>
             <option value="all">الكل</option>
           </select>
 
@@ -586,9 +600,9 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${invoice.payment_method === 'Cash' ? 'bg-green-100 text-green-700' :
-                          invoice.payment_method === 'Visa' ? 'bg-blue-100 text-blue-700' :
-                            invoice.payment_method === 'Bank Transfer' ? 'bg-purple-100 text-purple-700' :
-                              'bg-gray-100 text-gray-700'
+                        invoice.payment_method === 'Visa' ? 'bg-blue-100 text-blue-700' :
+                          invoice.payment_method === 'Bank Transfer' ? 'bg-purple-100 text-purple-700' :
+                            'bg-gray-100 text-gray-700'
                         }`}>
                         {invoice.payment_method === 'Cash' && <Banknote className="w-3 h-3" />}
                         {invoice.payment_method === 'Visa' && <CreditCard className="w-3 h-3" />}
