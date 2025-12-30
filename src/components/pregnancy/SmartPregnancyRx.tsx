@@ -91,36 +91,36 @@ const CATEGORY_CONFIG: Record<string, { color: string; icon: string; order: numb
 // ============================================================
 
 const FREQUENCY_OPTIONS = [
-  'Once daily',
-  'Twice daily',
-  'Three times daily',
-  'Four times daily',
-  'Every 6 hours',
-  'Every 8 hours',
-  'Every 12 hours',
-  'At bedtime',
-  'Before meals',
-  'After meals',
-  'As needed',
-  'Weekly',
-  'Monthly'
+  'مرتين يومياً',
+  'ثلاث مرات يومياً',
+  'أربع مرات يومياً',
+  'كل 6 ساعات',
+  'كل 8 ساعات',
+  'كل 12 ساعة',
+  'عند اللزوم',
+  'قبل الأكل',
+  'بعد الأكل',
+  'قبل النوم',
+  'مرة واحدة يومياً',
+  'مرة أسبوعياً',
+  'مرة شهرياً'
 ];
 
 const DURATION_OPTIONS = [
-  '3 days',
-  '5 days',
-  '7 days',
-  '10 days',
-  '14 days',
-  '1 month',
-  '3 months',
-  'Throughout pregnancy',
-  'Until delivery',
-  'First trimester',
-  'Second trimester',
-  'Third trimester',
-  'As needed',
-  'Continuous'
+  '3 أيام',
+  '5 أيام',
+  'أسبوع',
+  '10 أيام',
+  'أسبوعين',
+  'شهر',
+  '3 شهور',
+  'طوال فترة الحمل',
+  'حتى الولادة',
+  'الشهور الثلاثة الأولى',
+  'الشهور الثلاثة الوسطى',
+  'الشهور الثلاثة الأخيرة',
+  'عند اللزوم',
+  'مستمر'
 ];
 
 // ============================================================
@@ -222,14 +222,14 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
 
     const newItem: PrescriptionItem = {
       medication,
-      dose: medication.default_dose || '1 tablet',
-      frequency: medication.default_frequency || 'Once daily',
-      duration: medication.default_duration || '1 month',
+      dose: medication.default_dose || 'قرص واحد',
+      frequency: medication.default_frequency || 'مرة واحدة يومياً',
+      duration: medication.default_duration || 'شهر',
       notes: ''
     };
 
     setPrescription(prev => [...prev, newItem]);
-    toast.success(`${medication.trade_name} added`);
+    toast.success(`تم إضافة ${medication.trade_name}`);
 
     // Increment use count
     supabase.rpc('increment_medication_use', { med_id: medication.id }).then(({ error }) => {
@@ -302,11 +302,11 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
 
   const handleSave = useCallback(() => {
     if (prescription.length === 0) {
-      toast.error('Add at least one medication');
+      toast.error('أضف دواء واحد على الأقل');
       return;
     }
     onSave?.(prescription);
-    toast.success('Prescription saved!');
+    toast.success('تم حفظ الروشتة!');
   }, [prescription, onSave]);
 
   const copyToClipboard = useCallback(() => {
@@ -315,7 +315,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
     ).join('\n');
 
     navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard!');
+    toast.success('تم النسخ للحافظة!');
   }, [prescription]);
 
   const handlePrint = useCallback(() => {
@@ -596,25 +596,25 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
         </div>
 
         {/* Dosing Row */}
-        <div className="mt-2 grid grid-cols-3 gap-2">
+        <div className="mt-2 grid grid-cols-3 gap-2" dir="rtl">
           {/* Dose */}
           <div>
-            <label className="text-xs text-textSecondary block mb-1">Dose</label>
+            <label className="text-xs text-textSecondary block mb-1">الجرعة</label>
             <input
               type="text"
               value={item.dose}
               onChange={(e) => updatePrescriptionItem(index, { dose: e.target.value })}
-              className="w-full px-2 py-1 text-sm bg-background border border-borderColor rounded text-textMain focus:ring-1 focus:ring-brand focus:border-brand transition-colors"
+              className="w-full px-2 py-1 text-sm bg-background border border-borderColor rounded text-textMain focus:ring-1 focus:ring-brand focus:border-brand transition-colors text-right"
             />
           </div>
 
           {/* Frequency */}
           <div>
-            <label className="text-xs text-textSecondary block mb-1">Frequency</label>
+            <label className="text-xs text-textSecondary block mb-1">التكرار</label>
             <select
               value={item.frequency}
               onChange={(e) => updatePrescriptionItem(index, { frequency: e.target.value })}
-              className="w-full px-2 py-1 text-sm bg-background border border-borderColor rounded text-textMain focus:ring-1 focus:ring-brand focus:border-brand transition-colors"
+              className="w-full px-2 py-1 text-sm bg-background border border-borderColor rounded text-textMain focus:ring-1 focus:ring-brand focus:border-brand transition-colors text-right"
             >
               {FREQUENCY_OPTIONS.map(opt => (
                 <option key={opt} value={opt}>{opt}</option>
@@ -624,11 +624,11 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
 
           {/* Duration */}
           <div>
-            <label className="text-xs text-textSecondary block mb-1">Duration</label>
+            <label className="text-xs text-textSecondary block mb-1">المدة</label>
             <select
               value={item.duration}
               onChange={(e) => updatePrescriptionItem(index, { duration: e.target.value })}
-              className="w-full px-2 py-1 text-sm bg-background border border-borderColor rounded text-textMain focus:ring-1 focus:ring-brand focus:border-brand transition-colors"
+              className="w-full px-2 py-1 text-sm bg-background border border-borderColor rounded text-textMain focus:ring-1 focus:ring-brand focus:border-brand transition-colors text-right"
             >
               {DURATION_OPTIONS.map(opt => (
                 <option key={opt} value={opt}>{opt}</option>
@@ -640,10 +640,11 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
         {/* Notes */}
         <input
           type="text"
-          placeholder="Special instructions..."
+          placeholder="تعليمات إضافية..."
           value={item.notes}
           onChange={(e) => updatePrescriptionItem(index, { notes: e.target.value })}
-          className="mt-2 w-full px-2 py-1 text-sm border border-borderColor rounded bg-background text-textMain placeholder:text-textSecondary/50 focus:ring-1 focus:ring-brand focus:border-brand transition-colors"
+          className="mt-2 w-full px-2 py-1 text-sm border border-borderColor rounded bg-background text-textMain placeholder:text-textSecondary/50 focus:ring-1 focus:ring-brand focus:border-brand transition-colors text-right"
+          dir="rtl"
         />
       </div>
     );
@@ -664,14 +665,14 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
-      <div className="bg-surface border-b border-borderColor px-4 py-3">
+      <div className="bg-surface border-b border-borderColor px-4 py-3" dir="rtl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-brand/10 rounded-lg">
               <Pill className="w-5 h-5 text-brand" />
             </div>
             <div>
-              <h2 className="font-semibold text-textMain">Pregnancy Prescription</h2>
+              <h2 className="font-semibold text-textMain">الروشتة الذكية للمتابعة</h2>
               <p className="text-sm text-textSecondary">
                 {patientName} {gestationalAge && `• ${gestationalAge}`}
               </p>
@@ -690,38 +691,38 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
         {/* Left Panel: Medication Catalog */}
         <div className="w-2/3 flex flex-col border-r border-borderColor bg-surface">
           {/* Search Bar */}
-          <div className="p-4 border-b border-borderColor">
+          <div className="p-4 border-b border-borderColor" dir="rtl">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-textSecondary" />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-textSecondary" />
               <input
                 type="text"
-                placeholder="Search medications by trade or generic name..."
+                placeholder="ابحث عن الدواء بالاسم التجاري أو العلمي..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-background border border-borderColor rounded-lg text-textMain placeholder:text-textSecondary focus:ring-2 focus:ring-brand focus:border-brand transition-colors"
+                className="w-full pr-10 pl-4 py-2.5 bg-background border border-borderColor rounded-lg text-textMain placeholder:text-textSecondary focus:ring-2 focus:ring-brand focus:border-brand transition-colors text-right"
               />
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-textSecondary hover:text-textMain transition-colors"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-textSecondary hover:text-textMain transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               )}
               {/* Suggestions dropdown */}
               {suggestionResults.length > 0 && (
-                <div className="absolute left-0 right-0 mt-12 bg-white border border-borderColor rounded shadow-lg z-50 max-h-64 overflow-auto">
+                <div className="absolute left-0 right-0 mt-1 bg-white border border-borderColor rounded shadow-lg z-50 max-h-64 overflow-auto text-right">
                   {suggestionResults.map(m => (
                     <div key={m.id} className="px-3 py-2 hover:bg-gray-50 flex items-center justify-between cursor-pointer" onClick={() => addToPrescription(m as any)}>
+                      <div className="text-sm text-brand font-medium">إضافة</div>
                       <div>
                         <div className="font-medium">{m.trade_name} <span className="text-xs text-textSecondary">{m.strength}</span></div>
                         <div className="text-xs text-textSecondary italic">{m.generic_name} • {m.category}</div>
                       </div>
-                      <div className="text-sm text-brand font-medium">Add</div>
                     </div>
                   ))}
                   <div className="px-3 py-2 border-t text-sm text-center">
-                    <button onClick={() => openAddModalFor({ trade_name: searchTerm, generic_name: '', category: 'Other', category_color: '#78716C', form: 'Tablet', strength: '' })} className="text-sm text-blue-600">Add "{searchTerm}" to master list</button>
+                    <button onClick={() => openAddModalFor({ trade_name: searchTerm, generic_name: '', category: 'Other', category_color: '#78716C', form: 'Tablet', strength: '' })} className="text-sm text-blue-600">إضافة "{searchTerm}" للدليل الرئيسي</button>
                   </div>
                 </div>
               )}
@@ -751,7 +752,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
                 ))}
                 {filteredMedications.length === 0 && (
                   <div className="col-span-2 text-center py-8 text-textSecondary">
-                    No medications found
+                    لم يتم العثور على أدوية
                   </div>
                 )}
               </div>
@@ -805,14 +806,14 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
         {/* Right Panel: Prescription */}
         <div className="w-1/3 flex flex-col bg-background">
           {/* Prescription Header */}
-          <div className="px-4 py-3 bg-surface border-b border-borderColor">
+          <div className="px-4 py-3 bg-surface border-b border-borderColor" dir="rtl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-brand" />
-                <span className="font-semibold text-textMain">Current Prescription</span>
+                <span className="font-semibold text-textMain">الروشتة الحالية</span>
               </div>
               <span className="text-sm text-textSecondary">
-                {prescription.length} item{prescription.length !== 1 ? 's' : ''}
+                {prescription.length} دواء
               </span>
             </div>
           </div>
@@ -820,11 +821,11 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
           {/* Prescription Items */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {prescription.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="text-center py-12" dir="rtl">
                 <Pill className="w-12 h-12 text-textSecondary/50 mx-auto mb-3" />
-                <p className="text-textSecondary">Click medications to add</p>
+                <p className="text-textSecondary">اختر الأدوية من القائمة</p>
                 <p className="text-sm text-textSecondary/70 mt-1">
-                  They will appear here
+                  ستظهر الأدوية المختارة هنا
                 </p>
               </div>
             ) : (
@@ -836,21 +837,21 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
 
           {/* Action Buttons */}
           {prescription.length > 0 && (
-            <div className="p-4 bg-surface border-t border-borderColor space-y-2">
+            <div className="p-4 bg-surface border-t border-borderColor space-y-2" dir="rtl">
               <div className="flex gap-2">
                 <button
                   onClick={copyToClipboard}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-borderColor rounded-lg text-textMain bg-background hover:bg-surface transition-colors"
                 >
                   <Copy className="w-4 h-4" />
-                  Copy
+                  نسخ
                 </button>
                 <button
                   onClick={handlePrint}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-borderColor rounded-lg text-textMain bg-background hover:bg-surface transition-colors"
                 >
                   <Printer className="w-4 h-4" />
-                  Print
+                  طباعة
                 </button>
               </div>
               <button
@@ -858,7 +859,7 @@ export const SmartPregnancyRx: React.FC<SmartPregnancyRxProps> = ({
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-brand text-white rounded-lg hover:bg-brand/90 transition-colors font-medium shadow-sm"
               >
                 <Check className="w-5 h-5" />
-                Save Prescription
+                حفظ الروشتة
               </button>
             </div>
           )}
