@@ -122,23 +122,69 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
           break;
       }
 
-      const { data, error } = await supabase
-        .from('unified_invoices_view')
-        .select(`
-          id,
-          invoice_number,
-          created_at,
-          total_amount,
-          payment_method,
-          status,
-          source_type,
-          patient_name,
-          patient_phone
-        `)
-        .eq('clinic_id', doctorId)
-        .gte('created_at', `${startDate}T00:00:00`)
-        .in('status', ['paid', 'Paid', 'pending', 'Pending'])
-        .order('created_at', { ascending: false });
+      // Fetch from both tables separately to avoid view relationship issues
+      const [standardInvoices, posInvoices] = await Promise.all([
+        supabase
+          .from('invoices')
+          .select(`
+            id,
+            invoice_number,
+            created_at,
+            total_amount,
+            payment_method,
+            status,
+            appointment_id,
+            patient_id,
+            patients(name, phone)
+          `)
+          .eq('clinic_id', doctorId)
+          .gte('created_at', `${startDate}T00:00:00`)
+          .in('status', ['paid', 'Paid', 'pending', 'Pending'])
+          .order('created_at', { ascending: false }),
+
+        supabase
+          .from('pos_invoices')
+          .select(`
+            id,
+            invoice_number,
+            created_at,
+            total_amount,
+            payment_method,
+            status,
+            appointment_id,
+            patient_id,
+            patients(name, phone)
+          `)
+          .eq('clinic_id', doctorId)
+          .gte('created_at', `${startDate}T00:00:00`)
+          .in('status', ['paid', 'Paid', 'pending', 'Pending'])
+          .order('created_at', { ascending: false })
+      ]);
+
+      if (standardInvoices.error) throw standardInvoices.error;
+      if (posInvoices.error) throw posInvoices.error;
+
+      // Combine and format the results
+      const combinedData = [
+        ...(standardInvoices.data || []).map((inv: any) => ({
+          ...inv,
+          source_type: 'standard',
+          invoice_number: inv.invoice_number || `INV-${inv.id.substring(0, 8).toUpperCase()}`,
+          patient_name: inv.patients?.name || 'مريض غير معروف',
+          patient_phone: inv.patients?.phone || '-',
+          paid_amount: inv.paid_amount || (inv.status?.toLowerCase() === 'paid' ? inv.total_amount : 0)
+        })),
+        ...(posInvoices.data || []).map((inv: any) => ({
+          ...inv,
+          source_type: 'pos',
+          patient_name: inv.patients?.name || 'مريض غير معروف',
+          patient_phone: inv.patients?.phone || '-',
+          paid_amount: inv.paid_amount || 0
+        }))
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      const data = combinedData;
+      const error = null;
 
       if (error) throw error;
 

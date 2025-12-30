@@ -247,8 +247,9 @@ DROP VIEW IF EXISTS collections_followup_report CASCADE;
 DROP VIEW IF EXISTS pos_daily_summary CASCADE;
 
 -- 1) Unified Invoices View (Standard + POS)
+-- Modified to ensure proper schema introspection for Supabase
 CREATE OR REPLACE VIEW unified_invoices_view AS
-SELECT 
+SELECT
     i.id,
     -- Use first 8 chars of UUID as a readable invoice number for standard invoices
     'INV-' || UPPER(SUBSTRING(i.id::text FROM 1 FOR 8)) as invoice_number,
@@ -259,7 +260,7 @@ SELECT
     GREATEST(COALESCE(i.total, 0), COALESCE(i.total_amount, 0)) as total_amount,
     -- Handle paid_amount and fallback to total if status is Paid but paid_amount is 0
     GREATEST(
-        COALESCE(i.paid_amount, 0), 
+        COALESCE(i.paid_amount, 0),
         CASE WHEN i.status IN ('paid', 'Paid') THEN GREATEST(COALESCE(i.total, 0), COALESCE(i.total_amount, 0)) ELSE 0 END
     ) as paid_amount,
     i.status,
@@ -274,7 +275,7 @@ FROM invoices i
 LEFT JOIN patients p ON i.patient_id = p.id
 LEFT JOIN doctors d ON i.doctor_id = d.id
 UNION ALL
-SELECT 
+SELECT
     pi.id,
     pi.invoice_number,
     pi.clinic_id,
@@ -292,6 +293,12 @@ SELECT
     'pos' as source_type
 FROM pos_invoices pi
 LEFT JOIN patients p ON pi.patient_id = p.id;
+
+-- Add comment to help with schema introspection
+COMMENT ON VIEW unified_invoices_view IS 'Unified view of standard and POS invoices with patient information';
+COMMENT ON COLUMN unified_invoices_view.patient_id IS 'References patients.id';
+COMMENT ON COLUMN unified_invoices_view.patient_name IS 'Patient name from patients table';
+COMMENT ON COLUMN unified_invoices_view.patient_phone IS 'Patient phone from patients table';
 
 -- 2) Complete financial monitoring for doctors
 CREATE OR REPLACE VIEW doctor_financial_monitor_view AS
