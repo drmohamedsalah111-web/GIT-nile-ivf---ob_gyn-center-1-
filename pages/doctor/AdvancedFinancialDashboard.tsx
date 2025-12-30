@@ -68,6 +68,30 @@ const AdvancedFinancialDashboard: React.FC<AdvancedFinancialDashboardProps> = ({
         );
     }
 
+    const hasData = revenueByCategory.length > 0 || paymentMethods.length > 0 || topServices.length > 0;
+
+    if (!hasData) {
+        return (
+            <div className="p-12 text-center bg-white rounded-xl border-2 border-dashed border-gray-200">
+                <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Package className="w-8 h-8 text-blue-500" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">لا توجد بيانات كافية للتحليل</h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    لإظهار التحليلات، تأكد من تسجيل فواتير جديدة تحتوي على خدمات محددة من قائمة الخدمات.
+                </p>
+                <div className="flex justify-center gap-4">
+                    <button
+                        onClick={loadAnalytics}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        🔄 تحديث الآن
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6 p-6" dir="rtl">
             {/* Header with Date Range */}

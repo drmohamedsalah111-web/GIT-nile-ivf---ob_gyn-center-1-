@@ -130,42 +130,51 @@ const DoctorFinancialMonitor: React.FC = () => {
   };
 
   const loadSummary = async () => {
-    const { data, error } = await supabase
-      .from('daily_financial_summary')
-      .select('*')
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('daily_financial_summary')
+        .select('*')
+        .single();
 
-    if (error) {
-      console.error('Error loading summary:', error);
-    } else {
-      setSummary(data);
+      if (error) {
+        // If view is missing (406), we just log it and don't show error to user
+        console.warn('Financial summary view not found (Migration needed)');
+      } else {
+        setSummary(data);
+      }
+    } catch (e) {
+      console.warn('Summary load error:', e);
     }
   };
 
   const loadInvoices = async () => {
-    let query = supabase
-      .from('doctor_financial_monitor_view')
-      .select('*')
-      .order('invoice_date', { ascending: false });
+    try {
+      let query = supabase
+        .from('doctor_financial_monitor_view')
+        .select('*')
+        .order('invoice_date', { ascending: false });
 
-    // Apply date filter
-    const now = new Date();
-    if (dateFilter === 'today') {
-      query = query.gte('invoice_date', now.toISOString().split('T')[0]);
-    } else if (dateFilter === 'week') {
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      query = query.gte('invoice_date', weekAgo.toISOString());
-    } else if (dateFilter === 'month') {
-      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      query = query.gte('invoice_date', monthAgo.toISOString());
-    }
+      // Apply date filter
+      const now = new Date();
+      if (dateFilter === 'today') {
+        query = query.gte('invoice_date', now.toISOString().split('T')[0]);
+      } else if (dateFilter === 'week') {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        query = query.gte('invoice_date', weekAgo.toISOString());
+      } else if (dateFilter === 'month') {
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        query = query.gte('invoice_date', monthAgo.toISOString());
+      }
 
-    const { data, error } = await query.limit(100);
+      const { data, error } = await query.limit(100);
 
-    if (error) {
-      console.error('Error loading invoices:', error);
-    } else {
-      setInvoices(data || []);
+      if (error) {
+        console.warn('Invoices view not found (Migration needed)');
+      } else {
+        setInvoices(data || []);
+      }
+    } catch (e) {
+      console.warn('Invoices load error:', e);
     }
   };
 
