@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.pos_invoices (
   total_amount DECIMAL(12,2) DEFAULT 0 CHECK (total_amount >= 0),
   paid_amount DECIMAL(12,2) DEFAULT 0 CHECK (paid_amount >= 0),
   status TEXT DEFAULT 'draft' CHECK (status IN ('draft','partial','paid','cancelled')),
+  payment_method TEXT DEFAULT 'Cash',
   created_by UUID REFERENCES auth.users(id), -- secretary user id
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
@@ -108,6 +109,17 @@ BEGIN
         WHERE table_name = 'invoices' AND column_name = 'is_from_service_request'
     ) THEN
         ALTER TABLE invoices ADD COLUMN is_from_service_request boolean DEFAULT false;
+    END IF;
+END $$;
+
+-- Ensure pos_invoices table has payment_method column (idempotent)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'pos_invoices' AND column_name = 'payment_method'
+    ) THEN
+        ALTER TABLE pos_invoices ADD COLUMN payment_method TEXT DEFAULT 'Cash';
     END IF;
 END $$;
 
@@ -237,37 +249,49 @@ DROP VIEW IF EXISTS pos_daily_summary CASCADE;
 -- 1) Unified Invoices View (Standard + POS)
 CREATE OR REPLACE VIEW unified_invoices_view AS
 SELECT 
-    id,
-    clinic_id,
-    patient_id,
-    doctor_id,
+    i.id,
+    -- Use first 8 chars of UUID as a readable invoice number for standard invoices
+    'INV-' || UPPER(SUBSTRING(i.id::text FROM 1 FOR 8)) as invoice_number,
+    i.clinic_id,
+    i.patient_id,
+    i.doctor_id,
     -- Use GREATEST to pick the non-zero value between 'total' and 'total_amount'
-    GREATEST(COALESCE(total, 0), COALESCE(total_amount, 0)) as total_amount,
+    GREATEST(COALESCE(i.total, 0), COALESCE(i.total_amount, 0)) as total_amount,
     -- Handle paid_amount and fallback to total if status is Paid but paid_amount is 0
     GREATEST(
-        COALESCE(paid_amount, 0), 
-        CASE WHEN status IN ('paid', 'Paid') THEN GREATEST(COALESCE(total, 0), COALESCE(total_amount, 0)) ELSE 0 END
+        COALESCE(i.paid_amount, 0), 
+        CASE WHEN i.status IN ('paid', 'Paid') THEN GREATEST(COALESCE(i.total, 0), COALESCE(i.total_amount, 0)) ELSE 0 END
     ) as paid_amount,
-    status,
-    payment_method,
-    created_at,
-    appointment_id,
+    i.status,
+    i.payment_method,
+    i.created_at,
+    i.appointment_id,
+    p.name as patient_name,
+    p.phone as patient_phone,
+    d.name as doctor_name,
     'standard' as source_type
-FROM invoices
+FROM invoices i
+LEFT JOIN patients p ON i.patient_id = p.id
+LEFT JOIN doctors d ON i.doctor_id = d.id
 UNION ALL
 SELECT 
-    id,
-    clinic_id,
-    patient_id,
+    pi.id,
+    pi.invoice_number,
+    pi.clinic_id,
+    pi.patient_id,
     NULL as doctor_id,
-    total_amount,
-    paid_amount,
-    status,
-    NULL as payment_method,
-    created_at,
-    appointment_id,
+    pi.total_amount,
+    pi.paid_amount,
+    pi.status,
+    pi.payment_method,
+    pi.created_at,
+    pi.appointment_id,
+    p.name as patient_name,
+    p.phone as patient_phone,
+    NULL as doctor_name,
     'pos' as source_type
-FROM pos_invoices;
+FROM pos_invoices pi
+LEFT JOIN patients p ON pi.patient_id = p.id;
 
 -- 2) Complete financial monitoring for doctors
 CREATE OR REPLACE VIEW doctor_financial_monitor_view AS

@@ -132,10 +132,8 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
           payment_method,
           status,
           source_type,
-          patients (
-            name,
-            phone
-          )
+          patient_name,
+          patient_phone
         `)
         .eq('clinic_id', doctorId)
         .gte('created_at', `${startDate}T00:00:00`)
@@ -144,8 +142,17 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
 
       if (error) throw error;
 
-      setInvoices((data || []) as any);
-      calculateStats((data || []) as any);
+      // Map flat columns back to the nested structure the UI expects
+      const formattedData = (data || []).map((inv: any) => ({
+        ...inv,
+        patients: {
+          name: inv.patient_name || 'مريض غير معروف',
+          phone: inv.patient_phone || '-'
+        }
+      }));
+
+      setInvoices(formattedData as any);
+      calculateStats(formattedData as any);
     } catch (error: any) {
       console.error('Fetch invoices error:', error);
       toast.error('فشل تحميل الفواتير');

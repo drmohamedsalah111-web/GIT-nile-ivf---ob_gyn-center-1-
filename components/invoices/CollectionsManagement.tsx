@@ -97,7 +97,8 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
           id,
           invoice_number,
           patient_id,
-          patients:patient_id(name, phone),
+          patient_name,
+          patient_phone,
           total_amount,
           paid_amount,
           status,
@@ -112,9 +113,12 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
 
       const invoicesWithCalcs = data?.map((inv: any) => ({
         ...inv,
-        patient: inv.patients,
-        remaining_amount: inv.total_amount,
-        paid_amount: 0
+        patient: {
+          name: inv.patient_name || 'مريض غير معروف',
+          phone: inv.patient_phone || '-'
+        },
+        remaining_amount: Math.max(0, (inv.total_amount || 0) - (inv.paid_amount || 0)),
+        paid_amount: inv.paid_amount || 0
       })) || [];
 
       setInvoices(invoicesWithCalcs);
