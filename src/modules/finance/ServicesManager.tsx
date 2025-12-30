@@ -272,16 +272,14 @@ export const ServicesManager: React.FC<ServicesManagerProps> = ({ clinicId }) =>
           </p>
         </div>
         <div className="flex gap-3">
-          {services.length === 0 && (
-            <button
-              onClick={handleInitializeDefaultServices}
-              disabled={isInitializing}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="w-5 h-5" />
-              {isInitializing ? 'جاري التحميل...' : `تحميل ${defaultServices.length} خدمة جاهزة`}
-            </button>
-          )}
+          <button
+            onClick={handleInitializeDefaultServices}
+            disabled={isInitializing}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="w-5 h-5" />
+            {isInitializing ? 'جاري التحميل...' : `تحميل ${defaultServices.length} خدمة جاهزة`}
+          </button>
           <button
             onClick={() => setShowBulkModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
