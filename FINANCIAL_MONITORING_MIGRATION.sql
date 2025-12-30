@@ -271,6 +271,7 @@ GRANT SELECT ON daily_financial_summary TO authenticated;
 -- 4. Create function for doctor to query financial history
 -- --------------------------------------------
 
+DROP FUNCTION IF EXISTS get_doctor_financial_report(uuid, date, date);
 CREATE OR REPLACE FUNCTION get_doctor_financial_report(
     p_doctor_id uuid,
     p_start_date date DEFAULT NULL,
@@ -285,11 +286,20 @@ RETURNS TABLE(
     collection_rate numeric
 ) AS $$
 DECLARE
+    v_target_clinic_id uuid;
     v_actual_doctor_id uuid;
 BEGIN
-    -- Resolve doctor_id if user_id is passed
-    SELECT id INTO v_actual_doctor_id FROM doctors WHERE user_id = p_doctor_id OR id = p_doctor_id LIMIT 1;
+    -- Resolve doctor_id and clinic_id
+    SELECT id, clinic_id INTO v_actual_doctor_id, v_target_clinic_id 
+    FROM doctors 
+    WHERE user_id = p_doctor_id OR id = p_doctor_id 
+    LIMIT 1;
     
+    -- If not found as doctor, maybe it's a clinic_id directly
+    IF v_actual_doctor_id IS NULL THEN
+        v_target_clinic_id := p_doctor_id;
+    END IF;
+
     -- Default to last 30 days if no dates provided
     IF p_start_date IS NULL THEN
         p_start_date := CURRENT_DATE - INTERVAL '30 days';
@@ -302,21 +312,50 @@ BEGIN
     RETURN QUERY
     WITH date_series AS (
         SELECT generate_series(p_start_date::timestamp, p_end_date::timestamp, '1 day')::date as d
+    ),
+    all_invoices AS (
+        -- Standard Invoices
+        SELECT 
+            created_at::date as inv_date,
+            appointment_id,
+            COALESCE(total, total_amount, 0) as inv_total,
+            COALESCE(paid_amount, CASE WHEN status IN ('paid', 'Paid') THEN COALESCE(total, total_amount, 0) ELSE 0 END, 0) as inv_paid
+        FROM invoices
+        WHERE (
+            clinic_id = v_target_clinic_id 
+            OR clinic_id = v_actual_doctor_id 
+            OR doctor_id = v_actual_doctor_id 
+            OR clinic_id = p_doctor_id
+        )
+        
+        UNION ALL
+        
+        -- POS Invoices
+        SELECT 
+            created_at::date as inv_date,
+            appointment_id,
+            COALESCE(total_amount, 0) as inv_total,
+            COALESCE(paid_amount, 0) as inv_paid
+        FROM pos_invoices
+        WHERE (
+            clinic_id = v_target_clinic_id 
+            OR clinic_id = v_actual_doctor_id 
+            OR clinic_id = p_doctor_id
+        )
     )
     SELECT 
         ds.d as report_date,
-        COUNT(DISTINCT a.id) as total_appointments,
-        COALESCE(SUM(i.total), 0) as total_billed,
-        COALESCE(SUM(i.paid_amount), 0) as total_collected,
-        COALESCE(SUM(i.total - i.paid_amount), 0) as outstanding,
+        COUNT(DISTINCT i.appointment_id) as total_appointments,
+        COALESCE(SUM(i.inv_total), 0) as total_billed,
+        COALESCE(SUM(i.inv_paid), 0) as total_collected,
+        COALESCE(SUM(i.inv_total - i.inv_paid), 0) as outstanding,
         CASE 
-            WHEN COALESCE(SUM(i.total), 0) > 0 
-            THEN ROUND((COALESCE(SUM(i.paid_amount), 0) / COALESCE(SUM(i.total), 1)) * 100, 2)
+            WHEN COALESCE(SUM(i.inv_total), 0) > 0 
+            THEN ROUND((COALESCE(SUM(i.inv_paid), 0) / COALESCE(SUM(i.inv_total), 1)) * 100, 2)
             ELSE 0
         END as collection_rate
     FROM date_series ds
-    LEFT JOIN invoices i ON i.created_at::date = ds.d AND (i.clinic_id IN (SELECT clinic_id FROM doctors WHERE id = v_actual_doctor_id))
-    LEFT JOIN appointments a ON a.id = i.appointment_id
+    LEFT JOIN all_invoices i ON i.inv_date = ds.d
     GROUP BY ds.d
     ORDER BY ds.d DESC;
 END;
