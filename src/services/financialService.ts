@@ -164,7 +164,7 @@ export const servicesAPI = {
       const { data, error } = await q;
 
       if (error) {
-        const isConflict = error?.status === 409 || /unique|duplicate|conflict/i.test(error?.message || '');
+        const isConflict = error?.code === '23505' || /unique|duplicate|conflict/i.test(error?.message || '');
 
         // If conflict and single-item insert, return the existing service instead of throwing
         if (isConflict && !isArray) {

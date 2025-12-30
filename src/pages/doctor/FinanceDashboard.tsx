@@ -151,90 +151,91 @@ const FinanceDashboard: React.FC = () => {
               ))}
             </div>
           </div>
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        {kpis.map((kpi, i) => (
-          <div key={i} className={styles['kpi-card']} style={{ borderTop: `5px solid ${kpi.color}` }}>
-            <div className={styles['kpi-value']} style={{ color: kpi.color }}>{kpi.value}</div>
-            <div className={styles['kpi-label']}>{kpi.label}</div>
-            {kpi.compare && <div className={styles['kpi-compare']}>{kpi.compare}</div>}
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            {kpis.map((kpi, i) => (
+              <div key={i} className={styles['kpi-card']} style={{ borderTop: `5px solid ${kpi.color}` }}>
+                <div className={styles['kpi-value']} style={{ color: kpi.color }}>{kpi.value}</div>
+                <div className={styles['kpi-label']}>{kpi.label}</div>
+                {kpi.compare && <div className={styles['kpi-compare']}>{kpi.compare}</div>}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      {/* Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Revenue Trend */}
-        <div className={styles['chart-card']} style={{ gridColumn: 'span 2 / span 2' }}>
-          <div className={styles['section-title']}>منحنى الإيرادات (من الفواتير)</div>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={revenueTrend} >
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Area type="monotone" dataKey="revenue" stroke={brandColors.teal} fill={brandColors.teal} fillOpacity={0.2} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        {/* Payment Mix */}
-        <div className={styles['chart-card']}>
-          <div className={styles['section-title']}>توزيع طرق الدفع (من الفواتير)</div>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie data={paymentMix} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label>
-                {paymentMix.map((entry, idx) => (
-                  <Cell key={`cell-${idx}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-      {/* Top Services */}
-      <div className={styles['chart-card']}>
-        <div className={styles['section-title']}>الخدمات الأعلى دخلاً (من الفواتير)</div>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={topServices} layout="vertical">
-            <XAxis type="number" />
-            <YAxis dataKey="name" type="category" />
-            <Bar dataKey="value" fill={brandColors.rose} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      {/* Last Transactions */}
-      <div className={styles['chart-card']}>
-        <div className={styles['section-title']}>آخر 5 معاملات (من نظام السكرتيرة)</div>
-        <div className="overflow-x-auto">
-          <table className={styles['table']}>
-            <thead>
-              <tr>
-                <th>المريض</th>
-                <th>الخدمة</th>
-                <th>المبلغ</th>
-                <th>السكرتيرة</th>
-                <th>الوقت</th>
-                <th>الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lastTransactions.map((tx, i) => (
-                <tr key={i}>
-                  <td>{tx.patient_name || '-'}</td>
-                  <td>{tx.service_name || '-'}</td>
-                  <td>{formatCurrency(Number(tx.paid_amount || 0))}</td>
-                  <td>{tx.created_by || '-'}</td>
-                  <td>{new Date(tx.created_at).toLocaleTimeString('ar-EG')}</td>
-                  <td>
-                    {tx.status === 'paid' && <span className={`${styles['status-badge']} ${styles['status-paid']}`}>مدفوع</span>}
-                    {tx.status === 'partial' && <span className={`${styles['status-badge']} ${styles['status-partial']}`}>جزئي</span>}
-                    {tx.status === 'pending' && <span className={`${styles['status-badge']} ${styles['status-pending']}`}>غير مدفوع</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </>
+          {/* Charts */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {/* Revenue Trend */}
+            <div className={styles['chart-card']} style={{ gridColumn: 'span 2 / span 2' }}>
+              <div className={styles['section-title']}>منحنى الإيرادات (من الفواتير)</div>
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={revenueTrend} >
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="revenue" stroke={brandColors.teal} fill={brandColors.teal} fillOpacity={0.2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            {/* Payment Mix */}
+            <div className={styles['chart-card']}>
+              <div className={styles['section-title']}>توزيع طرق الدفع (من الفواتير)</div>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={paymentMix} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label>
+                    {paymentMix.map((entry, idx) => (
+                      <Cell key={`cell-${idx}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          {/* Top Services */}
+          <div className={styles['chart-card']}>
+            <div className={styles['section-title']}>الخدمات الأعلى دخلاً (من الفواتير)</div>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={topServices} layout="vertical">
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" />
+                <Bar dataKey="value" fill={brandColors.rose} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          {/* Last Transactions */}
+          <div className={styles['chart-card']}>
+            <div className={styles['section-title']}>آخر 5 معاملات (من نظام السكرتيرة)</div>
+            <div className="overflow-x-auto">
+              <table className={styles['table']}>
+                <thead>
+                  <tr>
+                    <th>المريض</th>
+                    <th>الخدمة</th>
+                    <th>المبلغ</th>
+                    <th>السكرتيرة</th>
+                    <th>الوقت</th>
+                    <th>الحالة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lastTransactions.map((tx, i) => (
+                    <tr key={i}>
+                      <td>{tx.patient_name || '-'}</td>
+                      <td>{tx.service_name || '-'}</td>
+                      <td>{formatCurrency(Number(tx.paid_amount || 0))}</td>
+                      <td>{tx.created_by || '-'}</td>
+                      <td>{new Date(tx.created_at).toLocaleTimeString('ar-EG')}</td>
+                      <td>
+                        {tx.status === 'paid' && <span className={`${styles['status-badge']} ${styles['status-paid']}`}>مدفوع</span>}
+                        {tx.status === 'partial' && <span className={`${styles['status-badge']} ${styles['status-partial']}`}>جزئي</span>}
+                        {tx.status === 'pending' && <span className={`${styles['status-badge']} ${styles['status-pending']}`}>غير مدفوع</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       {activeTab === 'invoices' && doctorId && (

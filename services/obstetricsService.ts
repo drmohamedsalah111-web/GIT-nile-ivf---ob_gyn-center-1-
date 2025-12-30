@@ -283,7 +283,10 @@ export const getDueActions = (gaWeeks: number): string[] => {
 export const obstetricsService = {
   createPregnancy: async (pregnancy: Omit<Pregnancy, 'id' | 'created_at' | 'updated_at'>) => {
     const user = await authService.getCurrentUser();
-    if (!user) throw new Error('Not authenticated');
+    if (!user) {
+      console.error('❌ createPregnancy: Not authenticated');
+      throw new Error('Not authenticated - session may have expired');
+    }
 
     const doctor = await authService.ensureDoctorRecord(user.id, user.email || '');
     if (!doctor || !doctor.id) throw new Error('Doctor profile missing');

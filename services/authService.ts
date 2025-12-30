@@ -21,7 +21,7 @@ export const authService: AuthService = {
       email,
       password,
     });
-    
+
     if (error) throw error;
     return data;
   },
@@ -31,7 +31,7 @@ export const authService: AuthService = {
       email,
       password,
     });
-    
+
     if (error) throw error;
 
     if (data.user) {
@@ -70,31 +70,18 @@ export const authService: AuthService = {
 
   getCurrentUser: async () => {
     try {
-      // 1. First try to get the current session silently
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      
-      // 2. If we have a session, try to refresh it
-      if (currentSession?.refresh_token) {
-        try {
-          const { data, error } = await supabase.auth.refreshSession();
-          if (!error && data?.user) {
-            return data.user;
-          }
-        } catch (e) {
-          // Ignore refresh errors
-        }
+      // 1. Get current session
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        return session.user;
       }
 
-      // 3. Return current user if session exists
-      if (currentSession?.user) {
-        return currentSession.user;
-      }
-
-      // 4. Try strict server verification (Secure)
+      // 2. Fallback to getUser for strict server verification if needed
       const { data: { user } } = await supabase.auth.getUser();
       return user || null;
     } catch (error) {
-      // Silently return null on error
+      console.error('Error in getCurrentUser:', error);
       return null;
     }
   },
@@ -195,7 +182,7 @@ export const authService: AuthService = {
 
   ensureDoctorRecord: async (userId: string, email: string) => {
     const now = new Date().toISOString();
-    
+
     // Step 1: Check if doctor already exists
     try {
       const { data: existingDoctor, error: fetchError } = await supabase
@@ -218,7 +205,7 @@ export const authService: AuthService = {
 
     // Step 2: Create new doctor record
     const doctorId = crypto.randomUUID();
-    
+
     try {
       const { data: insertData, error: insertError } = await supabase
         .from('doctors')
@@ -243,7 +230,7 @@ export const authService: AuthService = {
             .select('id')
             .eq('user_id', userId)
             .maybeSingle();
-          
+
           if (retryDoctor) {
             console.log('✅ Doctor record found after retry:', retryDoctor.id);
             return retryDoctor;
@@ -296,7 +283,7 @@ export const authService: AuthService = {
     try {
       // 1. Try to fetch using the secure RPC function first (Bypasses RLS)
       // Note: We might need to create a specific RPC for profile if RLS blocks select *
-      
+
       // 2. Direct query
       const { data, error } = await supabase
         .from('doctors')
@@ -308,7 +295,7 @@ export const authService: AuthService = {
         console.warn('Failed to load secretary profile');
         return null;
       }
-      
+
       // Double check role if needed, but return data anyway
       return data;
     } catch (error: any) {

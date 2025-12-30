@@ -165,16 +165,16 @@ export const dbService = {
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
 
-      // Parse history if it's a string
+      // Parse medical_history if it's a string
       let medicalHistory = {};
-      if (patient.history) {
+      if (patient.medical_history) {
         try {
-          medicalHistory = typeof patient.history === 'string' 
-            ? JSON.parse(patient.history) 
-            : patient.history;
+          medicalHistory = typeof patient.medical_history === 'string'
+            ? JSON.parse(patient.medical_history)
+            : patient.medical_history;
         } catch (e) {
           console.warn('Could not parse history as JSON, storing as notes:', e);
-          medicalHistory = { notes: patient.history };
+          medicalHistory = { notes: patient.medical_history };
         }
       }
 
@@ -260,11 +260,7 @@ export const dbService = {
       // Ensure we have a valid session before proceeding
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
-        console.warn('⚠️ No valid session, attempting refresh...');
-        const { error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError) {
-          throw new Error('جلستك انتهت. من فضلك سجل دخولك مجدداً');
-        }
+        throw new Error('جلستك انتهت. من فضلك سجل دخولك مجدداً');
       }
 
       // Get or create doctor - this handles everything
@@ -496,8 +492,8 @@ export const dbService = {
       }
 
       console.log('✅ IVF cycle created successfully:', cycleId);
-      return { 
-        success: true, 
+      return {
+        success: true,
         cycleId: newCycle.id,
         message: 'تم إنشاء دورة IVF بنجاح'
       };
