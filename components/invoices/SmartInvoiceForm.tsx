@@ -28,9 +28,11 @@ import {
   Plus,
   Trash2,
   Copy,
-  Receipt
+  Receipt,
+  Package
 } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
+import { servicesAPI, Service } from '../../src/services/financialService';
 import toast from 'react-hot-toast';
 
 interface SmartInvoiceFormProps {
@@ -83,6 +85,11 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [saving, setSaving] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
+
+  // Services state
+  const [services, setServices] = useState<Service[]>([]);
+  const [currentItemIndex, setCurrentItemIndex] = useState<number | null>(null);
+  const [showServicePicker, setShowServicePicker] = useState(false);
 
   const [invoice, setInvoice] = useState<Invoice>({
     patientId: '',
@@ -190,6 +197,21 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
     }
   };
 
+  // Fetch available services
+  const fetchServices = async () => {
+    try {
+      const data = await servicesAPI.getServices(doctorId);
+      setServices(data.filter(s => s.is_active));
+    } catch (error) {
+      console.error('Error fetching services:', error);
+    }
+  };
+
+  // Load services on mount
+  useEffect(() => {
+    fetchServices();
+  }, [doctorId]);
+
   // Select patient
   const handleSelectPatient = (patient: Patient) => {
     setSelectedPatient(patient);
@@ -245,6 +267,23 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
     }));
   };
 
+  // Handle service selection from picker
+  const handleSelectService = (service: Service, itemId: string) => {
+    updateItem(itemId, 'description', service.name);
+    updateItem(itemId, 'unitPrice', service.price);
+    setShowServicePicker(false);
+    setCurrentItemIndex(null);
+    toast.success(`تم اختيار: ${service.name}`);
+  };
+
+  // Get filtered services for autocomplete
+  const getFilteredServices = (searchText: string) => {
+    if (!searchText || searchText.length < 2) return [];
+    return services
+      .filter(s => s.name.toLowerCase().includes(searchText.toLowerCase()))
+      .slice(0, 5);
+  };
+
   // Duplicate item
   const duplicateItem = (itemId: string) => {
     const itemToDuplicate = invoice.items.find(item => item.id === itemId);
@@ -264,7 +303,7 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
   // Calculate totals
   const calculateTotals = () => {
     const subtotal = invoice.items.reduce((sum, item) => sum + item.total, 0);
-    
+
     let discountAmount = 0;
     if (invoice.discountType === 'percentage') {
       discountAmount = (subtotal * invoice.discount) / 100;
@@ -384,8 +423,8 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
           doctor_id: doctorId,
           invoice_number: invoiceNumber,
           subtotal: invoice.subtotal,
-          discount: invoice.discountType === 'percentage' 
-            ? (invoice.subtotal * invoice.discount) / 100 
+          discount: invoice.discountType === 'percentage'
+            ? (invoice.subtotal * invoice.discount) / 100
             : invoice.discount,
           tax: (invoice.subtotal * invoice.tax) / 100,
           total_amount: invoice.total,
@@ -464,7 +503,7 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             المريض *
           </label>
-          
+
           {!selectedPatient ? (
             <div className="relative">
               <Search className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
@@ -480,7 +519,7 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
                 className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 autoFocus
               />
-              
+
               {/* Search Results */}
               {showSearchResults && searchResults.length > 0 && (
                 <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -517,7 +556,7 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
               </button>
             </div>
           )}
-          
+
           {errors.patient && (
             <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
               <AlertCircle className="w-4 h-4" />
@@ -548,14 +587,50 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
                 className="flex gap-2 p-4 bg-gray-50 rounded-lg border border-gray-200"
               >
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div className="md:col-span-2">
-                    <input
-                      type="text"
-                      value={item.description}
-                      onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                      placeholder="الوصف (مثال: كشف - تحليل - أشعة)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
-                    />
+                  <div className="md:col-span-2 relative">
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        value={item.description}
+                        onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                        onFocus={() => setCurrentItemIndex(index)}
+                        onBlur={() => setTimeout(() => setCurrentItemIndex(null), 200)}
+                        placeholder="الوصف (أو ابدأ الكتابة للبحث)"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCurrentItemIndex(index);
+                          setShowServicePicker(!showServicePicker);
+                        }}
+                        className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm flex items-center gap-1"
+                        title="اختر من القائمة"
+                      >
+                        <Package className="w-4 h-4" />
+                        📋
+                      </button>
+                    </div>
+
+                    {/* Autocomplete Dropdown */}
+                    {currentItemIndex === index && item.description.length >= 2 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-purple-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {getFilteredServices(item.description).map((service) => (
+                          <button
+                            key={service.id}
+                            type="button"
+                            onMouseDown={() => handleSelectService(service, item.id)}
+                            className="w-full text-right px-3 py-2 hover:bg-purple-50 transition-colors border-b border-gray-100 last:border-0 flex items-center justify-between"
+                          >
+                            <span className="text-sm font-medium text-gray-900">{service.name}</span>
+                            <span className="text-xs text-purple-600 font-semibold">{service.price} ج.م</span>
+                          </button>
+                        ))}
+                        {getFilteredServices(item.description).length === 0 && (
+                          <div className="px-3 py-2 text-sm text-gray-500 text-center">لا توجد نتائج</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <input
@@ -579,7 +654,7 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <div className="text-sm font-semibold text-gray-900 min-w-[80px] text-center">
                     {item.total.toFixed(2)} ج.م
@@ -665,25 +740,25 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
               <span className="text-gray-600">المجموع الفرعي:</span>
               <span className="font-medium">{invoice.subtotal.toFixed(2)} ج.م</span>
             </div>
-            
+
             {invoice.discount > 0 && (
               <div className="flex justify-between text-sm text-green-600">
                 <span>الخصم:</span>
                 <span>
-                  - {invoice.discountType === 'percentage' 
+                  - {invoice.discountType === 'percentage'
                     ? ((invoice.subtotal * invoice.discount) / 100).toFixed(2)
                     : invoice.discount.toFixed(2)} ج.م
                 </span>
               </div>
             )}
-            
+
             {invoice.tax > 0 && (
               <div className="flex justify-between text-sm text-gray-600">
                 <span>الضريبة ({invoice.tax}%):</span>
                 <span>+ {((invoice.subtotal * invoice.tax) / 100).toFixed(2)} ج.م</span>
               </div>
             )}
-            
+
             <div className="flex justify-between text-lg font-bold text-purple-600 pt-2 border-t-2 border-purple-200">
               <span>الإجمالي:</span>
               <span>{invoice.total.toFixed(2)} ج.م</span>
@@ -707,11 +782,10 @@ export const SmartInvoiceForm: React.FC<SmartInvoiceFormProps> = ({
                 <button
                   key={value}
                   onClick={() => setInvoice(prev => ({ ...prev, paymentMethod: value as any }))}
-                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                    invoice.paymentMethod === value
-                      ? 'border-purple-500 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 hover:border-purple-300'
-                  }`}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${invoice.paymentMethod === value
+                    ? 'border-purple-500 bg-purple-50 text-purple-700'
+                    : 'border-gray-200 hover:border-purple-300'
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="text-sm font-medium">{label}</span>
