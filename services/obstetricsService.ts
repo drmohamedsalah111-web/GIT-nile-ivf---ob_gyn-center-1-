@@ -384,9 +384,16 @@ export const obstetricsService = {
       systolic_bp: visit.systolic_bp,
       diastolic_bp: visit.diastolic_bp,
       weight_kg: visit.weight_kg,
-      urine_albuminuria: visit.urine_albuminuria,
-      urine_glycosuria: visit.urine_glycosuria,
-      fetal_heart_sound: visit.fetal_heart_sound,
+      /* Map client field names to DB column names:
+        - `urine_albuminuria` -> `urine_protein`
+        - `urine_glycosuria` -> `urine_glucose`
+        - `fetal_heart_sound` (boolean) -> `fetal_heart_rate` (integer sentinel when true)
+      */
+      urine_protein: visit.urine_albuminuria,
+      urine_glucose: visit.urine_glycosuria,
+      /* store a small sentinel integer when FHS detected; DB expects an integer field `fetal_heart_rate`.
+        If you later capture actual bpm prefer storing the numeric rate. */
+      fetal_heart_rate: visit.fetal_heart_sound ? 1 : null,
       fundal_height_cm: visit.fundal_height_cm,
       edema: visit.edema ? true : false,
       edema_grade: visit.edema_grade,
@@ -404,9 +411,10 @@ export const obstetricsService = {
     };
 
     // Try inserting with prescription if column exists in DB
+    // DB column is `prescriptions` in the canonical schema
     const withPrescription = {
       ...baseRow,
-      prescription: JSON.stringify(visit.prescription || [])
+      prescriptions: JSON.stringify(visit.prescription || [])
     };
 
     const error = await tryInsert(withPrescription);
@@ -436,19 +444,26 @@ export const obstetricsService = {
     if (error) throw error;
 
     return (visits || []).map((v: any) => {
+      // Support DB schema where column names differ from client-side model
       const parsedPrescription =
-        Array.isArray(v.prescription)
-          ? v.prescription
-          : typeof v.prescription === 'string'
-            ? (() => {
-                try { return JSON.parse(v.prescription); } catch { return []; }
-              })()
+        Array.isArray(v.prescriptions)
+          ? v.prescriptions
+          : typeof v.prescriptions === 'string'
+            ? (() => { try { return JSON.parse(v.prescriptions); } catch { return []; } })()
             : [];
 
+      // Map DB -> client fields expected elsewhere in the app
       return {
         ...v,
+        // normalize booleans
         edema: v.edema === true,
-        prescription: parsedPrescription
+        // expose `prescription` for client code (keeps AntenatalVisit interface unchanged)
+        prescription: parsedPrescription,
+        // map DB urine/protein/glucose back to client field names
+        urine_albuminuria: v.urine_protein ?? v.urine_albuminuria ?? null,
+        urine_glycosuria: v.urine_glucose ?? v.urine_glycosuria ?? null,
+        // derive fetal_heart_sound boolean from numeric heart rate or fetal_movement flag
+        fetal_heart_sound: (v.fetal_heart_rate !== undefined && v.fetal_heart_rate !== null) ? true : (v.fetal_movement === true),
       };
     });
   },
@@ -462,14 +477,15 @@ export const obstetricsService = {
     if (updates.systolic_bp !== undefined) updateData.systolic_bp = updates.systolic_bp;
     if (updates.diastolic_bp !== undefined) updateData.diastolic_bp = updates.diastolic_bp;
     if (updates.weight_kg !== undefined) updateData.weight_kg = updates.weight_kg;
-    if (updates.urine_albuminuria !== undefined) updateData.urine_albuminuria = updates.urine_albuminuria;
-    if (updates.urine_glycosuria !== undefined) updateData.urine_glycosuria = updates.urine_glycosuria;
-    if (updates.fetal_heart_sound !== undefined) updateData.fetal_heart_sound = updates.fetal_heart_sound;
+    // Map client update fields to DB column names
+    if (updates.urine_albuminuria !== undefined) updateData.urine_protein = updates.urine_albuminuria;
+    if (updates.urine_glycosuria !== undefined) updateData.urine_glucose = updates.urine_glycosuria;
+    if (updates.fetal_heart_sound !== undefined) updateData.fetal_heart_rate = updates.fetal_heart_sound ? 1 : null;
     if (updates.fundal_height_cm !== undefined) updateData.fundal_height_cm = updates.fundal_height_cm;
     if (updates.edema !== undefined) updateData.edema = updates.edema;
     if (updates.edema_grade !== undefined) updateData.edema_grade = updates.edema_grade;
     if (updates.next_visit_date !== undefined) updateData.next_visit_date = updates.next_visit_date;
-    if (updates.prescription !== undefined) updateData.prescription = JSON.stringify(updates.prescription);
+    if (updates.prescription !== undefined) updateData.prescriptions = JSON.stringify(updates.prescription);
     if (updates.gestational_age_weeks !== undefined) updateData.gestational_age_weeks = updates.gestational_age_weeks;
     if (updates.gestational_age_days !== undefined) updateData.gestational_age_days = updates.gestational_age_days;
 
