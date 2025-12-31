@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { Palette, Check, Sun, Moon } from 'lucide-react';
+import { Palette, Check, Sun, Moon, ChevronDown } from 'lucide-react';
 import { useTheme, THEMES, ThemeName } from '../../context/ThemeContext';
 
 interface ThemeSwitcherProps {
@@ -20,34 +20,50 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ variant = 'dropdow
     return (
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-lg hover:bg-surface transition-colors"
+        className="relative w-full p-2.5 rounded-xl hover:bg-surface transition-all duration-300 border border-transparent hover:border-borderColor/20 group"
         title="تغيير المظهر"
       >
-        <Palette className="w-5 h-5 text-textSecondary" />
-        {isOpen && (
-          <div className="absolute left-0 top-full mt-2 w-56 bg-background border border-borderColor rounded-xl shadow-lg z-50 overflow-hidden">
-            {THEMES.map((theme) => (
-              <button
-                key={theme.id}
-                onClick={() => {
-                  setTheme(theme.id);
-                  setIsOpen(false);
-                }}
-                className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-surface transition-colors ${
-                  currentTheme === theme.id ? 'bg-surface' : ''
-                }`}
-              >
-                <span className="text-2xl">{theme.icon}</span>
-                <div className="flex-1 text-right">
-                  <div className="font-semibold text-textMain text-sm">{theme.nameAr}</div>
-                  <div className="text-xs text-textMuted">{theme.descriptionAr}</div>
-                </div>
-                {currentTheme === theme.id && (
-                  <Check className="w-5 h-5 text-brand" />
-                )}
-              </button>
-            ))}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Palette className={`size-4 transition-colors ${isOpen ? 'text-brand' : 'text-textSecondary group-hover:text-brand'}`} />
+            <span className="text-xs font-bold text-textMain">المظهر</span>
           </div>
+          <span className="text-xs font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full">
+            {THEMES.find(t => t.id === currentTheme)?.nameAr}
+          </span>
+        </div>
+
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-40 bg-black/5" onClick={() => setIsOpen(false)} />
+            <div className="absolute left-0 bottom-full mb-3 w-64 bg-background border border-borderColor rounded-2xl shadow-2xl z-50 overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
+              <div className="p-3 border-b border-borderColor bg-surface/50">
+                <div className="text-[10px] font-black text-brand uppercase tracking-widest">اختر الستايل المفضل</div>
+              </div>
+              <div className="max-h-[320px] overflow-y-auto no-scrollbar">
+                {THEMES.map((theme) => (
+                  <button
+                    key={theme.id}
+                    onClick={() => {
+                      setTheme(theme.id);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full px-4 py-3.5 flex items-center gap-3 hover:bg-surface transition-all duration-200 group/item ${currentTheme === theme.id ? 'bg-brand/5' : ''
+                      }`}
+                  >
+                    <span className="text-xl group-hover/item:scale-125 transition-transform duration-200">{theme.icon}</span>
+                    <div className="flex-1 text-right">
+                      <div className={`font-black text-xs ${currentTheme === theme.id ? 'text-brand' : 'text-textMain'}`}>{theme.nameAr}</div>
+                      <div className="text-[10px] text-textMuted font-bold">{theme.descriptionAr}</div>
+                    </div>
+                    {currentTheme === theme.id && (
+                      <Check className="size-4 text-brand animate-in zoom-in" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
         )}
       </button>
     );
@@ -127,43 +143,52 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ variant = 'dropdow
 
   // Default dropdown variant
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-surface hover:bg-surfaceTertiary rounded-lg transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 bg-surface hover:bg-surfaceTertiary rounded-xl transition-all duration-300 border border-borderColor/10 group"
       >
-        <Palette className="w-4 h-4 text-textSecondary" />
-        <span className="text-sm text-textMain">{THEMES.find(t => t.id === currentTheme)?.nameAr}</span>
+        <div className="flex items-center gap-2">
+          <Palette className={`size-4 transition-colors ${isOpen ? 'text-brand' : 'text-textSecondary group-hover:text-brand'}`} />
+          <span className="text-xs font-bold text-textMain">الستايل</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full">
+            {THEMES.find(t => t.id === currentTheme)?.nameAr}
+          </span>
+          <ChevronDown className={`size-3 text-textSecondary transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
       </button>
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute left-0 top-full mt-2 w-64 bg-background border border-borderColor rounded-xl shadow-xl z-50 overflow-hidden">
-            <div className="p-3 border-b border-borderColor">
-              <div className="text-sm font-semibold text-textMain">اختر المظهر</div>
+          <div className="fixed inset-0 z-40 bg-black/5" onClick={() => setIsOpen(false)} />
+          <div className="absolute left-0 bottom-full mb-3 w-64 bg-background border border-borderColor rounded-2xl shadow-2xl z-50 overflow-hidden animate-in slide-in-from-bottom-2 duration-300">
+            <div className="p-3 border-b border-borderColor bg-surface/50">
+              <div className="text-[10px] font-black text-brand uppercase tracking-widest">مظهر النظام</div>
             </div>
-            {THEMES.map((theme) => (
-              <button
-                key={theme.id}
-                onClick={() => {
-                  setTheme(theme.id);
-                  setIsOpen(false);
-                }}
-                className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-surface transition-colors ${
-                  currentTheme === theme.id ? 'bg-surface' : ''
-                }`}
-              >
-                <span className="text-2xl">{theme.icon}</span>
-                <div className="flex-1 text-right">
-                  <div className="font-medium text-textMain text-sm">{theme.nameAr}</div>
-                  <div className="text-xs text-textMuted">{theme.descriptionAr}</div>
-                </div>
-                {currentTheme === theme.id && (
-                  <Check className="w-5 h-5 text-brand flex-shrink-0" />
-                )}
-              </button>
-            ))}
+            <div className="max-h-[320px] overflow-y-auto no-scrollbar scroll-smooth">
+              {THEMES.map((theme) => (
+                <button
+                  key={theme.id}
+                  onClick={() => {
+                    setTheme(theme.id);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full px-4 py-3.5 flex items-center gap-3 hover:bg-surface transition-all duration-200 group/item ${currentTheme === theme.id ? 'bg-brand/5' : ''
+                    }`}
+                >
+                  <span className="text-xl group-hover/item:scale-125 transition-transform duration-200">{theme.icon}</span>
+                  <div className="flex-1 text-right">
+                    <div className={`font-black text-xs ${currentTheme === theme.id ? 'text-brand' : 'text-textMain'}`}>{theme.nameAr}</div>
+                    <div className="text-[10px] text-textMuted font-bold">{theme.descriptionAr}</div>
+                  </div>
+                  {currentTheme === theme.id && (
+                    <Check className="size-4 text-brand animate-in zoom-in" />
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         </>
       )}
@@ -182,11 +207,10 @@ const ThemeCard: React.FC<ThemeCardProps> = ({ theme, isActive, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className={`relative p-4 rounded-xl border-2 transition-all hover:scale-105 ${
-        isActive 
-          ? 'border-brand bg-brand/10' 
-          : 'border-borderColor hover:border-brand/50 bg-surface'
-      }`}
+      className={`relative p-4 rounded-xl border-2 transition-all hover:scale-105 ${isActive
+        ? 'border-brand bg-brand/10'
+        : 'border-borderColor hover:border-brand/50 bg-surface'
+        }`}
     >
       {isActive && (
         <div className="absolute top-2 left-2 w-6 h-6 bg-brand rounded-full flex items-center justify-center">
