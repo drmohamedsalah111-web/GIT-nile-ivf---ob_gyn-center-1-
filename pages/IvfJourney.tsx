@@ -134,18 +134,19 @@ const IvfJourney: React.FC = () => {
   }, [selectedPatientId]);
 
   const loadExistingCycle = async (patientId: string) => {
+    setIsLoading(true);
     try {
-      const cycles = await db.getCycles();
-      const patientCycles = cycles.filter(c => c.patientId === patientId);
+      // Use optimized fetching
+      const patientCycles = await db.getCyclesByPatient(patientId);
 
       if (patientCycles.length > 0) {
         // Load the most recent cycle
-        const activeCycle = patientCycles[0]; // Get the first (most recent) cycle
+        const activeCycle = patientCycles[0];
 
-        // Load stimulation logs for this cycle from the cycle object itself (populated by service)
+        // Load stimulation logs for this cycle (populated by service)
         const cycleLogs = activeCycle.logs || [];
 
-        // Map status to component status
+        // Map status
         let componentStatus: CycleDataState['status'] = 'Assessment';
         if (activeCycle.status === 'Active') componentStatus = 'Active';
         else if (activeCycle.status === 'Completed') componentStatus = 'Done';
@@ -168,7 +169,6 @@ const IvfJourney: React.FC = () => {
             ltFollicles: log.ltFollicles || '',
             endometriumThickness: log.endometriumThickness || ''
           })),
-          // Load assessment data from cycle data
           coupleAge: activeCycle.assessment?.coupleProfile?.age,
           coupleBMI: activeCycle.assessment?.coupleProfile?.bmi,
           amh: activeCycle.assessment?.femaleFactor?.amh,
@@ -176,7 +176,6 @@ const IvfJourney: React.FC = () => {
           pcosHistory: activeCycle.assessment?.coupleProfile?.infertilityType === 'Secondary',
           maleFactorAnalysis: activeCycle.assessment?.maleFactor?.diagnosis,
           recommendedProtocol: activeCycle.protocol,
-          // Load lab data
           opuDate: activeCycle.lab?.opuDate,
           totalOocytes: activeCycle.lab?.totalOocytes,
           mii: activeCycle.lab?.mii,
@@ -184,23 +183,22 @@ const IvfJourney: React.FC = () => {
           gv: activeCycle.lab?.gv,
           atretic: activeCycle.lab?.atretic,
           fertilizedTwoPN: activeCycle.lab?.fertilizedTwoPN,
-          // Load transfer data
           transferDate: activeCycle.transfer?.transferDate,
           numberTransferred: activeCycle.transfer?.numberTransferred,
           embryoQuality: activeCycle.transfer?.embryoQuality,
-          // Load outcome data
           betaHcg: activeCycle.outcome?.betaHcg,
           clinicalPregnancy: activeCycle.outcome?.clinicalPregnancy,
           gestationalSac: activeCycle.outcome?.gestationalSac,
           fHR: activeCycle.outcome?.fHR
         });
       } else {
-        // No existing cycle, reset to default
         setCycleData({ ...defaultCycleData, patientId: selectedPatientId });
       }
     } catch (error) {
       console.error('Error loading existing cycle:', error);
       setCycleData({ ...defaultCycleData, patientId: selectedPatientId });
+    } finally {
+      setIsLoading(false);
     }
   };
 

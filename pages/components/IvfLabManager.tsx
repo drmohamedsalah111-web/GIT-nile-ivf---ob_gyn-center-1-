@@ -42,6 +42,8 @@ interface Props {
   cycleStatus?: 'Assessment' | 'Active' | 'PickUp' | 'Transfer' | 'Done';
   protocol?: string;
   stimulationDay?: number;
+  triggerDate?: string;
+  opuDate?: string;
   onRequestCreated?: (requestId: string) => void;
 }
 
@@ -51,6 +53,8 @@ const IvfLabManager: React.FC<Props> = ({
   cycleStatus = 'Assessment',
   protocol = 'Antagonist',
   stimulationDay = 0,
+  triggerDate,
+  opuDate,
   onRequestCreated
 }) => {
   const [tests, setTests] = useState<LabTest[]>([]);
@@ -114,7 +118,7 @@ const IvfLabManager: React.FC<Props> = ({
   const addIVFPackage = (packageName: string) => {
     const config = (IVF_PHASE_PACKAGES as any)[packageName];
     if (!config) return;
-    
+
     const packageTestNames = config.tests;
     const packageTests = tests.filter(t =>
       packageTestNames.some(name => t.name.includes(name))
@@ -229,9 +233,8 @@ const IvfLabManager: React.FC<Props> = ({
             <button
               key={packageName}
               onClick={() => addIVFPackage(packageName)}
-              className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${getPackageColor(config.color)} ${
-                recommendedPackage === packageName ? 'border-current font-bold ring-2 ring-offset-2 ring-teal-400' : 'border-gray-200'
-              }`}
+              className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${getPackageColor(config.color)} ${recommendedPackage === packageName ? 'border-current font-bold ring-2 ring-offset-2 ring-teal-400' : 'border-gray-200'
+                }`}
             >
               <p className="text-sm font-semibold text-gray-900">{packageName}</p>
               <p className="text-xs text-gray-600 mt-1">{config.description}</p>
@@ -326,9 +329,8 @@ const IvfLabManager: React.FC<Props> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   {getStatusIcon(req.status)}
-                  <span className={`text-xs font-semibold px-2 py-1 rounded ${
-                    req.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                  }`}>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded ${req.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    }`}>
                     {req.status}
                   </span>
                 </div>

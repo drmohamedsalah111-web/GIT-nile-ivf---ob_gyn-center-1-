@@ -211,6 +211,55 @@ export const dbService = {
   },
 
   // --- Cycles ---
+  getCyclesByPatient: async (patientId: string): Promise<IvfCycle[]> => {
+    if (!patientId) return [];
+
+    const { data: cycles, error: cyclesError } = await supabase
+      .from('ivf_cycles')
+      .select('*')
+      .eq('patient_id', patientId)
+      .order('start_date', { ascending: false });
+
+    if (cyclesError) throw cyclesError;
+    if (!cycles || cycles.length === 0) return [];
+
+    const cycleIds = cycles.map(c => c.id);
+
+    const { data: logs, error: logsError } = await supabase
+      .from('stimulation_logs')
+      .select('*')
+      .in('cycle_id', cycleIds)
+      .order('log_date', { ascending: true });
+
+    if (logsError) throw logsError;
+
+    return cycles.map((c: any) => ({
+      id: c.id,
+      patientId: c.patient_id,
+      protocol: c.protocol,
+      startDate: c.start_date,
+      status: c.status,
+      logs: (logs || [])
+        .filter((l: any) => l.cycle_id === c.id)
+        .map((l: any) => ({
+          id: l.id,
+          date: l.log_date,
+          cycleDay: l.day_number,
+          fsh: l.fsh,
+          hmg: l.hmg,
+          e2: l.e2,
+          lh: l.lh,
+          rtFollicles: l.rt_follicles,
+          ltFollicles: l.lt_follicles,
+          endometriumThickness: l.endometrium_thickness
+        })),
+      lab: parseAnyJson<any>(c.lab_data, undefined),
+      transfer: parseAnyJson<any>(c.transfer_data, undefined),
+      outcome: parseAnyJson<any>(c.outcome_data, undefined),
+      assessment: parseAnyJson<any>(c.assessment_data, undefined)
+    }));
+  },
+
   getCycles: async (): Promise<IvfCycle[]> => {
     const { data: cycles, error: cyclesError } = await supabase
       .from('ivf_cycles')

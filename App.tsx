@@ -74,7 +74,7 @@ const App: React.FC = () => {
   };
 
   const activePage = getActivePageFromPath(location.pathname);
-  const setActivePage = (page: Page) => {
+  const setActivePage = React.useCallback((page: Page) => {
     switch (page) {
       case Page.HOME: navigate('/'); break;
       case Page.RECEPTION: navigate('/reception'); break;
@@ -92,7 +92,7 @@ const App: React.FC = () => {
       case Page.SUPER_ADMIN: navigate('/super-admin'); break;
       default: navigate('/');
     }
-  };
+  }, [navigate]);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -183,7 +183,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = React.useCallback(async () => {
     try {
       if (adminAuthService.isAuthenticated()) {
         await adminAuthService.logout();
@@ -201,7 +201,7 @@ const App: React.FC = () => {
       localStorage.clear();
       navigate('/');
     }
-  };
+  }, [navigate]);
 
   if (loading) {
     return (
