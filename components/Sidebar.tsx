@@ -3,9 +3,9 @@ import toast from 'react-hot-toast';
 import {
   LayoutDashboard, Users, Baby, Heart, Settings, LogOut,
   Activity, FileText, Brain, TestTube, DollarSign,
-  Facebook, MessageCircle, Building2, ShieldCheck,
   Sparkles, ExternalLink, ChevronRight
 } from 'lucide-react';
+import { DeveloperCard } from './common/DeveloperCard';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
 import { useTheme } from '../context/ThemeContext';
@@ -111,55 +111,19 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
         })}
       </nav>
 
-      {/* Footer Area - Minimalist */}
-      <div className="p-4 border-t border-borderColor/50 bg-surface/50 space-y-3">
+      {/* Unified Developer Copyright Section */}
+      <DeveloperCard variant="compact" />
 
-        {/* Structured Developer Card */}
-        <div className="relative group mt-2">
-          <div className="absolute -inset-1 bg-gradient-to-r from-brand/20 via-blue-500/10 to-emerald-500/10 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-          <div className="relative bg-surface/80 dark:bg-zinc-900/50 backdrop-blur-sm border border-borderColor/40 rounded-2xl p-3 flex flex-col items-center text-center space-y-2 group-hover:border-brand/30 transition-colors">
-            <div className="flex flex-col items-center">
-              <span className="text-[9px] font-black text-brand/60 uppercase tracking-[0.2em] mb-0.5">برمجة وتطوير</span>
-              <h4 className="text-xs font-black text-foreground tracking-tight">د. محمد صلاح جبر</h4>
-              <div className="flex items-center gap-1 mt-1">
-                <span className="w-1 h-1 rounded-full bg-brand animate-pulse"></span>
-                <span className="text-[9px] font-bold text-textSecondary uppercase tracking-widest">إصدار 2026</span>
-              </div>
-            </div>
-
-            <div className="flex w-full gap-2 pt-1 border-t border-borderColor/10">
-              <a
-                href="https://wa.me/201015668664"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-surface dark:bg-zinc-800/50 border border-borderColor/10 hover:border-brand/40 text-textSecondary hover:text-brand rounded-xl transition-all group/wa"
-              >
-                <MessageCircle size={14} className="group-hover/wa:scale-110 transition-transform" />
-                <span className="text-[10px] font-black">WATSP</span>
-              </a>
-              <a
-                href="https://www.facebook.com/mohamed.salahgabr"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-surface dark:bg-zinc-800/50 border border-borderColor/10 hover:border-blue-500/40 text-textSecondary hover:text-blue-500 rounded-xl transition-all group/fb"
-              >
-                <Facebook size={14} className="group-hover/fb:scale-110 transition-transform" />
-                <span className="text-[10px] font-black">FB</span>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Logout - Small */}
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center justify-center gap-2 py-2 text-red-500/70 hover:text-red-500 font-bold rounded-lg hover:bg-red-500/5 transition-all text-xs"
-        >
-          <LogOut size={14} />
-          <span>تسجيل الخروج</span>
-        </button>
-      </div>
-    </aside>
+      {/* Logout - Small */}
+      <button
+        onClick={onLogout}
+        className="w-full flex items-center justify-center gap-2 py-2 text-red-500/70 hover:text-red-500 font-bold rounded-lg hover:bg-red-500/5 transition-all text-xs"
+      >
+        <LogOut size={14} />
+        <span>تسجيل الخروج</span>
+      </button>
+    </div>
+    </aside >
   );
 });
 

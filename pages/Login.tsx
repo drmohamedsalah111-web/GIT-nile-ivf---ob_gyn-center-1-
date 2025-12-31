@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
-import { Mail, Lock, Heart, Eye, EyeOff, Shield, Stethoscope, Users, Facebook, MessageCircle } from 'lucide-react';
+import { Mail, Lock, Heart, Eye, EyeOff, Shield, Stethoscope, Users } from 'lucide-react';
+import { DeveloperCard } from '../components/common/DeveloperCard';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -147,8 +148,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
                 type="button"
                 onClick={() => setSelectedRole('doctor')}
                 className={`py-4 px-4 rounded-2xl font-bold transition-all duration-300 flex flex-col items-center gap-2 border-2 ${selectedRole === 'doctor'
-                    ? 'bg-teal-500 text-white border-teal-500 shadow-lg scale-105'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  ? 'bg-teal-500 text-white border-teal-500 shadow-lg scale-105'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                   }`}
               >
                 <Stethoscope className="w-6 h-6" />
@@ -159,8 +160,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
                 type="button"
                 onClick={() => setSelectedRole('secretary')}
                 className={`py-4 px-4 rounded-2xl font-bold transition-all duration-300 flex flex-col items-center gap-2 border-2 ${selectedRole === 'secretary'
-                    ? 'bg-teal-500 text-white border-teal-500 shadow-lg scale-105'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  ? 'bg-teal-500 text-white border-teal-500 shadow-lg scale-105'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                   }`}
               >
                 <Users className="w-6 h-6" />
@@ -216,8 +217,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
               type="submit"
               disabled={loading}
               className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all duration-300 flex items-center justify-center gap-2 mt-8 ${loading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 shadow-lg hover:shadow-xl hover:scale-105'
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 shadow-lg hover:shadow-xl hover:scale-105'
                 }`}
             >
               {loading ? (
@@ -233,53 +234,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
             </button>
           </form>
 
-          {/* Footer Text - Professional Copyright */}
-          <div className="text-center mt-12 pt-8 border-t border-gray-200">
-            <div className="flex flex-col items-center gap-4">
-              <div className="inline-block px-6 py-3 rounded-2xl bg-gradient-to-r from-teal-600 to-blue-700 shadow-xl transform hover:scale-105 transition-transform duration-300">
-                <span className="text-white font-bold text-lg tracking-wide">
-                  برمجة و تطوير د محمد صلاح جبر 2026
-                </span>
-              </div>
-
-              <div className="flex items-center gap-6">
-                <a
-                  href="https://www.facebook.com/profile.php?id=100000785193419"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-3 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-all duration-300 shadow-md hover:shadow-lg"
-                  title="Facebook"
-                >
-                  <Facebook size={20} />
-                </a>
-                <a
-                  href="https://wa.me/201003418068"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-3 rounded-full bg-green-100 text-green-600 hover:bg-green-600 hover:text-white transition-all duration-300 shadow-md hover:shadow-lg"
-                  title="WhatsApp"
-                >
-                  <MessageCircle size={20} />
-                </a>
-                <div className="group relative">
-                  <div className="p-1 bg-white rounded-xl shadow-md border border-gray-100 group-hover:border-teal-500 transition-colors">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent('https://wa.me/201003418068')}`}
-                      alt="Support QR"
-                      className="w-[50px] h-[50px]"
-                    />
-                  </div>
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    تواصل معنا عبر الواتساب
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-sm text-gray-500 font-medium">
-                جميع الحقوق محفوظة © 2026 نظام Nile المتكامل
-              </p>
-            </div>
-          </div>
+          {/* Unified Developer Copyright Section */}
+          <DeveloperCard />
         </div>
       </div>
     </div>
