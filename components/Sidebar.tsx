@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import {
   LayoutDashboard, Users, Baby, Heart, Settings, LogOut,
   Activity, FileText, Brain, TestTube, DollarSign,
-  Sparkles, ExternalLink, ChevronRight
+  Building2, ShieldCheck, Sparkles, ExternalLink, ChevronRight
 } from 'lucide-react';
 import { DeveloperCard } from './common/DeveloperCard';
 import { Page } from '../types';
@@ -115,15 +115,16 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
       <DeveloperCard variant="compact" />
 
       {/* Logout - Small */}
-      <button
-        onClick={onLogout}
-        className="w-full flex items-center justify-center gap-2 py-2 text-red-500/70 hover:text-red-500 font-bold rounded-lg hover:bg-red-500/5 transition-all text-xs"
-      >
-        <LogOut size={14} />
-        <span>تسجيل الخروج</span>
-      </button>
-    </div>
-    </aside >
+      <div className="p-4 border-t border-borderColor/50 bg-surface/50">
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center justify-center gap-2 py-2 text-red-500/70 hover:text-red-500 font-bold rounded-lg hover:bg-red-500/5 transition-all text-xs"
+        >
+          <LogOut size={14} />
+          <span>تسجيل الخروج</span>
+        </button>
+      </div>
+    </aside>
   );
 });
 
