@@ -398,12 +398,13 @@ const IvfJourney: React.FC = () => {
     }
   };
 
-  const stimulationChartData = cycleData.stimulationLogs.map(log => ({
-    day: `D${log.cycleDay}`,
-    e2: parseFloat(log.e2) || 0,
-    lh: parseFloat(log.lh) || 0,
-    date: log.date
-  }));
+  const stimulationChartData = React.useMemo(() =>
+    cycleData.stimulationLogs.map(log => ({
+      day: `D${log.cycleDay}`,
+      e2: parseFloat(log.e2) || 0,
+      lh: parseFloat(log.lh) || 0,
+      date: log.date
+    })), [cycleData.stimulationLogs]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6" style={{ fontFamily: 'Tajawal, sans-serif' }} dir="rtl">
