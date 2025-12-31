@@ -1,18 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { 
-  Activity, 
-  User, 
-  Calendar, 
-  FileText, 
-  Save, 
-  AlertCircle, 
-  CheckCircle, 
+import {
+  Activity,
+  User,
+  Calendar,
+  FileText,
+  Save,
+  AlertCircle,
+  CheckCircle,
   Search,
   ChevronDown,
   ChevronUp,
   TestTube,
-  Baby
+  Baby,
+  PlayCircle,
+  Stethoscope,
+  ListChecks,
+  Printer
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -29,6 +33,7 @@ const InfertilityWorkup: React.FC = () => {
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isProcessed, setIsProcessed] = useState(false);
 
   // Form State
   const [maleFactor, setMaleFactor] = useState({
@@ -43,11 +48,11 @@ const InfertilityWorkup: React.FC = () => {
     amh: '',
     fsh: '',
     menses: 'Regular', // Regular, Irregular
-    age: '' // Will be populated from patient but editable
+    age: ''
   });
 
   const [tubalFactor, setTubalFactor] = useState({
-    hsg: 'Bilateral Patent', // Bilateral Patent, Unilateral Block, Bilateral Block
+    hsg: 'Bilateral Patent',
     hysteroscopy: '',
     notes: ''
   });
@@ -65,6 +70,125 @@ const InfertilityWorkup: React.FC = () => {
     setSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
+  // Logic & Diagnosis
+  const maleDiagnosis = useMemo(() => {
+    const conc = parseFloat(maleFactor.concentration);
+    const mot = parseFloat(maleFactor.motility);
+    const morph = parseFloat(maleFactor.morphology);
+
+    if (isNaN(conc)) return null;
+
+    if (conc < 16 || mot < 30 || morph < 4) {
+      const reasons = [];
+      if (conc < 16) reasons.push(`Low Concentration (${conc} M/ml)`);
+      if (mot < 30) reasons.push(`Low Motility (${mot}%)`);
+      if (morph < 4) reasons.push(`Low Morphology (${morph}%)`);
+
+      return {
+        status: 'abnormal',
+        label: 'Male Factor Detected',
+        detail: reasons.join(', ') || 'Oligo/Astheno/Terato-zoospermia'
+      };
+    }
+    return { status: 'normal', label: 'Normozoospermia', detail: 'Normal WHO 2021 Parameters' };
+  }, [maleFactor]);
+
+  const ovarianDiagnosis = useMemo(() => {
+    const amh = parseFloat(ovarianFactor.amh);
+    const age = parseFloat(ovarianFactor.age);
+    const menses = ovarianFactor.menses;
+
+    if (isNaN(amh)) return null;
+
+    if (menses === 'Irregular' && amh > 3.5) {
+      return { status: 'warning', label: 'Possible PCOS', detail: 'High AMH and Irregular Cycles' };
+    }
+    if (amh < 1.1 || age > 38) {
+      return { status: 'abnormal', label: 'Diminished Ovarian Reserve (DOR)', detail: amh < 1.1 ? 'Low AMH' : 'Advanced Maternal Age' };
+    }
+    return { status: 'normal', label: 'Normal Reserve', detail: 'Reserve within expected range' };
+  }, [ovarianFactor]);
+
+  const tubalDiagnosis = useMemo(() => {
+    if (tubalFactor.hsg === 'Bilateral Block') {
+      return { status: 'abnormal', label: 'Tubal Factor (Blocked)', detail: 'Bilateral fallopian tube occlusion' };
+    }
+    if (tubalFactor.hsg === 'Unilateral Block') {
+      return { status: 'warning', label: 'Unilateral Tubal Block', detail: 'Partial fertility potential limitation' };
+    }
+    return { status: 'normal', label: 'Patent Tubes', detail: 'Bilateral Patent HSG' };
+  }, [tubalFactor]);
+
+  const recommendation = useMemo(() => {
+    if (!isProcessed) return null;
+
+    const male = maleDiagnosis;
+    const ovarian = ovarianDiagnosis;
+    const tubal = tubalDiagnosis;
+    const duration = parseFloat(infertilityDuration) || 0;
+    const age = parseFloat(ovarianFactor.age) || 0;
+    const conc = parseFloat(maleFactor.concentration) || 0;
+
+    if (!male || !ovarian || !tubal) return null;
+
+    // Severe factors -> IVF/ICSI
+    if ((conc < 5 && conc > 0) || tubal.status === 'abnormal') {
+      return {
+        type: 'IVF/ICSI',
+        color: 'bg-red-50 text-red-900 border-red-200',
+        icon: <TestTube className="w-6 h-6 text-red-600" />,
+        header: 'ICSI - IVF Proceed Immediately',
+        reasoning: tubal.status === 'abnormal' ? 'Bilateral tubal blockage is an absolute indication.' : 'Severe male factor (Concentration < 5M) requires ICSI.',
+        nextSteps: ['Semen preparation/selection', 'Stimulation protocol planning', 'Pre-IVF workup']
+      };
+    }
+
+    // PCOS -> OI
+    if (ovarian.label === 'Possible PCOS' && male.status === 'normal' && tubal.status === 'normal') {
+      return {
+        type: 'OI',
+        color: 'bg-yellow-50 text-yellow-900 border-yellow-200',
+        icon: <Activity className="w-6 h-6 text-yellow-600" />,
+        header: 'Ovulation Induction (OI)',
+        reasoning: 'Anovulation/PCOS with patent tubes and normal male factor.',
+        nextSteps: ['Letrozole/Clomid prescription', 'Follicular tracking (D11-D13)', 'Glucose Tolerance Test (GTT)']
+      };
+    }
+
+    // Unexplained Short Duration -> IUI
+    if (male.status === 'normal' && ovarian.status === 'normal' && tubal.status === 'normal' && duration < 2 && age < 35) {
+      return {
+        type: 'IUI',
+        color: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        icon: <Baby className="w-6 h-6 text-emerald-600" />,
+        header: 'IUI (Intrauterine Insemination)',
+        reasoning: 'Unexplained infertility with short duration and normal reserve.',
+        nextSteps: ['Mild stimulation', 'IUI timing', 'Progesterone support']
+      };
+    }
+
+    // Long duration or Age -> IVF
+    if (duration >= 2 || age >= 35) {
+      return {
+        type: 'IVF',
+        color: 'bg-orange-50 text-orange-900 border-orange-200',
+        icon: <TestTube className="w-6 h-6 text-orange-600" />,
+        header: 'Consider IVF/ICSI',
+        reasoning: duration >= 2 ? 'Long duration of unexplained infertility (>2y).' : 'Advanced maternal age affects egg quality/reserve.',
+        nextSteps: ['Ovarian reserve reassessment', 'Counseling for expectations', 'IVF laboratory workup']
+      };
+    }
+
+    return {
+      type: 'Review',
+      color: 'bg-slate-50 text-slate-900 border-slate-200',
+      icon: <FileText className="w-6 h-6 text-slate-600" />,
+      header: 'Further Clinical Review',
+      reasoning: 'Inconclusive findings, additional testing or laparoscopic evaluation might be needed.',
+      nextSteps: ['Laparoscopy/Dye test', 'Karyotyping', 'Endometrial biopsy']
+    };
+  }, [isProcessed, maleDiagnosis, ovarianDiagnosis, tubalDiagnosis, infertilityDuration, ovarianFactor.age, maleFactor.concentration]);
+
   // Search Patients
   const searchPatients = async (term: string) => {
     if (term.length < 2) return;
@@ -75,7 +199,7 @@ const InfertilityWorkup: React.FC = () => {
         .select('id, name, age, phone')
         .ilike('name', `%${term}%`)
         .limit(5);
-      
+
       if (error) throw error;
       setSearchResults(data || []);
     } catch (error) {
@@ -96,12 +220,12 @@ const InfertilityWorkup: React.FC = () => {
     if (selectedPatient) {
       setOvarianFactor(prev => ({ ...prev, age: selectedPatient.age?.toString() || '' }));
       fetchExistingData(selectedPatient.id);
+      setIsProcessed(false);
     }
   }, [selectedPatient]);
 
   const fetchExistingData = async (patientId: string) => {
     try {
-      // Fetch latest semen analysis
       const { data: semenData } = await supabase
         .from('semen_analyses')
         .select('*')
@@ -112,15 +236,14 @@ const InfertilityWorkup: React.FC = () => {
 
       if (semenData) {
         setMaleFactor({
-          volume: semenData.volume || '',
-          concentration: semenData.concentration || '',
-          motility: semenData.progressive_motility || '',
-          morphology: semenData.morphology || '',
+          volume: semenData.volume?.toString() || '',
+          concentration: semenData.concentration?.toString() || '',
+          motility: semenData.progressive_motility?.toString() || '',
+          morphology: semenData.morphology?.toString() || '',
           notes: semenData.notes || ''
         });
       }
 
-      // Fetch infertility workup
       const { data: workupData } = await supabase
         .from('infertility_workups')
         .select('*')
@@ -130,8 +253,8 @@ const InfertilityWorkup: React.FC = () => {
       if (workupData) {
         setOvarianFactor(prev => ({
           ...prev,
-          amh: workupData.amh || '',
-          fsh: workupData.fsh_day_3 || '',
+          amh: workupData.amh?.toString() || '',
+          fsh: workupData.fsh_day_3?.toString() || '',
           menses: workupData.cycle_regularity || 'Regular'
         }));
         setTubalFactor(prev => ({
@@ -139,128 +262,28 @@ const InfertilityWorkup: React.FC = () => {
           hsg: workupData.hsg_result || 'Bilateral Patent',
           hysteroscopy: workupData.hysteroscopy_findings || ''
         }));
+        setInfertilityDuration(workupData.duration_years?.toString() || '');
       }
     } catch (error) {
       console.error('Error fetching data:', error);
     }
   };
 
-  // Logic & Diagnosis
-  const getMaleDiagnosis = () => {
-    const conc = parseFloat(maleFactor.concentration);
-    const mot = parseFloat(maleFactor.motility);
-    const morph = parseFloat(maleFactor.morphology);
-
-    if (!maleFactor.concentration) return null;
-
-    if (conc < 16 || mot < 30 || morph < 4) {
-      return { status: 'abnormal', label: 'Male Factor Detected', detail: 'Oligo/Astheno/Terato-zoospermia' };
-    }
-    return { status: 'normal', label: 'Normozoospermia', detail: 'Normal Parameters' };
-  };
-
-  const getOvarianDiagnosis = () => {
-    const amh = parseFloat(ovarianFactor.amh);
-    const age = parseFloat(ovarianFactor.age);
-    const menses = ovarianFactor.menses;
-
-    if (!ovarianFactor.amh) return null;
-
-    if (menses === 'Irregular' && amh > 3.5) {
-      return { status: 'warning', label: 'Possible PCOS', detail: 'High AMH + Irregular Cycles' };
-    }
-    if (amh < 1.1 || age > 40) {
-      return { status: 'abnormal', label: 'Diminished Ovarian Reserve (DOR)', detail: 'Low AMH or Advanced Age' };
-    }
-    return { status: 'normal', label: 'Normal Reserve', detail: 'Within expected range' };
-  };
-
-  const getTubalDiagnosis = () => {
-    if (tubalFactor.hsg === 'Bilateral Block') {
-      return { status: 'abnormal', label: 'Tubal Factor', detail: 'Absolute Indication for IVF' };
-    }
-    if (tubalFactor.hsg === 'Unilateral Block') {
-      return { status: 'warning', label: 'Unilateral Tubal Block', detail: 'Reduced fertility potential' };
-    }
-    return { status: 'normal', label: 'Patent Tubes', detail: 'Bilateral Patent' };
-  };
-
-  const getRecommendation = () => {
-    const male = getMaleDiagnosis();
-    const ovarian = getOvarianDiagnosis();
-    const tubal = getTubalDiagnosis();
-    const duration = parseFloat(infertilityDuration) || 0;
-    const age = parseFloat(ovarianFactor.age) || 0;
-    const conc = parseFloat(maleFactor.concentration) || 0;
-
-    if (!male || !ovarian || !tubal) return null;
-
-    // Scenario 1: Severe Male Factor or Tubal Block
-    if ((conc < 5 && conc > 0) || tubal.label === 'Tubal Factor') {
-      return { 
-        type: 'IVF/ICSI', 
-        color: 'bg-red-100 text-red-800 border-red-200',
-        icon: <TestTube className="w-6 h-6" />,
-        text: 'Proceed to ICSI/IVF (High Priority)' 
-      };
-    }
-
-    // Scenario 2: PCOS + Normal Male + Patent Tubes
-    if (ovarian.label === 'Possible PCOS' && male.status === 'normal' && tubal.status === 'normal') {
-      return { 
-        type: 'OI', 
-        color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        icon: <Activity className="w-6 h-6" />,
-        text: 'Ovulation Induction (Letrozole) + Timed Intercourse' 
-      };
-    }
-
-    // Scenario 3: Unexplained < 2 years
-    if (male.status === 'normal' && ovarian.status === 'normal' && tubal.status === 'normal' && duration < 2) {
-      return { 
-        type: 'IUI', 
-        color: 'bg-green-100 text-green-800 border-green-200',
-        icon: <Baby className="w-6 h-6" />,
-        text: 'IUI (Intrauterine Insemination)' 
-      };
-    }
-
-    // Scenario 4: Unexplained > 2 years OR Age > 35
-    if ((male.status === 'normal' && ovarian.status === 'normal' && tubal.status === 'normal') && (duration >= 2 || age > 35)) {
-      return { 
-        type: 'IVF', 
-        color: 'bg-orange-100 text-orange-800 border-orange-200',
-        icon: <TestTube className="w-6 h-6" />,
-        text: 'Consider IVF (Duration/Age Factor)' 
-      };
-    }
-
-    return { 
-      type: 'Review', 
-      color: 'bg-gray-100 text-gray-800 border-gray-200',
-      icon: <FileText className="w-6 h-6" />,
-      text: 'Review Clinical Picture' 
-    };
-  };
-
   const handleSave = async () => {
     if (!selectedPatient) return;
     setSaving(true);
     try {
-      // Save Semen Analysis
       const { error: semenError } = await supabase.from('semen_analyses').insert({
         patient_id: selectedPatient.id,
         volume: parseFloat(maleFactor.volume) || null,
         concentration: parseFloat(maleFactor.concentration) || null,
         progressive_motility: parseFloat(maleFactor.motility) || null,
         morphology: parseFloat(maleFactor.morphology) || null,
-        notes: maleFactor.notes,
-        doctor_id: (await supabase.auth.getUser()).data.user?.id
+        notes: maleFactor.notes
       });
 
       if (semenError) throw semenError;
 
-      // Save Infertility Workup
       const { data: existingWorkup } = await supabase
         .from('infertility_workups')
         .select('id')
@@ -270,12 +293,13 @@ const InfertilityWorkup: React.FC = () => {
       const workupData = {
         patient_id: selectedPatient.id,
         amh: parseFloat(ovarianFactor.amh) || null,
-        fsh_day_3: parseFloat(ovarianFactor.fsh) || null,
+        fsh: parseFloat(ovarianFactor.fsh) || null,
         cycle_regularity: ovarianFactor.menses,
         hsg_result: tubalFactor.hsg,
         hysteroscopy_findings: tubalFactor.hysteroscopy,
-        diagnosis: getRecommendation()?.text,
-        plan: getRecommendation()?.type
+        duration_years: parseFloat(infertilityDuration) || null,
+        diagnosis: recommendation?.header,
+        plan: recommendation?.type
       };
 
       if (existingWorkup) {
@@ -296,9 +320,9 @@ const InfertilityWorkup: React.FC = () => {
   const renderStatusBadge = (diagnosis: any) => {
     if (!diagnosis) return null;
     const colors = {
-      normal: 'bg-green-100 text-green-800',
-      warning: 'bg-yellow-100 text-yellow-800',
-      abnormal: 'bg-red-100 text-red-800'
+      normal: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+      warning: 'bg-amber-100 text-amber-800 border-amber-200',
+      abnormal: 'bg-rose-100 text-rose-800 border-rose-200'
     };
     const icons = {
       normal: <CheckCircle className="w-4 h-4" />,
@@ -307,45 +331,70 @@ const InfertilityWorkup: React.FC = () => {
     };
 
     return (
-      <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${colors[diagnosis.status as keyof typeof colors]}`}>
+      <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${colors[diagnosis.status as keyof typeof colors]}`}>
         {icons[diagnosis.status as keyof typeof icons]}
         <span>{diagnosis.label}</span>
       </div>
     );
   };
 
+  const handleProcess = () => {
+    if (!selectedPatient) {
+      toast.error('Please select a patient first');
+      return;
+    }
+    setLoading(true);
+    setTimeout(() => {
+      setIsProcessed(true);
+      setLoading(false);
+      toast.success('ESHRE Algorithm Executed');
+    }, 800);
+  };
+
   return (
-    <div className="p-6 max-w-5xl mx-auto font-[Tajawal]">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">ESHRE Infertility Diagnosis Assistant</h1>
-        <p className="text-gray-500">Decision Support System based on ESHRE guidelines</p>
+    <div className="p-6 max-w-5xl mx-auto font-[Tajawal]" dir="rtl">
+      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 mb-1">Infertility Diagnosis Assistant</h1>
+          <p className="text-slate-500 font-bold">Decision Support System based on ESHRE Guidelines</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleProcess}
+            disabled={!selectedPatient || loading}
+            className="flex items-center gap-2 px-6 py-3 bg-brand text-white rounded-xl font-bold hover:scale-105 transition-all shadow-lg shadow-brand/20 disabled:opacity-50 disabled:scale-100"
+          >
+            <PlayCircle size={20} />
+            {loading ? 'Processing...' : 'Run ESHRE Algorithm'}
+          </button>
+        </div>
       </div>
 
       {/* Patient Search */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 group transition-all hover:border-brand/40">
         <div className="relative">
-          <Search className="absolute right-3 top-3 text-gray-400" />
+          <Search className="absolute right-4 top-3.5 text-slate-400 group-hover:text-brand transition-colors" size={20} />
           <input
             type="text"
-            placeholder="Search patient by name..."
-            className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            placeholder="Search patient by name or phone..."
+            className="w-full pr-12 pl-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand focus:bg-white transition-all font-bold"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           {searchResults.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
+            <div className="absolute z-20 w-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
               {searchResults.map(patient => (
                 <div
                   key={patient.id}
-                  className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                  className="p-4 hover:bg-slate-50 cursor-pointer border-b last:border-b-0 transition-colors"
                   onClick={() => {
                     setSelectedPatient(patient);
                     setSearchResults([]);
                     setSearchTerm(patient.name);
                   }}
                 >
-                  <div className="font-medium">{patient.name}</div>
-                  <div className="text-sm text-gray-500">{patient.phone} | Age: {patient.age}</div>
+                  <div className="font-black text-slate-900">{patient.name}</div>
+                  <div className="text-sm text-slate-500 font-bold">{patient.phone} | Age: {patient.age}</div>
                 </div>
               ))}
             </div>
@@ -355,204 +404,194 @@ const InfertilityWorkup: React.FC = () => {
 
       {selectedPatient && (
         <div className="space-y-6">
-          {/* Section A: Male Factor */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div 
-              className="p-4 bg-blue-50 flex justify-between items-center cursor-pointer"
-              onClick={() => toggleSection('male')}
-            >
-              <div className="flex items-center gap-3">
-                <User className="text-blue-600" />
-                <h2 className="text-lg font-semibold text-blue-900">Section A: Male Factor (The Husband)</h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Section A: Male Factor */}
+            <div className={`bg-white rounded-3xl shadow-sm border ${sections.male ? 'border-blue-200' : 'border-slate-200'} overflow-hidden transition-all h-fit`}>
+              <div
+                className={`p-5 flex justify-between items-center cursor-pointer ${sections.male ? 'bg-blue-50/50' : 'bg-white'}`}
+                onClick={() => toggleSection('male')}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
+                    <User size={20} />
+                  </div>
+                  <h2 className="font-black text-slate-900">The Husband</h2>
+                </div>
+                {sections.male ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
               </div>
-              <div className="flex items-center gap-4">
-                {renderStatusBadge(getMaleDiagnosis())}
-                {sections.male ? <ChevronUp /> : <ChevronDown />}
-              </div>
-            </div>
-            
-            {sections.male && (
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Volume (ml)</label>
-                  <input
-                    type="number"
-                    className="w-full p-2 border rounded-lg"
-                    value={maleFactor.volume}
-                    onChange={e => setMaleFactor({...maleFactor, volume: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Concentration (M/ml)</label>
-                  <input
-                    type="number"
-                    className="w-full p-2 border rounded-lg"
-                    value={maleFactor.concentration}
-                    onChange={e => setMaleFactor({...maleFactor, concentration: e.target.value})}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Normal: ≥ 16 M/ml</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Progressive Motility (%)</label>
-                  <input
-                    type="number"
-                    className="w-full p-2 border rounded-lg"
-                    value={maleFactor.motility}
-                    onChange={e => setMaleFactor({...maleFactor, motility: e.target.value})}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Normal: ≥ 30%</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Morphology (%)</label>
-                  <input
-                    type="number"
-                    className="w-full p-2 border rounded-lg"
-                    value={maleFactor.morphology}
-                    onChange={e => setMaleFactor({...maleFactor, morphology: e.target.value})}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Normal: ≥ 4%</p>
-                </div>
-              </div>
-            )}
-          </div>
 
-          {/* Section B: Ovarian Factor */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div 
-              className="p-4 bg-pink-50 flex justify-between items-center cursor-pointer"
-              onClick={() => toggleSection('ovarian')}
-            >
-              <div className="flex items-center gap-3">
-                <Activity className="text-pink-600" />
-                <h2 className="text-lg font-semibold text-pink-900">Section B: Ovarian Factor (The Reserve)</h2>
-              </div>
-              <div className="flex items-center gap-4">
-                {renderStatusBadge(getOvarianDiagnosis())}
-                {sections.ovarian ? <ChevronUp /> : <ChevronDown />}
-              </div>
+              {sections.male && (
+                <div className="p-6 space-y-4 animate-in fade-in duration-300">
+                  {renderStatusBadge(maleDiagnosis)}
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 mb-1 uppercase tracking-wider">Concentration (M/ml)</label>
+                    <input
+                      type="number"
+                      placeholder="Normal ≥ 16"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-blue-500"
+                      value={maleFactor.concentration}
+                      onChange={e => setMaleFactor({ ...maleFactor, concentration: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-black text-slate-500 mb-1 uppercase">Motility (%)</label>
+                      <input
+                        type="number"
+                        placeholder="≥ 30"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                        value={maleFactor.motility}
+                        onChange={e => setMaleFactor({ ...maleFactor, motility: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-slate-500 mb-1 uppercase">Morph (%)</label>
+                      <input
+                        type="number"
+                        placeholder="≥ 4"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                        value={maleFactor.morphology}
+                        onChange={e => setMaleFactor({ ...maleFactor, morphology: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            
-            {sections.ovarian && (
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
-                  <input
-                    type="number"
-                    className="w-full p-2 border rounded-lg"
-                    value={ovarianFactor.age}
-                    onChange={e => setOvarianFactor({...ovarianFactor, age: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">AMH (ng/ml)</label>
-                  <input
-                    type="number"
-                    className="w-full p-2 border rounded-lg"
-                    value={ovarianFactor.amh}
-                    onChange={e => setOvarianFactor({...ovarianFactor, amh: e.target.value})}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">DOR: &lt; 1.1 | PCOS: &gt; 3.5</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">FSH (Day 3)</label>
-                  <input
-                    type="number"
-                    className="w-full p-2 border rounded-lg"
-                    value={ovarianFactor.fsh}
-                    onChange={e => setOvarianFactor({...ovarianFactor, fsh: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Menses Regularity</label>
-                  <select
-                    className="w-full p-2 border rounded-lg"
-                    value={ovarianFactor.menses}
-                    onChange={e => setOvarianFactor({...ovarianFactor, menses: e.target.value})}
-                  >
-                    <option value="Regular">Regular</option>
-                    <option value="Irregular">Irregular</option>
-                  </select>
-                </div>
-              </div>
-            )}
-          </div>
 
-          {/* Section C: Tubal Factor */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div 
-              className="p-4 bg-purple-50 flex justify-between items-center cursor-pointer"
-              onClick={() => toggleSection('tubal')}
-            >
-              <div className="flex items-center gap-3">
-                <TestTube className="text-purple-600" />
-                <h2 className="text-lg font-semibold text-purple-900">Section C: Tubal & Uterine Factor</h2>
-              </div>
-              <div className="flex items-center gap-4">
-                {renderStatusBadge(getTubalDiagnosis())}
-                {sections.tubal ? <ChevronUp /> : <ChevronDown />}
-              </div>
-            </div>
-            
-            {sections.tubal && (
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">HSG Result</label>
-                  <select
-                    className="w-full p-2 border rounded-lg"
-                    value={tubalFactor.hsg}
-                    onChange={e => setTubalFactor({...tubalFactor, hsg: e.target.value})}
-                  >
-                    <option value="Bilateral Patent">Bilateral Patent</option>
-                    <option value="Unilateral Block">Unilateral Block</option>
-                    <option value="Bilateral Block">Bilateral Block</option>
-                  </select>
+            {/* Section B: Ovarian Factor */}
+            <div className={`bg-white rounded-3xl shadow-sm border ${sections.ovarian ? 'border-pink-200' : 'border-slate-200'} overflow-hidden h-fit`}>
+              <div
+                className={`p-5 flex justify-between items-center cursor-pointer ${sections.ovarian ? 'bg-pink-50/50' : 'bg-white'}`}
+                onClick={() => toggleSection('ovarian')}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-pink-100 flex items-center justify-center text-pink-600">
+                    <Activity size={20} />
+                  </div>
+                  <h2 className="font-black text-slate-900">The Reserve</h2>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hysteroscopy Findings</label>
-                  <input
-                    type="text"
-                    className="w-full p-2 border rounded-lg"
-                    placeholder="e.g. Normal, Polyp, Septum"
-                    value={tubalFactor.hysteroscopy}
-                    onChange={e => setTubalFactor({...tubalFactor, hysteroscopy: e.target.value})}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Duration of Infertility (Years)</label>
-                  <input
-                    type="number"
-                    className="w-full p-2 border rounded-lg"
-                    value={infertilityDuration}
-                    onChange={e => setInfertilityDuration(e.target.value)}
-                  />
-                </div>
+                {sections.ovarian ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
               </div>
-            )}
-          </div>
 
-          {/* Recommendation Card */}
-          {getRecommendation() && (
-            <div className={`rounded-xl border-2 p-6 ${getRecommendation()?.color}`}>
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-white bg-opacity-50 rounded-full">
-                  {getRecommendation()?.icon}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold mb-2">ESHRE Algorithm Recommendation</h3>
-                  <p className="text-lg font-medium">{getRecommendation()?.text}</p>
-                  <div className="mt-4 flex gap-3">
-                    <button 
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-lg font-medium transition-all"
+              {sections.ovarian && (
+                <div className="p-6 space-y-4 animate-in fade-in duration-300">
+                  {renderStatusBadge(ovarianDiagnosis)}
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 mb-1 uppercase">AMH (ng/ml)</label>
+                    <input
+                      type="number"
+                      placeholder="DOR < 1.1 | PCOS > 3.5"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-pink-500"
+                      value={ovarianFactor.amh}
+                      onChange={e => setOvarianFactor({ ...ovarianFactor, amh: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 mb-1 uppercase">Menses regularity</label>
+                    <select
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                      value={ovarianFactor.menses}
+                      onChange={e => setOvarianFactor({ ...ovarianFactor, menses: e.target.value })}
                     >
-                      <Save size={18} />
-                      {saving ? 'Saving...' : 'Save Diagnosis'}
-                    </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-lg font-medium transition-all">
-                      <FileText size={18} />
-                      Print Report
-                    </button>
+                      <option value="Regular">Regular</option>
+                      <option value="Irregular">Irregular</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Section C: Tubal Factor */}
+            <div className={`bg-white rounded-3xl shadow-sm border ${sections.tubal ? 'border-purple-200' : 'border-slate-200'} overflow-hidden h-fit`}>
+              <div
+                className={`p-5 flex justify-between items-center cursor-pointer ${sections.tubal ? 'bg-purple-50/50' : 'bg-white'}`}
+                onClick={() => toggleSection('tubal')}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600">
+                    <Stethoscope size={20} />
+                  </div>
+                  <h2 className="font-black text-slate-900">Tubes & Uterus</h2>
+                </div>
+                {sections.tubal ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </div>
+
+              {sections.tubal && (
+                <div className="p-6 space-y-4 animate-in fade-in duration-300">
+                  {renderStatusBadge(tubalDiagnosis)}
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 mb-1 uppercase">HSG Result</label>
+                    <select
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-purple-500"
+                      value={tubalFactor.hsg}
+                      onChange={e => setTubalFactor({ ...tubalFactor, hsg: e.target.value })}
+                    >
+                      <option value="Bilateral Patent">Bilateral Patent</option>
+                      <option value="Unilateral Block">Unilateral Block</option>
+                      <option value="Bilateral Block">Bilateral Block (Absolute IVF)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-500 mb-1 uppercase">Infertility Duration (Y)</label>
+                    <input
+                      type="number"
+                      placeholder="Years"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                      value={infertilityDuration}
+                      onChange={e => setInfertilityDuration(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Results dashboard */}
+          {isProcessed && recommendation && (
+            <div className={`rounded-[2.5rem] border-2 p-8 shadow-2xl shadow-brand/10 animate-in zoom-in-95 duration-500 ${recommendation.color}`}>
+              <div className="flex flex-col md:flex-row gap-8 items-start">
+                <div className="w-20 h-20 rounded-3xl bg-white flex items-center justify-center shrink-0 shadow-lg">
+                  {recommendation.icon}
+                </div>
+                <div className="flex-1 space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="px-3 py-1 bg-white/50 rounded-full text-[10px] font-black uppercase tracking-widest">ESHRE Recommendation</span>
+                    </div>
+                    <h3 className="text-3xl font-black mb-2 tracking-tight">{recommendation.header}</h3>
+                    <p className="text-lg font-bold opacity-80">{recommendation.reasoning}</p>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="bg-white/40 p-5 rounded-2xl border border-white/60">
+                      <h4 className="flex items-center gap-2 font-black text-sm mb-3 uppercase tracking-wider">
+                        <ListChecks size={16} /> Recommended Next Steps
+                      </h4>
+                      <ul className="space-y-2">
+                        {recommendation.nextSteps.map((step, idx) => (
+                          <li key={idx} className="flex items-center gap-2 text-sm font-bold">
+                            <div className="w-1.5 h-1.5 rounded-full bg-slate-900" />
+                            {step}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="flex flex-col justify-end gap-3">
+                      <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="flex-1 flex items-center justify-center gap-2 py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-slate-800 transition-all shadow-xl"
+                      >
+                        <Save size={18} />
+                        {saving ? 'Crunshing Data...' : 'Save Diagnosis & Case File'}
+                      </button>
+                      <button className="flex-1 flex items-center justify-center gap-2 py-4 bg-white border border-slate-200 text-slate-900 rounded-2xl font-black hover:bg-slate-50 transition-all">
+                        <Printer size={18} />
+                        Print Clinical Summary
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
