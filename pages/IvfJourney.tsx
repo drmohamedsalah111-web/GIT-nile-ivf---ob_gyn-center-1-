@@ -133,20 +133,16 @@ const IvfJourney: React.FC = () => {
     }
   }, [selectedPatientId]);
 
-  const loadExistingCycle = async (patientId: string) => {
+  const loadExistingCycle = React.useCallback(async (patientId: string) => {
+    if (isLoading) return;
     setIsLoading(true);
     try {
-      // Use optimized fetching
       const patientCycles = await db.getCyclesByPatient(patientId);
 
       if (patientCycles.length > 0) {
-        // Load the most recent cycle
         const activeCycle = patientCycles[0];
-
-        // Load stimulation logs for this cycle (populated by service)
         const cycleLogs = activeCycle.logs || [];
 
-        // Map status
         let componentStatus: CycleDataState['status'] = 'Assessment';
         if (activeCycle.status === 'Active') componentStatus = 'Active';
         else if (activeCycle.status === 'Completed') componentStatus = 'Done';
@@ -192,15 +188,39 @@ const IvfJourney: React.FC = () => {
           fHR: activeCycle.outcome?.fHR
         });
       } else {
-        setCycleData({ ...defaultCycleData, patientId: selectedPatientId });
+        setCycleData({ ...defaultCycleData, patientId: patientId || selectedPatientId });
       }
     } catch (error) {
       console.error('Error loading existing cycle:', error);
-      setCycleData({ ...defaultCycleData, patientId: selectedPatientId });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedPatientId]);
+
+  const handleAssessmentChange = React.useCallback((assessment: any, derived: any) => {
+    setCycleData(prev => {
+      // Small optimization: only update if values actually change to avoid unnecessary re-renders
+      if (
+        prev.coupleAge === assessment.history.age &&
+        prev.coupleBMI === derived.bmi &&
+        prev.afc === assessment.female.pcos.ovarianMorphology.afc &&
+        prev.pcosHistory === derived.pcos.highProbability &&
+        prev.maleFactorAnalysis === derived.semen.tags.join(', ')
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        coupleAge: assessment.history.age ?? prev.coupleAge,
+        coupleBMI: derived.bmi ?? prev.coupleBMI,
+        afc: assessment.female.pcos.ovarianMorphology.afc ?? prev.afc,
+        pcosHistory: derived.pcos.highProbability,
+        maleFactorAnalysis: derived.semen.tags.join(', '),
+        maleFactorDiagnosis: derived.semen.tags.join(', ')
+      };
+    });
+  }, []);
 
   const handleStartCycle = async () => {
     if (isLoading) return;
@@ -473,19 +493,7 @@ const IvfJourney: React.FC = () => {
           <div className="p-6">
             {/* Assessment Tab */}
             {activeTab === 'assessment' && (
-              <AssessmentTab
-                onAssessmentChange={(assessment, derived) => {
-                  setCycleData(prev => ({
-                    ...prev,
-                    coupleAge: assessment.history.age ?? prev.coupleAge,
-                    coupleBMI: derived.bmi ?? prev.coupleBMI,
-                    afc: assessment.female.pcos.ovarianMorphology.afc ?? prev.afc,
-                    pcosHistory: derived.pcos.highProbability,
-                    maleFactorAnalysis: derived.semen.tags.join(', '),
-                    maleFactorDiagnosis: derived.semen.tags.join(', ')
-                  }));
-                }}
-              />
+              <AssessmentTab onAssessmentChange={handleAssessmentChange} />
             )}
 
             {/* Stimulation Tab */}
