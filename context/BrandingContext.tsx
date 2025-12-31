@@ -22,6 +22,7 @@ interface DoctorBrandingSettings {
   prescription_header: string | null;
   prescription_footer: string | null;
   clinic_watermark: string | null;
+  specialization: string | null;
   updated_at: string;
 }
 
@@ -89,6 +90,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             prescription_header: doctor.prescription_header || null,
             prescription_footer: doctor.prescription_footer || null,
             clinic_watermark: doctor.clinic_watermark || null,
+            specialization: doctor.specialization || doctor.specialty || null,
             updated_at: doctor.updated_at || new Date().toISOString(),
           });
         } else {
@@ -126,6 +128,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     prescription_header: null,
     prescription_footer: null,
     clinic_watermark: null,
+    specialization: 'Medical Center',
     updated_at: new Date().toISOString(),
   });
 

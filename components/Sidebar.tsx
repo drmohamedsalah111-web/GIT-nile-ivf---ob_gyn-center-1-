@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { LayoutDashboard, Users, Baby, Heart, Settings, LogOut, Activity, FileText, Brain, TestTube, DollarSign, Facebook, MessageCircle } from 'lucide-react';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
@@ -49,7 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout,
           </div>
           <div className="text-center">
             <h2 className="text-xl font-black text-foreground tracking-tight">{branding?.clinic_name || 'العيادة الذكية'}</h2>
-            <p className="text-xs font-bold text-brand mt-1 uppercase tracking-widest opacity-80">{branding?.specialty || 'Medical Center'}</p>
+            <p className="text-xs font-bold text-brand mt-1 uppercase tracking-widest opacity-80">{branding?.specialization || 'Medical Center'}</p>
           </div>
         </div>
       </div>
@@ -65,8 +66,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, setPage, onLogout,
               key={item.id}
               onClick={() => setPage(item.id)}
               className={`w-full group relative flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 border-2 ${isActive
-                  ? 'bg-brand text-white border-brand shadow-lg shadow-brand/25 scale-[1.02]'
-                  : 'bg-transparent text-textSecondary border-transparent hover:bg-brand/5 hover:border-brand/10 hover:text-foreground'
+                ? 'bg-brand text-white border-brand shadow-lg shadow-brand/25 scale-[1.02]'
+                : 'bg-transparent text-textSecondary border-transparent hover:bg-brand/5 hover:border-brand/10 hover:text-foreground'
                 }`}
             >
               <div
