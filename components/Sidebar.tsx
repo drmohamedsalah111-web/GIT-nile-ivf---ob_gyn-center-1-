@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
-import { ThemeSwitcher } from './theme/ThemeSwitcher';
 import { useTheme } from '../context/ThemeContext';
 
 interface SidebarProps {
@@ -114,10 +113,6 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
 
       {/* Footer Area - Minimalist */}
       <div className="p-4 border-t border-borderColor/50 bg-surface/50 space-y-3">
-        {/* Theme Toggler - Small */}
-        <div className="bg-background/80 rounded-xl border border-borderColor/10 p-1 shadow-inner">
-          <ThemeSwitcher />
-        </div>
 
         {/* Structured Developer Card */}
         <div className="relative group mt-2">
