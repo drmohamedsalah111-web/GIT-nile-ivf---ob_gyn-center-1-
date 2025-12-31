@@ -270,7 +270,7 @@ const App: React.FC = () => {
                             </div>
                           }>
                             <Routes>
-                              <Route path="/" element={<Dashboard />} />
+                              <Route path="/" element={userRole === 'secretary' ? <SecretaryDashboard /> : <Dashboard />} />
                               <Route path="/reception" element={<ReceptionDashboard />} />
                               <Route path="/patients/add" element={<AddPatient />} />
                               <Route path="/gynecology" element={<Gynecology />} />
