@@ -5,6 +5,7 @@ import {
   BarChart3, PieChart, CalendarDays, Bell, Download, RefreshCw,
   Stethoscope, Baby, Microscope, UserCheck, Loader2
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, LineChart, Line
@@ -18,6 +19,7 @@ import toast from 'react-hot-toast';
 
 const Dashboard: React.FC = () => {
   const { branding } = useBranding();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
@@ -34,7 +36,7 @@ const Dashboard: React.FC = () => {
       try {
         setLoading(true);
         console.log('📊 Dashboard: Fetching data from Supabase...');
-        
+
         const [patientsData, cyclesData, pregnanciesData, appointmentsData] = await Promise.all([
           dbService.getPatients(),
           dbService.getCycles(),
@@ -168,10 +170,10 @@ const Dashboard: React.FC = () => {
   const departmentStats = useMemo(() => {
     const ivfPatientIds = new Set(cycles.map(c => c.patientId));
     const obPatientIds = new Set(pregnancies.map(p => p.patient_id));
-    
+
     const ivfCount = ivfPatientIds.size;
     const obCount = obPatientIds.size;
-    
+
     // Gynecology is everyone else (approximate)
     const gynCount = Math.max(0, patients.length - ivfCount - obCount);
 
@@ -186,7 +188,7 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       console.log('🔄 Dashboard: Refreshing data...');
-      
+
       const [patientsData, cyclesData, pregnanciesData, appointmentsData] = await Promise.all([
         dbService.getPatients(),
         dbService.getCycles(),
@@ -525,17 +527,26 @@ const Dashboard: React.FC = () => {
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <button className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors">
-                  <Plus className="w-5 h-5 text-teal-600" />
-                  <span className="text-sm font-medium text-teal-900">New Patient</span>
+                <button
+                  onClick={() => navigate('/patients/add')}
+                  className="w-full flex items-center gap-3 p-3 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors group"
+                >
+                  <Plus className="w-5 h-5 text-teal-600 transition-transform group-hover:rotate-90" />
+                  <span className="text-sm font-medium text-teal-900">New Patient Registration</span>
                 </button>
-                <button className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
-                  <Microscope className="w-5 h-5 text-purple-600" />
+                <button
+                  onClick={() => navigate('/ivf-journey')}
+                  className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group"
+                >
+                  <Microscope className="w-5 h-5 text-purple-600 group-hover:scale-110 transition-transform" />
                   <span className="text-sm font-medium text-purple-900">Start IVF Cycle</span>
                 </button>
-                <button className="w-full flex items-center gap-3 p-3 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors">
-                  <Baby className="w-5 h-5 text-pink-600" />
-                  <span className="text-sm font-medium text-pink-900">Add Pregnancy</span>
+                <button
+                  onClick={() => navigate('/obstetrics')}
+                  className="w-full flex items-center gap-3 p-3 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors group"
+                >
+                  <Baby className="w-5 h-5 text-pink-600 group-hover:animate-bounce transition-transform" />
+                  <span className="text-sm font-medium text-pink-900">Follow-up Pregnancy</span>
                 </button>
                 <button
                   onClick={() => {

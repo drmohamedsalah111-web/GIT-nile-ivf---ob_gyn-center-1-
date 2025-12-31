@@ -91,8 +91,8 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
               key={item.id}
               onClick={() => setPage(item.id)}
               className={`w-full group relative flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 border ${isActive
-                  ? 'bg-brand/10 text-brand border-brand/20 ring-1 ring-brand/10'
-                  : 'bg-transparent text-textSecondary border-transparent hover:bg-brand/5 hover:text-foreground'
+                ? 'bg-brand/10 text-brand border-brand/20 ring-1 ring-brand/10'
+                : 'bg-transparent text-textSecondary border-transparent hover:bg-brand/5 hover:text-foreground'
                 }`}
             >
               <div
@@ -119,37 +119,39 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
           <ThemeSwitcher />
         </div>
 
-        {/* Minimalist Developer Info */}
-        <div className="rounded-xl border border-borderColor/20 bg-zinc-900/5 dark:bg-white/5 p-3 group transition-colors hover:border-brand/30">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-6 h-6 rounded-lg bg-brand/10 flex items-center justify-center border border-brand/20">
-              <Sparkles size={12} className="text-brand" />
+        {/* Structured Developer Card */}
+        <div className="relative group mt-2">
+          <div className="absolute -inset-1 bg-gradient-to-r from-brand/20 via-blue-500/10 to-emerald-500/10 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+          <div className="relative bg-surface/80 dark:bg-zinc-900/50 backdrop-blur-sm border border-borderColor/40 rounded-2xl p-3 flex flex-col items-center text-center space-y-2 group-hover:border-brand/30 transition-colors">
+            <div className="flex flex-col items-center">
+              <span className="text-[9px] font-black text-brand/60 uppercase tracking-[0.2em] mb-0.5">برمجة وتطوير</span>
+              <h4 className="text-xs font-black text-foreground tracking-tight">د. محمد صلاح جبر</h4>
+              <div className="flex items-center gap-1 mt-1">
+                <span className="w-1 h-1 rounded-full bg-brand animate-pulse"></span>
+                <span className="text-[9px] font-bold text-textSecondary uppercase tracking-widest">إصدار 2026</span>
+              </div>
             </div>
-            <div>
-              <p className="text-[8px] font-black text-brand/60 uppercase tracking-tighter leading-none mb-0.5">Developed By</p>
-              <p className="text-[11px] font-black text-foreground leading-none">د. محمد صلاح جبر</p>
-            </div>
-          </div>
 
-          <div className="flex gap-1.5">
-            <a
-              href="https://wa.me/201015668664"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-surface border border-borderColor/20 hover:border-green-500/50 text-textSecondary hover:text-green-500 rounded-md transition-all text-[9px] font-bold"
-            >
-              <MessageCircle size={12} />
-              <span>WASAP</span>
-            </a>
-            <a
-              href="https://www.facebook.com/mohamed.salahgabr"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-surface border border-borderColor/20 hover:border-blue-500/50 text-textSecondary hover:text-blue-500 rounded-md transition-all text-[9px] font-bold"
-            >
-              <Facebook size={12} />
-              <span>FB</span>
-            </a>
+            <div className="flex w-full gap-2 pt-1 border-t border-borderColor/10">
+              <a
+                href="https://wa.me/201015668664"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-surface dark:bg-zinc-800/50 border border-borderColor/10 hover:border-brand/40 text-textSecondary hover:text-brand rounded-xl transition-all group/wa"
+              >
+                <MessageCircle size={14} className="group-hover/wa:scale-110 transition-transform" />
+                <span className="text-[10px] font-black">WATSP</span>
+              </a>
+              <a
+                href="https://www.facebook.com/mohamed.salahgabr"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-surface dark:bg-zinc-800/50 border border-borderColor/10 hover:border-blue-500/40 text-textSecondary hover:text-blue-500 rounded-xl transition-all group/fb"
+              >
+                <Facebook size={14} className="group-hover/fb:scale-110 transition-transform" />
+                <span className="text-[10px] font-black">FB</span>
+              </a>
+            </div>
           </div>
         </div>
 
