@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { BookOpen, LogOut, Shield } from 'lucide-react';
@@ -216,8 +214,6 @@ const App: React.FC = () => {
     );
   }
 
-  // 🔐 ADMIN LOGIN PAGE ROUTE HANDLED INSIDE ROUTES
-
   return (
     <ThemeProvider>
       <BrandingProvider>
@@ -225,164 +221,80 @@ const App: React.FC = () => {
         <PreviewWarningBanner />
 
         <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={
-            !user ? (
-              <Login
-                onLoginSuccess={() => { window.location.href = '/'; }}
-                onAdminAccess={() => { navigate('/admin-login'); }}
-                onBack={() => navigate('/')}
-              />
-            ) : <Navigate to="/" replace />
-          } />
+          {/* 1. Public Routes */}
+          <Route path="/login" element={!user ? <Login onLoginSuccess={() => window.location.href = '/'} onAdminAccess={() => navigate('/admin-login')} onBack={() => navigate('/')} /> : <Navigate to="/" replace />} />
+          <Route path="/admin-login" element={<AdminLoginPage onLoginSuccess={() => navigate('/super-admin')} />} />
+          <Route path="/landing" element={!user ? <LandingPage onLogin={() => navigate('/login')} onAdminLogin={() => navigate('/admin-login')} /> : <Navigate to="/" replace />} />
 
-          <Route path="/admin-login" element={
-            <AdminLoginPage
-              onLoginSuccess={() => {
-                navigate('/super-admin');
-              }}
-            />
-          } />
+          {/* 2. Super Admin Routes */}
+          <Route path="/super-admin" element={<RequireRole allowedRoles={['admin']}><div className="min-h-screen bg-background font-[Tajawal]"><SuperAdminDashboard onLogout={handleLogout} onNavigate={(p) => navigate(p === Page.SAAS_MANAGEMENT ? '/saas-management' : '/super-admin')} /></div></RequireRole>} />
+          <Route path="/saas-management" element={<RequireRole allowedRoles={['admin']}><div className="min-h-screen bg-background font-[Tajawal]"><SaaSManagement /></div></RequireRole>} />
 
-          <Route path="/landing" element={
-            !user ? (
-              <LandingPage
-                onLogin={() => navigate('/login')}
-                onAdminLogin={() => navigate('/admin-login')}
-              />
-            ) : <Navigate to="/" replace />
-          } />
-
-          {/* Authenticated Routes */}
+          {/* 3. Main Application with Sidebar Layout */}
           <Route path="/*" element={
             !user ? <Navigate to="/landing" replace /> : (
-              // MAIN LAYOUT WRAPPER
-              <div className="min-h-screen bg-background flex flex-col md:flex-row-reverse font-[Tajawal]">
+              <div className="min-h-screen bg-background flex flex-col md:flex-row font-[Tajawal] overflow-hidden">
+                {/* Sidebar Navigation */}
+                <div className="hidden md:flex flex-none z-50">
+                  <Sidebar
+                    activePage={activePage}
+                    setPage={setActivePage}
+                    onLogout={handleLogout}
+                    userRole={userRole}
+                  />
+                </div>
 
-                {/* Sidebar & Navigation */}
-                {userRole === 'secretary' ? (
-                  // Secretary Dashboard (Full Screen usually, but can look like doctor's)
-                  <div className="w-full">
-                    {clinicId ? (
-                      <SubscriptionGuard clinicId={clinicId}>
-                        <Routes>
-                          <Route path="/" element={<SecretaryDashboard />} />
-                          <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                      </SubscriptionGuard>
-                    ) : (
-                      <SecretaryDashboard />
-                    )}
-                  </div>
-                ) : (
-                  // Doctor Layout
-                  <>
-                    <div className="hidden md:flex">
-                      <Sidebar activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
+                {/* Main Content Area */}
+                <main className="flex-1 min-w-0 h-screen overflow-y-auto no-print pb-20 md:pb-0">
+                  <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
+                    {/* PC Header Bar */}
+                    <div className="hidden md:flex justify-between items-center mb-8 bg-surface/50 p-4 rounded-2xl border border-borderColor/30">
+                      <h1 className="text-2xl font-black text-foreground">
+                        {userRole === 'admin' ? 'إدارة النظام' : `مرحباً بك، ${user?.email?.split('@')[0]}`}
+                      </h1>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => setShowLabReferences(true)} className="flex items-center gap-2 px-6 py-2.5 bg-brand/10 hover:bg-brand text-brand hover:text-white rounded-xl font-bold transition-all duration-300">
+                          <BookOpen size={18} /> مرجع التحاليل
+                        </button>
+                      </div>
                     </div>
 
-                    <main className="flex-1 md:mr-64 p-4 md:p-8 transition-all duration-300 no-print pb-20 md:pb-0">
-                      <div className="max-w-7xl mx-auto">
-                        {/* Header */}
-                        <div className="hidden md:flex justify-between items-center mb-6">
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={handleLogout}
-                              className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition duration-200"
-                            >
-                              <LogOut size={18} />
-                              تسجيل الخروج
-                            </button>
-                            <button
-                              onClick={() => setShowLabReferences(true)}
-                              className="flex items-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg transition duration-200"
-                            >
-                              <BookOpen size={18} />
-                              مرجع التحاليل
-                            </button>
-                          </div>
-                          <h1 className="text-2xl font-bold text-gray-900">
-                            مرحباً، {user?.email}
-                          </h1>
-                        </div>
-
-                        {/* Mobile Header */}
-                        <div className="md:hidden mb-4 text-center">
-                          <h1 className="text-xl font-bold text-gray-900">
-                            مرحباً، {user?.email?.split('@')[0]}
-                          </h1>
-                          <div className="mt-3 flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => setShowLabReferences(true)}
-                              className="inline-flex items-center gap-2 px-3 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg transition duration-200"
-                            >
-                              <BookOpen size={16} />
-                              مرجع التحاليل
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Main Content Routes */}
-                        {clinicId ? (
-                          <SubscriptionGuard clinicId={clinicId}>
-                            <Routes>
-                              <Route path="/" element={<Dashboard />} />
-                              <Route path="/reception" element={<ReceptionDashboard />} />
-                              <Route path="/patients/add" element={<AddPatient />} />
-                              <Route path="/gynecology" element={<Gynecology />} />
-                              <Route path="/ivf-journey" element={<IvfJourney />} />
-                              <Route path="/smart-ivf" element={<SmartIVFJourney />} />
-                              <Route path="/infertility" element={<InfertilityWorkup />} />
-                              <Route path="/obstetrics" element={<ObstetricsDashboard />} />
-                              <Route path="/records" element={<PatientMasterRecord />} />
-                              <Route path="/finance" element={<DoctorFinancialMonitor />} />
-                              <Route path="/prescription" element={<PrescriptionPage />} />
-                              <Route path="/settings" element={<Settings user={user} />} />
-                              <Route path="/admin" element={
-                                <RequireRole allowedRoles={['admin', 'doctor']}>
-                                  <AdminDashboard />
-                                </RequireRole>
-                              } />
-                              <Route path="*" element={<Navigate to="/" replace />} />
-                            </Routes>
-                          </SubscriptionGuard>
-                        ) : (
-                          // Fallback if no clinicId yet
+                    {/* Content Section */}
+                    <div className="relative z-0">
+                      {clinicId ? (
+                        <SubscriptionGuard clinicId={clinicId}>
                           <Routes>
                             <Route path="/" element={<Dashboard />} />
+                            <Route path="/reception" element={<ReceptionDashboard />} />
+                            <Route path="/patients/add" element={<AddPatient />} />
+                            <Route path="/gynecology" element={<Gynecology />} />
+                            <Route path="/ivf-journey" element={<IvfJourney />} />
+                            <Route path="/smart-ivf" element={<SmartIVFJourney />} />
+                            <Route path="/infertility" element={<InfertilityWorkup />} />
+                            <Route path="/obstetrics" element={<ObstetricsDashboard />} />
+                            <Route path="/records" element={<PatientMasterRecord />} />
+                            <Route path="/finance" element={<DoctorFinancialMonitor />} />
+                            <Route path="/prescription" element={<PrescriptionPage />} />
+                            <Route path="/settings" element={<Settings user={user} />} />
+                            <Route path="/admin" element={<RequireRole allowedRoles={['admin', 'doctor']}><AdminDashboard /></RequireRole>} />
                             <Route path="*" element={<Navigate to="/" replace />} />
                           </Routes>
-                        )}
-                      </div>
-                    </main>
+                        </SubscriptionGuard>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin" />
+                          <p className="mt-4 text-textSecondary font-bold text-lg">جاري تحميل البيانات...</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </main>
 
-                    <BottomNav activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
-                  </>
-                )}
+                {/* Mobile Navigation */}
+                <BottomNav activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
               </div>
             )
           } />
-
-          {/* Super Admin Routes */}
-          <Route path="/super-admin" element={
-            <RequireRole allowedRoles={['admin']}>
-              <div className="min-h-screen bg-background font-[Tajawal]">
-                <SuperAdminDashboard
-                  onLogout={handleLogout}
-                  onNavigate={(page) => navigate(page === Page.SAAS_MANAGEMENT ? '/saas-management' : '/super-admin')}
-                />
-              </div>
-            </RequireRole>
-          } />
-
-          <Route path="/saas-management" element={
-            <RequireRole allowedRoles={['admin']}>
-              <div className="min-h-screen bg-background font-[Tajawal]">
-                <SaaSManagement />
-              </div>
-            </RequireRole>
-          } />
-
         </Routes>
 
         <LabReferencesModal isOpen={showLabReferences} onClose={() => setShowLabReferences(false)} />
@@ -393,4 +305,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
