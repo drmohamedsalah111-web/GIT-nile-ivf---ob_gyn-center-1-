@@ -7,8 +7,8 @@ import { Baby, TestTube, PlusCircle, TrendingUp, PipetteIcon, Heart, Save, Alert
 import toast from 'react-hot-toast';
 import PrescriptionPrinter from '../components/PrescriptionPrinter';
 import HistorySidebar from '../src/components/HistorySidebar';
-import IvfLabManager from './components/IvfLabManager';
-import AssessmentTab from '../components/assessment/AssessmentTab';
+const AssessmentTab = React.lazy(() => import('../components/assessment/AssessmentTab'));
+const IvfLabManager = React.lazy(() => import('./components/IvfLabManager'));
 
 import { PROTOCOL_INFO } from '../constants';
 

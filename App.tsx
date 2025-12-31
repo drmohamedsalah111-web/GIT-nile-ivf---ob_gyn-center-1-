@@ -235,7 +235,7 @@ const App: React.FC = () => {
             !user ? <Navigate to="/landing" replace /> : (
               <div className="min-h-screen bg-background flex flex-col md:flex-row font-[Tajawal] overflow-hidden">
                 {/* Sidebar Navigation */}
-                <div className="hidden md:flex flex-none z-50">
+                <div className="hidden md:flex flex-none z-[100] relative">
                   <Sidebar
                     activePage={activePage}
                     setPage={setActivePage}
@@ -245,40 +245,47 @@ const App: React.FC = () => {
                 </div>
 
                 {/* Main Content Area */}
-                <main className="flex-1 min-w-0 h-screen overflow-y-auto no-print pb-20 md:pb-0">
-                  <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
+                <main className="flex-1 min-w-0 h-screen overflow-y-auto no-print pb-20 md:pb-0 relative z-0">
+                  <div className="p-4 md:p-6 max-w-7xl mx-auto w-full">
                     {/* PC Header Bar */}
-                    <div className="hidden md:flex justify-between items-center mb-8 bg-surface/50 p-4 rounded-2xl border border-borderColor/30">
-                      <h1 className="text-2xl font-black text-foreground">
+                    <div className="hidden md:flex justify-between items-center mb-6 bg-surface/50 p-4 rounded-2xl border border-borderColor/30">
+                      <h1 className="text-xl font-black text-foreground">
                         {userRole === 'admin' ? 'إدارة النظام' : `مرحباً بك، ${user?.email?.split('@')[0]}`}
                       </h1>
                       <div className="flex items-center gap-3">
-                        <button onClick={() => setShowLabReferences(true)} className="flex items-center gap-2 px-6 py-2.5 bg-brand/10 hover:bg-brand text-brand hover:text-white rounded-xl font-bold transition-all duration-300">
+                        <button onClick={() => setShowLabReferences(true)} className="flex items-center gap-2 px-6 py-2 bg-brand/10 hover:bg-brand text-brand hover:text-white rounded-xl font-bold transition-all duration-300">
                           <BookOpen size={18} /> مرجع التحاليل
                         </button>
                       </div>
                     </div>
 
                     {/* Content Section */}
-                    <div className="relative z-0">
+                    <div className="relative">
                       {clinicId ? (
                         <SubscriptionGuard clinicId={clinicId}>
-                          <Routes>
-                            <Route path="/" element={<Dashboard />} />
-                            <Route path="/reception" element={<ReceptionDashboard />} />
-                            <Route path="/patients/add" element={<AddPatient />} />
-                            <Route path="/gynecology" element={<Gynecology />} />
-                            <Route path="/ivf-journey" element={<IvfJourney />} />
-                            <Route path="/smart-ivf" element={<SmartIVFJourney />} />
-                            <Route path="/infertility" element={<InfertilityWorkup />} />
-                            <Route path="/obstetrics" element={<ObstetricsDashboard />} />
-                            <Route path="/records" element={<PatientMasterRecord />} />
-                            <Route path="/finance" element={<DoctorFinancialMonitor />} />
-                            <Route path="/prescription" element={<PrescriptionPage />} />
-                            <Route path="/settings" element={<Settings user={user} />} />
-                            <Route path="/admin" element={<RequireRole allowedRoles={['admin', 'doctor']}><AdminDashboard /></RequireRole>} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                          </Routes>
+                          <React.Suspense fallback={
+                            <div className="flex flex-col items-center justify-center py-20">
+                              <div className="w-10 h-10 border-4 border-brand border-t-transparent rounded-full animate-spin" />
+                              <p className="mt-4 text-textSecondary font-bold">جاري تحميل الصفحة...</p>
+                            </div>
+                          }>
+                            <Routes>
+                              <Route path="/" element={<Dashboard />} />
+                              <Route path="/reception" element={<ReceptionDashboard />} />
+                              <Route path="/patients/add" element={<AddPatient />} />
+                              <Route path="/gynecology" element={<Gynecology />} />
+                              <Route path="/ivf-journey" element={<IvfJourney />} />
+                              <Route path="/smart-ivf" element={<SmartIVFJourney />} />
+                              <Route path="/infertility" element={<InfertilityWorkup />} />
+                              <Route path="/obstetrics" element={<ObstetricsDashboard />} />
+                              <Route path="/records" element={<PatientMasterRecord />} />
+                              <Route path="/finance" element={<DoctorFinancialMonitor />} />
+                              <Route path="/prescription" element={<PrescriptionPage />} />
+                              <Route path="/settings" element={<Settings user={user} />} />
+                              <Route path="/admin" element={<RequireRole allowedRoles={['admin', 'doctor']}><AdminDashboard /></RequireRole>} />
+                              <Route path="*" element={<Navigate to="/" replace />} />
+                            </Routes>
+                          </React.Suspense>
                         </SubscriptionGuard>
                       ) : (
                         <div className="flex flex-col items-center justify-center py-20 animate-pulse">
