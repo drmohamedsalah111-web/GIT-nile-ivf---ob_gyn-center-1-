@@ -163,12 +163,12 @@ export function getValidationMessage(validation: SubscriptionValidation): string
 // ============================================================================
 
 /**
- * Format price in ILS (₪)
- * @param amount - Amount in ILS
+ * Format price in EGP (Egyptian Pounds)
+ * @param amount - Amount in EGP
  * @returns Formatted price string
  */
 export function formatPrice(amount: number): string {
-  return `₪${amount.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${amount.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} جنيه`;
 }
 
 /**
