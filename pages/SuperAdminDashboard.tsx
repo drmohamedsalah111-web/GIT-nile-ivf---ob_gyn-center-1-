@@ -14,6 +14,7 @@ import ClinicsManagement from './admin/ClinicsManagement';
 import UsersManagement from './admin/UsersManagement';
 import AdminAnalytics from './admin/AdminAnalytics';
 import LandingContentEditor from './admin/LandingContentEditor';
+import AdminSettings from './admin/AdminSettings';
 
 interface SuperAdminDashboardProps {
   onLogout?: () => Promise<void>;
@@ -152,13 +153,13 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onN
     },
     {
       id: 'settings',
-      title: 'إعدادات النظام',
-      titleEn: 'System Settings',
-      description: 'إعدادات عامة للنظام وقاعدة البيانات',
+      title: 'إعدادات الحساب',
+      titleEn: 'Account Settings',
+      description: 'تغيير كلمة المرور وإدارة الحساب الشخصي',
       icon: Settings,
       color: 'bg-orange-500',
-      count: 'قريباً',
-      action: () => alert('هذه الميزة قيد التطوير')
+      count: 'إدارة',
+      action: () => setActiveTab('settings')
     }
   ];
 
@@ -214,6 +215,10 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onN
     return <LandingContentEditor onBack={() => setActiveTab('overview')} />;
   }
 
+  if (activeTab === 'settings') {
+    return <AdminSettings onBack={() => setActiveTab('overview')} />;
+  }
+
   if (activeTab === 'subscriptions') {
     return (
       <div>
@@ -231,7 +236,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onN
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100" dir="rtl" style={{ fontFamily: "'Cairo', 'Tajawal', sans-serif" }}>
       {/* Modern Header with Admin Info */}
       <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 shadow-2xl relative overflow-hidden">
         {/* Animated Background Pattern */}
