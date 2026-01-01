@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../services/supabaseClient';
+import { supabase } from '../../../services/supabaseClient';
 import { User, Mail, Lock, Phone, MapPin, Stethoscope, CheckCircle, AlertCircle, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
