@@ -453,6 +453,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onN
           </div>
         </div>
       </div>
+      </div>
     </div>
   );
 };
