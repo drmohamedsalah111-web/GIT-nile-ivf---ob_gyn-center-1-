@@ -1,16 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { format, differenceInWeeks, differenceInDays, addDays, parseISO } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { AlertTriangle, Calendar, Baby, Activity } from 'lucide-react';
+import { AlertTriangle, Calendar, Baby, Activity, Edit2 } from 'lucide-react';
+import { EditPregnancyDatesModal } from './EditPregnancyDatesModal';
 
 interface PregnancyOverviewProps {
   pregnancy: any;
   visits: any[];
   scans: any[];
+  onRefresh?: () => void;
 }
 
-export const PregnancyOverview: React.FC<PregnancyOverviewProps> = ({ pregnancy, visits, scans }) => {
+export const PregnancyOverview: React.FC<PregnancyOverviewProps> = ({ pregnancy, visits, scans, onRefresh }) => {
+  // State for edit modal
+  const [isEditDatesModalOpen, setIsEditDatesModalOpen] = useState(false);
+
   // Calculations
   const today = new Date();
   const lmpDate = pregnancy.lmp_date ? parseISO(pregnancy.lmp_date) : null;
@@ -55,7 +60,17 @@ export const PregnancyOverview: React.FC<PregnancyOverviewProps> = ({ pregnancy,
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="col-span-2">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">ملخص الحمل</h2>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl font-bold text-gray-900">ملخص الحمل</h2>
+              <button
+                onClick={() => setIsEditDatesModalOpen(true)}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition-colors"
+                title="تعديل تاريخ آخر دورة"
+              >
+                <Edit2 size={16} />
+                <span className="font-[Tajawal]">تعديل التاريخ</span>
+              </button>
+            </div>
             <div className="flex items-center gap-4 text-gray-600">
               <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-teal-600" />
@@ -155,6 +170,20 @@ export const PregnancyOverview: React.FC<PregnancyOverviewProps> = ({ pregnancy,
           </div>
         </div>
       </div>
+
+      {/* Edit Pregnancy Dates Modal */}
+      <EditPregnancyDatesModal
+        isOpen={isEditDatesModalOpen}
+        onClose={() => setIsEditDatesModalOpen(false)}
+        pregnancyId={pregnancy.id}
+        currentLmpDate={pregnancy.lmp_date}
+        currentEddDate={pregnancy.edd_date}
+        currentEddByScan={pregnancy.edd_by_scan}
+        onSuccess={() => {
+          setIsEditDatesModalOpen(false);
+          onRefresh?.();
+        }}
+      />
     </div>
   );
 };

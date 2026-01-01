@@ -36,39 +36,39 @@ export const PregnancyProfile: React.FC<PregnancyProfileProps> = ({ patientId })
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!patientId) return;
-      
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        // Fetch pregnancy data
-        const pregnancyData = await obstetricsService.getPregnancyByPatient(patientId);
-        setPregnancy(pregnancyData);
-        
-        if (pregnancyData?.id) {
-          // Fetch visits for this pregnancy
-          const visitsData = await obstetricsService.getANCVisits(pregnancyData.id);
-          setVisits(visitsData || []);
-          
-          // Fetch scans for this pregnancy
-          const scansData = await obstetricsService.getBiometryScans(pregnancyData.id);
-          setScans(scansData || []);
-
-          // Fetch files for this pregnancy
-          const filesData = await obstetricsService.getPregnancyFiles(pregnancyData.id);
-          setFiles(filesData || []);
-        }
-      } catch (err: any) {
-        console.error('Error fetching pregnancy data:', err);
-        setError(err.message || 'Failed to load data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchData = async () => {
+    if (!patientId) return;
     
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Fetch pregnancy data
+      const pregnancyData = await obstetricsService.getPregnancyByPatient(patientId);
+      setPregnancy(pregnancyData);
+      
+      if (pregnancyData?.id) {
+        // Fetch visits for this pregnancy
+        const visitsData = await obstetricsService.getANCVisits(pregnancyData.id);
+        setVisits(visitsData || []);
+        
+        // Fetch scans for this pregnancy
+        const scansData = await obstetricsService.getBiometryScans(pregnancyData.id);
+        setScans(scansData || []);
+
+        // Fetch files for this pregnancy
+        const filesData = await obstetricsService.getPregnancyFiles(pregnancyData.id);
+        setFiles(filesData || []);
+      }
+    } catch (err: any) {
+      console.error('Error fetching pregnancy data:', err);
+      setError(err.message || 'Failed to load data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [patientId]);
 
@@ -184,7 +184,8 @@ export const PregnancyProfile: React.FC<PregnancyProfileProps> = ({ patientId })
           <PregnancyOverview 
             pregnancy={pregnancy} 
             visits={visits} 
-            scans={scans} 
+            scans={scans}
+            onRefresh={fetchData}
           />
         )}
         
