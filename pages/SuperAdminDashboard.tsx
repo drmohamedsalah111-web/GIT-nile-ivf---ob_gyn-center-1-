@@ -10,6 +10,7 @@ import { supabase } from '../services/supabaseClient';
 import { adminAuthService } from '../services/adminAuthService';
 import toast from 'react-hot-toast';
 import SaaSManagement from './admin/SaaSManagement';
+import SmartSubscriptionManagement from './admin/SmartSubscriptionManagement';
 import ClinicsManagement from './admin/ClinicsManagement';
 import UsersManagement from './admin/UsersManagement';
 import AdminAnalytics from './admin/AdminAnalytics';
@@ -33,7 +34,7 @@ interface DashboardStats {
 }
 
 const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onNavigate }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'subscriptions' | 'clinics' | 'users' | 'analytics' | 'landing' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'subscriptions' | 'smart-subscriptions' | 'clinics' | 'users' | 'analytics' | 'landing' | 'settings'>('overview');
   const [stats, setStats] = useState<DashboardStats>({
     totalClinics: 0,
     activeSubscriptions: 0,
@@ -101,6 +102,16 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onN
   };
 
   const adminCards = [
+    {
+      id: 'smart-subscriptions',
+      title: 'إدارة الاشتراكات الذكية',
+      titleEn: 'Smart Subscription Management',
+      description: 'التحكم الكامل في خطط واشتراكات العيادات - تحديد الأسعار والإدارة الشاملة',
+      icon: CreditCard,
+      color: 'bg-gradient-to-br from-purple-600 to-pink-600',
+      count: `${stats.activeSubscriptions} نشط`,
+      action: () => setActiveTab('smart-subscriptions')
+    },
     {
       id: 'subscriptions',
       title: 'إدارة الاشتراكات',
@@ -231,6 +242,22 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onN
           </button>
         </div>
         <SaaSManagement />
+      </div>
+    );
+  }
+
+  if (activeTab === 'smart-subscriptions') {
+    return (
+      <div>
+        <div className="mb-6">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className="flex items-center gap-2 text-purple-600 hover:text-purple-700 font-bold"
+          >
+            ← العودة للوحة التحكم
+          </button>
+        </div>
+        <SmartSubscriptionManagement />
       </div>
     );
   }
