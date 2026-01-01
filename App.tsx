@@ -35,6 +35,8 @@ const SuperAdminDashboard = React.lazy(() => import('./pages/SuperAdminDashboard
 const AdminLoginPage = React.lazy(() => import('./pages/AdminLoginPage'));
 const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 const PrescriptionPage = React.lazy(() => import('./pages/PrescriptionPage'));
+const DoctorRegistration = React.lazy(() => import('./src/pages/Auth/DoctorRegistration'));
+const SubscriptionPending = React.lazy(() => import('./src/pages/Auth/SubscriptionPending'));
 import { adminAuthService } from './services/adminAuthService';
 
 import LabReferencesModal from './src/components/LabReferencesModal';
@@ -226,6 +228,8 @@ const App: React.FC = () => {
           <Route path="/login" element={!user ? <Login onLoginSuccess={() => window.location.href = '/'} onAdminAccess={() => navigate('/admin-login')} onBack={() => navigate('/')} /> : <Navigate to="/" replace />} />
           <Route path="/admin-login" element={<AdminLoginPage onLoginSuccess={() => navigate('/super-admin')} />} />
           <Route path="/landing" element={!user ? <LandingPage onLogin={() => navigate('/login')} onAdminLogin={() => navigate('/admin-login')} /> : <Navigate to="/" replace />} />
+          <Route path="/register" element={<DoctorRegistration />} />
+          <Route path="/subscription-pending" element={<SubscriptionPending />} />
 
           {/* 2. Super Admin Routes */}
           <Route path="/super-admin" element={<RequireRole allowedRoles={['admin']}><div className="min-h-screen bg-background font-[Tajawal]"><SuperAdminDashboard onLogout={handleLogout} onNavigate={(p) => navigate(p === Page.SAAS_MANAGEMENT ? '/saas-management' : '/super-admin')} /></div></RequireRole>} />
