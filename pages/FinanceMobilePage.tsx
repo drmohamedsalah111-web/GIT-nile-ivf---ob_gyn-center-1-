@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Receipt, TrendingUp, TrendingDown, Calendar, FileText, Users, CheckCircle } from 'lucide-react';
+import { DollarSign, Receipt, TrendingUp, TrendingDown, Calendar, FileText, Users, CheckCircle, Package, BarChart3 } from 'lucide-react';
 import { authService } from '../services/authService';
 import CollectionsManagement from '../components/invoices/CollectionsManagement';
 import { InvoicesManagementPage } from '../components/invoices';
+import FinanceReports from '../components/finance/FinanceReports';
+import ServicesManagementPage from '../components/finance/ServicesManagementPage';
 
 const FinanceMobilePage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'collections' | 'invoices' | 'reports'>('collections');
+  const [activeTab, setActiveTab] = useState<'collections' | 'invoices' | 'reports' | 'services'>('collections');
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string>('doctor');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,6 +32,7 @@ const FinanceMobilePage: React.FC = () => {
       // Try to get profile based on role
       const role = await authService.getUserRole(currentUser.id);
       console.log('✅ User role:', role);
+      setUserRole(role || 'doctor');
       
       if (role === 'secretary') {
         const secretaryProfile = await authService.getSecretaryProfile(currentUser.id);
@@ -57,6 +61,8 @@ const FinanceMobilePage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const getDoctorId = () => profile?.secretary_doctor_id || profile?.id || '';
 
   if (loading) {
     return (
@@ -128,9 +134,24 @@ const FinanceMobilePage: React.FC = () => {
                 : 'bg-white/10 text-white hover:bg-white/20'
             }`}
           >
-            <FileText className="w-4 h-4" />
+            <BarChart3 className="w-4 h-4" />
             <span>التقارير</span>
           </button>
+
+          {/* Services Tab - Only for Doctors */}
+          {userRole === 'doctor' && (
+            <button
+              onClick={() => setActiveTab('services')}
+              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                activeTab === 'services'
+                  ? 'bg-white text-green-700 shadow-md'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              <span>الخدمات</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -139,7 +160,7 @@ const FinanceMobilePage: React.FC = () => {
         {activeTab === 'collections' && (
           <div className="space-y-4">
             <CollectionsManagement
-              doctorId={profile?.secretary_doctor_id || profile?.id || ''}
+              doctorId={getDoctorId()}
               secretaryId={user?.id || ''}
               secretaryName={profile?.name || 'User'}
             />
@@ -149,7 +170,7 @@ const FinanceMobilePage: React.FC = () => {
         {activeTab === 'invoices' && (
           <div className="space-y-4">
             <InvoicesManagementPage
-              doctorId={profile?.secretary_doctor_id || profile?.id || ''}
+              doctorId={getDoctorId()}
               secretaryId={user?.id || ''}
               secretaryName={profile?.name || 'User'}
             />
@@ -158,42 +179,13 @@ const FinanceMobilePage: React.FC = () => {
 
         {activeTab === 'reports' && (
           <div className="space-y-4">
-            {/* Quick Stats Summary */}
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-                ملخص سريع
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
-                  <p className="text-xs text-blue-600 font-medium mb-1">إجمالي اليوم</p>
-                  <p className="text-xl font-bold text-blue-900">0 ج.م</p>
-                </div>
-                
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg border border-green-200">
-                  <p className="text-xs text-green-600 font-medium mb-1">المحصّل اليوم</p>
-                  <p className="text-xl font-bold text-green-900">0 ج.م</p>
-                </div>
-                
-                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-3 rounded-lg border border-yellow-200">
-                  <p className="text-xs text-yellow-600 font-medium mb-1">المعاملات اليوم</p>
-                  <p className="text-xl font-bold text-yellow-900">0</p>
-                </div>
-                
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200">
-                  <p className="text-xs text-purple-600 font-medium mb-1">المتبقي</p>
-                  <p className="text-xl font-bold text-purple-900">0 ج.م</p>
-                </div>
-              </div>
-            </div>
+            <FinanceReports doctorId={getDoctorId()} />
+          </div>
+        )}
 
-            {/* Coming Soon */}
-            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 text-center">
-              <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-gray-800 mb-2">التقارير المفصلة</h3>
-              <p className="text-gray-600 text-sm">قريباً... تقارير مفصلة بالإحصائيات والرسوم البيانية</p>
-            </div>
+        {activeTab === 'services' && userRole === 'doctor' && (
+          <div className="space-y-4">
+            <ServicesManagementPage doctorId={getDoctorId()} />
           </div>
         )}
       </div>
