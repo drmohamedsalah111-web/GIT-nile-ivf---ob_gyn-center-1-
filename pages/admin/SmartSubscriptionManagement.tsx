@@ -95,12 +95,18 @@ const SmartSubscriptionManagement: React.FC = () => {
       .from('clinic_subscriptions')
       .select(`
         *,
-        clinic:doctors(name, email, phone),
+        clinic:doctors(full_name, email, phone),
         plan:subscription_plans(*)
       `)
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error loading subscriptions:', error);
+      throw error;
+    }
+    
+    console.log('📊 Loaded subscriptions:', data);
+    console.log('📊 Pending subscriptions:', data?.filter(s => s.status === 'pending'));
     setSubscriptions(data || []);
   };
 
@@ -573,8 +579,9 @@ const SubscriptionsManagement: React.FC<{
                 }`}>
                   <td className="py-4 px-6">
                     <div>
-                      <p className="font-bold text-gray-900">{sub.clinic?.name}</p>
-                      <p className="text-xs text-gray-500">{sub.clinic?.email}</p>
+                      <p className="font-bold text-gray-900">{sub.clinic?.full_name || 'غير محدد'}</p>
+                      <p className="text-xs text-gray-500">{sub.clinic?.email || 'لا يوجد'}</p>
+                      <p className="text-xs text-purple-600">ID: {sub.clinic_id.substring(0, 8)}...</p>
                     </div>
                   </td>
                   <td className="py-4 px-6">
