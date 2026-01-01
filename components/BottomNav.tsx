@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, FileText, LogOut, Brain } from 'lucide-react';
+import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, FileText, LogOut, Brain, DollarSign, Receipt } from 'lucide-react';
 import { Page } from '../types';
 
 interface Props {
@@ -18,6 +18,7 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage, onLogout }) => {
     { id: Page.IVF, label: 'الخصوبة', icon: Baby, action: null },
     { id: Page.SMART_IVF, label: 'IVF ذكي', icon: Brain, action: null },
     { id: Page.PATIENT_RECORD, label: 'السجلات', icon: FileText, action: null },
+    { id: 'finance', label: 'المالية', icon: DollarSign, action: null, badge: '💰' },
     { id: Page.SETTINGS, label: 'الإعدادات', icon: Settings, action: null },
     { id: 'logout', label: 'خروج', icon: LogOut, action: onLogout },
   ];

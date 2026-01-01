@@ -28,6 +28,7 @@ const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const InfertilityWorkup = React.lazy(() => import('./src/pages/InfertilityWorkup'));
 import FinancePage from './components/pages/FinancePage';
 const DoctorFinancialMonitor = React.lazy(() => import('./pages/doctor/DoctorFinancialMonitor'));
+const FinanceMobilePage = React.lazy(() => import('./pages/FinanceMobilePage'));
 import { Login } from './pages/Login';
 const SaaSManagement = React.lazy(() => import('./pages/admin/SaaSManagement'));
 const SuperAdminDashboard = React.lazy(() => import('./pages/SuperAdminDashboard'));
@@ -279,7 +280,7 @@ const App: React.FC = () => {
                               <Route path="/infertility" element={<InfertilityWorkup />} />
                               <Route path="/obstetrics" element={<ObstetricsDashboard />} />
                               <Route path="/records" element={<PatientMasterRecord />} />
-                              <Route path="/finance" element={<DoctorFinancialMonitor />} />
+                              <Route path="/finance" element={<FinanceMobilePage />} />
                               <Route path="/prescription" element={<PrescriptionPage />} />
                               <Route path="/settings" element={<Settings user={user} />} />
                               <Route path="/admin" element={<RequireRole allowedRoles={['admin', 'doctor']}><AdminDashboard /></RequireRole>} />
