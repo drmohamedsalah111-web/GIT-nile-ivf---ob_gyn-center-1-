@@ -770,6 +770,7 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
             </div>
           </div>
         )}
+      </div>
     </div>
   );
 };
