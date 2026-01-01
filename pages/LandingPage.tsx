@@ -90,12 +90,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
               >
                 تسجيل الدخول
               </button>
-              <button
-                onClick={onLogin}
+              <a
+                href="/register"
                 className="px-8 py-2.5 bg-gradient-to-r from-teal-500 to-blue-600 text-white rounded-full font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
               >
-                ابدأ الآن
-              </button>
+                سجّل مجاناً
+              </a>
             </div>
           </div>
         </div>
@@ -368,12 +368,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onAdminLogin }) => {
             انضم إلى مئات الأطباء الذين يثقون في نايل IVF
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={onLogin}
-              className="px-10 py-4 bg-white text-teal-600 rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all"
+            <a
+              href="/register"
+              className="inline-flex items-center justify-center px-10 py-4 bg-white text-teal-600 rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all"
             >
               ابدأ التجربة المجانية الآن
-            </button>
+            </a>
             <button className="px-10 py-4 border-2 border-white text-white rounded-xl font-bold text-lg hover:bg-white/10 transition-all">
               تحدث مع فريق المبيعات
             </button>

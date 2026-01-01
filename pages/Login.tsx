@@ -232,6 +232,18 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
                 </>
               )}
             </button>
+
+            {/* Register Link */}
+            <div className="mt-6 text-center">
+              <p className="text-gray-600 mb-3">ليس لديك حساب؟</p>
+              <a
+                href="/register"
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold hover:bg-blue-100 transition-all duration-300 hover:scale-105"
+              >
+                <Users className="w-5 h-5" />
+                <span>سجّل كطبيب جديد</span>
+              </a>
+            </div>
           </form>
 
           {/* Unified Developer Copyright Section */}
