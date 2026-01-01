@@ -254,7 +254,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onN
                   لوحة تحكم المدير العام
                 </h1>
                 <p className="text-blue-100 text-sm sm:text-base font-medium">
-                  مرحباً {adminInfo?.name || 'المدير'} 👋
+                  مرحباً {adminInfo?.name || 'المدير'}
                 </p>
               </div>
             </div>
@@ -438,7 +438,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onN
             <Shield className="w-6 h-6 text-blue-600" />
           </div>
           <div className="flex-1">
-            <h4 className="font-black text-gray-800 mb-3 text-lg">💡 ملاحظات هامة</h4>
+            <h4 className="font-black text-gray-800 mb-3 text-lg">ملاحظات هامة</h4>
             <ul className="space-y-2 text-gray-700">
               <li className="flex items-start gap-2">
                 <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
