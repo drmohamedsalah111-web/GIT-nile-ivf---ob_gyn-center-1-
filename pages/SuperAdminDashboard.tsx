@@ -5,7 +5,7 @@
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
-import { Shield, CreditCard, Users, DollarSign, Settings, BarChart3, Database, Lock, Home, FileText, TrendingUp, Activity, AlertCircle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
+import { Shield, CreditCard, Users, DollarSign, Settings, BarChart3, Database, Lock, Home, FileText, TrendingUp, Activity, AlertCircle, CheckCircle, Clock, RefreshCw, ArrowLeft, Building2 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { adminAuthService } from '../services/adminAuthService';
 import toast from 'react-hot-toast';
