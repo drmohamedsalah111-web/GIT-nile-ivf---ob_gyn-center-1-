@@ -153,6 +153,46 @@ const SubscriptionGuard: React.FC<SubscriptionGuardProps> = ({
     );
   }
 
+  // Show pending approval screen for pending status
+  if (validation.status === 'pending') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50" dir="rtl">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-xl p-8 text-center">
+          <div className="text-6xl mb-4">⏳</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3 font-[Tajawal]">
+            عيادتك قيد المراجعة
+          </h1>
+          <p className="text-gray-600 mb-6 leading-relaxed font-[Tajawal]">
+            شكراً لتسجيلك! اشتراكك الآن قيد المراجعة من فريقنا.
+            سيتم تفعيل حسابك خلال 24 ساعة.
+          </p>
+          
+          <div className="bg-blue-50 rounded-lg p-4 mb-6">
+            <h3 className="font-bold text-gray-900 mb-2 font-[Tajawal]">الخطوات التالية:</h3>
+            <ul className="text-sm text-gray-700 space-y-2 text-right font-[Tajawal]">
+              <li>✓ تم استلام طلبك بنجاح</li>
+              <li>⏳ جاري مراجعة البيانات</li>
+              <li>📧 سنرسل إشعار التفعيل عبر البريد</li>
+              <li>🎉 ستتمكن من الدخول فوراً بعد التفعيل</li>
+            </ul>
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-2 font-[Tajawal]">للاستفسار أو التسريع:</p>
+            <a
+              href="https://wa.me/201206008070"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-all font-[Tajawal]"
+            >
+              <span>تواصل معنا عبر واتساب</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Show expired screen if subscription is not valid
   if (!validation.isValid) {
     if (expiredComponent) {

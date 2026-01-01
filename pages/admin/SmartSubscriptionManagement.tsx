@@ -35,7 +35,7 @@ interface ClinicSubscription {
   id: string;
   clinic_id: string;
   plan_id: string;
-  status: 'active' | 'trial' | 'expired' | 'suspended' | 'cancelled';
+  status: 'active' | 'pending' | 'trial' | 'expired' | 'suspended' | 'cancelled';
   start_date: string;
   end_date: string;
   paid_amount: number;
@@ -110,6 +110,7 @@ const SmartSubscriptionManagement: React.FC = () => {
     activePlans: plans.filter(p => p.is_active).length,
     totalSubscriptions: subscriptions.length,
     activeSubscriptions: subscriptions.filter(s => s.status === 'active').length,
+    pendingSubscriptions: subscriptions.filter(s => s.status === 'pending').length,
     trialSubscriptions: subscriptions.filter(s => s.status === 'trial').length,
     expiredSubscriptions: subscriptions.filter(s => s.status === 'expired').length,
     expiringThisWeek: subscriptions.filter(s => {
@@ -130,6 +131,7 @@ const SmartSubscriptionManagement: React.FC = () => {
   const getStatusBadge = (status: string) => {
     const styles = {
       active: 'bg-green-100 text-green-700',
+      pending: 'bg-orange-100 text-orange-700',
       trial: 'bg-blue-100 text-blue-700',
       expired: 'bg-red-100 text-red-700',
       suspended: 'bg-yellow-100 text-yellow-700',
@@ -138,6 +140,7 @@ const SmartSubscriptionManagement: React.FC = () => {
     
     const labels = {
       active: 'نشط',
+      pending: 'قيد المراجعة',
       trial: 'تجريبي',
       expired: 'منتهي',
       suspended: 'موقوف',
@@ -187,7 +190,7 @@ const SmartSubscriptionManagement: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-white rounded-2xl p-6 shadow-lg border-r-4 border-green-500">
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -199,13 +202,24 @@ const SmartSubscriptionManagement: React.FC = () => {
             <p className="text-xs text-gray-500">من إجمالي {stats.totalSubscriptions}</p>
           </div>
 
+          <div className="bg-white rounded-2xl p-6 shadow-lg border-r-4 border-orange-500">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-gray-600 text-sm mb-1">قيد المراجعة</p>
+                <p className="text-3xl font-black text-gray-900">{stats.pendingSubscriptions}</p>
+              </div>
+              <Clock className="w-12 h-12 text-orange-500" />
+            </div>
+            <p className="text-xs text-gray-500">تحتاج موافقة</p>
+          </div>
+
           <div className="bg-white rounded-2xl p-6 shadow-lg border-r-4 border-blue-500">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-gray-600 text-sm mb-1">اشتراكات تجريبية</p>
                 <p className="text-3xl font-black text-gray-900">{stats.trialSubscriptions}</p>
               </div>
-              <Clock className="w-12 h-12 text-blue-500" />
+              <Shield className="w-12 h-12 text-blue-500" />
             </div>
             <p className="text-xs text-gray-500">قيد التجربة</p>
           </div>
@@ -435,11 +449,95 @@ const SubscriptionsManagement: React.FC<{
   onRefresh: () => void 
 }> = ({ subscriptions, plans, onRefresh }) => {
   const [showModal, setShowModal] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+
+  const handleApprove = async (subscriptionId: string) => {
+    if (!confirm('هل تريد تفعيل هذا الاشتراك؟')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('clinic_subscriptions')
+        .update({ 
+          status: 'active',
+          payment_status: 'paid'
+        })
+        .eq('clinic_id', subscriptionId);
+      
+      if (error) throw error;
+      toast.success('تم تفعيل الاشتراك بنجاح! ✅');
+      onRefresh();
+    } catch (error: any) {
+      toast.error('فشل تفعيل الاشتراك: ' + error.message);
+    }
+  };
+
+  const handleReject = async (subscriptionId: string) => {
+    const reason = prompt('سبب الرفض:');
+    if (!reason) return;
+    
+    try {
+      const { error } = await supabase
+        .from('clinic_subscriptions')
+        .update({ 
+          status: 'cancelled',
+          cancellation_reason: reason
+        })
+        .eq('clinic_id', subscriptionId);
+      
+      if (error) throw error;
+      toast.success('تم رفض الاشتراك');
+      onRefresh();
+    } catch (error: any) {
+      toast.error('فشل رفض الاشتراك: ' + error.message);
+    }
+  };
+
+  const filteredSubscriptions = filterStatus === 'all' 
+    ? subscriptions 
+    : subscriptions.filter(s => s.status === filterStatus);
+
+  const pendingSubscriptions = subscriptions.filter(s => s.status === 'pending');
 
   return (
     <div>
+      {/* Pending Approvals Alert */}
+      {pendingSubscriptions.length > 0 && (
+        <div className="bg-orange-50 border-r-4 border-orange-500 rounded-lg p-6 mb-6">
+          <div className="flex items-start gap-4">
+            <AlertCircle className="w-8 h-8 text-orange-600 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-orange-900 mb-2">
+                🔔 لديك {pendingSubscriptions.length} اشتراك قيد المراجعة
+              </h3>
+              <p className="text-orange-700 mb-4">
+                هناك طلبات اشتراك جديدة تحتاج لموافقتك. راجع الطلبات وقم بالموافقة أو الرفض.
+              </p>
+              <button
+                onClick={() => setFilterStatus('pending')}
+                className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-all font-bold"
+              >
+                عرض الطلبات المعلقة
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-black text-gray-800">اشتراكات العيادات</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-black text-gray-800">اشتراكات العيادات</h2>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-4 py-2 border-2 border-gray-300 rounded-lg font-bold focus:ring-2 focus:ring-purple-500"
+          >
+            <option value="all">الكل ({subscriptions.length})</option>
+            <option value="pending">قيد المراجعة ({pendingSubscriptions.length})</option>
+            <option value="active">نشط ({subscriptions.filter(s => s.status === 'active').length})</option>
+            <option value="trial">تجريبي ({subscriptions.filter(s => s.status === 'trial').length})</option>
+            <option value="expired">منتهي ({subscriptions.filter(s => s.status === 'expired').length})</option>
+          </select>
+        </div>
         <button
           onClick={() => setShowModal(true)}
           className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-teal-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
@@ -463,12 +561,16 @@ const SubscriptionsManagement: React.FC<{
             </tr>
           </thead>
           <tbody>
-            {subscriptions.map((sub) => {
+            {filteredSubscriptions.map((sub) => {
               const daysLeft = Math.ceil((new Date(sub.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
               const isExpiringSoon = daysLeft <= 7 && daysLeft >= 0;
+              const isPending = sub.status === 'pending';
               
               return (
-                <tr key={sub.id} className={`border-b hover:bg-purple-50 transition-all ${isExpiringSoon ? 'bg-amber-50' : ''}`}>
+                <tr key={sub.id} className={`border-b hover:bg-purple-50 transition-all ${
+                  isPending ? 'bg-orange-50' :
+                  isExpiringSoon ? 'bg-amber-50' : ''
+                }`}>
                   <td className="py-4 px-6">
                     <div>
                       <p className="font-bold text-gray-900">{sub.clinic?.name}</p>
@@ -483,11 +585,13 @@ const SubscriptionsManagement: React.FC<{
                   <td className="py-4 px-6">
                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                       sub.status === 'active' ? 'bg-green-100 text-green-700' :
+                      sub.status === 'pending' ? 'bg-orange-100 text-orange-700' :
                       sub.status === 'trial' ? 'bg-blue-100 text-blue-700' :
                       sub.status === 'expired' ? 'bg-red-100 text-red-700' :
                       'bg-gray-100 text-gray-700'
                     }`}>
                       {sub.status === 'active' ? 'نشط' :
+                       sub.status === 'pending' ? 'قيد المراجعة' :
                        sub.status === 'trial' ? 'تجريبي' :
                        sub.status === 'expired' ? 'منتهي' :
                        sub.status === 'suspended' ? 'موقوف' : 'ملغي'}
@@ -510,18 +614,39 @@ const SubscriptionsManagement: React.FC<{
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex gap-2">
-                      <button
-                        className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg transition-all"
-                        title="عرض التفاصيل"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        className="bg-green-100 hover:bg-green-200 text-green-700 p-2 rounded-lg transition-all"
-                        title="تجديد"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                      </button>
+                      {isPending ? (
+                        <>
+                          <button
+                            onClick={() => handleApprove(sub.clinic_id)}
+                            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-all font-bold text-sm"
+                            title="تفعيل الاشتراك"
+                          >
+                            ✓ موافقة
+                          </button>
+                          <button
+                            onClick={() => handleReject(sub.clinic_id)}
+                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all font-bold text-sm"
+                            title="رفض الاشتراك"
+                          >
+                            ✗ رفض
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg transition-all"
+                            title="عرض التفاصيل"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            className="bg-green-100 hover:bg-green-200 text-green-700 p-2 rounded-lg transition-all"
+                            title="تجديد"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
