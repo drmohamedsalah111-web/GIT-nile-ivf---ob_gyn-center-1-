@@ -149,7 +149,7 @@ const FinanceMobilePage: React.FC = () => {
         {activeTab === 'invoices' && (
           <div className="space-y-4">
             <InvoicesManagementPage
-              clinicId={profile?.secretary_doctor_id || profile?.id || ''}
+              doctorId={profile?.secretary_doctor_id || profile?.id || ''}
               secretaryId={user?.id || ''}
               secretaryName={profile?.name || 'User'}
             />

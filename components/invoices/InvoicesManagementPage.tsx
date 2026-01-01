@@ -98,6 +98,16 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
     try {
       setLoading(true);
 
+      // Validate doctorId before making queries
+      if (!doctorId || doctorId === 'undefined' || doctorId === '') {
+        console.error('❌ Invalid doctorId in InvoicesManagementPage:', doctorId);
+        setInvoices([]);
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Fetching invoices for doctor:', doctorId);
+
       let startDate = '';
       const now = new Date();
 
