@@ -72,7 +72,7 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('today');
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('month');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showInvoiceDetails, setShowInvoiceDetails] = useState(false);
@@ -109,22 +109,28 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
       console.log('✅ Fetching invoices for doctor:', doctorId);
 
       let startDate = '';
-      const now = new Date();
+
+      // Get current date fresh for each calculation
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
 
       switch (dateFilter) {
         case 'today':
-          startDate = new Date().toISOString().split('T')[0];
+          startDate = todayStr;
           break;
         case 'week':
-          const weekAgo = new Date(now.setDate(now.getDate() - 7));
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
           startDate = weekAgo.toISOString().split('T')[0];
           break;
         case 'month':
-          const monthAgo = new Date(now.setMonth(now.getMonth() - 1));
+          const monthAgo = new Date();
+          monthAgo.setDate(monthAgo.getDate() - 30);
           startDate = monthAgo.toISOString().split('T')[0];
           break;
         case 'year':
-          const yearAgo = new Date(now.setFullYear(now.getFullYear() - 1));
+          const yearAgo = new Date();
+          yearAgo.setFullYear(yearAgo.getFullYear() - 1);
           startDate = yearAgo.toISOString().split('T')[0];
           break;
         case 'all':
@@ -173,6 +179,11 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
 
       if (standardInvoices.error) throw standardInvoices.error;
       if (posInvoices.error) throw posInvoices.error;
+
+      console.log('📊 Standard invoices found:', standardInvoices.data?.length || 0);
+      console.log('📊 POS invoices found:', posInvoices.data?.length || 0);
+      console.log('📊 Date filter:', dateFilter, '| Start date:', startDate);
+      console.log('📊 Doctor ID:', doctorId);
 
       // Combine and format the results
       const combinedData = [
