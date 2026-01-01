@@ -42,7 +42,7 @@ const SubscriptionsDataTable: React.FC<SubscriptionsDataTableProps> = ({
     return (
       (sub as any).clinic?.name?.toLowerCase().includes(searchLower) ||
       (sub as any).clinic?.email?.toLowerCase().includes(searchLower) ||
-      sub.plan.display_name.toLowerCase().includes(searchLower) ||
+      sub.plan.display_name_ar.toLowerCase().includes(searchLower) ||
       sub.status.toLowerCase().includes(searchLower)
     );
   });
@@ -205,7 +205,7 @@ const SubscriptionsDataTable: React.FC<SubscriptionsDataTableProps> = ({
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{subscription.plan.display_name}</div>
+                      <div className="text-sm text-gray-900">{subscription.plan.display_name_ar}</div>
                       <div className="text-xs text-gray-500">
                         {subscription.plan.max_users === 999 ? 'Unlimited' : subscription.plan.max_users} users
                       </div>
@@ -239,10 +239,10 @@ const SubscriptionsDataTable: React.FC<SubscriptionsDataTableProps> = ({
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div className="font-semibold">{formatPrice(subscription.plan.price_yearly)}/yr</div>
-                      {subscription.plan.price_monthly && (
+                      <div className="font-semibold">{formatPrice(subscription.plan.yearly_price)}/yr</div>
+                      {subscription.plan.monthly_price && (
                         <div className="text-xs text-gray-500">
-                          {formatPrice(subscription.plan.price_monthly)}/mo
+                          {formatPrice(subscription.plan.monthly_price)}/mo
                         </div>
                       )}
                     </td>

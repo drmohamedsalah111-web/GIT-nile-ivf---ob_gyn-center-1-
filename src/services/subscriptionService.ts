@@ -167,8 +167,8 @@ export async function getClinicSubscriptionWithPlan(
         name_en: 'Enterprise',
         display_name: 'Enterprise Plan',
         description: 'Emergency Access Plan',
-        price_monthly: 0,
-        price_yearly: 0,
+        monthly_price: 0,
+        yearly_price: 0,
         features: { patients: 'unlimited', storage: 'unlimited' },
         is_active: true,
         sort_order: 1,
@@ -264,7 +264,7 @@ export async function checkSubscriptionValidity(
       status: subscription.status,
       daysRemaining,
       endDate: subscription.end_date,
-      planName: subscription.plan.display_name,
+      planName: subscription.plan.display_name_ar,
       isExpiringSoon,
       isTrial,
       message
@@ -533,7 +533,7 @@ export async function getExpiringSoonSubscriptions(
       clinic_id: item.clinic_id,
       clinic_name: item.clinic.name,
       clinic_email: item.clinic.email,
-      plan_name: item.plan.display_name,
+      plan_name: item.plan.display_name_ar,
       end_date: item.end_date,
       days_remaining: daysRemaining,
       status: item.status
@@ -589,15 +589,15 @@ export async function getSubscriptionStats(): Promise<SubscriptionStats> {
 
     // Calculate revenue (only for active subscriptions)
     if (sub.status === 'active' || sub.status === 'trial') {
-      stats.total_revenue_yearly += parseFloat(sub.plan.price_yearly) || 0;
-      stats.total_revenue_monthly += parseFloat(sub.plan.price_monthly) || 0;
+      stats.total_revenue_yearly += parseFloat(sub.plan.yearly_price) || 0;
+      stats.total_revenue_monthly += parseFloat(sub.plan.monthly_price) || 0;
 
       // Aggregate by plan
-      const planName = sub.plan.display_name;
+      const planName = sub.plan.display_name_ar;
       const current = planStats.get(planName) || { count: 0, revenue: 0 };
       planStats.set(planName, {
         count: current.count + 1,
-        revenue: current.revenue + (parseFloat(sub.plan.price_yearly) || 0)
+        revenue: current.revenue + (parseFloat(sub.plan.yearly_price) || 0)
       });
     }
   });

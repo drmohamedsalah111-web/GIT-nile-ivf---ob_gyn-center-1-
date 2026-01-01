@@ -151,7 +151,7 @@ const RenewalModal: React.FC<RenewalModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <p className="text-xs text-gray-500 mb-1">Current Plan</p>
-              <p className="font-semibold text-gray-800">{subscription.plan.display_name}</p>
+              <p className="font-semibold text-gray-800">{subscription.plan.display_name_ar}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">Status</p>
@@ -169,7 +169,7 @@ const RenewalModal: React.FC<RenewalModalProps> = ({
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">Current Price</p>
-              <p className="font-semibold text-gray-800">{formatPrice(subscription.plan.price_yearly)}/yr</p>
+              <p className="font-semibold text-gray-800">{formatPrice(subscription.plan.yearly_price)}/yr</p>
             </div>
           </div>
         </div>
@@ -231,7 +231,7 @@ const RenewalModal: React.FC<RenewalModalProps> = ({
                     >
                       <h4 className="font-semibold text-gray-800 mb-1">{plan.display_name}</h4>
                       <p className="text-2xl font-bold text-blue-600 mb-2">
-                        {formatPrice(plan.price_yearly)}
+                        {formatPrice(plan.yearly_price)}
                       </p>
                       <p className="text-xs text-gray-600">per year</p>
                     </button>
@@ -281,7 +281,7 @@ const RenewalModal: React.FC<RenewalModalProps> = ({
                   <p>New End Date: <span className="font-semibold">{formatDate(toISODateString(newEndDate))}</span></p>
                   <p>Total Duration: <span className="font-semibold">{durationMonths} months</span></p>
                   {selectedPlan && (
-                    <p>Total Cost: <span className="font-semibold text-lg">{formatPrice(selectedPlan.price_yearly * (durationMonths / 12))}</span></p>
+                    <p>Total Cost: <span className="font-semibold text-lg">{formatPrice(selectedPlan.yearly_price * (durationMonths / 12))}</span></p>
                   )}
                 </div>
               </div>

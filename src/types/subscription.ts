@@ -34,14 +34,19 @@ export type SubscriptionAction =
 export interface SubscriptionPlan {
   id: string;
   name: string;
-  display_name: string;
-  description: string | null;
-  price_yearly: number;
-  price_monthly: number | null;
-  max_users: number;
+  display_name_ar: string;
+  display_name_en: string;
+  description_ar: string | null;
+  description_en: string | null;
+  monthly_price: number;
+  yearly_price: number;
+  setup_fee?: number;
+  max_users: number | null;
   max_patients: number | null;
+  max_storage_gb: number | null;
   features: string[];
   is_active: boolean;
+  is_popular?: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;
