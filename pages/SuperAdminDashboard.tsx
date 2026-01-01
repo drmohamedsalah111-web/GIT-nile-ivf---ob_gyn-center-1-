@@ -57,28 +57,31 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onN
       
       // Load all stats in parallel
       const [
-        clinicsData,
         doctorsData,
         secretariesData,
         patientsData,
         todayAppointmentsData
       ] = await Promise.all([
-        supabase.from('clinics').select('id', { count: 'exact', head: true }),
-        supabase.from('doctors').select('id', { count: 'exact', head: true }),
-        supabase.from('secretaries').select('id', { count: 'exact', head: true }),
+        supabase.from('doctors').select('id', { count: 'exact', head: true }).eq('user_role', 'doctor'),
+        supabase.from('doctors').select('id', { count: 'exact', head: true }).eq('user_role', 'secretary'),
         supabase.from('patients').select('id', { count: 'exact', head: true }),
         supabase.from('appointments').select('id', { count: 'exact', head: true })
           .gte('appointment_date', new Date().toISOString().split('T')[0])
           .lt('appointment_date', new Date(Date.now() + 86400000).toISOString().split('T')[0])
       ]);
 
+      // العيادات = عدد الدكاترة (كل دكتور عنده عيادة)
+      const totalClinics = doctorsData.count || 0;
+      const totalDoctors = doctorsData.count || 0;
+      const totalSecretaries = secretariesData.count || 0;
+
       setStats({
-        totalClinics: clinicsData.count || 0,
-        activeSubscriptions: clinicsData.count || 0, // Assume all clinics have active subscriptions for now
-        totalUsers: (doctorsData.count || 0) + (secretariesData.count || 0),
-        totalDoctors: doctorsData.count || 0,
-        totalSecretaries: secretariesData.count || 0,
-        monthlyRevenue: 0, // To be calculated from subscriptions table
+        totalClinics: totalClinics,
+        activeSubscriptions: totalClinics, // كل عيادة (دكتور) عنده اشتراك
+        totalUsers: totalDoctors + totalSecretaries,
+        totalDoctors: totalDoctors,
+        totalSecretaries: totalSecretaries,
+        monthlyRevenue: 0, // يتم حسابه من جدول الاشتراكات
         todayAppointments: todayAppointmentsData.count || 0,
         totalPatients: patientsData.count || 0
       });
