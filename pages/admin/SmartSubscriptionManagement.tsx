@@ -565,17 +565,258 @@ const PlanModal: React.FC<any> = ({ plan, onClose, onSuccess }) => {
 };
 
 const SubscriptionModal: React.FC<any> = ({ plans, onClose, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [clinics, setClinics] = useState<any[]>([]);
+  const [formData, setFormData] = useState({
+    clinic_id: '',
+    plan_id: '',
+    start_date: new Date().toISOString().split('T')[0],
+    duration_months: 1,
+    paid_amount: 0,
+    payment_method: 'bank_transfer',
+    payment_reference: '',
+    notes: ''
+  });
+
+  useEffect(() => {
+    loadClinics();
+  }, []);
+
+  const loadClinics = async () => {
+    const { data, error } = await supabase
+      .from('doctors')
+      .select('id, name, email')
+      .eq('user_role', 'doctor')
+      .order('name');
+    
+    if (!error && data) {
+      setClinics(data);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.clinic_id || !formData.plan_id) {
+      toast.error('من فضلك اختر العيادة والخطة');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // حساب تاريخ الانتهاء
+      const startDate = new Date(formData.start_date);
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + formData.duration_months);
+
+      const { error } = await supabase
+        .from('clinic_subscriptions')
+        .insert({
+          clinic_id: formData.clinic_id,
+          plan_id: formData.plan_id,
+          start_date: formData.start_date,
+          end_date: endDate.toISOString().split('T')[0],
+          paid_amount: formData.paid_amount,
+          payment_method: formData.payment_method,
+          payment_reference: formData.payment_reference,
+          payment_date: new Date().toISOString().split('T')[0],
+          notes: formData.notes,
+          status: 'active'
+        });
+
+      if (error) throw error;
+
+      toast.success('تم إضافة الاشتراك بنجاح!');
+      onSuccess();
+    } catch (error: any) {
+      console.error('Error creating subscription:', error);
+      toast.error('فشل إضافة الاشتراك: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6">
-        <h2 className="text-2xl font-black mb-4">إضافة اشتراك جديد</h2>
-        {/* Add form fields here */}
-        <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 bg-gray-200 py-3 rounded-xl font-bold">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-gradient-to-r from-green-600 to-teal-600 text-white p-6 rounded-t-2xl">
+          <h2 className="text-2xl font-black">إضافة اشتراك جديد</h2>
+          <p className="text-green-100 text-sm mt-1">املأ البيانات التالية لإنشاء اشتراك للعيادة</p>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* اختيار العيادة */}
+          <div>
+            <label className="block text-gray-700 font-bold mb-2">
+              العيادة (الدكتور) <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={formData.clinic_id}
+              onChange={(e) => setFormData({ ...formData, clinic_id: e.target.value })}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:outline-none font-semibold"
+              required
+            >
+              <option value="">-- اختر العيادة --</option>
+              {clinics.map((clinic) => (
+                <option key={clinic.id} value={clinic.id}>
+                  {clinic.name} ({clinic.email})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* اختيار الخطة */}
+          <div>
+            <label className="block text-gray-700 font-bold mb-2">
+              خطة الاشتراك <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={formData.plan_id}
+              onChange={(e) => {
+                const selectedPlan = plans.find(p => p.id === e.target.value);
+                setFormData({ 
+                  ...formData, 
+                  plan_id: e.target.value,
+                  paid_amount: selectedPlan ? selectedPlan.monthly_price * formData.duration_months : 0
+                });
+              }}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:outline-none font-semibold"
+              required
+            >
+              <option value="">-- اختر الخطة --</option>
+              {plans.map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.display_name_ar} - {plan.monthly_price} جنيه/شهر
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* تاريخ البداية */}
+            <div>
+              <label className="block text-gray-700 font-bold mb-2">تاريخ البداية</label>
+              <input
+                type="date"
+                value={formData.start_date}
+                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:outline-none"
+              />
+            </div>
+
+            {/* المدة */}
+            <div>
+              <label className="block text-gray-700 font-bold mb-2">المدة (شهور)</label>
+              <select
+                value={formData.duration_months}
+                onChange={(e) => {
+                  const months = Number(e.target.value);
+                  const selectedPlan = plans.find(p => p.id === formData.plan_id);
+                  setFormData({ 
+                    ...formData, 
+                    duration_months: months,
+                    paid_amount: selectedPlan ? selectedPlan.monthly_price * months : 0
+                  });
+                }}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:outline-none font-bold"
+              >
+                <option value={1}>شهر واحد</option>
+                <option value={3}>3 شهور</option>
+                <option value={6}>6 شهور</option>
+                <option value={12}>سنة كاملة</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* المبلغ المدفوع */}
+            <div>
+              <label className="block text-gray-700 font-bold mb-2">المبلغ المدفوع (جنيه)</label>
+              <input
+                type="number"
+                value={formData.paid_amount}
+                onChange={(e) => setFormData({ ...formData, paid_amount: Number(e.target.value) })}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:outline-none font-bold text-lg"
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            {/* طريقة الدفع */}
+            <div>
+              <label className="block text-gray-700 font-bold mb-2">طريقة الدفع</label>
+              <select
+                value={formData.payment_method}
+                onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:outline-none font-semibold"
+              >
+                <option value="bank_transfer">تحويل بنكي</option>
+                <option value="cash">نقدي</option>
+                <option value="card">بطاقة ائتمان</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
+            </div>
+          </div>
+
+          {/* رقم الحوالة */}
+          <div>
+            <label className="block text-gray-700 font-bold mb-2">رقم الحوالة / الإيصال</label>
+            <input
+              type="text"
+              value={formData.payment_reference}
+              onChange={(e) => setFormData({ ...formData, payment_reference: e.target.value })}
+              placeholder="مثال: TRX123456789"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:outline-none"
+            />
+          </div>
+
+          {/* ملاحظات */}
+          <div>
+            <label className="block text-gray-700 font-bold mb-2">ملاحظات</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="أي ملاحظات إضافية..."
+              rows={3}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:outline-none resize-none"
+            />
+          </div>
+
+          {/* ملخص */}
+          {formData.plan_id && (
+            <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
+              <h3 className="font-black text-green-800 mb-2">ملخص الاشتراك:</h3>
+              <div className="space-y-1 text-sm text-green-700">
+                <p>• المدة: {formData.duration_months} شهر</p>
+                <p>• المبلغ الإجمالي: <span className="font-bold text-lg">{formData.paid_amount.toLocaleString('ar-EG')} جنيه</span></p>
+                <p>• تاريخ الانتهاء: {new Date(new Date(formData.start_date).setMonth(new Date(formData.start_date).getMonth() + formData.duration_months)).toLocaleDateString('ar-EG')}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 p-6 bg-gray-50 rounded-b-2xl">
+          <button 
+            onClick={onClose} 
+            className="flex-1 bg-gray-200 hover:bg-gray-300 py-3 rounded-xl font-bold transition-all"
+            disabled={loading}
+          >
             إلغاء
           </button>
-          <button onClick={onSuccess} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">
-            حفظ
+          <button 
+            onClick={handleSubmit}
+            disabled={loading || !formData.clinic_id || !formData.plan_id}
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                <span>جاري الحفظ...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                <span>حفظ الاشتراك</span>
+              </>
+            )}
           </button>
         </div>
       </div>
