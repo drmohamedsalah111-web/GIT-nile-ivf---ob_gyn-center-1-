@@ -92,6 +92,17 @@ const CollectionsManagement: React.FC<CollectionsManagementProps> = ({
   const loadInvoices = async () => {
     try {
       setLoading(true);
+      
+      // Validate doctorId before making queries
+      if (!doctorId || doctorId === 'undefined' || doctorId === '') {
+        console.error('❌ Invalid doctorId:', doctorId);
+        setInvoices([]);
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Loading invoices for clinic:', doctorId);
+
       // Fetch from both tables separately to avoid view relationship issues
       const [standardInvoices, posInvoices] = await Promise.all([
         supabase

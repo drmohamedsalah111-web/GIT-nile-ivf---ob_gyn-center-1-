@@ -18,32 +18,41 @@ const FinanceMobilePage: React.FC = () => {
     try {
       setLoading(true);
       const currentUser = await authService.getCurrentUser();
-      if (!currentUser) return;
+      if (!currentUser) {
+        console.error('❌ No current user found');
+        return;
+      }
 
+      console.log('✅ Current user:', currentUser.id);
       setUser(currentUser);
       
       // Try to get profile based on role
       const role = await authService.getUserRole(currentUser.id);
+      console.log('✅ User role:', role);
       
       if (role === 'secretary') {
         const secretaryProfile = await authService.getSecretaryProfile(currentUser.id);
         if (secretaryProfile) {
+          console.log('✅ Secretary profile loaded:', secretaryProfile);
           setProfile(secretaryProfile);
         } else {
+          console.warn('⚠️ No secretary profile found, using fallback');
           // Fallback: use secretary's own ID as doctor ID if not found
           setProfile({ id: currentUser.id, name: 'Secretary', secretary_doctor_id: currentUser.id });
         }
       } else {
         const doctorProfile = await authService.getDoctorProfile(currentUser.id);
         if (doctorProfile) {
+          console.log('✅ Doctor profile loaded:', doctorProfile);
           setProfile(doctorProfile);
         } else {
+          console.warn('⚠️ No doctor profile found, using fallback');
           // Fallback: use current user's ID
           setProfile({ id: currentUser.id, name: 'Doctor' });
         }
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('❌ Error loading user data:', error);
     } finally {
       setLoading(false);
     }

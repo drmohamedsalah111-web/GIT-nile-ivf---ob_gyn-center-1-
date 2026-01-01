@@ -650,13 +650,23 @@ const SecretaryDashboard: React.FC = () => {
           </div>
         )}
 
-        {activeView === 'collections' && secretary && (
+        {activeView === 'collections' && secretary && secretary.secretary_doctor_id && (
           <div className="p-4">
             <CollectionsManagement
               doctorId={secretary.secretary_doctor_id}
               secretaryId={secretary.user_id || secretary.id}
               secretaryName={secretary.name || secretary.email?.split('@')[0] || 'السكرتيرة'}
             />
+          </div>
+        )}
+
+        {activeView === 'collections' && secretary && !secretary.secretary_doctor_id && (
+          <div className="p-4">
+            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 text-center">
+              <div className="text-yellow-600 mb-3">⚠️</div>
+              <h3 className="text-lg font-bold text-yellow-800 mb-2">لم يتم ربط حساب السكرتيرة بدكتور</h3>
+              <p className="text-yellow-700">يرجى التواصل مع المدير لربط حسابك بدكتور معين</p>
+            </div>
           </div>
         )}
       </div>
