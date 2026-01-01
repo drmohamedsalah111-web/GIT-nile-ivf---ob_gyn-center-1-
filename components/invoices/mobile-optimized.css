@@ -1,0 +1,429 @@
+/* ========================================
+   MOBILE-FIRST COLLECTIONS MANAGEMENT STYLES
+   Optimized for iOS & Android
+   ======================================== */
+
+/* Viewport Configuration */
+@viewport {
+  width: device-width;
+  initial-scale: 1;
+  maximum-scale: 1;
+  user-scalable: no;
+}
+
+/* iOS Safe Area Variables */
+:root {
+  --sat: env(safe-area-inset-top);
+  --sar: env(safe-area-inset-right);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+}
+
+/* ========================================
+   MOBILE CARD ANIMATIONS
+   ======================================== */
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.mobile-card-enter {
+  animation: slideInUp 0.3s ease-out;
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-in;
+}
+
+/* ========================================
+   MOBILE TOUCH INTERACTIONS
+   ======================================== */
+
+/* Remove tap highlight on mobile */
+.mobile-touch {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Active state feedback for buttons */
+.mobile-btn-active:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* Smooth transitions for mobile interactions */
+.mobile-smooth {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========================================
+   MOBILE MODAL OPTIMIZATION
+   ======================================== */
+
+/* Bottom sheet style modal for mobile */
+@media (max-width: 640px) {
+  .mobile-modal-backdrop {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  
+  .mobile-modal-content {
+    border-radius: 24px 24px 0 0;
+    max-height: 90vh;
+    max-height: calc(90vh - env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  
+  /* Drag indicator for bottom sheets */
+  .mobile-modal-content::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 2px;
+    margin: 12px auto 8px;
+  }
+}
+
+/* ========================================
+   MOBILE SCROLLING OPTIMIZATION
+   ======================================== */
+
+/* Momentum scrolling for iOS */
+.mobile-scroll {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+/* Hide scrollbar on mobile */
+.mobile-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Horizontal scroll for tabs */
+.mobile-tabs-scroll {
+  -webkit-overflow-scrolling: touch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ========================================
+   RESPONSIVE TYPOGRAPHY
+   ======================================== */
+
+@media (max-width: 640px) {
+  /* Prevent text overflow */
+  .mobile-text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  
+  /* Multi-line truncate */
+  .mobile-text-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+  }
+  
+  .mobile-text-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+  }
+  
+  /* Responsive font sizes */
+  .mobile-heading {
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+  }
+  
+  .mobile-body {
+    font-size: clamp(0.875rem, 3.5vw, 1rem);
+  }
+  
+  .mobile-caption {
+    font-size: clamp(0.75rem, 3vw, 0.875rem);
+  }
+}
+
+/* ========================================
+   MOBILE INPUT OPTIMIZATION
+   ======================================== */
+
+/* Prevent zoom on iOS input focus */
+@supports (-webkit-touch-callout: none) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Mobile-friendly input spacing */
+@media (max-width: 640px) {
+  .mobile-input {
+    padding: 0.75rem 1rem;
+    font-size: 16px;
+    border-radius: 12px;
+    min-height: 44px;
+  }
+  
+  .mobile-input:focus {
+    outline: none;
+    ring: 2px;
+  }
+}
+
+/* ========================================
+   MOBILE BUTTON OPTIMIZATION
+   ======================================== */
+
+@media (max-width: 640px) {
+  /* Ensure touch-friendly button sizes */
+  .mobile-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    touch-action: manipulation;
+  }
+  
+  .mobile-btn-icon {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.625rem;
+    border-radius: 12px;
+  }
+  
+  /* Full-width buttons on mobile */
+  .mobile-btn-block {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+}
+
+/* ========================================
+   MOBILE CARD DESIGN
+   ======================================== */
+
+@media (max-width: 640px) {
+  .mobile-card {
+    border-radius: 16px;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
+  
+  .mobile-card-elevated {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .mobile-card-header {
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+}
+
+/* ========================================
+   MOBILE GRID OPTIMIZATION
+   ======================================== */
+
+@media (max-width: 640px) {
+  /* Prevent grid overflow */
+  .mobile-grid-safe {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+    width: 100%;
+    overflow: hidden;
+  }
+  
+  /* 2-column grid for stats */
+  .mobile-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+/* ========================================
+   MOBILE LOADING STATES
+   ======================================== */
+
+.mobile-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(229, 231, 235, 0) 0%,
+    rgba(229, 231, 235, 0.8) 50%,
+    rgba(229, 231, 235, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ========================================
+   ANDROID-SPECIFIC OPTIMIZATIONS
+   ======================================== */
+
+/* Material Design ripple effect */
+.android-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.android-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.android-ripple:active::after {
+  width: 200%;
+  height: 200%;
+}
+
+/* ========================================
+   ACCESSIBILITY FOR MOBILE
+   ======================================== */
+
+/* Ensure focus visible on mobile */
+@media (max-width: 640px) {
+  *:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+  }
+  
+  /* Skip to main content for screen readers */
+  .skip-to-main {
+    position: absolute;
+    left: -9999px;
+    z-index: 999;
+  }
+  
+  .skip-to-main:focus {
+    left: 50%;
+    transform: translateX(-50%);
+    top: 1rem;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* ========================================
+   DARK MODE SUPPORT FOR MOBILE
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+  .mobile-card {
+    background: #1f2937;
+    border-color: #374151;
+    color: #f9fafb;
+  }
+  
+  .mobile-skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(55, 65, 81, 0) 0%,
+      rgba(55, 65, 81, 0.8) 50%,
+      rgba(55, 65, 81, 0) 100%
+    );
+  }
+}
+
+/* ========================================
+   PERFORMANCE OPTIMIZATIONS
+   ======================================== */
+
+/* Hardware acceleration for animations */
+.mobile-hw-accelerate {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize for 60fps animations */
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-smooth-transition {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
