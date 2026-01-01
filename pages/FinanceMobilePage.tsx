@@ -27,10 +27,20 @@ const FinanceMobilePage: React.FC = () => {
       
       if (role === 'secretary') {
         const secretaryProfile = await authService.getSecretaryProfile(currentUser.id);
-        setProfile(secretaryProfile || { id: currentUser.id, name: 'Secretary' });
+        if (secretaryProfile) {
+          setProfile(secretaryProfile);
+        } else {
+          // Fallback: use secretary's own ID as doctor ID if not found
+          setProfile({ id: currentUser.id, name: 'Secretary', secretary_doctor_id: currentUser.id });
+        }
       } else {
         const doctorProfile = await authService.getDoctorProfile(currentUser.id);
-        setProfile(doctorProfile || { id: currentUser.id, name: 'Doctor' });
+        if (doctorProfile) {
+          setProfile(doctorProfile);
+        } else {
+          // Fallback: use current user's ID
+          setProfile({ id: currentUser.id, name: 'Doctor' });
+        }
       }
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -120,9 +130,9 @@ const FinanceMobilePage: React.FC = () => {
         {activeTab === 'collections' && (
           <div className="space-y-4">
             <CollectionsManagement
-              doctorId={profile.secretary_doctor_id || profile.id}
+              doctorId={profile?.secretary_doctor_id || profile?.id || ''}
               secretaryId={user?.id || ''}
-              secretaryName={profile.name || 'User'}
+              secretaryName={profile?.name || 'User'}
             />
           </div>
         )}
@@ -130,9 +140,9 @@ const FinanceMobilePage: React.FC = () => {
         {activeTab === 'invoices' && (
           <div className="space-y-4">
             <InvoicesManagementPage
-              clinicId={profile.secretary_doctor_id || profile.id}
+              clinicId={profile?.secretary_doctor_id || profile?.id || ''}
               secretaryId={user?.id || ''}
-              secretaryName={profile.name || 'User'}
+              secretaryName={profile?.name || 'User'}
             />
           </div>
         )}
