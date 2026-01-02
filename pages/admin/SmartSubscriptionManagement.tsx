@@ -44,12 +44,12 @@ interface ClinicSubscription {
   payment_date: string | null;
   notes: string | null;
   // Relations
-  clinic?: {
-    name: string;
+  doctors?: {
+    full_name: string;
     email: string;
     phone: string;
   };
-  plan?: SubscriptionPlan;
+  subscription_plans?: SubscriptionPlan;
 }
 
 const SmartSubscriptionManagement: React.FC = () => {
@@ -95,8 +95,8 @@ const SmartSubscriptionManagement: React.FC = () => {
       .from('clinic_subscriptions')
       .select(`
         *,
-        clinic:doctors(full_name, email, phone),
-        plan:subscription_plans(*)
+        doctors!clinic_id(full_name, email, phone),
+        subscription_plans!plan_id(*)
       `)
       .order('created_at', { ascending: false });
     
@@ -579,14 +579,14 @@ const SubscriptionsManagement: React.FC<{
                 }`}>
                   <td className="py-4 px-6">
                     <div>
-                      <p className="font-bold text-gray-900">{sub.clinic?.full_name || 'غير محدد'}</p>
-                      <p className="text-xs text-gray-500">{sub.clinic?.email || 'لا يوجد'}</p>
+                      <p className="font-bold text-gray-900">{sub.doctors?.full_name || 'غير محدد'}</p>
+                      <p className="text-xs text-gray-500">{sub.doctors?.email || 'لا يوجد'}</p>
                       <p className="text-xs text-purple-600">ID: {sub.clinic_id.substring(0, 8)}...</p>
                     </div>
                   </td>
                   <td className="py-4 px-6">
                     <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-lg text-sm font-bold">
-                      {sub.plan?.display_name_ar}
+                      {sub.subscription_plans?.display_name_ar}
                     </span>
                   </td>
                   <td className="py-4 px-6">
