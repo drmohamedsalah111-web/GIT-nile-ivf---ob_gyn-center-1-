@@ -155,7 +155,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
                   </td>
                   <td className="px-6 py-4">
                     <div className="font-bold text-gray-900">
-                      {sub.paid_amount} ج.م
+                      {sub.paid_amount?.toLocaleString('ar-EG') || 0} ج.م
                     </div>
                     <span className="text-xs text-gray-500">
                       {sub.payment_status || 'غير مدفوع'}

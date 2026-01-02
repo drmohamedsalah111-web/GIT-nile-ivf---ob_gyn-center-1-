@@ -53,13 +53,13 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
               
               <div className="flex items-center justify-center gap-1 mb-1">
                 <span className="text-4xl font-black text-purple-600">
-                  {plan.monthly_price}
+                  {plan.monthly_price?.toLocaleString('ar-EG') || 0}
                 </span>
                 <span className="text-gray-400 text-sm">ج.م / شهرياً</span>
               </div>
               {plan.yearly_price && (
                 <p className="text-xs text-green-600 font-bold">
-                  أو {plan.yearly_price} ج.م سنوياً (وفر 20%)
+                  أو {plan.yearly_price?.toLocaleString('ar-EG') || 0} ج.م سنوياً (وفر 20%)
                 </p>
               )}
             </div>

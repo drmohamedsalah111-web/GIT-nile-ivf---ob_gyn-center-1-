@@ -81,7 +81,7 @@ const SmartSubscriptionManagement: React.FC = () => {
       .from('clinic_subscriptions')
       .select(`
         *,
-        doctors!clinic_id(full_name, email, phone),
+        doctors!clinic_id(name, email, phone),
         subscription_plans!plan_id(display_name_ar, monthly_price)
       `)
       .order('created_at', { ascending: false });
@@ -90,7 +90,16 @@ const SmartSubscriptionManagement: React.FC = () => {
       console.error('Error loading admin subscriptions:', error);
       toast.error('فشل تحميل قائمة الاشتراكات');
     } else {
-      setAllSubscriptions(data || []);
+      // Map the data to match the interface if needed, or update the interface
+      const mappedData = data?.map(sub => ({
+        ...sub,
+        doctors: {
+          full_name: sub.doctors?.name || 'غير معروف',
+          email: sub.doctors?.email,
+          phone: sub.doctors?.phone
+        }
+      }));
+      setAllSubscriptions(mappedData || []);
     }
   };
 
