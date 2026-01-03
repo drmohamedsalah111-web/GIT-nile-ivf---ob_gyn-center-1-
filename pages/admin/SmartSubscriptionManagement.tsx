@@ -28,14 +28,35 @@ const SmartSubscriptionManagement: React.FC = () => {
   const checkUserAndLoadData = async () => {
     setLoading(true);
     try {
-      // 1. Get Current User
+      // 1. Check if Super Admin (from localStorage - set in SuperAdminDashboard)
+      const isSuperAdmin = localStorage.getItem('adminLogin') === 'true';
+      
+      if (isSuperAdmin) {
+        console.log('✅ Super Admin detected - Loading all subscriptions');
+        setUserRole('admin');
+        
+        // Load Plans
+        const { data: plansData } = await supabase
+          .from('subscription_plans')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order');
+        setPlans(plansData || []);
+        
+        // Load ALL subscriptions for Super Admin
+        await loadAdminData();
+        setLoading(false);
+        return;
+      }
+
+      // 2. Normal flow for regular doctors
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setLoading(false);
         return;
       }
 
-      // 2. Check Role from Doctors table
+      // 3. Check Role from Doctors table
       const emailQuery = user.email ? `,email.eq.${user.email}` : '';
       const { data: doctorData, error: doctorError } = await supabase
         .from('doctors')
@@ -50,7 +71,7 @@ const SmartSubscriptionManagement: React.FC = () => {
       const role = doctorData?.role === 'admin' ? 'admin' : 'doctor';
       setUserRole(role);
 
-      // 3. Load Plans (Common)
+      // 4. Load Plans (Common)
       const { data: plansData } = await supabase
         .from('subscription_plans')
         .select('*')
@@ -59,7 +80,7 @@ const SmartSubscriptionManagement: React.FC = () => {
       
       setPlans(plansData || []);
 
-      // 4. Load Specific Data
+      // 5. Load Specific Data
       if (role === 'admin') {
         await loadAdminData();
       } else {

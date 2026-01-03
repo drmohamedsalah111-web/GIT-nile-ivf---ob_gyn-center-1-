@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Search, Filter, CheckCircle, XCircle, MoreVertical, 
-  Calendar, CreditCard, User, Phone, Mail 
+  Calendar, CreditCard, User, Phone, Mail, AlertCircle, Clock
 } from 'lucide-react';
 import { SubscriptionStatusBadge } from './SubscriptionStatusBadge';
 import { format } from 'date-fns';
@@ -44,8 +44,16 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
   onExtend,
   loading
 }) => {
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('pending');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Statistics
+  const stats = {
+    pending: subscriptions.filter(s => s.status === 'pending').length,
+    active: subscriptions.filter(s => s.status === 'active').length,
+    expired: subscriptions.filter(s => s.status === 'expired').length,
+    total: subscriptions.length
+  };
 
   const filteredSubscriptions = subscriptions.filter(sub => {
     const matchesStatus = filterStatus === 'all' || sub.status === filterStatus;
@@ -60,6 +68,41 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+      {/* Header with Stats */}
+      <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white">
+        <h2 className="text-2xl font-black mb-4">لوحة إدارة الاشتراكات</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="w-5 h-5" />
+              <span className="text-sm font-semibold">قيد المراجعة</span>
+            </div>
+            <div className="text-3xl font-black">{stats.pending}</div>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle className="w-5 h-5" />
+              <span className="text-sm font-semibold">نشط</span>
+            </div>
+            <div className="text-3xl font-black">{stats.active}</div>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="w-5 h-5" />
+              <span className="text-sm font-semibold">منتهي</span>
+            </div>
+            <div className="text-3xl font-black">{stats.expired}</div>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <CreditCard className="w-5 h-5" />
+              <span className="text-sm font-semibold">الإجمالي</span>
+            </div>
+            <div className="text-3xl font-black">{stats.total}</div>
+          </div>
+        </div>
+      </div>
+
       {/* Toolbar */}
       <div className="p-6 border-b flex flex-col md:flex-row gap-4 justify-between items-center bg-gray-50">
         <div className="relative w-full md:w-96">
