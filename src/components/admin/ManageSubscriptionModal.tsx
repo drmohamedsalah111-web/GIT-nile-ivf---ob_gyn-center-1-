@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Save, Calendar, DollarSign, Package, AlertCircle } from 'lucide-react';
-import { supabase } from '../../services/supabaseClient';
+import { supabase } from '../../../services/supabaseClient';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
