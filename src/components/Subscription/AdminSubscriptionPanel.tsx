@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Search, Filter, CheckCircle, XCircle, MoreVertical, 
-  Calendar, CreditCard, User, Phone, Mail, AlertCircle, Clock
+  Calendar, CreditCard, User, Phone, Mail, AlertCircle, Clock, Edit, X
 } from 'lucide-react';
 import { SubscriptionStatusBadge } from './SubscriptionStatusBadge';
 import { format } from 'date-fns';
@@ -31,7 +31,8 @@ export interface AdminSubscription {
 
 interface AdminSubscriptionPanelProps {
   subscriptions: AdminSubscription[];
-  onApprove: (id: string) => void;
+  plans?: { id: string; display_name_ar: string; monthly_price: number }[];
+  onApprove: (id: string, planId?: string, durationDays?: number) => void;
   onReject: (id: string) => void;
   onExtend: (id: string, days: number) => void;
   loading: boolean;
@@ -39,6 +40,7 @@ interface AdminSubscriptionPanelProps {
 
 export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
   subscriptions,
+  plans = [],
   onApprove,
   onReject,
   onExtend,
@@ -46,6 +48,9 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
 }) => {
   const [filterStatus, setFilterStatus] = useState<string>('pending');
   const [searchTerm, setSearchTerm] = useState('');
+  const [approvalModal, setApprovalModal] = useState<{ isOpen: boolean; subscriptionId: string | null }>({ isOpen: false, subscriptionId: null });
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
+  const [durationDays, setDurationDays] = useState<number>(365);
 
   // Statistics
   const stats = {
@@ -209,9 +214,12 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
                       {sub.status === 'pending' && (
                         <>
                           <button
-                            onClick={() => onApprove(sub.id)}
+                            onClick={() => {
+                              setApprovalModal({ isOpen: true, subscriptionId: sub.id });
+                              setSelectedPlanId(sub.plan_id || '');
+                            }}
                             className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
-                            title="قبول"
+                            title="قبول وتفعيل"
                           >
                             <CheckCircle className="w-5 h-5" />
                           </button>
@@ -235,6 +243,80 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Approval Modal */}
+      {approvalModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" dir="rtl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">تفعيل الاشتراك</h3>
+              <button 
+                onClick={() => setApprovalModal({ isOpen: false, subscriptionId: null })}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">اختر الباقة</label>
+                <select
+                  value={selectedPlanId}
+                  onChange={(e) => setSelectedPlanId(e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="">-- اختر الباقة --</option>
+                  {plans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.display_name_ar} - {plan.monthly_price} ج.م/شهرياً
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">مدة الاشتراك (بالأيام)</label>
+                <div className="flex gap-2">
+                  {[30, 90, 180, 365].map((days) => (
+                    <button
+                      key={days}
+                      onClick={() => setDurationDays(days)}
+                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-colors ${
+                        durationDays === days 
+                          ? 'bg-purple-600 text-white' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {days === 30 ? 'شهر' : days === 90 ? '3 شهور' : days === 180 ? '6 شهور' : 'سنة'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    if (approvalModal.subscriptionId) {
+                      onApprove(approvalModal.subscriptionId, selectedPlanId || undefined, durationDays);
+                      setApprovalModal({ isOpen: false, subscriptionId: null });
+                    }
+                  }}
+                  className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-colors"
+                >
+                  ✓ تفعيل الاشتراك
+                </button>
+                <button
+                  onClick={() => setApprovalModal({ isOpen: false, subscriptionId: null })}
+                  className="px-6 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

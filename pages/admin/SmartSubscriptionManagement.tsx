@@ -144,19 +144,27 @@ const SmartSubscriptionManagement: React.FC = () => {
   };
 
   // Actions
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, planId?: string, durationDays?: number) => {
     try {
+      const days = durationDays || 365; // Default 1 year
+      const updateData: any = { 
+        status: 'active',
+        start_date: new Date().toISOString(),
+        end_date: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+      };
+      
+      // If a plan was selected, update the plan_id too
+      if (planId) {
+        updateData.plan_id = planId;
+      }
+      
       const { error } = await supabase
         .from('clinic_subscriptions')
-        .update({ 
-          status: 'active',
-          start_date: new Date().toISOString(),
-          end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year default
-        })
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;
-      toast.success('تم تفعيل الاشتراك بنجاح');
+      toast.success(`تم تفعيل الاشتراك بنجاح لمدة ${days} يوم`);
       loadAdminData();
     } catch (error) {
       toast.error('فشل تفعيل الاشتراك');
@@ -252,6 +260,7 @@ const SmartSubscriptionManagement: React.FC = () => {
         {userRole === 'admin' ? (
           <AdminSubscriptionPanel 
             subscriptions={allSubscriptions}
+            plans={plans}
             onApprove={handleApprove}
             onReject={handleReject}
             onExtend={handleExtend}
