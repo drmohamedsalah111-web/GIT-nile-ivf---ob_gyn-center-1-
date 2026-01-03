@@ -37,6 +37,7 @@ const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 const PrescriptionPage = React.lazy(() => import('./pages/PrescriptionPage'));
 const DoctorRegistration = React.lazy(() => import('./src/pages/Auth/DoctorRegistration'));
 const SubscriptionPending = React.lazy(() => import('./src/pages/Auth/SubscriptionPending'));
+const ForceChangePassword = React.lazy(() => import('./src/pages/Auth/ForceChangePassword'));
 import { adminAuthService } from './services/adminAuthService';
 
 import LabReferencesModal from './src/components/LabReferencesModal';
@@ -49,6 +50,7 @@ const App: React.FC = () => {
   const [userRole, setUserRole] = useState<'doctor' | 'secretary' | 'admin'>('doctor');
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [showLabReferences, setShowLabReferences] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
 
@@ -124,6 +126,11 @@ const App: React.FC = () => {
                 // For doctors, we use their own ID
                 const activeId = doctor.secretary_doctor_id || doctor.id;
                 setDoctorId(activeId);
+                
+                // Check if user must change password (provisioned accounts)
+                if (doctor.must_change_password === true) {
+                  setMustChangePassword(true);
+                }
               } else {
                 // Ensure a doctor record exists (creates one if missing)
                 const ensured = await authService.ensureDoctorRecord(currentUser.id, currentUser.email || '');
@@ -230,6 +237,7 @@ const App: React.FC = () => {
           <Route path="/landing" element={!user ? <LandingPage onLogin={() => navigate('/login')} onAdminLogin={() => navigate('/admin-login')} /> : <Navigate to="/" replace />} />
           <Route path="/register" element={<DoctorRegistration />} />
           <Route path="/subscription-pending" element={<SubscriptionPending />} />
+          <Route path="/force-change-password" element={user ? <ForceChangePassword /> : <Navigate to="/login" replace />} />
 
           {/* 2. Super Admin Routes */}
           <Route path="/super-admin" element={<RequireRole allowedRoles={['admin']}><div className="min-h-screen bg-background font-[Tajawal]"><SuperAdminDashboard onLogout={handleLogout} onNavigate={(p) => navigate(p === Page.SAAS_MANAGEMENT ? '/saas-management' : '/super-admin')} /></div></RequireRole>} />
@@ -237,7 +245,8 @@ const App: React.FC = () => {
 
           {/* 3. Main Application with Sidebar Layout */}
           <Route path="/*" element={
-            !user ? <Navigate to="/landing" replace /> : (
+            !user ? <Navigate to="/landing" replace /> : 
+            mustChangePassword ? <Navigate to="/force-change-password" replace /> : (
               <div className="min-h-screen bg-background flex flex-col md:flex-row font-[Tajawal] overflow-hidden">
                 {/* Sidebar Navigation */}
                 <div className="hidden md:flex flex-none z-[100] relative">
