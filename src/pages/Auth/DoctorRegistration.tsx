@@ -126,16 +126,15 @@ export default function DoctorRegistration() {
         .from('doctors')
         .insert({
           user_id: authData.user.id,
-          full_name: personalInfo.full_name,
+          name: personalInfo.full_name,
           email: personalInfo.email,
           phone: personalInfo.phone,
           clinic_name: clinicInfo.clinic_name,
           clinic_name_ar: clinicInfo.clinic_name_ar,
-          address: clinicInfo.address,
-          city: clinicInfo.city,
-          specialization: clinicInfo.specialization,
+          clinic_address: clinicInfo.address,
+          specialty: clinicInfo.specialization,
           license_number: clinicInfo.license_number,
-          role: 'doctor',
+          user_role: 'doctor',
         })
         .select()
         .single();
@@ -145,20 +144,18 @@ export default function DoctorRegistration() {
       // 3️⃣ إنشاء الاشتراك
       const startDate = new Date();
       const endDate = new Date();
-      endDate.setDate(endDate.getDate() + selectedPlan.duration_days);
+      endDate.setDate(endDate.getDate() + (selectedPlan.duration_days || 30));
 
       const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('clinic_subscriptions')
         .insert({
           clinic_id: doctorData.id,
           plan_id: selectedPlan.id,
-          status: selectedPlan.price === 0 ? 'active' : 'pending',
+          status: 'pending', // دائماً pending - السوبر أدمن يفعلها
           start_date: startDate.toISOString(),
           end_date: endDate.toISOString(),
-          is_trial: selectedPlan.trial_days > 0,
           payment_method: paymentInfo.payment_method,
-          payment_status: selectedPlan.price === 0 ? 'paid' : 'pending',
-          amount_paid: selectedPlan.price,
+          paid_amount: 0, // صفر لحين التأكيد
         })
         .select()
         .single();
@@ -178,14 +175,8 @@ export default function DoctorRegistration() {
       }
 
       toast.success('تم التسجيل بنجاح! 🎉');
-      
-      if (selectedPlan.price === 0) {
-        toast.success('تم تفعيل الفترة التجريبية المجانية ✅');
-        setTimeout(() => navigate('/dashboard'), 2000);
-      } else {
-        toast.success('سيتم مراجعة طلبك وتفعيل الاشتراك خلال 24 ساعة');
-        setTimeout(() => navigate('/subscription-pending'), 2000);
-      }
+      toast.success('سيتم مراجعة طلبك وتفعيل الاشتراك من قبل الإدارة');
+      setTimeout(() => navigate('/login'), 3000);
 
     } catch (error: any) {
       console.error('Registration error:', error);
