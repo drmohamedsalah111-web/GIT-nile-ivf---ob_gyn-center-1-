@@ -29,7 +29,6 @@ interface Plan {
   id: string;
   display_name_ar: string;
   monthly_price: number;
-  duration_months: number;
 }
 
 export const ManageSubscriptionModal: React.FC<ManageSubscriptionModalProps> = ({
@@ -82,7 +81,7 @@ export const ManageSubscriptionModal: React.FC<ManageSubscriptionModalProps> = (
     try {
       const { data, error } = await supabase
         .from('subscription_plans')
-        .select('id, display_name_ar, monthly_price, duration_months')
+        .select('id, display_name_ar, monthly_price')
         .eq('is_active', true)
         .order('monthly_price', { ascending: true });
 
