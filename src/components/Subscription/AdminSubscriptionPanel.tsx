@@ -46,15 +46,15 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
   onExtend,
   loading
 }) => {
-  const [filterStatus, setFilterStatus] = useState<string>('pending');
+  const [filterStatus, setFilterStatus] = useState<string>('suspended');
   const [searchTerm, setSearchTerm] = useState('');
   const [approvalModal, setApprovalModal] = useState<{ isOpen: boolean; subscriptionId: string | null }>({ isOpen: false, subscriptionId: null });
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [durationDays, setDurationDays] = useState<number>(365);
 
-  // Statistics
+  // Statistics - suspended = قيد المراجعة (pending)
   const stats = {
-    pending: subscriptions.filter(s => s.status === 'pending').length,
+    pending: subscriptions.filter(s => s.status === 'suspended').length,
     active: subscriptions.filter(s => s.status === 'active').length,
     expired: subscriptions.filter(s => s.status === 'expired').length,
     total: subscriptions.length
@@ -122,7 +122,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
         </div>
         
         <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-          {['all', 'pending', 'active', 'expired'].map((status) => (
+          {['all', 'suspended', 'active', 'expired'].map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
@@ -133,7 +133,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
               }`}
             >
               {status === 'all' ? 'الكل' : 
-               status === 'pending' ? 'قيد المراجعة' :
+               status === 'suspended' ? 'قيد المراجعة' :
                status === 'active' ? 'نشط' : 'منتهي'}
             </button>
           ))}
@@ -211,7 +211,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      {sub.status === 'pending' && (
+                      {sub.status === 'suspended' && (
                         <>
                           <button
                             onClick={() => {

@@ -151,11 +151,11 @@ export default function DoctorRegistration() {
         .insert({
           clinic_id: doctorData.id,
           plan_id: selectedPlan.id,
-          status: 'pending', // دائماً pending - السوبر أدمن يفعلها
+          status: 'suspended', // معلق - في انتظار موافقة الإدارة
           start_date: startDate.toISOString(),
           end_date: endDate.toISOString(),
           payment_method: paymentInfo.payment_method,
-          paid_amount: 0, // صفر لحين التأكيد
+          paid_amount: 0,
         })
         .select()
         .single();

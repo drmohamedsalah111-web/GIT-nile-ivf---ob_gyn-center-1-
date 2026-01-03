@@ -19,7 +19,7 @@ export const SubscriptionStatusBadge: React.FC<SubscriptionStatusBadgeProps> = (
     pending: 'قيد المراجعة',
     trial: 'تجريبي',
     expired: 'منتهي',
-    suspended: 'موقوف',
+    suspended: 'قيد المراجعة', // suspended = pending في نظامنا
     cancelled: 'ملغي'
   };
 
