@@ -58,10 +58,10 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
   const filteredSubscriptions = subscriptions.filter(sub => {
     const matchesStatus = filterStatus === 'all' || sub.status === filterStatus;
     const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = 
-      sub.doctors?.full_name.toLowerCase().includes(searchLower) ||
-      sub.doctors?.email.toLowerCase().includes(searchLower) ||
-      sub.doctors?.phone.includes(searchTerm);
+    const matchesSearch = !searchTerm || 
+      sub.doctors?.full_name?.toLowerCase().includes(searchLower) ||
+      sub.doctors?.email?.toLowerCase().includes(searchLower) ||
+      sub.doctors?.phone?.includes(searchTerm);
     
     return matchesStatus && matchesSearch;
   });
@@ -167,24 +167,24 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold">
-                        {sub.doctors?.full_name.charAt(0)}
+                        {sub.doctors?.full_name?.charAt(0) || '?'}
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900">{sub.doctors?.full_name}</p>
+                        <p className="font-bold text-gray-900">{sub.doctors?.full_name || 'غير معروف'}</p>
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           <Mail className="w-3 h-3" />
-                          {sub.doctors?.email}
+                          {sub.doctors?.email || '-'}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           <Phone className="w-3 h-3" />
-                          {sub.doctors?.phone}
+                          {sub.doctors?.phone || '-'}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className="font-medium text-gray-800">
-                      {sub.subscription_plans?.display_name_ar}
+                      {sub.subscription_plans?.display_name_ar || 'غير محدد'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
