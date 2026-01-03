@@ -19,6 +19,7 @@ import { ar } from 'date-fns/locale';
 import LandingContentEditor from './admin/LandingContentEditor';
 import AdminSettings from './admin/AdminSettings';
 import { CreateSecretaryModal } from '../src/components/admin/CreateSecretaryModal';
+import { ManageSubscriptionModal } from '../src/components/admin/ManageSubscriptionModal';
 
 interface SuperAdminDashboardProps {
   onLogout?: () => Promise<void>;
@@ -73,6 +74,12 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout }) =
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended' | 'expired'>('all');
   const [showCreateSecretary, setShowCreateSecretary] = useState(false);
+  const [showManageSubscription, setShowManageSubscription] = useState(false);
+  const [selectedClinic, setSelectedClinic] = useState<{
+    id: string;
+    name: string;
+    subscription?: any;
+  } | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -183,6 +190,24 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout }) =
     } catch (error) {
       toast.error('فشل تفعيل الاشتراك');
     }
+  };
+
+  const openManageSubscription = (clinic: Clinic) => {
+    setSelectedClinic({
+      id: clinic.id,
+      name: clinic.name || clinic.clinic_name,
+      subscription: clinic.subscription
+    });
+    setShowManageSubscription(true);
+  };
+
+  const openCreateSubscription = (clinic: Clinic) => {
+    setSelectedClinic({
+      id: clinic.id,
+      name: clinic.name || clinic.clinic_name,
+      subscription: null
+    });
+    setShowManageSubscription(true);
   };
 
   const handleDeleteClinic = async (clinicId: string) => {
@@ -532,6 +557,23 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout }) =
                                   <CheckCircle className="w-4 h-4" />
                                 </button>
                               )}
+                              {clinic.subscription ? (
+                                <button
+                                  onClick={() => openManageSubscription(clinic)}
+                                  className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
+                                  title="تعديل الاشتراك"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => openCreateSubscription(clinic)}
+                                  className="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors"
+                                  title="إنشاء اشتراك"
+                                >
+                                  <CreditCard className="w-4 h-4" />
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleDeleteClinic(clinic.id)}
                                 className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
@@ -867,6 +909,21 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout }) =
         onClose={() => setShowCreateSecretary(false)}
         onSuccess={loadDashboardData}
       />
+
+      {/* Manage Subscription Modal */}
+      {selectedClinic && (
+        <ManageSubscriptionModal
+          isOpen={showManageSubscription}
+          onClose={() => {
+            setShowManageSubscription(false);
+            setSelectedClinic(null);
+          }}
+          onSuccess={loadDashboardData}
+          clinicId={selectedClinic.id}
+          clinicName={selectedClinic.name}
+          currentSubscription={selectedClinic.subscription}
+        />
+      )}
     </div>
   );
 };
