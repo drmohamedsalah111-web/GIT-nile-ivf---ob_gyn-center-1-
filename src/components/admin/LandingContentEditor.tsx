@@ -7,7 +7,7 @@ import {
   Save, RefreshCw, Eye, Plus, Trash2, ArrowLeft,
   Sparkles, Target, DollarSign, MessageCircle
 } from 'lucide-react';
-import { supabase } from '../../services/supabaseClient';
+import { supabase } from '../../../services/supabaseClient';
 import toast from 'react-hot-toast';
 
 interface ContentEditorProps {
