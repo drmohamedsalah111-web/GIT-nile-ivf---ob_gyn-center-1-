@@ -81,6 +81,7 @@ class AdminAuthService {
 
       localStorage.setItem(this.ADMIN_TOKEN_KEY, token);
       localStorage.setItem(this.ADMIN_DATA_KEY, JSON.stringify(this.currentAdmin));
+      localStorage.setItem('adminLogin', 'true'); // ✅ علامة للسوبر أدمن
 
       return {
         success: true,
