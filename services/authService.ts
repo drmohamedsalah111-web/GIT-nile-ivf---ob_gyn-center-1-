@@ -92,22 +92,37 @@ export const authService: AuthService = {
         .from('doctors')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error || !data) {
-        console.warn('Failed to load doctor profile from database, using default profile');
-        return {
-          id: 'default-profile',
-          full_name: 'Dr. Mohamed Salah',
-          specialty: 'IVF & OB/GYN Consultant',
-          avatar_url: null
-        };
+      if (data) {
+        return data;
       }
-      return data;
-    } catch (err: any) {
+
+      console.warn('Doctor profile not found, attempting to auto-create...');
+      
+      // Try to get current user email to create the record
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user && user.id === userId && user.email) {
+        try {
+          console.log('Auto-creating doctor record for:', user.email);
+          return await authService.ensureDoctorRecord(userId, user.email);
+        } catch (createError) {
+          console.error('Failed to auto-create doctor record:', createError);
+        }
+      }
+
       console.warn('Failed to load doctor profile from database, using default profile');
       return {
-        id: 'default-profile',
+        id: '00000000-0000-0000-0000-000000000000', // Use valid UUID to prevent 400 errors
+        full_name: 'Dr. Mohamed Salah',
+        specialty: 'IVF & OB/GYN Consultant',
+        avatar_url: null
+      };
+    } catch (err: any) {
+      console.warn('Error in getDoctorProfile:', err);
+      return {
+        id: '00000000-0000-0000-0000-000000000000', // Use valid UUID
         full_name: 'Dr. Mohamed Salah',
         specialty: 'IVF & OB/GYN Consultant',
         avatar_url: null
