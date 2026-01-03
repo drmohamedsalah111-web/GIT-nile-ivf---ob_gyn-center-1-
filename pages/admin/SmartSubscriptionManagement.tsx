@@ -36,11 +36,11 @@ const SmartSubscriptionManagement: React.FC = () => {
       }
 
       // 2. Check Role from Doctors table
+      const emailQuery = user.email ? `,email.eq.${user.email}` : '';
       const { data: doctorData, error: doctorError } = await supabase
         .from('doctors')
         .select('role, id')
-        .eq('user_id', user.id) // Assuming user_id links to auth.users
-        .or(`email.eq.${user.email}`) // Fallback check by email
+        .or(`user_id.eq.${user.id}${emailQuery}`)
         .single();
 
       if (doctorError && doctorError.code !== 'PGRST116') {
