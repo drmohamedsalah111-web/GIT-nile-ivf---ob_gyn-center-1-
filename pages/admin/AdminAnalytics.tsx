@@ -43,9 +43,11 @@ const AdminAnalytics: React.FC = () => {
       
       if (doctorsError) throw doctorsError;
 
-      const totalClinics = doctors?.length || 0;
-      const activeClinics = doctors?.filter(d => d.is_active !== false).length || 0;
-      const totalDoctors = doctors?.filter(d => d.user_role === 'doctor').length || 0;
+      // الدكاترة فقط (كل دكتور = عيادة)
+      const doctorsList = doctors?.filter(d => d.user_role === 'doctor') || [];
+      const totalClinics = doctorsList.length;
+      const activeClinics = doctorsList.filter(d => d.is_active !== false).length;
+      const totalDoctors = doctorsList.length;
       const totalSecretaries = doctors?.filter(d => d.user_role === 'secretary').length || 0;
 
       // حساب العيادات الجديدة هذا الشهر

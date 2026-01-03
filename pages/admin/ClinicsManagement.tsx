@@ -27,9 +27,11 @@ const ClinicsManagement: React.FC = () => {
   const fetchClinics = async () => {
     setLoading(true);
     try {
+      // جلب الدكاترة فقط (العيادات) - بدون السكرتيرات
       const { data, error } = await supabase
         .from('doctors')
         .select('*')
+        .eq('user_role', 'doctor')
         .order('created_at', { ascending: false });
       if (error) throw error;
       setClinics(data || []);
