@@ -16,7 +16,7 @@ import { adminAuthService } from '../services/adminAuthService';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
-import LandingContentEditor from './admin/LandingContentEditor';
+import LandingContentEditor from '../src/components/admin/LandingContentEditor';
 import AdminSettings from './admin/AdminSettings';
 import { CreateSecretaryModal } from '../src/components/admin/CreateSecretaryModal';
 import { ManageSubscriptionModal } from '../src/components/admin/ManageSubscriptionModal';
