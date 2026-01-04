@@ -187,53 +187,73 @@ const ComprehensivePatientProfile: React.FC = () => {
     try {
       setDataLoading(true);
 
-      // Load Visits
-      const { data: visitsData } = await supabase
+      // Load Visits with error handling
+      const { data: visitsData, error: visitsError } = await supabase
         .from('visits')
         .select('*')
         .eq('patient_id', patientId)
-        .order('visit_date', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
 
+      if (visitsError) {
+        console.warn('Visits error:', visitsError.message);
+      }
       setVisits(visitsData || []);
 
-      // Load Lab Results
-      const { data: labsData } = await supabase
+      // Load Lab Results with error handling
+      const { data: labsData, error: labsError } = await supabase
         .from('lab_results')
         .select('*')
         .eq('patient_id', patientId)
-        .order('test_date', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
 
+      if (labsError) {
+        console.warn('Labs error:', labsError.message);
+      }
       setLabResults(labsData || []);
 
-      // Load IVF Cycles
-      const { data: cyclesData } = await supabase
+      // Load IVF Cycles with error handling
+      const { data: cyclesData, error: cyclesError } = await supabase
         .from('ivf_cycles')
         .select('*')
         .eq('patient_id', patientId)
-        .order('start_date', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(20);
 
+      if (cyclesError) {
+        console.warn('IVF Cycles error:', cyclesError.message);
+      }
       setIVFCycles(cyclesData || []);
 
-      // Load Pregnancies
-      const { data: pregnanciesData } = await supabase
-        .from('pregnancies')
+      // Load Pregnancies with error handling
+      const { data: pregnanciesData, error: pregnanciesError } = await supabase
+        .from('antenatal_records')
         .select('*')
         .eq('patient_id', patientId)
-        .order('conception_date', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(20);
 
+      if (pregnanciesError) {
+        console.warn('Pregnancies error:', pregnanciesError.message);
+      }
       setPregnancies(pregnanciesData || []);
 
-      // Load Files
-      const { data: filesData } = await supabase
+      // Load Files with error handling
+      const { data: filesData, error: filesError } = await supabase
         .from('patient_files')
         .select('*')
         .eq('patient_id', patientId)
-        .order('uploaded_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
 
+      if (filesError) {
+        console.warn('Files error:', filesError.message);
+      }
       setFiles(filesData || []);
 
       // Calculate Stats
-      const lastVisit = visitsData?.[0]?.visit_date || null;
+      const lastVisit = visitsData?.[0]?.created_at || visitsData?.[0]?.visit_date || null;
       
       setStats({
         totalVisits: visitsData?.length || 0,
@@ -242,14 +262,14 @@ const ComprehensivePatientProfile: React.FC = () => {
         totalPregnancies: pregnanciesData?.length || 0,
         totalFiles: filesData?.length || 0,
         lastVisit,
-        nextAppointment: null // TODO: Load from appointments
+        nextAppointment: null
       });
 
-      // Get latest vitals
+      // Get latest vitals from visits
       if (visitsData && visitsData.length > 0) {
-        const latestVisitWithVitals = visitsData.find(v => v.vitals);
+        const latestVisitWithVitals = visitsData.find(v => v.vitals || v.clinical_data?.vitals);
         if (latestVisitWithVitals) {
-          setLatestVitals(latestVisitWithVitals.vitals);
+          setLatestVitals(latestVisitWithVitals.vitals || latestVisitWithVitals.clinical_data?.vitals);
         }
       }
 
@@ -654,7 +674,7 @@ const ComprehensivePatientProfile: React.FC = () => {
                       زيارة #{visits.length - idx}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {new Date(visit.visit_date).toLocaleDateString('ar-EG', {
+                      {new Date(visit.visit_date || visit.created_at).toLocaleDateString('ar-EG', {
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
@@ -740,7 +760,7 @@ const ComprehensivePatientProfile: React.FC = () => {
                 <div>
                   <h4 className="font-bold text-lg text-gray-900">{lab.test_name}</h4>
                   <p className="text-sm text-gray-500">
-                    {new Date(lab.test_date).toLocaleDateString('ar-EG')}
+                    {new Date(lab.test_date || lab.created_at).toLocaleDateString('ar-EG')}
                   </p>
                 </div>
                 {lab.status && (
@@ -810,9 +830,9 @@ const ComprehensivePatientProfile: React.FC = () => {
                     <Microscope className="w-6 h-6 text-purple-600" />
                   </div>
                   <div>
-                    <p className="font-bold text-lg text-gray-900">دورة #{cycle.cycle_number}</p>
+                    <p className="font-bold text-lg text-gray-900">دورة #{cycle.cycle_number || (ivfCycles.length - ivfCycles.indexOf(cycle))}</p>
                     <p className="text-sm text-gray-500">
-                      {new Date(cycle.start_date).toLocaleDateString('ar-EG')}
+                      {new Date(cycle.start_date || cycle.created_at).toLocaleDateString('ar-EG')}
                     </p>
                   </div>
                 </div>
@@ -888,7 +908,7 @@ const ComprehensivePatientProfile: React.FC = () => {
                   <div>
                     <p className="font-bold text-lg text-gray-900">حمل #{pregnancies.length - idx}</p>
                     <p className="text-sm text-gray-500">
-                      {new Date(pregnancy.conception_date).toLocaleDateString('ar-EG')}
+                      {new Date(pregnancy.conception_date || pregnancy.lmp || pregnancy.created_at).toLocaleDateString('ar-EG')}
                     </p>
                   </div>
                 </div>
@@ -1036,7 +1056,7 @@ const ComprehensivePatientProfile: React.FC = () => {
               </h4>
               
               <p className="text-sm text-gray-500 mb-3">
-                {new Date(file.uploaded_at).toLocaleDateString('ar-EG')}
+                {new Date(file.uploaded_at || file.created_at).toLocaleDateString('ar-EG')}
               </p>
 
               {file.description && (
