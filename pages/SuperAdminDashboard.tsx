@@ -20,6 +20,7 @@ import LandingContentEditor from '../src/components/admin/LandingContentEditor';
 import AdminSettings from './admin/AdminSettings';
 import { CreateSecretaryModal } from '../src/components/admin/CreateSecretaryModal';
 import { ManageSubscriptionModal } from '../src/components/admin/ManageSubscriptionModal';
+import SubscriptionExpiryTracker from '../src/pages/admin/SubscriptionExpiryTracker';
 
 interface SuperAdminDashboardProps {
   onLogout?: () => Promise<void>;
@@ -55,7 +56,7 @@ interface DashboardStats {
 }
 
 const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'clinics' | 'secretaries' | 'analytics' | 'landing' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'clinics' | 'secretaries' | 'analytics' | 'expiry-tracking' | 'landing' | 'settings'>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     totalClinics: 0,
@@ -275,6 +276,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout }) =
     { id: 'clinics', title: 'العيادات والاشتراكات', icon: Building2, color: 'text-purple-600' },
     { id: 'secretaries', title: 'السكرتارية', icon: Users, color: 'text-green-600' },
     { id: 'analytics', title: 'التقارير والإحصائيات', icon: BarChart3, color: 'text-orange-600' },
+    { id: 'expiry-tracking', title: 'تتبع الأيام المتبقية', icon: Calendar, color: 'text-red-600' },
     { id: 'landing', title: 'صفحة الهبوط', icon: FileText, color: 'text-pink-600' },
     { id: 'settings', title: 'الإعدادات', icon: Settings, color: 'text-gray-600' }
   ];
@@ -764,6 +766,9 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout }) =
           </div>
         );
 
+      case 'expiry-tracking':
+        return <SubscriptionExpiryTracker />;
+      
       case 'landing':
         return <LandingContentEditor onBack={() => setActiveTab('overview')} />;
       
