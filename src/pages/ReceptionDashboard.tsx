@@ -45,25 +45,40 @@ const ReceptionDashboard: React.FC = () => {
   const loadTodayAppointments = async () => {
     try {
       setLoading(true);
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date();
+      const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+      const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
       
-      // First, get today's appointments
+      console.log('Loading appointments for:', startOfDay, 'to', endOfDay);
+      
+      // Get today's appointments
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
         .select('*')
-        .eq('appointment_date', today)
-        .order('appointment_time', { ascending: true });
+        .gte('appointment_date', startOfDay)
+        .lte('appointment_date', endOfDay)
+        .order('appointment_date', { ascending: true });
 
-      if (appointmentsError) throw appointmentsError;
+      if (appointmentsError) {
+        console.error('Appointments error:', appointmentsError);
+        throw appointmentsError;
+      }
+      
+      console.log('Found appointments:', appointmentsData?.length || 0);
       
       if (!appointmentsData || appointmentsData.length === 0) {
-        console.log('No appointments found for today');
         setAppointments([]);
         return;
       }
 
       // Get unique patient IDs
       const patientIds = [...new Set(appointmentsData.map(a => a.patient_id).filter(Boolean))];
+      
+      if (patientIds.length === 0) {
+        console.log('No patient IDs found');
+        setAppointments(appointmentsData);
+        return;
+      }
       
       // Fetch patient details
       const { data: patientsData, error: patientsError } = await supabase
@@ -72,8 +87,7 @@ const ReceptionDashboard: React.FC = () => {
         .in('id', patientIds);
 
       if (patientsError) {
-        console.error('Error loading patients:', patientsError);
-        // Continue without patient data
+        console.error('Patients error:', patientsError);
         setAppointments(appointmentsData);
         return;
       }
@@ -85,11 +99,12 @@ const ReceptionDashboard: React.FC = () => {
         patients: patientsMap.get(apt.patient_id)
       }));
       
-      console.log('Loaded appointments:', enrichedAppointments);
+      console.log('Loaded appointments with patients:', enrichedAppointments);
       setAppointments(enrichedAppointments);
     } catch (error) {
       console.error('Error loading appointments:', error);
       toast.error('فشل تحميل المواعيد');
+      setAppointments([]); // Clear on error
     } finally {
       setLoading(false);
     }
