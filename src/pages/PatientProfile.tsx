@@ -487,7 +487,17 @@ const PatientProfile: React.FC = () => {
                     </span>
                   </div>
                   <div className="space-y-3">
-                    {visits.slice(0, 5).map((visit) => ( || visit.created_at).toLocaleDateString('ar-EG', {
+                    {visits.slice(0, 5).map((visit) => (
+                      <div
+                        key={visit.id}
+                        className="p-4 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <Calendar className="w-5 h-5 text-blue-600" />
+                            <div>
+                              <p className="font-bold text-gray-800">
+                                {new Date(visit.visit_date || visit.created_at).toLocaleDateString('ar-EG', {
                                   weekday: 'short',
                                   day: 'numeric',
                                   month: 'long'
@@ -497,17 +507,7 @@ const PatientProfile: React.FC = () => {
                                 <p className="text-sm text-gray-600 mt-1">التشخيص: {visit.diagnosis}</p>
                               )}
                               {visit.chief_complaint && !visit.diagnosis && (
-                                <p className="text-sm text-gray-600 mt-1">الشكوى: {visit.chief_complaint
-                            <div>
-                              <p className="font-bold text-gray-800">
-                                {new Date(visit.visit_date).toLocaleDateString('ar-EG', {
-                                  weekday: 'short',
-                                  day: 'numeric',
-                                  month: 'long'
-                                })}
-                              </p>
-                              {visit.diagnosis && (
-                                <p className="text-sm text-gray-600 mt-1">التشخيص: {visit.diagnosis}</p>
+                                <p className="text-sm text-gray-600 mt-1">الشكوى: {visit.chief_complaint}</p>
                               )}
                             </div>
                           </div>
