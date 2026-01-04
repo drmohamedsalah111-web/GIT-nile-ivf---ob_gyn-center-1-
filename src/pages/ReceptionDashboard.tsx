@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { appointmentService } from '../services/appointmentService';
-import { supabase } from '../services/supabaseClient';
+import { supabase } from '../../services/supabaseClient';
 
 interface Patient {
   id: string;
