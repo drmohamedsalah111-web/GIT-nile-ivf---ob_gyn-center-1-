@@ -23,6 +23,7 @@ const IvfJourney = React.lazy(() => import('./pages/IvfJourney'));
 const SmartIVFJourney = React.lazy(() => import('./pages/SmartIVFJourney'));
 const ObstetricsDashboard = React.lazy(() => import('./pages/ObstetricsDashboard'));
 const PatientMasterRecord = React.lazy(() => import('./pages/PatientMasterRecord'));
+const PatientProfile = React.lazy(() => import('./src/pages/PatientProfile'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const InfertilityWorkup = React.lazy(() => import('./src/pages/InfertilityWorkup'));
@@ -70,6 +71,7 @@ const App: React.FC = () => {
     if (path.includes('/infertility')) return Page.INFERTILITY_WORKUP;
     if (path.includes('/obstetrics')) return Page.OBSTETRICS;
     if (path.includes('/records')) return Page.PATIENT_RECORD;
+    if (path.includes('/patient-profile')) return Page.PATIENT_PROFILE;
     if (path.includes('/finance')) return Page.FINANCE;
     if (path.includes('/settings')) return Page.SETTINGS;
     if (path.includes('/admin')) return Page.ADMIN;
@@ -90,6 +92,7 @@ const App: React.FC = () => {
       case Page.INFERTILITY_WORKUP: navigate('/infertility'); break;
       case Page.OBSTETRICS: navigate('/obstetrics'); break;
       case Page.PATIENT_RECORD: navigate('/records'); break;
+      case Page.PATIENT_PROFILE: navigate('/patient-profile'); break;
       case Page.FINANCE: navigate('/finance'); break;
       case Page.SETTINGS: navigate('/settings'); break;
       case Page.ADMIN: navigate('/admin'); break;
@@ -287,6 +290,7 @@ const App: React.FC = () => {
                               <Route path="/" element={userRole === 'secretary' ? <SecretaryDashboard /> : <Dashboard />} />
                               <Route path="/reception" element={<ReceptionDashboard />} />
                               <Route path="/patients/add" element={<AddPatient />} />
+                              <Route path="/patient-profile" element={<PatientProfile />} />
                               <Route path="/gynecology" element={<Gynecology />} />
                               <Route path="/ivf-journey" element={<IvfJourney />} />
                               <Route path="/smart-ivf" element={<SmartIVFJourney />} />

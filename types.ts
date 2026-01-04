@@ -412,6 +412,7 @@ export enum Page {
   SMART_IVF = 'smart_ivf',
   INFERTILITY_WORKUP = 'infertility_workup',
   PATIENT_RECORD = 'patient_record',
+  PATIENT_PROFILE = 'patient_profile',
   FINANCE = 'finance',
   SETTINGS = 'settings',
   OBSTETRICS = 'obstetrics',
