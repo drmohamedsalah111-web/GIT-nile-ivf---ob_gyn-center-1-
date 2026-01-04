@@ -47,29 +47,46 @@ const ReceptionDashboard: React.FC = () => {
       setLoading(true);
       const today = new Date().toISOString().split('T')[0];
       
-      const { data, error } = await supabase
+      // First, get today's appointments
+      const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
-        .select(`
-          id,
-          appointment_date,
-          appointment_time,
-          status,
-          visit_type,
-          patient_id,
-          patients (
-            id,
-            name,
-            phone,
-            national_id
-          )
-        `)
+        .select('*')
         .eq('appointment_date', today)
         .order('appointment_time', { ascending: true });
 
-      if (error) throw error;
+      if (appointmentsError) throw appointmentsError;
       
-      console.log('Loaded appointments:', data);
-      setAppointments(data || []);
+      if (!appointmentsData || appointmentsData.length === 0) {
+        console.log('No appointments found for today');
+        setAppointments([]);
+        return;
+      }
+
+      // Get unique patient IDs
+      const patientIds = [...new Set(appointmentsData.map(a => a.patient_id).filter(Boolean))];
+      
+      // Fetch patient details
+      const { data: patientsData, error: patientsError } = await supabase
+        .from('patients')
+        .select('id, name, phone, national_id')
+        .in('id', patientIds);
+
+      if (patientsError) {
+        console.error('Error loading patients:', patientsError);
+        // Continue without patient data
+        setAppointments(appointmentsData);
+        return;
+      }
+
+      // Map patient data to appointments
+      const patientsMap = new Map(patientsData?.map(p => [p.id, p]) || []);
+      const enrichedAppointments = appointmentsData.map(apt => ({
+        ...apt,
+        patients: patientsMap.get(apt.patient_id)
+      }));
+      
+      console.log('Loaded appointments:', enrichedAppointments);
+      setAppointments(enrichedAppointments);
     } catch (error) {
       console.error('Error loading appointments:', error);
       toast.error('فشل تحميل المواعيد');
