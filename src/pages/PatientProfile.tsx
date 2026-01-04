@@ -11,7 +11,7 @@ import {
   Microscope, Droplet, Weight, Ruler, HeartPulse
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { supabase } from '../services/supabaseClient';
+import { supabase } from '../../services/supabaseClient';
 
 interface Patient {
   id: string;
