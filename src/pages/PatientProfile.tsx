@@ -550,16 +550,16 @@ const PatientProfile: React.FC = () => {
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
                             <Calendar className="w-4 h-4 text-teal-600" />
-                          </div> || apt.created_at).toLocaleDateString('ar-EG', {
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-800 text-sm">
+                              {new Date(apt.appointment_date || apt.created_at).toLocaleDateString('ar-EG', {
                                 day: 'numeric',
                                 month: 'short',
                                 year: 'numeric'
                               })}
                             </p>
-                            <p className="text-xs text-gray-500">{apt.visit_type || 'استشارة'
-                              })}
-                            </p>
-                            <p className="text-xs text-gray-500">{apt.visit_type}</p>
+                            <p className="text-xs text-gray-500">{apt.visit_type || 'استشارة'}</p>
                           </div>
                         </div>
                         <span
