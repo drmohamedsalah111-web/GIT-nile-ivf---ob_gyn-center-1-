@@ -100,52 +100,67 @@ const PatientProfile: React.FC = () => {
     try {
       setDataLoading(true);
       
-      // Load all patient data in parallel
+      // Load Appointments with error handling
+      const appointmentsPromise = supabase
+        .from('appointments')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+        .limit(20)
+        .then(res => ({ data: res.data || [], error: res.error }));
+      
+      // Load Visits with error handling  
+      const visitsPromise = supabase
+        .from('visits')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+        .limit(20)
+        .then(res => ({ data: res.data || [], error: res.error }));
+      
+      // Load IVF Cycles with error handling
+      const cyclesPromise = supabase
+        .from('ivf_cycles')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+        .then(res => ({ data: res.data || [], error: res.error }));
+      
+      // Load Pregnancies/Antenatal Records with error handling
+      const pregnanciesPromise = supabase
+        .from('antenatal_records')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+        .then(res => ({ data: res.data || [], error: res.error }));
+
       const [appointmentsData, visitsData, cyclesData, pregnanciesData] = await Promise.all([
-        // Appointments
-        supabase
-          .from('appointments')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('appointment_date', { ascending: false })
-          .limit(20),
-        
-        // Visits/Clinical Records
-        supabase
-          .from('visits')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('visit_date', { ascending: false })
-          .limit(20),
-        
-        // IVF Cycles
-        supabase
-          .from('ivf_cycles')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('start_date', { ascending: false }),
-        
-        // Pregnancies
-        supabase
-          .from('pregnancies')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('conception_date', { ascending: false })
+        appointmentsPromise,
+        visitsPromise,
+        cyclesPromise,
+        pregnanciesPromise
       ]);
 
-      setAppointments(appointmentsData.data || []);
-      setVisits(visitsData.data || []);
-      setCycles(cyclesData.data || []);
-      setPregnancies(pregnanciesData.data || []);
+      // Set data with error logging
+      if (appointmentsData.error) console.warn('Appointments error:', appointmentsData.error.message);
+      if (visitsData.error) console.warn('Visits error:', visitsData.error.message);
+      if (cyclesData.error) console.warn('Cycles error:', cyclesData.error.message);
+      if (pregnanciesData.error) console.warn('Pregnancies error:', pregnanciesData.error.message);
+
+      setAppointments(appointmentsData.data);
+      setVisits(visitsData.data);
+      setCycles(cyclesData.data);
+      setPregnancies(pregnanciesData.data);
 
       console.log('Patient data loaded:', {
-        appointments: appointmentsData.data?.length || 0,
-        visits: visitsData.data?.length || 0,
-        cycles: cyclesData.data?.length || 0,
-        pregnancies: pregnanciesData.data?.length || 0
+        appointments: appointmentsData.data.length,
+        visits: visitsData.data.length,
+        cycles: cyclesData.data.length,
+        pregnancies: pregnanciesData.data.length
       });
     } catch (error) {
       console.error('Error loading patient data:', error);
+      toast.error('فشل تحميل بعض البيانات');
     } finally {
       setDataLoading(false);
     }
@@ -359,6 +374,11 @@ const PatientProfile: React.FC = () => {
                                 بداية: {new Date(cycle.start_date).toLocaleDateString('ar-EG')}
                               </p>
                             )}
+                            {cycle.created_at && !cycle.start_date && (
+                              <p className="text-sm text-gray-600">
+                                تاريخ الإنشاء: {new Date(cycle.created_at).toLocaleDateString('ar-EG')}
+                              </p>
+                            )}
                           </div>
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -421,9 +441,19 @@ const PatientProfile: React.FC = () => {
                                   بداية الحمل: {new Date(preg.conception_date).toLocaleDateString('ar-EG')}
                                 </p>
                               )}
+                              {preg.lmp && !preg.conception_date && (
+                                <p className="font-bold text-gray-800">
+                                  آخر دورة: {new Date(preg.lmp).toLocaleDateString('ar-EG')}
+                                </p>
+                              )}
                               {preg.edd && (
                                 <p className="text-sm text-gray-600">
                                   الموعد المتوقع: {new Date(preg.edd).toLocaleDateString('ar-EG')}
+                                </p>
+                              )}
+                              {!preg.conception_date && !preg.lmp && preg.created_at && (
+                                <p className="font-bold text-gray-800">
+                                  تاريخ التسجيل: {new Date(preg.created_at).toLocaleDateString('ar-EG')}
                                 </p>
                               )}
                             </div>
@@ -457,14 +487,17 @@ const PatientProfile: React.FC = () => {
                     </span>
                   </div>
                   <div className="space-y-3">
-                    {visits.slice(0, 5).map((visit) => (
-                      <div
-                        key={visit.id}
-                        className="p-4 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-3">
-                            <Calendar className="w-5 h-5 text-blue-600" />
+                    {visits.slice(0, 5).map((visit) => ( || visit.created_at).toLocaleDateString('ar-EG', {
+                                  weekday: 'short',
+                                  day: 'numeric',
+                                  month: 'long'
+                                })}
+                              </p>
+                              {visit.diagnosis && (
+                                <p className="text-sm text-gray-600 mt-1">التشخيص: {visit.diagnosis}</p>
+                              )}
+                              {visit.chief_complaint && !visit.diagnosis && (
+                                <p className="text-sm text-gray-600 mt-1">الشكوى: {visit.chief_complaint
                             <div>
                               <p className="font-bold text-gray-800">
                                 {new Date(visit.visit_date).toLocaleDateString('ar-EG', {
@@ -517,13 +550,13 @@ const PatientProfile: React.FC = () => {
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
                             <Calendar className="w-4 h-4 text-teal-600" />
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-800 text-sm">
-                              {new Date(apt.appointment_date).toLocaleDateString('ar-EG', {
+                          </div> || apt.created_at).toLocaleDateString('ar-EG', {
                                 day: 'numeric',
                                 month: 'short',
                                 year: 'numeric'
+                              })}
+                            </p>
+                            <p className="text-xs text-gray-500">{apt.visit_type || 'استشارة'
                               })}
                             </p>
                             <p className="text-xs text-gray-500">{apt.visit_type}</p>
