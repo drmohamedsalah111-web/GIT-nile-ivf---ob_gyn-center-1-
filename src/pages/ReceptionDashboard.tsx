@@ -68,7 +68,7 @@ const ReceptionDashboard: React.FC = () => {
         .select('*')
         .gte('appointment_date', startOfDay)
         .lte('appointment_date', endOfDay)
-        .order('appointment_time', { ascending: true });
+        .order('appointment_date', { ascending: true });
 
       if (appointmentsError) {
         console.error('Appointments error:', appointmentsError);
@@ -110,6 +110,13 @@ const ReceptionDashboard: React.FC = () => {
         ...apt,
         patients: patientsMap.get(apt.patient_id)
       }));
+      
+      // Sort by appointment_time in JavaScript (to handle null values)
+      enrichedAppointments.sort((a, b) => {
+        const timeA = a.appointment_time || '23:59';
+        const timeB = b.appointment_time || '23:59';
+        return timeA.localeCompare(timeB);
+      });
       
       console.log('Loaded appointments with patients:', enrichedAppointments);
       setAppointments(enrichedAppointments);
