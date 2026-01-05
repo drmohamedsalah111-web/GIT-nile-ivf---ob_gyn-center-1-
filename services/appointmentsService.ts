@@ -289,6 +289,7 @@ export const appointmentsService = {
   },
 
   checkAppointmentOverlap: async (doctorId: string, date: string, startTime: string, durationMinutes: number = 30, excludeId?: string) => {
+    console.log('🔍 checkAppointmentOverlap called', { doctorId, date, startTime }); // Debug log
     try {
       // Calculate new appointment start and end times
       const newStart = new Date(`${date}T${startTime}`);
