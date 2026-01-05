@@ -285,6 +285,18 @@ const SecretaryDashboard: React.FC = () => {
     }
   };
 
+  const handleDeleteAppointment = async (appointmentId: string) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا الموعد نهائياً؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+    const toastId = toast.loading('جاري الحذف...');
+    try {
+      await appointmentsService.deleteAppointment(appointmentId);
+      toast.success('تم حذف الموعد بنجاح', { id: toastId });
+      loadAppointments();
+    } catch (error) {
+      toast.error('فشل حذف الموعد', { id: toastId });
+    }
+  };
+
   const handleAddPatient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!patientForm.name || !patientForm.phone) {
@@ -650,6 +662,12 @@ const SecretaryDashboard: React.FC = () => {
                                   className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-black hover:bg-red-100"
                                 >
                                   إلغاء
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteAppointment(aptForHour.id)}
+                                  className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-black hover:bg-red-100"
+                                >
+                                  حذف
                                 </button>
                               </div>
                             </div>

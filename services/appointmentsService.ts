@@ -64,6 +64,21 @@ export const appointmentsService = {
     }
   },
 
+  deleteAppointment: async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
+    } catch (error: any) {
+      console.error('❌ Failed to delete appointment:', error);
+      throw new Error(`فشل حذف الموعد: ${error.message || 'خطأ في قاعدة البيانات'}`);
+    }
+  },
+
   getAppointmentsByDoctor: async (doctorId: string, startDate?: string, endDate?: string) => {
     try {
       let query = supabase

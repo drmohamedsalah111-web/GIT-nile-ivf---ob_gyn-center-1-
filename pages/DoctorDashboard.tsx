@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Loader, AlertCircle, FileText, Stethoscope, Calendar, ArrowRight, Plus, CheckCircle, Clock } from 'lucide-react';
+import { Users, Search, Loader, AlertCircle, FileText, Stethoscope, Calendar, ArrowRight, Plus, CheckCircle, Clock, Edit, Trash2, X, Save } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { authService } from '../services/authService';
+import { appointmentsService } from '../services/appointmentsService';
 import toast from 'react-hot-toast';
 
 interface PatientRow {
@@ -45,6 +46,13 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
   const [currentDoctorId, setCurrentDoctorId] = useState<string | null>(null);
   const [lastVisits, setLastVisits] = useState<Record<string, string>>({});
   const [todaysAppointments, setTodaysAppointments] = useState<Appointment[]>([]);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [editForm, setEditForm] = useState({
+    appointmentDate: '',
+    appointmentTime: '',
+    notes: ''
+  });
+
   const [statsData, setStatsData] = useState({
     totalPatients: 0,
     appointmentsToday: 0,
@@ -55,6 +63,95 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
   useEffect(() => {
     initializeDashboard();
   }, []);
+
+  // ... (initializeDashboard and fetchPatients remain same)
+
+  const handleCancelAppointment = async (id: string) => {
+    if (!window.confirm('هل أنت متأكد من إلغاء هذا الموعد؟')) return;
+
+    try {
+      toast.loading('جاري الإلغاء...');
+      await appointmentsService.cancelAppointment(id);
+      toast.dismiss();
+      toast.success('تم إلغاء الموعد بنجاح');
+      if (currentDoctorId) fetchTodaysAppointments(currentDoctorId);
+    } catch (error) {
+      toast.dismiss();
+      toast.error('فشل إلغاء الموعد');
+    }
+  };
+
+  const handleDeleteAppointment = async (id: string) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا الموعد نهائياً؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+
+    try {
+      toast.loading('جاري الحذف...');
+      await appointmentsService.deleteAppointment(id);
+      toast.dismiss();
+      toast.success('تم حذف الموعد بنجاح');
+      if (currentDoctorId) fetchTodaysAppointments(currentDoctorId);
+    } catch (error) {
+      toast.dismiss();
+      toast.error('فشل حذف الموعد');
+    }
+  };
+
+  const handleEditClick = (appt: Appointment) => {
+    const dateObj = new Date(appt.appointment_date);
+    const dateStr = dateObj.toISOString().split('T')[0];
+    const timeStr = dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+    setEditingAppointment(appt);
+    setEditForm({
+      appointmentDate: dateStr,
+      appointmentTime: timeStr,
+      notes: appt.notes || ''
+    });
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAppointment || !currentDoctorId) return;
+
+    try {
+      const dateTimeString = `${editForm.appointmentDate}T${editForm.appointmentTime}:00`;
+      const originalDate = new Date(editingAppointment.appointment_date);
+      const newDate = new Date(dateTimeString);
+
+      // Conflict Check
+      // Only check if time actually changed
+      if (originalDate.getTime() !== newDate.getTime()) {
+        toast.loading('جاري التحقق من التوفر...');
+        const hasConflict = await appointmentsService.checkAppointmentOverlap(
+          currentDoctorId,
+          editForm.appointmentDate,
+          editForm.appointmentTime,
+          30, // Default duration
+          editingAppointment.id // Exclude self
+        );
+
+        toast.dismiss();
+        if (hasConflict) {
+          toast.error('عذراً، يوجد موعد آخر في هذا التوقيت!');
+          return;
+        }
+      }
+
+      toast.loading('جاري حفظ التعديلات...');
+      await appointmentsService.updateAppointmentDetails(editingAppointment.id, {
+        appointment_date: dateTimeString,
+        notes: editForm.notes
+      });
+
+      toast.dismiss();
+      toast.success('تم تعديل الموعد بنجاح');
+      setEditingAppointment(null);
+      fetchTodaysAppointments(currentDoctorId);
+    } catch (error) {
+      toast.dismiss();
+      toast.error('فشل تعديل الموعد');
+    }
+  };
 
   const initializeDashboard = async () => {
     try {
@@ -548,6 +645,90 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
           )}
         </div>
       </div>
+
+      {/* Edit Appointment Modal */}
+      {editingAppointment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 flex justify-between items-center text-white">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Edit size={20} />
+                تعديل الموعد
+              </h3>
+              <button
+                onClick={() => setEditingAppointment(null)}
+                className="p-1 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                    <Users size={20} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 font-bold">المريض</p>
+                    <p className="font-bold text-gray-900">{editingAppointment.patient_name}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">التاريخ</label>
+                  <input
+                    type="date"
+                    required
+                    value={editForm.appointmentDate}
+                    onChange={(e) => setEditForm({ ...editForm, appointmentDate: e.target.value })}
+                    className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">الوقت</label>
+                  <input
+                    type="time"
+                    required
+                    value={editForm.appointmentTime}
+                    onChange={(e) => setEditForm({ ...editForm, appointmentTime: e.target.value })}
+                    className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">ملاحظات</label>
+                <textarea
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 font-bold text-sm min-h-[100px]"
+                  placeholder="ملاحظات إضافية..."
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingAppointment(null)}
+                  className="flex-1 py-3 rounded-xl font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <Save size={18} />
+                  حفظ التغييرات
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
