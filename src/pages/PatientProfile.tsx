@@ -264,23 +264,103 @@ const PatientProfile: React.FC = () => {
                       </span>
                     </div>
                     
-                    <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <span className="text-xs text-gray-500 block mb-1">تاريخ آخر دورة (LMP)</span>
-                        <span className="font-bold text-gray-800">
-                          {preg.lmp ? new Date(preg.lmp).toLocaleDateString('ar-EG') : '-'}
-                        </span>
+                    <div className="p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <span className="text-xs text-gray-500 block mb-1">تاريخ آخر دورة (LMP)</span>
+                          <span className="font-bold text-gray-800">
+                            {preg.lmp || preg.lmp_date ? new Date(preg.lmp || preg.lmp_date).toLocaleDateString('ar-EG') : '-'}
+                          </span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <span className="text-xs text-gray-500 block mb-1">الموعد المتوقع (EDD)</span>
+                          <span className="font-bold text-gray-800">
+                            {preg.edd || preg.edd_date ? new Date(preg.edd || preg.edd_date).toLocaleDateString('ar-EG') : '-'}
+                          </span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <span className="text-xs text-gray-500 block mb-1">النتيجة</span>
+                          <span className="font-bold text-gray-800">{preg.outcome || '-'}</span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <span className="text-xs text-gray-500 block mb-1">تاريخ التسجيل</span>
+                          <span className="font-bold text-gray-800">
+                            {preg.created_at ? new Date(preg.created_at).toLocaleDateString('ar-EG') : '-'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <span className="text-xs text-gray-500 block mb-1">النتيجة</span>
-                        <span className="font-bold text-gray-800">{preg.outcome || '-'}</span>
+
+                      {/* Additional Pregnancy Details */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                        {preg.pregnancy_type && (
+                          <div className="bg-blue-50 p-2 rounded">
+                            <span className="text-xs text-blue-600 block">نوع الحمل</span>
+                            <span className="text-sm font-bold text-gray-800">{preg.pregnancy_type}</span>
+                          </div>
+                        )}
+                        {preg.conception_method && (
+                          <div className="bg-purple-50 p-2 rounded">
+                            <span className="text-xs text-purple-600 block">طريقة الحمل</span>
+                            <span className="text-sm font-bold text-gray-800">{preg.conception_method}</span>
+                          </div>
+                        )}
+                        {preg.ga_at_booking_weeks !== undefined && (
+                          <div className="bg-teal-50 p-2 rounded">
+                            <span className="text-xs text-teal-600 block">عمر الحمل عند التسجيل</span>
+                            <span className="text-sm font-bold text-gray-800">{preg.ga_at_booking_weeks}أ {preg.ga_at_booking_days || 0}ي</span>
+                          </div>
+                        )}
+                        {preg.delivery_date && (
+                          <div className="bg-green-50 p-2 rounded">
+                            <span className="text-xs text-green-600 block">تاريخ الولادة</span>
+                            <span className="text-sm font-bold text-gray-800">{new Date(preg.delivery_date).toLocaleDateString('ar-EG')}</span>
+                          </div>
+                        )}
                       </div>
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <span className="text-xs text-gray-500 block mb-1">تاريخ التسجيل</span>
-                        <span className="font-bold text-gray-800">
-                          {preg.created_at ? new Date(preg.created_at).toLocaleDateString('ar-EG') : '-'}
-                        </span>
-                      </div>
+
+                      {/* Delivery Details */}
+                      {(preg.delivery_type || preg.birth_weight_grams || preg.baby_gender) && (
+                        <div className="bg-green-50 border border-green-200 p-3 rounded-lg mb-3">
+                          <span className="text-xs font-bold text-green-700 block mb-2">تفاصيل الولادة:</span>
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            {preg.delivery_type && (
+                              <div><span className="text-gray-600">نوع الولادة:</span> <span className="font-bold">{preg.delivery_type}</span></div>
+                            )}
+                            {preg.birth_weight_grams && (
+                              <div><span className="text-gray-600">وزن المولود:</span> <span className="font-bold">{preg.birth_weight_grams}جم</span></div>
+                            )}
+                            {preg.baby_gender && (
+                              <div><span className="text-gray-600">الجنس:</span> <span className="font-bold">{preg.baby_gender}</span></div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Medications/Support */}
+                      {(preg.progesterone_support || preg.thromboprophylaxis) && (
+                        <div className="flex gap-2 flex-wrap">
+                          {preg.progesterone_support && (
+                            <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">دعم بروجسترون</span>
+                          )}
+                          {preg.thromboprophylaxis && (
+                            <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">وقاية من التخثر</span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Risk Factors */}
+                      {preg.risk_factors && Array.isArray(preg.risk_factors) && preg.risk_factors.length > 0 && (
+                        <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg mt-3">
+                          <span className="text-xs font-bold text-amber-700 block mb-2">عوامل الخطورة:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {preg.risk_factors.map((risk: any, idx: number) => (
+                              <span key={idx} className="px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs">
+                                {typeof risk === 'string' ? risk : risk.name || risk.type}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -334,17 +414,75 @@ const PatientProfile: React.FC = () => {
                         </button>
                       </div>
 
+                      {/* Chief Complaint */}
+                      {visit.chief_complaint && (
+                        <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg mb-3">
+                          <span className="text-xs font-bold text-amber-700 block mb-1">الشكوى الرئيسية:</span>
+                          <p className="text-sm text-gray-800">{visit.chief_complaint}</p>
+                        </div>
+                      )}
+
+                      {/* Clinical Findings */}
+                      {visit.clinical_findings && (
+                        <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-3">
+                          <span className="text-xs font-bold text-blue-700 block mb-1">الفحص السريري:</span>
+                          <p className="text-sm text-gray-800">{visit.clinical_findings}</p>
+                        </div>
+                      )}
+
+                      {/* Notes */}
                       {visit.notes && (
                         <div className="bg-gray-50 p-3 rounded-lg mb-3 text-gray-700 text-sm leading-relaxed">
+                          <span className="text-xs font-bold text-gray-700 block mb-1">ملاحظات:</span>
                           {visit.notes}
                         </div>
                       )}
 
+                      {/* Clinical Data JSONB */}
+                      {visit.clinical_data && typeof visit.clinical_data === 'object' && Object.keys(visit.clinical_data).length > 0 && (
+                        <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg mb-3">
+                          <span className="text-xs font-bold text-purple-700 block mb-2">البيانات السريرية:</span>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            {Object.entries(visit.clinical_data).map(([key, value]) => (
+                              <div key={key} className="flex justify-between">
+                                <span className="text-gray-600">{key}:</span>
+                                <span className="font-bold text-gray-800">{String(value)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Prescription Medications */}
+                      {visit.prescription && Array.isArray(visit.prescription) && visit.prescription.length > 0 && (
+                        <div className="bg-teal-50 border border-teal-200 p-3 rounded-lg mb-3">
+                          <span className="text-xs font-bold text-teal-700 block mb-2 flex items-center gap-1">
+                            <Pill className="w-3 h-3" />
+                            الأدوية الموصوفة:
+                          </span>
+                          <div className="space-y-2">
+                            {visit.prescription.map((med: any, idx: number) => (
+                              <div key={idx} className="flex items-start gap-2 text-xs bg-white p-2 rounded border border-teal-100">
+                                <span className="w-5 h-5 bg-teal-100 rounded-full flex items-center justify-center text-teal-700 font-bold flex-shrink-0">{idx + 1}</span>
+                                <div className="flex-1">
+                                  <p className="font-bold text-gray-800">{med.drug || med.medication || med.name}</p>
+                                  <p className="text-gray-600">الجرعة: {med.dose || med.dosage || '-'}</p>
+                                  {med.duration && <p className="text-gray-600">المدة: {med.duration}</p>}
+                                  {med.frequency && <p className="text-gray-600">التكرار: {med.frequency}</p>}
+                                  {med.notes && <p className="text-gray-500 italic mt-1">{med.notes}</p>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Treatment Text */}
                       {visit.treatment && (
                         <div className="flex items-start gap-2 mt-3 pt-3 border-t border-gray-100">
                           <Pill className="w-4 h-4 text-teal-600 mt-1" />
                           <div>
-                            <span className="text-xs font-bold text-gray-500 block">العلاج الموصوف:</span>
+                            <span className="text-xs font-bold text-gray-500 block">خطة العلاج:</span>
                             <p className="text-sm text-gray-800">{visit.treatment}</p>
                           </div>
                         </div>
