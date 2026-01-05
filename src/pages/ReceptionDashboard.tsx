@@ -34,6 +34,17 @@ const ReceptionDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [appointmentForm, setAppointmentForm] = useState({
+    patient_id: '',
+    doctor_id: '',
+    appointment_date: new Date().toISOString().split('T')[0],
+    appointment_time: '09:00',
+    visit_type: 'Consultation',
+    notes: ''
+  });
 
   // إحصائيات بسيطة
   const stats = {
@@ -112,11 +123,91 @@ const ReceptionDashboard: React.FC = () => {
 
   useEffect(() => {
     loadTodayAppointments();
+    loadPatients();
+    loadDoctors();
     
     // تحديث تلقائي كل 30 ثانية
     const interval = setInterval(loadTodayAppointments, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const loadPatients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('patients')
+        .select('id, name, phone')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setPatients(data || []);
+    } catch (error) {
+      console.error('Error loading patients:', error);
+    }
+  };
+
+  const loadDoctors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('doctors')
+        .select('id, name')
+        .eq('user_role', 'doctor')
+        .order('name');
+      
+      if (error) throw error;
+      setDoctors(data || []);
+    } catch (error) {
+      console.error('Error loading doctors:', error);
+    }
+  };
+
+  const handleSubmitAppointment = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!appointmentForm.patient_id || !appointmentForm.doctor_id) {
+      toast.error('يرجى اختيار المريض والطبيب');
+      return;
+    }
+
+    setSubmitting(true);
+    const toastId = toast.loading('جاري حجز الموعد...');
+
+    try {
+      const appointmentDateTime = `${appointmentForm.appointment_date}T${appointmentForm.appointment_time}:00`;
+
+      const { data, error } = await supabase
+        .from('appointments')
+        .insert([{
+          patient_id: appointmentForm.patient_id,
+          doctor_id: appointmentForm.doctor_id,
+          appointment_date: appointmentDateTime,
+          appointment_time: appointmentForm.appointment_time,
+          visit_type: appointmentForm.visit_type,
+          notes: appointmentForm.notes,
+          status: 'Scheduled'
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success('تم حجز الموعد بنجاح ✓', { id: toastId });
+      setShowNewModal(false);
+      setAppointmentForm({
+        patient_id: '',
+        doctor_id: '',
+        appointment_date: new Date().toISOString().split('T')[0],
+        appointment_time: '09:00',
+        visit_type: 'Consultation',
+        notes: ''
+      });
+      loadTodayAppointments();
+    } catch (error: any) {
+      console.error('Error creating appointment:', error);
+      toast.error(`فشل حجز الموعد: ${error.message}`, { id: toastId });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
     try {
@@ -339,22 +430,157 @@ const ReceptionDashboard: React.FC = () => {
         )}
       </div>
 
-      {/* مودال موعد جديد - TODO */}
+      {/* مودال موعد جديد */}
       {showNewModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-800">موعد جديد</h3>
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-gradient-to-r from-teal-600 to-cyan-600 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white">حجز موعد جديد</h3>
               <button
                 onClick={() => setShowNewModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-white" />
               </button>
             </div>
-            <p className="text-gray-500 text-center py-8">
-              سيتم إضافة نموذج حجز الموعد هنا
-            </p>
+            
+            <form onSubmit={handleSubmitAppointment} className="p-6 space-y-4">
+              {/* اختيار المريض */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  المريض <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={appointmentForm.patient_id}
+                  onChange={(e) => {
+                    const patient = patients.find(p => p.id === e.target.value);
+                    setAppointmentForm(prev => ({
+                      ...prev,
+                      patient_id: e.target.value
+                    }));
+                  }}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">-- اختر المريض --</option>
+                  {patients.map(patient => (
+                    <option key={patient.id} value={patient.id}>
+                      {patient.name} - {patient.phone}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* اختيار الطبيب */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  الطبيب <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={appointmentForm.doctor_id}
+                  onChange={(e) => setAppointmentForm(prev => ({ ...prev, doctor_id: e.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">-- اختر الطبيب --</option>
+                  {doctors.map(doctor => (
+                    <option key={doctor.id} value={doctor.id}>
+                      {doctor.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* التاريخ والوقت */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    التاريخ <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={appointmentForm.appointment_date}
+                    onChange={(e) => setAppointmentForm(prev => ({ ...prev, appointment_date: e.target.value }))}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    الوقت <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={appointmentForm.appointment_time}
+                    onChange={(e) => setAppointmentForm(prev => ({ ...prev, appointment_time: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="09:00">09:00 صباحاً</option>
+                    <option value="10:00">10:00 صباحاً</option>
+                    <option value="11:00">11:00 صباحاً</option>
+                    <option value="12:00">12:00 ظهراً</option>
+                    <option value="13:00">01:00 مساءً</option>
+                    <option value="14:00">02:00 مساءً</option>
+                    <option value="15:00">03:00 مساءً</option>
+                    <option value="16:00">04:00 مساءً</option>
+                    <option value="17:00">05:00 مساءً</option>
+                    <option value="18:00">06:00 مساءً</option>
+                    <option value="19:00">07:00 مساءً</option>
+                    <option value="20:00">08:00 مساءً</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* نوع الزيارة */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  نوع الزيارة
+                </label>
+                <select
+                  value={appointmentForm.visit_type}
+                  onChange={(e) => setAppointmentForm(prev => ({ ...prev, visit_type: e.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                >
+                  <option value="Consultation">استشارة</option>
+                  <option value="Follow-up">متابعة</option>
+                  <option value="New Visit">زيارة جديدة</option>
+                  <option value="Emergency">طوارئ</option>
+                </select>
+              </div>
+
+              {/* ملاحظات */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  ملاحظات
+                </label>
+                <textarea
+                  value={appointmentForm.notes}
+                  onChange={(e) => setAppointmentForm(prev => ({ ...prev, notes: e.target.value }))}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+                  placeholder="ملاحظات إضافية..."
+                />
+              </div>
+
+              {/* أزرار */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowNewModal(false)}
+                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1 px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium disabled:bg-gray-400"
+                >
+                  {submitting ? 'جاري الحجز...' : 'حجز الموعد'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
