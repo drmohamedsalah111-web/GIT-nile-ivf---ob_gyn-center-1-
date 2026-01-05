@@ -6,6 +6,7 @@ import {
   Building2, ShieldCheck, Sparkles, ExternalLink, ChevronRight
 } from 'lucide-react';
 import { DeveloperCard } from './common/DeveloperCard';
+import { NavigationButtons } from './common/NavigationButtons';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
 import { useTheme } from '../context/ThemeContext';
@@ -51,6 +52,11 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
 
   return (
     <aside className="w-64 h-screen flex flex-col bg-surface border-x border-borderColor shadow-xl relative overflow-hidden transition-all duration-300">
+      {/* Navigation Buttons */}
+      <div className="p-3 border-b border-borderColor/30 bg-gradient-to-br from-brand/5 to-transparent flex justify-center">
+        <NavigationButtons showHome={true} homeRoute="/" />
+      </div>
+      
       {/* Clinic Header - More Compact */}
       <div className="p-5 border-b border-borderColor/50 bg-gradient-to-br from-brand/5 to-transparent relative">
         <div className="flex flex-col items-center gap-2.5 relative z-10">

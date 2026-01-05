@@ -1,5 +1,6 @@
 import React from 'react';
 import { LayoutDashboard, Users, Baby, Heart, Settings, Activity, FileText, LogOut, Brain, DollarSign, Receipt } from 'lucide-react';
+import { NavigationButtonsMobile } from './common/NavigationButtons';
 import { Page } from '../types';
 
 interface Props {
@@ -53,7 +54,13 @@ const BottomNav: React.FC<Props> = ({ activePage, setPage, onLogout }) => {
     <>
       {/* Mobile Bottom Navigation - Horizontally Scrollable */}
       <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-gray-200 shadow-xl z-50">
-        <div className="flex overflow-x-auto w-full bg-white border-t border-gray-200 no-scrollbar">
+        {/* Navigation Buttons Row */}
+        <div className="flex items-center justify-center px-4 py-2 border-b border-gray-100 bg-gray-50/50">
+          <NavigationButtonsMobile showHome={true} homeRoute="/" />
+        </div>
+        
+        {/* Main Navigation */}
+        <div className="flex overflow-x-auto w-full bg-white no-scrollbar">
           {navItems.map((item) => (
             <NavButton
               key={item.id}

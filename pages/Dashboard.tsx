@@ -14,6 +14,7 @@ import { dbService } from '../services/dbService';
 import { obstetricsService } from '../services/obstetricsService';
 import { Patient, IvfCycle, Pregnancy } from '../types';
 import { useBranding } from '../context/BrandingContext';
+import { PageHeader } from '../components/layout/PageHeader';
 
 import toast from 'react-hot-toast';
 
@@ -233,28 +234,23 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-6 md:px-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 font-[Tajawal]">
-              {branding?.clinic_name || 'Nile IVF & OB/GYN Center'}
-            </h1>
-            <p className="text-gray-600 mt-1">Professional Clinic Management Dashboard</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Refresh Button */}
-            <button
-              onClick={handleRefresh}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Header with Navigation */}
+      <PageHeader
+        title={branding?.clinic_name || 'Nile IVF & OB/GYN Center'}
+        subtitle="Professional Clinic Management Dashboard"
+        icon={<Activity size={28} />}
+        showNavigation={true}
+        homeRoute="/"
+        actions={
+          <button
+            onClick={handleRefresh}
+            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        }
+      />
 
       <div className="px-4 py-6 md:px-8 space-y-6">
         {/* Advanced KPI Cards */}
