@@ -68,7 +68,7 @@ const ReceptionDashboard: React.FC = () => {
         .select('*')
         .gte('appointment_date', startOfDay)
         .lte('appointment_date', endOfDay)
-        .order('appointment_date', { ascending: true });
+        .order('appointment_time', { ascending: true });
 
       if (appointmentsError) {
         console.error('Appointments error:', appointmentsError);
@@ -76,6 +76,7 @@ const ReceptionDashboard: React.FC = () => {
       }
       
       console.log('Found appointments:', appointmentsData?.length || 0);
+      console.log('Appointments data:', appointmentsData);
       
       if (!appointmentsData || appointmentsData.length === 0) {
         setAppointments([]);
@@ -381,10 +382,18 @@ const ReceptionDashboard: React.FC = () => {
                           <Phone className="w-4 h-4" />
                           {apt.patients?.phone || '-'}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {apt.appointment_time || '-'}
-                        </span>
+                        {apt.appointment_time && (
+                          <span className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded font-bold">
+                            <Clock className="w-4 h-4" />
+                            {apt.appointment_time}
+                          </span>
+                        )}
+                        {!apt.appointment_time && (
+                          <span className="flex items-center gap-1 bg-gray-100 text-gray-500 px-2 py-1 rounded text-xs">
+                            <Clock className="w-4 h-4" />
+                            لم يحدد وقت
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
