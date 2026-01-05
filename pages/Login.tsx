@@ -3,6 +3,7 @@ import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
 import { Mail, Lock, Heart, Eye, EyeOff, Shield, Stethoscope, Users } from 'lucide-react';
 import { DeveloperCard } from '../components/common/DeveloperCard';
+import { NavigationButtons } from '../components/common/NavigationButtons';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -59,6 +60,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col lg:flex-row font-['Tajawal']" dir="rtl">
+      {/* Navigation Buttons - Fixed Top */}
+      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
+        <NavigationButtons showHome={true} homeRoute="/" />
+      </div>
+
       {/* Left Panel - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-teal-600 to-teal-800 relative overflow-hidden items-center justify-center px-12">
         {/* Decorative Background Elements */}
@@ -70,7 +76,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
         {onAdminAccess && (
           <button
             onClick={onAdminAccess}
-            className="absolute top-8 right-8 flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all duration-300 hover:scale-105 group"
+            className="absolute top-20 right-8 flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all duration-300 hover:scale-105 group"
           >
             <Shield className="w-5 h-5" />
             <span className="font-bold">دخول الإدارة</span>
@@ -81,7 +87,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
         {onBack && (
           <button
             onClick={onBack}
-            className="absolute top-8 left-8 text-white hover:text-teal-100 transition-colors flex items-center gap-2"
+            className="absolute top-20 left-8 text-white hover:text-teal-100 transition-colors flex items-center gap-2"
           >
             <span>←</span>
             <span className="text-sm font-medium">عودة</span>
