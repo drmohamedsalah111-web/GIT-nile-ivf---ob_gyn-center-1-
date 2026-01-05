@@ -142,7 +142,6 @@ const PatientProfile: React.FC = () => {
         .select('*')
         .eq('patient_id', patientId)
         .order('created_at', { ascending: false })
-        .limit(20)
         .then(res => ({ data: res.data || [], error: res.error }));
       
       // Load Visits
@@ -151,7 +150,6 @@ const PatientProfile: React.FC = () => {
         .select('*')
         .eq('patient_id', patientId)
         .order('created_at', { ascending: false })
-        .limit(20)
         .then(res => ({ data: res.data || [], error: res.error }));
       
       // Load IVF Cycles
@@ -541,7 +539,7 @@ const PatientProfile: React.FC = () => {
                   ...labRequests.map(l => ({ type: 'lab', date: l.requestDate, data: l }))
                 ]
                 .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime())
-                .slice(0, 5)
+                .slice(0, 10)
                 .map((item, idx) => (
                   <div key={idx} className="relative">
                     <div className={`absolute -right-[31px] top-0 w-4 h-4 rounded-full border-2 border-white shadow-sm ${
