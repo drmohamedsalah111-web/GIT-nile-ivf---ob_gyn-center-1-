@@ -10,6 +10,11 @@
 ALTER TABLE appointments 
 ADD COLUMN IF NOT EXISTS appointment_time TEXT;
 
+-- تحديث المواعيد القديمة فقط (اختياري - فقط إذا كانت كل المواعيد NULL)
+-- UPDATE appointments 
+-- SET appointment_time = '09:00'
+-- WHERE appointment_time IS NULL AND appointment_date >= CURRENT_DATE;
+
 -- 2. التحقق من الأعمدة الموجودة
 SELECT 
   column_name, 

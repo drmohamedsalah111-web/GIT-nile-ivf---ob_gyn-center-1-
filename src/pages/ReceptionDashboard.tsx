@@ -407,9 +407,10 @@ const ReceptionDashboard: React.FC = () => {
                           {apt.patients?.phone || '-'}
                         </span>
                         {apt.appointment_time && (
-                          <span className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded font-bold">
-                            <Clock className="w-4 h-4" />
+                          <span className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg font-bold text-base">
+                            <Clock className="w-5 h-5" />
                             {apt.appointment_time}
+                            {parseInt(apt.appointment_time.split(':')[0]) < 12 ? ' صباحاً' : ' مساءً'}
                           </span>
                         )}
                         {!apt.appointment_time && (
@@ -546,21 +547,23 @@ const ReceptionDashboard: React.FC = () => {
                   <select
                     value={appointmentForm.appointment_time}
                     onChange={(e) => setAppointmentForm(prev => ({ ...prev, appointment_time: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-lg font-semibold"
                     required
                   >
-                    <option value="09:00">09:00 صباحاً</option>
-                    <option value="10:00">10:00 صباحاً</option>
-                    <option value="11:00">11:00 صباحاً</option>
-                    <option value="12:00">12:00 ظهراً</option>
-                    <option value="13:00">01:00 مساءً</option>
-                    <option value="14:00">02:00 مساءً</option>
-                    <option value="15:00">03:00 مساءً</option>
-                    <option value="16:00">04:00 مساءً</option>
-                    <option value="17:00">05:00 مساءً</option>
-                    <option value="18:00">06:00 مساءً</option>
-                    <option value="19:00">07:00 مساءً</option>
-                    <option value="20:00">08:00 مساءً</option>
+                    <option value="08:00">🌅 08:00 - الثامنة صباحاً</option>
+                    <option value="09:00">🌅 09:00 - التاسعة صباحاً</option>
+                    <option value="10:00">🌅 10:00 - العاشرة صباحاً</option>
+                    <option value="11:00">🌅 11:00 - الحادية عشر صباحاً</option>
+                    <option value="12:00">☀️ 12:00 - الثانية عشر ظهراً</option>
+                    <option value="13:00">🌤️ 13:00 - الواحدة ظهراً</option>
+                    <option value="14:00">🌤️ 14:00 - الثانية ظهراً</option>
+                    <option value="15:00">🌤️ 15:00 - الثالثة عصراً</option>
+                    <option value="16:00">🌤️ 16:00 - الرابعة عصراً</option>
+                    <option value="17:00">🌤️ 17:00 - الخامسة مساءً</option>
+                    <option value="18:00">🌆 18:00 - السادسة مساءً</option>
+                    <option value="19:00">🌆 19:00 - السابعة مساءً</option>
+                    <option value="20:00">🌆 20:00 - الثامنة مساءً</option>
+                    <option value="21:00">🌙 21:00 - التاسعة مساءً</option>
                   </select>
                 </div>
               </div>
