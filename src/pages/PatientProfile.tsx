@@ -164,7 +164,7 @@ const PatientProfile: React.FC = () => {
       
       // Load Pregnancies
       const pregnanciesPromise = supabase
-        .from('antenatal_records')
+        .from('pregnancies')
         .select('*')
         .eq('patient_id', patientId)
         .order('created_at', { ascending: false })
