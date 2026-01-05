@@ -495,27 +495,54 @@ const Dashboard: React.FC = () => {
                 Today's Schedule
               </h3>
               <div className="space-y-3">
-                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium text-blue-900">Dr. Ahmed - IVF Consultation</p>
-                    <p className="text-xs text-blue-700">10:00 AM - 10:30 AM</p>
+                {appointments
+                  .filter(apt => {
+                    const today = new Date().toISOString().split('T')[0];
+                    const aptDate = apt.appointment_date?.split('T')[0];
+                    return aptDate === today;
+                  })
+                  .sort((a, b) => {
+                    const timeA = a.appointment_time || '00:00';
+                    const timeB = b.appointment_time || '00:00';
+                    return timeA.localeCompare(timeB);
+                  })
+                  .slice(0, 5)
+                  .map((apt, idx) => {
+                    const patient = patients.find(p => p.id === apt.patient_id);
+                    const colors = [
+                      { bg: 'bg-blue-50', dot: 'bg-blue-600', text: 'text-blue-900', time: 'text-blue-700' },
+                      { bg: 'bg-purple-50', dot: 'bg-purple-600', text: 'text-purple-900', time: 'text-purple-700' },
+                      { bg: 'bg-green-50', dot: 'bg-green-600', text: 'text-green-900', time: 'text-green-700' },
+                      { bg: 'bg-pink-50', dot: 'bg-pink-600', text: 'text-pink-900', time: 'text-pink-700' },
+                      { bg: 'bg-teal-50', dot: 'bg-teal-600', text: 'text-teal-900', time: 'text-teal-700' }
+                    ];
+                    const color = colors[idx % colors.length];
+                    
+                    return (
+                      <div key={apt.id} className={`flex items-center gap-3 p-3 ${color.bg} rounded-lg`}>
+                        <div className={`w-2 h-2 ${color.dot} rounded-full`}></div>
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${color.text}`}>
+                            {patient?.name || 'Unknown Patient'} - {apt.visit_type || 'Consultation'}
+                          </p>
+                          <p className={`text-xs ${color.time}`}>
+                            {apt.appointment_time || 'No time set'} {apt.notes ? `- ${apt.notes}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                
+                {appointments.filter(apt => {
+                  const today = new Date().toISOString().split('T')[0];
+                  const aptDate = apt.appointment_date?.split('T')[0];
+                  return aptDate === today;
+                }).length === 0 && (
+                  <div className="text-center py-6 text-gray-500">
+                    <Calendar className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No appointments scheduled for today</p>
                   </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
-                  <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium text-purple-900">Ultrasound - Pregnancy Check</p>
-                    <p className="text-xs text-purple-700">11:00 AM - 11:30 AM</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                  <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium text-green-900">Lab Results Review</p>
-                    <p className="text-xs text-green-700">2:00 PM - 2:30 PM</p>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
