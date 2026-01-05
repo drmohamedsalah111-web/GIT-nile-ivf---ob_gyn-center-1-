@@ -65,8 +65,10 @@ export const NavigationButtons: React.FC<NavigationButtonsProps> = ({
     }
   };
 
+  const isVertical = className?.includes('flex-col');
+  
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center ${isVertical ? 'flex-col' : ''} gap-2 ${className}`}>
       {/* زر الرجوع */}
       <button
         onClick={handleBack}
@@ -93,7 +95,7 @@ export const NavigationButtons: React.FC<NavigationButtonsProps> = ({
 
       {/* فاصل */}
       {showHome && (
-        <div className={`w-px h-6 ${isDarkMode ? 'bg-gray-600/50' : 'bg-gray-300/50'}`} />
+        <div className={`${isVertical ? 'h-px w-6' : 'w-px h-6'} ${isDarkMode ? 'bg-gray-600/50' : 'bg-gray-300/50'}`} />
       )}
 
       {/* زر الرئيسية */}

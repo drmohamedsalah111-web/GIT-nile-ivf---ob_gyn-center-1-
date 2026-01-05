@@ -10,6 +10,7 @@ import PreviewWarningBanner from './components/PreviewWarningBanner';
 import { BrandingProvider } from './context/BrandingContext';
 import { ThemeProvider } from './context/ThemeContext';
 import SubscriptionGuard from './components/auth/SubscriptionGuard';
+import { NavigationButtons } from './components/common/NavigationButtons';
 
 import { Page } from './types';
 import { authService } from './services/authService';
@@ -251,6 +252,11 @@ const App: React.FC = () => {
             !user ? <Navigate to="/landing" replace /> : 
             mustChangePassword ? <Navigate to="/force-change-password" replace /> : (
               <div className="min-h-screen bg-background flex flex-col md:flex-row font-[Tajawal] overflow-hidden">
+                {/* Global Navigation Buttons - Fixed Left Side */}
+                <div className="hidden md:block fixed left-4 top-1/2 transform -translate-y-1/2 z-[60]">
+                  <NavigationButtons showHome={true} homeRoute="/" className="flex-col" />
+                </div>
+
                 {/* Sidebar Navigation */}
                 <div className="hidden md:flex flex-none z-[100] relative">
                   <Sidebar

@@ -60,9 +60,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onAdminAccess, onB
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col lg:flex-row font-['Tajawal']" dir="rtl">
-      {/* Navigation Buttons - Fixed Top */}
-      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
-        <NavigationButtons showHome={true} homeRoute="/" />
+      {/* Navigation Buttons - Fixed Left Side */}
+      <div className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50">
+        <div className="flex flex-col gap-3">
+          <NavigationButtons showHome={true} homeRoute="/" className="flex-col" />
+        </div>
       </div>
 
       {/* Left Panel - Branding */}

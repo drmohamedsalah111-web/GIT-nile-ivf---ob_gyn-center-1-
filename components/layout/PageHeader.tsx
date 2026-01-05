@@ -33,15 +33,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     >
       <div className="px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between gap-4">
-          {/* Right Side - Title & Navigation */}
+          {/* Right Side - Title */}
           <div className="flex items-center gap-4 flex-1 min-w-0">
-            {/* Navigation Buttons */}
-            {showNavigation && (
-              <div className="hidden sm:block">
-                <NavigationButtons showHome={true} homeRoute={homeRoute} />
-              </div>
-            )}
-
             {/* Title Section */}
             <div className="flex items-center gap-3 min-w-0 flex-1">
               {icon && (
@@ -89,13 +82,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             </div>
           )}
         </div>
-
-        {/* Mobile Navigation - Below Title */}
-        {showNavigation && (
-          <div className="sm:hidden mt-3 flex justify-center">
-            <NavigationButtons showHome={true} homeRoute={homeRoute} className="scale-90" />
-          </div>
-        )}
       </div>
     </div>
   );
