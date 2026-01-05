@@ -142,7 +142,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
   const fetchTodaysAppointments = async (doctorId: string) => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
+
       const { data, error } = await supabase
         .from('appointments')
         .select(`
@@ -157,21 +157,28 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
         .eq('doctor_id', doctorId)
         .gte('appointment_date', `${today}T00:00:00`)
         .lte('appointment_date', `${today}T23:59:59`)
+        .neq('status', 'cancelled')
         .order('appointment_date', { ascending: true });
 
       if (error) throw error;
 
       const appointments: Appointment[] = (data || [])
         .filter(appt => appt && appt.id && appt.appointment_date)
-        .map(appt => ({
-          id: appt.id,
-          patient_id: appt.patient_id,
-          patient_name: appt.patient?.name || 'Unknown Patient',
-          appointment_date: appt.appointment_date,
-          visit_type: appt.visit_type || 'Consultation',
-          status: appt.status || 'Scheduled',
-          notes: appt.notes
-        }));
+        .map(appt => {
+          // Handle potential array return (Supabase TS quirk)
+          const pName = (appt.patient as any)?.name
+            || (Array.isArray(appt.patient) ? (appt.patient[0] as any)?.name : 'Unknown Patient');
+
+          return {
+            id: appt.id,
+            patient_id: appt.patient_id,
+            patient_name: pName,
+            appointment_date: appt.appointment_date,
+            visit_type: appt.visit_type || 'Consultation',
+            status: appt.status || 'Scheduled',
+            notes: appt.notes
+          };
+        });
 
       setTodaysAppointments(appointments);
     } catch (err: any) {
@@ -348,31 +355,58 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
                 <p className="text-gray-500">يمكنك إضافة مواعيد جديدة من صفحة حجز المواعيد</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {todaysAppointments.filter(Boolean).map(appointment => {
-                  if (!appointment) return null;
+              <div className="relative border-r-2 border-blue-200 pr-8 space-y-8 py-4">
+                {[9, 10, 11, 12, 13, 14, 15, 16].map(hour => {
+                  const hourString = `${String(hour).padStart(2, '0')}:00`;
+                  const aptForHour = todaysAppointments.find(a => {
+                    if (!a) return false;
+                    const d = new Date(a.appointment_date);
+                    return d.getHours() === hour;
+                  });
+
+                  // Skip empty slots in Doctor view to keep it compact? 
+                  // Or show them to show "Free time"? User said "arranged smartly".
+                  // Let's show empty slots as "Free" to help doctor manage time.
+
                   return (
-                    <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                          <User className="w-6 h-6 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">{appointment.patient_name}</p>
-                          <p className="text-sm text-gray-600">{appointment.visit_type}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="text-right">
-                        <p className="font-medium text-gray-900">
-                          {new Date(appointment.appointment_date).toLocaleTimeString('ar-SA', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {appointment.status === 'Scheduled' ? 'مجدولة' : 'مكتملة'}
-                        </p>
+                    <div key={hour} className="relative">
+                      {/* Timeline Dot */}
+                      <div className={`absolute -right-[39px] w-5 h-5 rounded-full border-4 border-white ${aptForHour ? 'bg-blue-600' : 'bg-gray-200'} top-2`}></div>
+
+                      {/* Time Label */}
+                      <span className="absolute -right-24 top-2 text-sm font-bold text-gray-400 w-12">{hourString}</span>
+
+                      {/* Content */}
+                      <div className="min-h-[60px]">
+                        {aptForHour ? (
+                          <div className={`
+                            relative p-4 rounded-xl border transition-all
+                            ${aptForHour.status === 'Completed' ? 'bg-green-50 border-green-200' : 'bg-white border-blue-100 shadow-sm'}
+                          `}>
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${aptForHour.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-50 text-blue-600'}`}>
+                                  <Users className="w-5 h-5" />
+                                </div>
+                                <div>
+                                  <h4 className="font-bold text-gray-900">{aptForHour.patient_name}</h4>
+                                  <p className="text-xs text-gray-500">{aptForHour.visit_type}</p>
+                                </div>
+                              </div>
+
+                              <div className="text-right">
+                                <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${aptForHour.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                  {aptForHour.status === 'Completed' ? 'مكتمل' : 'مجدول'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          // Empty Slot
+                          <div className="h-full border border-dashed border-gray-200 rounded-xl flex items-center justify-center text-gray-300 text-sm">
+                            متاح
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

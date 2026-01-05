@@ -21,11 +21,13 @@ const SecretaryDashboard: React.FC = () => {
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [showPatientForm, setShowPatientForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [editingAppointment, setEditingAppointment] = useState<any | null>(null);
 
   const [appointmentForm, setAppointmentForm] = useState({
     patientId: '',
-    appointmentDate: '',
-    appointmentTime: '09:00',
+    appointmentDate: new Date().toISOString().split('T')[0],
+    appointmentTime: '',
     visitType: 'Consultation' as const,
     notes: ''
   });
@@ -47,7 +49,24 @@ const SecretaryDashboard: React.FC = () => {
       loadAppointments();
       loadPatients();
     }
-  }, [secretary, selectedDate]);
+  }, [secretary]); // loading all appointments initially
+
+  useEffect(() => {
+    // Regenerate slots whenever date or appointments change
+    if (showAppointmentForm) {
+      // If editing, exclude the current appointment from the check so its own slot appears available
+      const relevantAppointments = editingAppointment
+        ? appointments.filter(a => a.id !== editingAppointment.id)
+        : appointments;
+
+      const slots = appointmentsService.calculateAvailableSlots(
+        relevantAppointments,
+        appointmentForm.appointmentDate,
+        60 // 60 minutes duration
+      );
+      setAvailableSlots(slots);
+    }
+  }, [appointments, appointmentForm.appointmentDate, showAppointmentForm, editingAppointment]);
 
   useEffect(() => {
     const autoRefreshInterval = setInterval(() => {
@@ -55,7 +74,7 @@ const SecretaryDashboard: React.FC = () => {
         loadAppointments();
         loadPatients();
       }
-    }, 5 * 60 * 1000);
+    }, 2 * 60 * 1000); // 2 minutes auto refresh
 
     return () => clearInterval(autoRefreshInterval);
   }, [secretary, refreshing]);
@@ -180,10 +199,10 @@ const SecretaryDashboard: React.FC = () => {
     }
   };
 
-  const handleCreateAppointment = async (e: React.FormEvent) => {
+  const handleSaveAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appointmentForm.patientId || !appointmentForm.appointmentDate || !appointmentForm.appointmentTime) {
-      toast.error('يرجى ملء جميع الحقول المطلوبة');
+      toast.error('يرجى ملء جميع الحقول واختيار الموعد');
       return;
     }
     if (!secretary?.secretary_doctor_id) {
@@ -191,29 +210,62 @@ const SecretaryDashboard: React.FC = () => {
       return;
     }
 
-    const toastId = toast.loading('جاري إنشاء الموعد...');
+    const toastId = toast.loading(editingAppointment ? 'جاري تحديث الموعد...' : 'جاري إنشاء الموعد...');
     try {
       const user = await authService.getCurrentUser();
       const appointmentDateTime = new Date(`${appointmentForm.appointmentDate}T${appointmentForm.appointmentTime}`).toISOString();
 
-      await appointmentsService.createAppointment({
-        doctor_id: secretary.secretary_doctor_id,
-        secretary_id: secretary.id,
-        patient_id: appointmentForm.patientId,
-        appointment_date: appointmentDateTime,
-        status: 'Scheduled',
-        visit_type: appointmentForm.visitType,
-        notes: appointmentForm.notes,
-        created_by: user.id
-      });
+      if (editingAppointment) {
+        // Update existing
+        await appointmentsService.updateAppointmentDetails(editingAppointment.id, {
+          appointment_date: appointmentDateTime,
+          visit_type: appointmentForm.visitType,
+          notes: appointmentForm.notes
+        });
+        toast.success('تم تحديث الموعد بنجاح', { id: toastId });
+      } else {
+        // Create new
+        await appointmentsService.createAppointment({
+          doctor_id: secretary.secretary_doctor_id,
+          secretary_id: secretary.id,
+          patient_id: appointmentForm.patientId,
+          appointment_date: appointmentDateTime,
+          status: 'Scheduled',
+          visit_type: appointmentForm.visitType,
+          notes: appointmentForm.notes,
+          created_by: user.id
+        });
+        toast.success('تم إنشاء الموعد بنجاح', { id: toastId });
+      }
 
-      toast.success('✅ تم إنشاء الموعد بنجاح', { id: toastId });
       setShowAppointmentForm(false);
-      setAppointmentForm({ patientId: '', appointmentDate: '', appointmentTime: '09:00', visitType: 'Consultation', notes: '' });
+      setEditingAppointment(null);
+      setAppointmentForm({
+        patientId: '',
+        appointmentDate: new Date().toISOString().split('T')[0],
+        appointmentTime: '',
+        visitType: 'Consultation',
+        notes: ''
+      });
       await loadAppointments();
     } catch (error: any) {
-      toast.error(`فشل إنشاء الموعد: ${error.message}`, { id: toastId });
+      toast.error(`فشل العملية: ${error.message}`, { id: toastId });
     }
+  };
+
+  const handleEditClick = (apt: any) => {
+    const date = new Date(apt.appointment_date);
+    setEditingAppointment(apt);
+    setAppointmentForm({
+      patientId: apt.patient_id,
+      appointmentDate: date.toISOString().split('T')[0],
+      appointmentTime: date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+      visitType: apt.visit_type,
+      notes: apt.notes || ''
+    });
+    setShowAppointmentForm(true);
+    // Switch to calendar view if not already
+    setActiveView('calendar');
   };
 
   const handleCancelAppointment = async (appointmentId: string) => {
@@ -314,8 +366,8 @@ const SecretaryDashboard: React.FC = () => {
                 key={tab.id}
                 onClick={() => setActiveView(tab.id as any)}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black transition-all duration-300 ${isActive
-                    ? 'bg-brand text-white shadow-lg shadow-brand/20'
-                    : 'text-textSecondary hover:bg-brand/5 hover:text-brand'
+                  ? 'bg-brand text-white shadow-lg shadow-brand/20'
+                  : 'text-textSecondary hover:bg-brand/5 hover:text-brand'
                   }`}
               >
                 <Icon size={18} />
@@ -417,84 +469,209 @@ const SecretaryDashboard: React.FC = () => {
         {/* Calendar View */}
         {activeView === 'calendar' && (
           <div className="p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-foreground">جدول المواعيد</h2>
-              <button
-                onClick={() => setShowAppointmentForm(!showAppointmentForm)}
-                className="flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-xl font-black hover:scale-105 transition-all shadow-lg shadow-brand/20"
-              >
-                <Plus size={18} /> حجز موعد جديد
-              </button>
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+              <div>
+                <h2 className="text-2xl font-black text-foreground mb-1">جدول المواعيد</h2>
+                <p className="text-sm font-bold text-textSecondary">
+                  {new Date(selectedDate).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-4 w-full md:w-auto">
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-white border filter-none rounded-xl px-4 py-2 font-bold text-sm"
+                />
+                <button
+                  onClick={() => {
+                    setEditingAppointment(null);
+                    setAppointmentForm(prev => ({ ...prev, patientId: '', appointmentTime: '' }));
+                    setShowAppointmentForm(!showAppointmentForm);
+                  }}
+                  className="flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-xl font-black hover:scale-105 transition-all shadow-lg shadow-brand/20 whitespace-nowrap"
+                >
+                  <Plus size={18} /> حجز جديد
+                </button>
+              </div>
             </div>
 
             {showAppointmentForm && (
-              <div className="bg-surface/50 p-6 rounded-3xl border border-borderColor shadow-inner mb-8">
-                <form onSubmit={handleCreateAppointment} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gradient-to-br from-white to-brand/5 p-6 rounded-3xl border-2 border-brand/10 shadow-lg mb-8 animate-fade-in-down">
+                <h3 className="text-lg font-black text-brand mb-4 flex items-center gap-2">
+                  {editingAppointment ? '✏️ تعديل موعد' : '🗓️ حجز موعد جديد'}
+                </h3>
+                <form onSubmit={handleSaveAppointment} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-xs font-black text-textSecondary uppercase mr-2">المريضة</label>
                     <select
                       value={appointmentForm.patientId}
                       onChange={(e) => setAppointmentForm({ ...appointmentForm, patientId: e.target.value })}
-                      className="w-full bg-white rounded-xl border-borderColor py-3 font-bold text-sm focus:ring-brand"
+                      className="w-full bg-white rounded-xl border-borderColor py-3 font-bold text-sm focus:ring-brand shadow-sm"
                       required
+                      disabled={!!editingAppointment} // Prevent changing patient on edit for safety
                     >
                       <option value="">-- اختر مريضة --</option>
                       {patients.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.phone})</option>)}
                     </select>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-textSecondary uppercase mr-2">التاريخ</label>
-                      <input
-                        type="date"
-                        value={appointmentForm.appointmentDate}
-                        onChange={(e) => setAppointmentForm({ ...appointmentForm, appointmentDate: e.target.value })}
-                        className="w-full bg-white rounded-xl border-borderColor py-3 font-bold text-sm"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-textSecondary uppercase mr-2">الوقت</label>
-                      <input
-                        type="time"
-                        value={appointmentForm.appointmentTime}
-                        onChange={(e) => setAppointmentForm({ ...appointmentForm, appointmentTime: e.target.value })}
-                        className="w-full bg-white rounded-xl border-borderColor py-3 font-bold text-sm"
-                        required
-                      />
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-textSecondary uppercase mr-2">نوع الزيارة</label>
+                    <select
+                      value={appointmentForm.visitType}
+                      onChange={(e) => setAppointmentForm({ ...appointmentForm, visitType: e.target.value as any })}
+                      className="w-full bg-white rounded-xl border-borderColor py-3 font-bold text-sm shadow-sm"
+                    >
+                      <option value="Consultation">استشارة</option>
+                      <option value="Follow-up">متابعة</option>
+                      <option value="Procedure">إجراء طبي</option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2 bg-white/50 p-4 rounded-2xl border border-borderColor/50">
+                    <div className="flex flex-col md:flex-row gap-6">
+                      <div className="w-full md:w-1/3">
+                        <label className="text-xs font-black text-textSecondary uppercase mb-2 block">التاريخ</label>
+                        <input
+                          type="date"
+                          value={appointmentForm.appointmentDate}
+                          onChange={(e) => setAppointmentForm({ ...appointmentForm, appointmentDate: e.target.value, appointmentTime: '' })}
+                          className="w-full bg-white rounded-xl border-borderColor py-3 font-bold text-sm"
+                          required
+                        />
+                      </div>
+                      <div className="w-full md:w-2/3">
+                        <label className="text-xs font-black text-textSecondary uppercase mb-2 block">المواعيد المتاحة (بالساعة)</label>
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                          {availableSlots.length > 0 ? availableSlots.map(time => (
+                            <button
+                              key={time}
+                              type="button"
+                              onClick={() => setAppointmentForm({ ...appointmentForm, appointmentTime: time })}
+                              className={`py-2 px-1 rounded-lg text-sm font-black transition-all ${appointmentForm.appointmentTime === time
+                                ? 'bg-brand text-white shadow-lg scale-105'
+                                : 'bg-white border border-borderColor text-textSecondary hover:border-brand hover:text-brand'
+                                }`}
+                            >
+                              {time}
+                            </button>
+                          )) : (
+                            <p className="col-span-full text-sm text-red-400 font-bold py-2">لا توجد مواعيد متاحة في هذا اليوم</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="md:col-span-2 flex justify-end gap-3 mt-4">
+
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-black text-textSecondary uppercase mr-2">ملاحظات</label>
+                    <input
+                      type="text"
+                      value={appointmentForm.notes}
+                      onChange={(e) => setAppointmentForm({ ...appointmentForm, notes: e.target.value })}
+                      className="w-full bg-white rounded-xl border-borderColor py-3 font-bold text-sm"
+                      placeholder="ملاحظات إضافية..."
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 flex justify-end gap-3 mt-2">
                     <button type="button" onClick={() => setShowAppointmentForm(false)} className="px-6 py-2.5 rounded-xl font-black text-textSecondary hover:bg-surface transition-all">إلغاء</button>
-                    <button type="submit" className="px-8 py-2.5 rounded-xl font-black bg-brand text-white shadow-lg">تأكيد الحجز</button>
+                    <button type="submit" className="px-8 py-2.5 rounded-xl font-black bg-brand text-white shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
+                      {editingAppointment ? 'حفظ التغييرات' : 'تأكيد الحجز'}
+                    </button>
                   </div>
                 </form>
               </div>
             )}
 
-            <div className="space-y-3">
-              {upcomingAppointments.map(apt => (
-                <div key={apt.id} className="flex items-center justify-between p-5 bg-surface rounded-2xl border border-borderColor/30 hover:border-brand/40 transition-all group">
-                  <div className="flex items-center gap-6">
-                    <div className="text-center bg-white px-4 py-2 rounded-2xl border border-borderColor shadow-sm">
-                      <p className="text-[10px] font-black text-textSecondary uppercase tracking-tighter">{new Date(apt.appointment_date).toLocaleDateString('ar-EG', { weekday: 'short' })}</p>
-                      <p className="text-xl font-black text-brand leading-none">{new Date(apt.appointment_date).getDate()}</p>
-                    </div>
-                    <div>
-                      <h4 className="font-black text-lg text-foreground">{apt.patient?.name}</h4>
-                      <div className="flex items-center gap-4 mt-1">
-                        <span className="flex items-center gap-1.5 text-xs font-bold text-textSecondary">
-                          <Phone size={12} className="text-brand" /> {apt.patient?.phone}
-                        </span>
-                        <span className="px-3 py-1 bg-brand/5 text-[9px] font-black text-brand uppercase rounded-full border border-brand/10">
-                          {apt.visit_type === 'Consultation' ? 'استشارة' : 'متابعة'}
-                        </span>
+            <div className="space-y-6">
+              {/* Daily Timeline View */}
+              <div className="relative border-r-2 border-brand/20 pr-8 space-y-8 py-4">
+                {[9, 10, 11, 12, 13, 14, 15, 16].map(hour => {
+                  const hourString = `${String(hour).padStart(2, '0')}:00`;
+                  const aptForHour = upcomingAppointments.find(a => {
+                    const d = new Date(a.appointment_date);
+                    // Match date AND hour
+                    return d.toDateString() === new Date(selectedDate).toDateString() && d.getHours() === hour;
+                  });
+
+                  return (
+                    <div key={hour} className="relative">
+                      {/* Timeline Dot */}
+                      <div className={`absolute -right-[39px] w-5 h-5 rounded-full border-4 border-white ${aptForHour ? 'bg-brand' : 'bg-gray-300'} top-2`}></div>
+
+                      {/* Time Label */}
+                      <span className="absolute -right-24 top-2 text-sm font-black text-textSecondary w-12">{hourString}</span>
+
+                      {/* Content */}
+                      <div className="min-h-[80px] group">
+                        {aptForHour ? (
+                          <div className={`
+                            relative p-5 rounded-2xl border-2 transition-all cursor-pointer
+                            ${aptForHour.status === 'Waiting' ? 'bg-amber-50 border-amber-200' : 'bg-white border-brand/10 hover:border-brand/30'}
+                          `}>
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-black ${aptForHour.status === 'Waiting' ? 'bg-amber-200 text-amber-700' : 'bg-brand/10 text-brand'}`}>
+                                  {aptForHour.patient?.name.charAt(0)}
+                                </div>
+                                <div>
+                                  <h4 className="font-black text-lg text-foreground">{aptForHour.patient?.name}</h4>
+                                  <div className="flex items-center gap-3 mt-1">
+                                    <span className="text-xs font-bold text-textSecondary flex items-center gap-1">
+                                      <Phone size={12} /> {aptForHour.patient?.phone}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-md bg-gray-100 text-[10px] font-black transform scale-95">
+                                      {aptForHour.visit_type === 'Consultation' ? 'استشارة' : 'متابعة'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => handleEditClick(aptForHour)}
+                                  className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-black hover:bg-blue-100"
+                                >
+                                  تعديل
+                                </button>
+                                <button
+                                  onClick={() => handleCancelAppointment(aptForHour.id)}
+                                  className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-black hover:bg-red-100"
+                                >
+                                  إلغاء
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Status Badge */}
+                            <div className="absolute top-4 left-4">
+                              <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${aptForHour.status === 'Waiting' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                                {aptForHour.status === 'Waiting' ? 'في الانتظار' : 'مؤكد'}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          // Empty Slot Placeholder
+                          <div
+                            onClick={() => {
+                              setSelectedDate(selectedDate); // Ensure date context
+                              setAppointmentForm(prev => ({ ...prev, appointmentDate: selectedDate, appointmentTime: hourString }));
+                              setEditingAppointment(null);
+                              setShowAppointmentForm(true);
+                            }}
+                            className="h-full border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center text-gray-400 font-bold hover:border-brand/40 hover:text-brand hover:bg-brand/5 cursor-pointer transition-all"
+                          >
+                            <span className="flex items-center gap-2 text-sm"><Plus size={16} /> حجز هذا الموعد ({hourString})</span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                  <button onClick={() => handleCancelAppointment(apt.id)} className="opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl text-xs font-black transition-all">إلغاء الموعد</button>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

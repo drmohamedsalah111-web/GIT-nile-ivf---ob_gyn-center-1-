@@ -51,6 +51,10 @@ export const appointmentsService = {
     }
   },
 
+  updateAppointmentDetails: async (id: string, updates: Partial<Appointment>) => {
+    return await appointmentsService.updateAppointment(id, updates);
+  },
+
   cancelAppointment: async (id: string) => {
     try {
       return await appointmentsService.updateAppointment(id, { status: 'Cancelled' });
@@ -70,6 +74,8 @@ export const appointmentsService = {
           doctor_details:doctor_id(id, name, email, specialization)
         `)
         .eq('doctor_id', doctorId)
+        .neq('status', 'Cancelled') // Filter out cancelled
+        .neq('status', 'cancelled') // Handle both cases just in case
         .order('appointment_date', { ascending: true });
 
       if (startDate && endDate) {
@@ -104,16 +110,18 @@ export const appointmentsService = {
           patient:patients(id, name, phone, age, husband_name, history),
           doctor_details:doctor_id(id, name, email, specialization)
         `)
-        .order('appointment_date', { ascending: true });
+        .order('appointment_date', { ascending: true })
+        .neq('status', 'Cancelled')
+        .neq('status', 'cancelled');
 
       // If we found a linked doctor, filter by that doctor instead of secretary_id
       // This is better because appointments are usually linked to the doctor, not just the creator
       if (secretaryData?.secretary_doctor_id) {
-         query = query.eq('doctor_id', secretaryData.secretary_doctor_id);
+        query = query.eq('doctor_id', secretaryData.secretary_doctor_id);
       } else {
-         // Fallback to filtering by secretary_id if no doctor link found
-         // Note: This might return empty if appointments are not explicitly tagged with secretary_id
-         query = query.eq('secretary_id', secretaryId);
+        // Fallback to filtering by secretary_id if no doctor link found
+        // Note: This might return empty if appointments are not explicitly tagged with secretary_id
+        query = query.eq('secretary_id', secretaryId);
       }
 
       if (startDate && endDate) {
@@ -223,7 +231,7 @@ export const appointmentsService = {
 
       if (error) throw error;
 
-      const filtered = (data || []).filter(apt => 
+      const filtered = (data || []).filter(apt =>
         apt.patient?.name?.includes(query) ||
         apt.patient?.phone?.includes(query) ||
         apt.doctor_details?.name?.includes(query)
@@ -234,5 +242,34 @@ export const appointmentsService = {
       console.error('❌ Failed to search appointments:', error);
       throw error;
     }
+  },
+
+  calculateAvailableSlots: (
+    existingAppointments: any[],
+    selectedDate: string,
+    appointmentDuration: number = 60
+  ) => {
+    const slots: string[] = [];
+    const startHour = 9;
+    const endHour = 17;
+
+    for (let hour = startHour; hour < endHour; hour++) {
+      for (let minute = 0; minute < 60; minute += appointmentDuration) {
+        const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+        // Check if slot is taken by a non-cancelled appointment
+        const isAvailable = !existingAppointments.some((apt) => {
+          if (apt.status === 'cancelled' || apt.status === 'Cancelled') return false; // Ignore cancelled appointments
+          const aptTime = new Date(apt.appointment_date).toISOString().slice(11, 16);
+          // Simple check: if start time matches.
+          return aptTime === time;
+        });
+
+        if (isAvailable) {
+          slots.push(time);
+        }
+      }
+    }
+
+    return slots;
   }
 };

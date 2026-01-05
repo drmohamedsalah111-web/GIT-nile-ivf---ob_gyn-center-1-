@@ -50,6 +50,7 @@ export const appointmentService = {
         .eq('doctor_id', doctorId)
         .gte('appointment_date', startDate)
         .lte('appointment_date', endDate)
+        .neq('status', 'cancelled') // Filter out cancelled appointments
         .order('appointment_date', { ascending: true });
 
       if (appointmentsError) {
@@ -100,6 +101,7 @@ export const appointmentService = {
         .from('appointments')
         .select('*')
         .eq('doctor_id', doctorId)
+        .neq('status', 'cancelled') // Filter out cancelled appointments
         .order('appointment_date', { ascending: false });
 
       if (appointmentsError) {
@@ -160,7 +162,7 @@ export const appointmentService = {
   getAvailableSlots(
     existingAppointments: any[],
     selectedDate: string,
-    appointmentDuration: number = 30
+    appointmentDuration: number = 60
   ) {
     const slots: string[] = [];
     const startHour = 9;
@@ -169,10 +171,13 @@ export const appointmentService = {
     for (let hour = startHour; hour < endHour; hour++) {
       for (let minute = 0; minute < 60; minute += appointmentDuration) {
         const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-        const appointmentDateTime = `${selectedDate}T${time}:00`;
-
+        // Check if slot is taken by a non-cancelled appointment
         const isAvailable = !existingAppointments.some((apt) => {
+          if (apt.status === 'cancelled') return false; // Ignore cancelled appointments
           const aptTime = new Date(apt.appointment_date).toISOString().slice(11, 16);
+          // Simple check: if start time matches.
+          // Ideal world: check overlapping ranges. But specific requirement is "Hourly", implies fixed slots.
+          // Matching exact start time is sufficient for fixed slots.
           return aptTime === time;
         });
 
@@ -250,6 +255,25 @@ export const appointmentService = {
     } catch (error: any) {
       console.error('Error updating appointment status:', error);
       throw new Error(error.message || 'فشل تحديث حالة الموعد');
+    }
+  },
+
+  async updateAppointmentDetails(appointmentId: string, updates: Partial<AppointmentData>) {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({
+          appointment_date: updates.appointment_date,
+          visit_type: updates.visit_type,
+          notes: updates.notes,
+          // created_by, doctor_id, patient_id typically don't change or require strict checks
+        })
+        .eq('id', appointmentId);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error updating appointment details:', error);
+      throw new Error(error.message || 'فشل تحديث تفاصيل الموعد');
     }
   },
 
