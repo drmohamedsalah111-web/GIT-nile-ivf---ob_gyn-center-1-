@@ -6,7 +6,7 @@ import { appointmentsService } from '../services/appointmentsService';
 import { visitsService } from '../services/visitsService';
 import { InvoicesManagementPage } from '../components/invoices';
 import CollectionsManagement from '../components/invoices/CollectionsManagement';
-import SmartAppointmentSystem from '../components/appointments/SmartAppointmentSystem';
+import ProfessionalAppointmentSystem from '../components/appointments/ProfessionalAppointmentSystem';
 import toast from 'react-hot-toast';
 
 const SecretaryDashboard: React.FC = () => {
@@ -431,16 +431,12 @@ const SecretaryDashboard: React.FC = () => {
       {/* Main Content Area */}
       <div className="bg-white dark:bg-zinc-800 rounded-3xl border border-borderColor/50 shadow-sm min-h-[500px] overflow-hidden">
         
-        {/* Smart Appointments View - NEW! 🎯 */}
+        {/* Professional Appointments View - UPDATED! 🎯 */}
         {activeView === 'smart_appointments' && secretary?.secretary_doctor_id && (
-          <div className="p-6 animate-fade-in">
-            <SmartAppointmentSystem
+          <div className="animate-fade-in">
+            <ProfessionalAppointmentSystem
               doctorId={secretary.secretary_doctor_id}
               userRole="secretary"
-              onAppointmentClick={(appointment) => {
-                console.log('Appointment clicked:', appointment);
-                toast.success(`تم فتح موعد: ${appointment.patient?.name || 'مريض'}`);
-              }}
             />
           </div>
         )}
