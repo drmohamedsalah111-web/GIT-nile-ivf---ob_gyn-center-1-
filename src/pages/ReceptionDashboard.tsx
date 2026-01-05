@@ -22,7 +22,7 @@ interface Patient {
 interface Appointment {
   id: string;
   appointment_date: string;
-  appointment_time: string;
+  appointment_time: string | null;
   status: string;
   visit_type: string;
   patient_id: string;
@@ -119,6 +119,11 @@ const ReceptionDashboard: React.FC = () => {
       });
       
       console.log('Loaded appointments with patients:', enrichedAppointments);
+      console.log('⏰ Appointment times:', enrichedAppointments.map(apt => ({
+        id: apt.id,
+        time: apt.appointment_time,
+        date: apt.appointment_date
+      })));
       setAppointments(enrichedAppointments);
     } catch (error) {
       console.error('Error loading appointments:', error);
@@ -182,6 +187,15 @@ const ReceptionDashboard: React.FC = () => {
     try {
       const appointmentDateTime = `${appointmentForm.appointment_date}T${appointmentForm.appointment_time}:00`;
 
+      console.log('📅 Creating appointment with:', {
+        patient_id: appointmentForm.patient_id,
+        doctor_id: appointmentForm.doctor_id,
+        appointment_date: appointmentDateTime,
+        appointment_time: appointmentForm.appointment_time,
+        visit_type: appointmentForm.visit_type,
+        status: 'Scheduled'
+      });
+
       const { data, error } = await supabase
         .from('appointments')
         .insert([{
@@ -197,6 +211,9 @@ const ReceptionDashboard: React.FC = () => {
         .single();
 
       if (error) throw error;
+
+      console.log('✅ Appointment created successfully:', data);
+      console.log('✅ appointment_time saved:', data.appointment_time);
 
       toast.success('تم حجز الموعد بنجاح ✓', { id: toastId });
       setShowNewModal(false);
