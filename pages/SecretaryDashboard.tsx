@@ -6,10 +6,11 @@ import { appointmentsService } from '../services/appointmentsService';
 import { visitsService } from '../services/visitsService';
 import { InvoicesManagementPage } from '../components/invoices';
 import CollectionsManagement from '../components/invoices/CollectionsManagement';
+import SmartAppointmentSystem from '../components/appointments/SmartAppointmentSystem';
 import toast from 'react-hot-toast';
 
 const SecretaryDashboard: React.FC = () => {
-  const [activeView, setActiveView] = useState<'dashboard' | 'calendar' | 'patients' | 'waiting' | 'invoices' | 'collections'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'calendar' | 'smart_appointments' | 'patients' | 'waiting' | 'invoices' | 'collections'>('smart_appointments');
   const [secretary, setSecretary] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
@@ -350,8 +351,7 @@ const SecretaryDashboard: React.FC = () => {
     );
   }
 
-  const tabItems = [
-    { id: 'dashboard', label: 'نظرة عامة', icon: LayoutDashboard },
+  const tabItems = [    { id: 'smart_appointments', label: '🎯 المواعيد الذكية', icon: Calendar },    { id: 'dashboard', label: 'نظرة عامة', icon: LayoutDashboard },
     { id: 'calendar', label: 'المواعيد', icon: Calendar },
     { id: 'waiting', label: 'الانتظار', icon: Clock },
     { id: 'patients', label: 'المرضى', icon: Users },
@@ -430,6 +430,21 @@ const SecretaryDashboard: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="bg-white dark:bg-zinc-800 rounded-3xl border border-borderColor/50 shadow-sm min-h-[500px] overflow-hidden">
+        
+        {/* Smart Appointments View - NEW! 🎯 */}
+        {activeView === 'smart_appointments' && secretary?.secretary_doctor_id && (
+          <div className="p-6 animate-fade-in">
+            <SmartAppointmentSystem
+              doctorId={secretary.secretary_doctor_id}
+              userRole="secretary"
+              onAppointmentClick={(appointment) => {
+                console.log('Appointment clicked:', appointment);
+                toast.success(`تم فتح موعد: ${appointment.patient?.name || 'مريض'}`);
+              }}
+            />
+          </div>
+        )}
+
         {activeView === 'dashboard' && (
           <div className="p-8">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
