@@ -8,9 +8,9 @@ import {
   ChevronDown, ChevronUp, Search, Filter, Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { supabase } from '@/services/supabaseClient';
-import { labService, LabRequest, LabResult } from '@/services/labService';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { supabase } from '../../services/supabaseClient';
+import { labService, LabRequest, LabResult } from '../../services/labService';
+import { PageHeader } from '../../components/layout/PageHeader';
 
 // --- Types ---
 interface Patient {
