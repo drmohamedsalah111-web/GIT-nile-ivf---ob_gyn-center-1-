@@ -271,5 +271,45 @@ export const appointmentsService = {
     }
 
     return slots;
+  },
+
+  checkAppointmentOverlap: async (doctorId: string, date: string, startTime: string, durationMinutes: number = 30, excludeId?: string) => {
+    try {
+      // Calculate new appointment start and end times
+      const newStart = new Date(`${date}T${startTime}`);
+      const newEnd = new Date(newStart.getTime() + durationMinutes * 60000);
+
+      const { data: existingAppointments, error } = await supabase
+        .from('appointments')
+        .select('id, appointment_date, duration')
+        .eq('doctor_id', doctorId)
+        .neq('status', 'Cancelled')
+        .neq('status', 'cancelled')
+        .gte('appointment_date', `${date}T00:00:00`)
+        .lte('appointment_date', `${date}T23:59:59`);
+
+      if (error) throw error;
+
+      if (!existingAppointments) return false;
+
+      return existingAppointments.some(apt => {
+        if (excludeId && apt.id === excludeId) return false;
+
+        const aptStart = new Date(apt.appointment_date);
+        // Default duration 30 mins if not specified in DB
+        const aptDuration = apt.duration || 30;
+        const aptEnd = new Date(aptStart.getTime() + aptDuration * 60000);
+
+        // Check for overlap
+        // (StartA < EndB) and (EndA > StartB)
+        return (newStart < aptEnd) && (newEnd > aptStart);
+      });
+    } catch (error: any) {
+      console.error('❌ Failed to check overlap:', error);
+      // Fail safe: return false or throw? 
+      // Better to assume NO conflict if check fails to avoid blocking, OR warn user.
+      // Let's throw to handle it in UI.
+      throw new Error(`فشل التحقق من توفر الموعد: ${error.message}`);
+    }
   }
 };

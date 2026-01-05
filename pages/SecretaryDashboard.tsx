@@ -52,21 +52,10 @@ const SecretaryDashboard: React.FC = () => {
   }, [secretary]); // loading all appointments initially
 
   useEffect(() => {
-    // Regenerate slots whenever date or appointments change
-    if (showAppointmentForm) {
-      // If editing, exclude the current appointment from the check so its own slot appears available
-      const relevantAppointments = editingAppointment
-        ? appointments.filter(a => a.id !== editingAppointment.id)
-        : appointments;
-
-      const slots = appointmentsService.calculateAvailableSlots(
-        relevantAppointments,
-        appointmentForm.appointmentDate,
-        60 // 60 minutes duration
-      );
-      setAvailableSlots(slots);
-    }
-  }, [appointments, appointmentForm.appointmentDate, showAppointmentForm, editingAppointment]);
+    // Optional: Real-time validation could go here, or just validate on submit.
+    // We'll validate on submit to keep it simple, or add a specific "Check Availability" button.
+    setAvailableSlots([]); // Clear slots as we aren't using them anymore in the new flexible UI
+  }, [appointments, appointmentForm.appointmentDate, showAppointmentForm]);
 
   useEffect(() => {
     const autoRefreshInterval = setInterval(() => {
@@ -210,8 +199,24 @@ const SecretaryDashboard: React.FC = () => {
       return;
     }
 
-    const toastId = toast.loading(editingAppointment ? 'جاري تحديث الموعد...' : 'جاري إنشاء الموعد...');
+    const toastId = toast.loading('جاري التحقق من التوفر...');
     try {
+      // Check for conflicts
+      const hasConflict = await appointmentsService.checkAppointmentOverlap(
+        secretary.secretary_doctor_id,
+        appointmentForm.appointmentDate,
+        appointmentForm.appointmentTime,
+        30, // Checking for 30 min overlap
+        editingAppointment?.id
+      );
+
+      if (hasConflict) {
+        toast.error('❌ يوجد موعد آخر في نفس الوقت!', { id: toastId });
+        return;
+      }
+
+      toast.loading(editingAppointment ? 'جاري تحديث الموعد...' : 'جاري إنشاء الموعد...', { id: toastId });
+
       const user = await authService.getCurrentUser();
       const appointmentDateTime = new Date(`${appointmentForm.appointmentDate}T${appointmentForm.appointmentTime}`).toISOString();
 
@@ -543,23 +548,26 @@ const SecretaryDashboard: React.FC = () => {
                         />
                       </div>
                       <div className="w-full md:w-2/3">
-                        <label className="text-xs font-black text-textSecondary uppercase mb-2 block">المواعيد المتاحة (بالساعة)</label>
-                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                          {availableSlots.length > 0 ? availableSlots.map(time => (
-                            <button
-                              key={time}
-                              type="button"
-                              onClick={() => setAppointmentForm({ ...appointmentForm, appointmentTime: time })}
-                              className={`py-2 px-1 rounded-lg text-sm font-black transition-all ${appointmentForm.appointmentTime === time
-                                ? 'bg-brand text-white shadow-lg scale-105'
-                                : 'bg-white border border-borderColor text-textSecondary hover:border-brand hover:text-brand'
-                                }`}
-                            >
-                              {time}
-                            </button>
-                          )) : (
-                            <p className="col-span-full text-sm text-red-400 font-bold py-2">لا توجد مواعيد متاحة في هذا اليوم</p>
-                          )}
+                        <div className="w-full md:w-2/3">
+                          <label className="text-xs font-black text-textSecondary uppercase mb-2 block">وقت الموعد (بالدقيقة)</label>
+                          <div className="flex items-center gap-4">
+                            <div className="relative flex-1">
+                              <input
+                                type="time"
+                                value={appointmentForm.appointmentTime}
+                                onChange={(e) => setAppointmentForm({ ...appointmentForm, appointmentTime: e.target.value })}
+                                className="w-full bg-white rounded-xl border-2 border-brand/20 py-3 px-4 font-black text-lg focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all text-center"
+                                required
+                              />
+                              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-brand">
+                                <Clock size={20} />
+                              </div>
+                            </div>
+                            <div className="text-xs font-bold text-textSecondary w-1/3">
+                              <p>ℹ️ يرجى اختيار الوقت بدقة.</p>
+                              <p className="mt-1">سيقوم النظام بالتحقق من عدم وجود تضارب.</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

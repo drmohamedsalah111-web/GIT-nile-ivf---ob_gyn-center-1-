@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Loader, AlertCircle, FileText, Stethoscope, Calendar, ArrowRight, Plus, CheckCircle } from 'lucide-react';
+import { Users, Search, Loader, AlertCircle, FileText, Stethoscope, Calendar, ArrowRight, Plus, CheckCircle, Clock } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
@@ -358,52 +358,55 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
               <div className="relative border-r-2 border-blue-200 pr-8 space-y-8 py-4">
                 {[9, 10, 11, 12, 13, 14, 15, 16].map(hour => {
                   const hourString = `${String(hour).padStart(2, '0')}:00`;
-                  const aptForHour = todaysAppointments.find(a => {
+                  const aptsForHour = todaysAppointments.filter(a => {
                     if (!a) return false;
                     const d = new Date(a.appointment_date);
                     return d.getHours() === hour;
                   });
 
-                  // Skip empty slots in Doctor view to keep it compact? 
-                  // Or show them to show "Free time"? User said "arranged smartly".
-                  // Let's show empty slots as "Free" to help doctor manage time.
-
                   return (
-                    <div key={hour} className="relative">
+                    <div key={hour} className="relative min-h-[80px]">
                       {/* Timeline Dot */}
-                      <div className={`absolute -right-[39px] w-5 h-5 rounded-full border-4 border-white ${aptForHour ? 'bg-blue-600' : 'bg-gray-200'} top-2`}></div>
+                      <div className={`absolute -right-[39px] w-5 h-5 rounded-full border-4 border-white ${aptsForHour.length > 0 ? 'bg-blue-600' : 'bg-gray-200'} top-2`}></div>
 
                       {/* Time Label */}
                       <span className="absolute -right-24 top-2 text-sm font-bold text-gray-400 w-12">{hourString}</span>
 
                       {/* Content */}
-                      <div className="min-h-[60px]">
-                        {aptForHour ? (
-                          <div className={`
-                            relative p-4 rounded-xl border transition-all
-                            ${aptForHour.status === 'Completed' ? 'bg-green-50 border-green-200' : 'bg-white border-blue-100 shadow-sm'}
-                          `}>
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${aptForHour.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-50 text-blue-600'}`}>
-                                  <Users className="w-5 h-5" />
+                      <div className="space-y-3">
+                        {aptsForHour.length > 0 ? (
+                          aptsForHour.map(apt => (
+                            <div key={apt.id} className={`
+                              relative p-4 rounded-xl border transition-all
+                              ${apt.status === 'Completed' ? 'bg-green-50 border-green-200' : 'bg-white border-blue-100 shadow-sm'}
+                            `}>
+                              <div className="flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
+                                <div className="flex items-center gap-4">
+                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${apt.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-50 text-blue-600'}`}>
+                                    <Users className="w-5 h-5" />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-bold text-gray-900">{apt.patient_name}</h4>
+                                    <div className="flex items-center gap-2 text-xs font-bold text-blue-600 mt-1">
+                                      <Clock size={14} />
+                                      {new Date(apt.appointment_date).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                                      <span className="text-gray-400 mx-1">•</span>
+                                      <span className="text-gray-500">{apt.visit_type}</span>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div>
-                                  <h4 className="font-bold text-gray-900">{aptForHour.patient_name}</h4>
-                                  <p className="text-xs text-gray-500">{aptForHour.visit_type}</p>
-                                </div>
-                              </div>
 
-                              <div className="text-right">
-                                <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${aptForHour.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                                  {aptForHour.status === 'Completed' ? 'مكتمل' : 'مجدول'}
-                                </span>
+                                <div className="text-right w-full md:w-auto">
+                                  <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${apt.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                    {apt.status === 'Completed' ? 'مكتمل' : 'مجدول'}
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          ))
                         ) : (
                           // Empty Slot
-                          <div className="h-full border border-dashed border-gray-200 rounded-xl flex items-center justify-center text-gray-300 text-sm">
+                          <div className="h-16 border border-dashed border-gray-200 rounded-xl flex items-center justify-center text-gray-300 text-sm">
                             متاح
                           </div>
                         )}
