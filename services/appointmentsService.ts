@@ -296,7 +296,7 @@ export const appointmentsService = {
 
       const { data: existingAppointments, error } = await supabase
         .from('appointments')
-        .select('id, appointment_date, duration')
+        .select('id, appointment_date') // Removed duration
         .eq('doctor_id', doctorId)
         .neq('status', 'Cancelled')
         .neq('status', 'cancelled')
@@ -311,8 +311,8 @@ export const appointmentsService = {
         if (excludeId && apt.id === excludeId) return false;
 
         const aptStart = new Date(apt.appointment_date);
-        // Default duration 30 mins if not specified in DB
-        const aptDuration = apt.duration || 30;
+        // Default duration 30 mins since column doesn't exist
+        const aptDuration = 30;
         const aptEnd = new Date(aptStart.getTime() + aptDuration * 60000);
 
         // Check for overlap
