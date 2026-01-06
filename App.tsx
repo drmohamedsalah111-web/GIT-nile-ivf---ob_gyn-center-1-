@@ -25,6 +25,7 @@ const SmartIVFJourney = React.lazy(() => import('./pages/SmartIVFJourney'));
 const ObstetricsDashboard = React.lazy(() => import('./pages/ObstetricsDashboard'));
 const PatientMasterRecord = React.lazy(() => import('./pages/PatientMasterRecord'));
 const PatientProfile = React.lazy(() => import('./src/pages/PatientProfile'));
+const CompleteMedicalRecord = React.lazy(() => import('./components/patients/CompleteMedicalRecord'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const InfertilityWorkup = React.lazy(() => import('./src/pages/InfertilityWorkup'));
@@ -46,6 +47,23 @@ import LabReferencesModal from './src/components/LabReferencesModal';
 
 // Reception System Components
 import { RequireRole } from './components/auth/RequireRole';
+import { useParams } from 'react-router-dom';
+
+// Wrapper for CompleteMedicalRecord to get patientId from URL
+const CompleteMedicalRecordWrapper: React.FC = () => {
+  const { patientId } = useParams<{ patientId: string }>();
+  const navigate = useNavigate();
+  
+  if (!patientId) {
+    return <div className="text-center py-20 text-red-500">معرف المريض مطلوب</div>;
+  }
+  
+  return (
+    <React.Suspense fallback={<div className="text-center py-20">جاري التحميل...</div>}>
+      <CompleteMedicalRecord patientId={patientId} onClose={() => navigate(-1)} />
+    </React.Suspense>
+  );
+};
 
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
@@ -297,6 +315,7 @@ const App: React.FC = () => {
                               <Route path="/reception" element={<ReceptionDashboard />} />
                               <Route path="/patients/add" element={<AddPatient />} />
                               <Route path="/patient-profile" element={<PatientProfile />} />
+                              <Route path="/medical-record/:patientId" element={<CompleteMedicalRecordWrapper />} />
                               <Route path="/gynecology" element={<Gynecology />} />
                               <Route path="/ivf-journey" element={<IvfJourney />} />
                               <Route path="/smart-ivf" element={<SmartIVFJourney />} />

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   User, Phone, Calendar, Mail, MapPin, FileText, 
   Heart, Activity, ClipboardList, AlertCircle, Printer,
   Edit, Save, X, Plus, Clock, Baby, Syringe, TestTube,
   TrendingUp, History, Pill, Stethoscope, FileHeart,
   Microscope, Droplet, Weight, Ruler, HeartPulse,
-  ChevronDown, ChevronUp, Search, Filter, Download
+  ChevronDown, ChevronUp, Search, Filter, Download, FolderOpen
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../services/supabaseClient';
@@ -147,6 +148,7 @@ const getDateParts = (dateValue: any): { day: number | string; month: string } =
 };
 
 const PatientProfile: React.FC = () => {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -158,6 +160,11 @@ const PatientProfile: React.FC = () => {
   const [dataLoading, setDataLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'pregnancy' | 'visits' | 'medications' | 'labs'>('overview');
+
+  // Navigate to complete medical record
+  const openMedicalRecord = (patientId: string) => {
+    navigate(`/medical-record/${patientId}`);
+  };
 
   useEffect(() => {
     loadPatients();
@@ -893,6 +900,14 @@ const PatientProfile: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    <button 
+                      onClick={() => openMedicalRecord(selectedPatient.id)}
+                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all shadow-sm"
+                      title="السجل الطبي الشامل"
+                    >
+                      <FolderOpen className="w-5 h-5" />
+                      <span className="hidden sm:inline">السجل الطبي الشامل</span>
+                    </button>
                     <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="تعديل البيانات">
                       <Edit className="w-5 h-5" />
                     </button>
