@@ -14,7 +14,8 @@ import {
   History, Pill, Stethoscope, FileHeart, Microscope, Droplet,
   Weight, Ruler, HeartPulse, Download, Image, Search, Filter,
   ChevronRight, ChevronDown, Star, AlertTriangle, CheckCircle,
-  XCircle, ArrowLeft, Eye, FileImage, Paperclip, ExternalLink
+  XCircle, ArrowLeft, Eye, FileImage, Paperclip, ExternalLink,
+  PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { PregnancyFollowUpCard } from '../components/obstetrics/PregnancyFollowUpCard';
 import toast from 'react-hot-toast';
@@ -133,6 +134,7 @@ const ComprehensivePatientProfile: React.FC = () => {
   // States
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'medical' | 'visits' | 'labs' | 'ivf' | 'pregnancy' | 'files'>('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -1064,10 +1066,13 @@ const ComprehensivePatientProfile: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-12 gap-6">
+      <div className="max-w-7xl mx-auto flex gap-6 relative transition-all duration-300">
         {/* Patients Sidebar */}
-        <div className="col-span-12 md:col-span-4 lg:col-span-3">
-          <div className="bg-white rounded-2xl shadow-lg p-4 sticky top-6">
+        <div className={`transition-all duration-300 ${isSidebarOpen
+            ? 'w-full md:w-1/3 lg:w-1/4 opacity-100'
+            : 'w-0 opacity-0 overflow-hidden'
+          }`}>
+          <div className="bg-white rounded-2xl shadow-lg p-4 sticky top-6 min-w-[300px]">
             {/* Search */}
             <div className="relative mb-4">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -1107,7 +1112,20 @@ const ComprehensivePatientProfile: React.FC = () => {
         </div>
 
         {/* Main Content */}
-        <div className="col-span-12 md:col-span-8 lg:col-span-9">
+        <div className={`transition-all duration-300 flex-1 ${isSidebarOpen ? '' : 'w-full'
+          }`}>
+          {/* Toggle Sidebar Button */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="mb-4 flex items-center gap-2 text-gray-500 hover:text-teal-600 transition-colors"
+            title={isSidebarOpen ? "إخفاء القائمة" : "إظهار القائمة"}
+          >
+            {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+            <span className="text-sm font-medium">
+              {isSidebarOpen ? "توسيع العرض" : "قائمة المرضى"}
+            </span>
+          </button>
+
           {!selectedPatient ? (
             <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
               <User className="w-20 h-20 text-gray-300 mx-auto mb-4" />
