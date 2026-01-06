@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
+import { visitsService } from '../../services/visitsService';
 import {
   User, Phone, Calendar, Heart, Activity, Pill, FileText,
   AlertCircle, Clock, ChevronRight, Plus, Edit2, X, ArrowLeft,
@@ -85,6 +86,34 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
     }
   };
 
+  // Format date safely
+  const formatDate = (dateValue: any): string => {
+    if (!dateValue) return 'تاريخ غير محدد';
+    try {
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return 'تاريخ غير صالح';
+      return date.toLocaleDateString('ar-EG', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return 'تاريخ غير صالح';
+    }
+  };
+
+  // Format date short
+  const formatDateShort = (dateValue: any): string => {
+    if (!dateValue) return '--';
+    try {
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return '--';
+      return date.toLocaleDateString('ar-EG');
+    } catch (e) {
+      return '--';
+    }
+  };
+
   useEffect(() => {
     loadPatientData();
   }, [patientId]);
@@ -118,15 +147,39 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
   };
 
   const loadVisits = async () => {
-    const { data, error } = await supabase
-      .from('visits')
-      .select('*')
-      .eq('patient_id', patientId)
-      .order('date', { ascending: false })
-      .limit(50);
+    try {
+      // استخدام visitsService لجلب كل الزيارات (visits + pregnancies + IVF cycles)
+      const allVisits = await visitsService.getVisitsByPatient(patientId);
+      
+      // تحويل البيانات لصيغة Visit المتوقعة
+      const formattedVisits = allVisits.map((v: any) => ({
+        id: v.id,
+        patient_id: v.patientId || patientId,
+        date: v.date || v.created_at,
+        department: v.department || 'عام',
+        diagnosis: v.diagnosis || '',
+        prescription: v.prescription || [],
+        notes: v.notes || '',
+        clinical_data: v.clinical_data || v.vitals || null
+      }));
+      
+      setVisits(formattedVisits);
+    } catch (error) {
+      console.error('Error loading visits:', error);
+      // محاولة التحميل المباشر كـ fallback
+      const { data, error: dbError } = await supabase
+        .from('visits')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('date', { ascending: false })
+        .limit(50);
 
-    if (error) throw error;
-    setVisits(data || []);
+      if (!dbError) {
+        setVisits(data || []);
+      } else {
+        setVisits([]);
+      }
+    }
   };
 
   const loadPrescriptions = async () => {
@@ -280,7 +333,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
               <div>
                 <p className="text-sm text-gray-600 mb-1">آخر زيارة</p>
                 <p className="text-sm font-bold text-gray-900">
-                  {lastVisit ? new Date(lastVisit.date).toLocaleDateString('ar-EG') : 'لا توجد'}
+                  {lastVisit ? formatDateShort(lastVisit.date) : 'لا توجد'}
                 </p>
               </div>
               <Clock className="w-8 h-8 text-purple-500" />
@@ -350,7 +403,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
                   <div className="flex justify-between py-2">
                     <span className="text-gray-600">تاريخ التسجيل</span>
                     <span className="font-bold text-gray-900">
-                      {new Date(patient.created_at).toLocaleDateString('ar-EG')}
+                      {formatDateShort(patient.created_at)}
                     </span>
                   </div>
                 </div>
@@ -388,12 +441,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
                       <div>
                         <p className="text-sm text-gray-600 mb-1">التاريخ</p>
                         <p className="font-bold text-gray-900">
-                          {new Date(lastVisit.date).toLocaleDateString('ar-EG', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
+                          {formatDate(lastVisit.date)}
                         </p>
                       </div>
                       <div>
@@ -478,11 +526,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3 mb-2">
                                   <span className="font-bold text-gray-900">
-                                    {new Date(visit.date).toLocaleDateString('ar-EG', {
-                                      year: 'numeric',
-                                      month: 'long',
-                                      day: 'numeric'
-                                    })}
+                                    {formatDate(visit.date)}
                                   </span>
                                   <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                                     {visit.department || 'عام'}
@@ -834,11 +878,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
                       <div className="flex items-center justify-between mb-4 pb-3 border-b border-green-200">
                         <h4 className="font-bold text-lg text-gray-900 flex items-center gap-2">
                           <Calendar className="w-5 h-5 text-green-600" />
-                          روشتة بتاريخ {new Date(prescription.visitDate).toLocaleDateString('ar-EG', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
+                          روشتة بتاريخ {formatDate(prescription.visitDate)}
                         </h4>
                         <span className="px-3 py-1 bg-green-600 text-white rounded-full text-sm font-medium">
                           {prescription.items.length} دواء
@@ -915,7 +955,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
                             </span>
                           </div>
                           <p className="text-sm text-gray-600 mb-2">
-                            تاريخ الطلب: {new Date(lab.request_date).toLocaleDateString('ar-EG')}
+                            تاريخ الطلب: {formatDateShort(lab.request_date)}
                           </p>
                           {lab.result && (
                             <div className="bg-green-50 border-r-4 border-green-400 p-3 rounded mt-3">

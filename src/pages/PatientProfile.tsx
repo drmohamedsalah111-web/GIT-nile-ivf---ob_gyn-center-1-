@@ -37,12 +37,15 @@ interface Appointment {
 
 interface Visit {
   id: string;
-  visit_date: string;
+  date?: string;
+  visit_date?: string;  // fallback for legacy
   diagnosis?: string;
   notes?: string;
+  department?: string;
   treatment?: string;
   clinical_data?: any;
   prescription?: any[];
+  created_at?: string;
 }
 
 interface Cycle {
@@ -96,6 +99,52 @@ const TabButton: React.FC<{
     )}
   </button>
 );
+
+// Helper function to get visit date safely
+const getVisitDate = (visit: Visit): string | null => {
+  return visit.date || visit.visit_date || visit.created_at || null;
+};
+
+// Safe date formatting
+const formatDate = (dateValue: any): string => {
+  if (!dateValue) return 'تاريخ غير محدد';
+  try {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return 'تاريخ غير صالح';
+    return date.toLocaleDateString('ar-EG', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  } catch (e) {
+    return 'تاريخ غير صالح';
+  }
+};
+
+const formatDateShort = (dateValue: any): string => {
+  if (!dateValue) return '--';
+  try {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return '--';
+    return date.toLocaleDateString('ar-EG');
+  } catch (e) {
+    return '--';
+  }
+};
+
+const getDateParts = (dateValue: any): { day: number | string; month: string } => {
+  if (!dateValue) return { day: '--', month: '---' };
+  try {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return { day: '--', month: '---' };
+    return {
+      day: date.getDate(),
+      month: date.toLocaleDateString('en-US', { month: 'short' })
+    };
+  } catch (e) {
+    return { day: '--', month: '---' };
+  }
+};
 
 const PatientProfile: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -391,21 +440,25 @@ const PatientProfile: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {visits.map((visit) => (
+                {visits.map((visit) => {
+                  const visitDate = getVisitDate(visit);
+                  const dateParts = getDateParts(visitDate);
+                  
+                  return (
                   <div key={visit.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 font-bold flex-col leading-none">
-                            <span className="text-lg">{new Date(visit.visit_date).getDate()}</span>
-                            <span className="text-[10px] uppercase">{new Date(visit.visit_date).toLocaleDateString('en-US', { month: 'short' })}</span>
+                            <span className="text-lg">{dateParts.day}</span>
+                            <span className="text-[10px] uppercase">{dateParts.month}</span>
                           </div>
                           <div>
                             <h4 className="font-bold text-gray-800 text-lg">
-                              {visit.diagnosis || 'زيارة عامة'}
+                              {visit.diagnosis || visit.department || 'زيارة عامة'}
                             </h4>
                             <p className="text-sm text-gray-500">
-                              {new Date(visit.visit_date).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric' })}
+                              {formatDate(visitDate)}
                             </p>
                           </div>
                         </div>
@@ -489,7 +542,8 @@ const PatientProfile: React.FC = () => {
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -498,8 +552,9 @@ const PatientProfile: React.FC = () => {
       case 'medications':
         // Extract medications from visits
         const allMedications = visits.flatMap(v => {
+          const vDate = getVisitDate(v);
           if (Array.isArray(v.prescription)) {
-            return v.prescription.map(p => ({ ...p, date: v.visit_date }));
+            return v.prescription.map(p => ({ ...p, date: vDate }));
           }
           return [];
         });
@@ -536,7 +591,7 @@ const PatientProfile: React.FC = () => {
                         <td className="px-6 py-4 font-medium text-gray-800">{med.drug}</td>
                         <td className="px-6 py-4 text-gray-600">{med.dose}</td>
                         <td className="px-6 py-4 text-gray-500 text-sm">
-                          {new Date(med.date).toLocaleDateString('ar-EG')}
+                          {formatDateShort(med.date)}
                         </td>
                         <td className="px-6 py-4">
                           <span className="px-2 py-1 bg-teal-50 text-teal-700 rounded text-xs font-bold">
@@ -672,7 +727,7 @@ const PatientProfile: React.FC = () => {
               <div className="relative border-r-2 border-gray-100 mr-3 space-y-6 pr-6">
                 {/* Combine and sort recent items */}
                 {[
-                  ...visits.map(v => ({ type: 'visit', date: v.visit_date, data: v })),
+                  ...visits.map(v => ({ type: 'visit', date: getVisitDate(v), data: v })),
                   ...pregnancies.map(p => ({ type: 'pregnancy', date: p.created_at || p.conception_date, data: p })),
                   ...labRequests.map(l => ({ type: 'lab', date: l.requestDate, data: l }))
                 ]
@@ -701,7 +756,7 @@ const PatientProfile: React.FC = () => {
                           </p>
                         </div>
                         <span className="text-xs text-gray-500">
-                          {new Date(item.date || '').toLocaleDateString('ar-EG')}
+                          {formatDateShort(item.date)}
                         </span>
                       </div>
                     </div>
