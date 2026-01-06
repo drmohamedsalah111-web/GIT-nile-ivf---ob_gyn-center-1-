@@ -3,7 +3,7 @@ import { Users, Search, Loader, AlertCircle, FileText, Stethoscope, Calendar, Ar
 import { supabase } from '../services/supabaseClient';
 import { authService } from '../services/authService';
 import { appointmentsService } from '../services/appointmentsService';
-import ModernAppointmentSystem from '../components/appointments/ModernAppointmentSystem';
+import SimpleAppointmentSystem from '../components/appointments/SimpleAppointmentSystem';
 import toast from 'react-hot-toast';
 
 interface PatientRow {
@@ -529,10 +529,10 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
           </button>
         </div>
 
-        {/* Modern Appointment System */}
+        {/* Simple Appointment System */}
         {activeView === 'appointments' && currentDoctorId && (
           <div className="animate-fade-in">
-            <ModernAppointmentSystem
+            <SimpleAppointmentSystem
               doctorId={currentDoctorId}
               userRole="doctor"
             />

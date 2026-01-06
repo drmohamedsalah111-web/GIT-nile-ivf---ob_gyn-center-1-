@@ -6,7 +6,7 @@ import { appointmentsService } from '../services/appointmentsService';
 import { visitsService } from '../services/visitsService';
 import { InvoicesManagementPage } from '../components/invoices';
 import CollectionsManagement from '../components/invoices/CollectionsManagement';
-import ModernAppointmentSystem from '../components/appointments/ModernAppointmentSystem';
+import SimpleAppointmentSystem from '../components/appointments/SimpleAppointmentSystem';
 import toast from 'react-hot-toast';
 
 const SecretaryDashboard: React.FC = () => {
@@ -431,10 +431,10 @@ const SecretaryDashboard: React.FC = () => {
       {/* Main Content Area */}
       <div className="bg-white dark:bg-zinc-800 rounded-3xl border border-borderColor/50 shadow-sm min-h-[500px] overflow-hidden">
         
-        {/* Modern Appointments System - COMPLETELY NEW! 🚀 */}
+        {/* Simple Appointments System 🎯 */}
         {activeView === 'smart_appointments' && secretary?.secretary_doctor_id && (
           <div className="animate-fade-in">
-            <ModernAppointmentSystem
+            <SimpleAppointmentSystem
               doctorId={secretary.secretary_doctor_id}
               userRole="secretary"
             />
