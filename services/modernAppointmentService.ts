@@ -181,22 +181,31 @@ class ModernAppointmentService {
     try {
       const { data, error } = await supabase
         .from('appointments')
-        .select(`
-          *,
-          patient:patients(name, phone, email),
-          doctor:doctors(full_name)
-        `)
+        .select('*')
         .eq('id', appointmentId)
         .single();
 
       if (error) throw error;
 
+      // Load related data separately
+      const { data: patientData } = await supabase
+        .from('patients')
+        .select('name, phone, email')
+        .eq('id', data.patient_id)
+        .single();
+
+      const { data: doctorData } = await supabase
+        .from('doctors')
+        .select('full_name')
+        .eq('id', data.doctor_id)
+        .single();
+
       const appointment: AppointmentWithDetails = {
         ...data,
-        patient_name: data.patient?.name,
-        patient_phone: data.patient?.phone,
-        patient_email: data.patient?.email,
-        doctor_name: data.doctor?.full_name
+        patient_name: patientData?.name,
+        patient_phone: patientData?.phone,
+        patient_email: patientData?.email,
+        doctor_name: doctorData?.full_name
       };
 
       return { data: appointment, error: null };
@@ -215,11 +224,7 @@ class ModernAppointmentService {
     try {
       let query = supabase
         .from('appointments')
-        .select(`
-          *,
-          patient:patients(name, phone, email),
-          doctor:doctors(full_name)
-        `);
+        .select('*');
 
       // Apply filters
       if (filters.doctorId) {
@@ -254,13 +259,34 @@ class ModernAppointmentService {
 
       if (error) throw error;
 
-      let appointments: AppointmentWithDetails[] = data?.map(apt => ({
+      if (!data || data.length === 0) {
+        return { data: [], error: null };
+      }
+
+      // Load related data separately
+      const patientIds = [...new Set(data.map(apt => apt.patient_id))];
+      const doctorIds = [...new Set(data.map(apt => apt.doctor_id))];
+
+      const { data: patientsData } = await supabase
+        .from('patients')
+        .select('id, name, phone, email')
+        .in('id', patientIds);
+
+      const { data: doctorsData } = await supabase
+        .from('doctors')
+        .select('id, full_name')
+        .in('id', doctorIds);
+
+      const patientsMap = new Map(patientsData?.map(p => [p.id, p]) || []);
+      const doctorsMap = new Map(doctorsData?.map(d => [d.id, d]) || []);
+
+      let appointments: AppointmentWithDetails[] = data.map(apt => ({
         ...apt,
-        patient_name: apt.patient?.name,
-        patient_phone: apt.patient?.phone,
-        patient_email: apt.patient?.email,
-        doctor_name: apt.doctor?.full_name
-      })) || [];
+        patient_name: patientsMap.get(apt.patient_id)?.name,
+        patient_phone: patientsMap.get(apt.patient_id)?.phone,
+        patient_email: patientsMap.get(apt.patient_id)?.email,
+        doctor_name: doctorsMap.get(apt.doctor_id)?.full_name
+      }));
 
       // Apply search filter if provided
       if (filters.searchTerm) {
@@ -613,15 +639,48 @@ class ModernAppointmentService {
 
       const { data, error } = await supabase
         .from('appointments')
-        .select(`
-          *,
-          patient:patients(name, phone, email),
-          doctor:doctors(full_name)
-        `)
+        .select('*')
         .eq('doctor_id', doctorId)
         .eq('appointment_date', tomorrowDate)
         .eq('reminder_sent', false)
         .in('status', ['scheduled', 'confirmed']);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        return { data: [], error: null };
+      }
+
+      // Load related data separately
+      const patientIds = [...new Set(data.map(apt => apt.patient_id))];
+
+      const { data: patientsData } = await supabase
+        .from('patients')
+        .select('id, name, phone, email')
+        .in('id', patientIds);
+
+      const { data: doctorData } = await supabase
+        .from('doctors')
+        .select('id, full_name')
+        .eq('id', doctorId)
+        .single();
+
+      const patientsMap = new Map(patientsData?.map(p => [p.id, p]) || []);
+
+      const appointments: AppointmentWithDetails[] = data.map(apt => ({
+        ...apt,
+        patient_name: patientsMap.get(apt.patient_id)?.name,
+        patient_phone: patientsMap.get(apt.patient_id)?.phone,
+        patient_email: patientsMap.get(apt.patient_id)?.email,
+        doctor_name: doctorData?.full_name
+      }));
+
+      return { data: appointments, error: null };
+    } catch (error) {
+      console.error('Error getting appointments needing reminders:', error);
+      return { data: [], error };
+    }
+  }
 
       if (error) throw error;
 
