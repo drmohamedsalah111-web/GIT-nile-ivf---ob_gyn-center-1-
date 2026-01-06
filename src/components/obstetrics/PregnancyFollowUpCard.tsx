@@ -240,7 +240,7 @@ export const PregnancyFollowUpCard: React.FC<PregnancyFollowUpCardProps> = ({
                 {chartData.length > 1 ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Weight Chart */}
-                        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                        <div dir="ltr" className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
                             <h4 className="font-bold text-purple-800 mb-3 flex items-center gap-2">
                                 <TrendingUp size={18} />
                                 Weight Trajectory
@@ -267,7 +267,7 @@ export const PregnancyFollowUpCard: React.FC<PregnancyFollowUpCardProps> = ({
                         </div>
 
                         {/* BP Chart */}
-                        <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-4 border border-red-100">
+                        <div dir="ltr" className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-4 border border-red-100">
                             <h4 className="font-bold text-red-800 mb-3 flex items-center gap-2">
                                 <Heart size={18} />
                                 Blood Pressure
@@ -398,16 +398,16 @@ export const PregnancyFollowUpCard: React.FC<PregnancyFollowUpCardProps> = ({
                                             <td className="p-3 text-center">
                                                 <div className="flex items-center justify-center gap-1">
                                                     <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${!visit.urine_albuminuria || visit.urine_albuminuria === 'nil'
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : visit.urine_albuminuria === '+'
-                                                                ? 'bg-amber-100 text-amber-800'
-                                                                : 'bg-red-100 text-red-800'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : visit.urine_albuminuria === '+'
+                                                            ? 'bg-amber-100 text-amber-800'
+                                                            : 'bg-red-100 text-red-800'
                                                         }`}>
                                                         P:{visit.urine_albuminuria || 'Nil'}
                                                     </span>
                                                     <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${!visit.urine_glycosuria || visit.urine_glycosuria === 'nil'
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : 'bg-amber-100 text-amber-800'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-amber-100 text-amber-800'
                                                         }`}>
                                                         G:{visit.urine_glycosuria || 'Nil'}
                                                     </span>
@@ -433,8 +433,8 @@ export const PregnancyFollowUpCard: React.FC<PregnancyFollowUpCardProps> = ({
                                                 {ga.weeks >= 28 ? (
                                                     visit.presentation ? (
                                                         <span className={`px-2 py-1 rounded ${visit.presentation === 'Cephalic'
-                                                                ? 'bg-green-100 text-green-800'
-                                                                : 'bg-amber-100 text-amber-800'
+                                                            ? 'bg-green-100 text-green-800'
+                                                            : 'bg-amber-100 text-amber-800'
                                                             }`}>
                                                             {visit.presentation}
                                                         </span>
