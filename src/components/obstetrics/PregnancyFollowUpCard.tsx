@@ -7,11 +7,12 @@ import { format, parseISO, differenceInDays, addDays } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import {
     Plus, Calendar, AlertTriangle, TrendingUp, TrendingDown,
-    Heart, Baby, Activity, ChevronRight
+    Heart, Baby, Activity, ChevronRight, Edit2
 } from 'lucide-react';
 import { obstetricsService } from '../../../services/obstetricsService';
 import { Pregnancy, AntenatalVisit } from '../../../types';
 import toast from 'react-hot-toast';
+import EditPregnancyDatesModal from './EditPregnancyDatesModal';
 
 interface PregnancyFollowUpCardProps {
     pregnancyId?: string;
@@ -33,6 +34,7 @@ export const PregnancyFollowUpCard: React.FC<PregnancyFollowUpCardProps> = ({
     const [pregnancy, setPregnancy] = useState<Pregnancy | null>(pregnancyProp || null);
     const [visits, setVisits] = useState<AntenatalVisit[]>(visitsProp || []);
     const [loading, setLoading] = useState(!pregnancyProp && !!pregnancyId);
+    const [isEditDatesModalOpen, setIsEditDatesModalOpen] = useState(false);
 
     useEffect(() => {
         if (pregnancyId && !pregnancyProp) {
@@ -192,6 +194,15 @@ export const PregnancyFollowUpCard: React.FC<PregnancyFollowUpCardProps> = ({
                                 </span>
                             </div>
                         </div>
+
+                        {/* Edit LMP Button */}
+                        <button
+                            onClick={() => setIsEditDatesModalOpen(true)}
+                            className="p-2 bg-white/80 hover:bg-white rounded-lg border border-teal-200 shadow-sm transition-colors"
+                            title="تعديل التاريخ"
+                        >
+                            <Edit2 size={18} className="text-teal-600" />
+                        </button>
                     </div>
 
                     {/* Right: Parity & Risk Badges */}
