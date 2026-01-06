@@ -16,6 +16,7 @@ import {
   ChevronRight, ChevronDown, Star, AlertTriangle, CheckCircle,
   XCircle, ArrowLeft, Eye, FileImage, Paperclip, ExternalLink
 } from 'lucide-react';
+import { PregnancyFollowUpCard } from '../components/obstetrics/PregnancyFollowUpCard';
 import toast from 'react-hot-toast';
 import { supabase } from '../../services/supabaseClient';
 
@@ -70,6 +71,7 @@ interface Visit {
   clinical_data?: any;
   vitals?: VitalSigns;
   follow_up_date?: string;
+  created_at?: string;
 }
 
 interface LabResult {
@@ -81,6 +83,7 @@ interface LabResult {
   unit?: string;
   status?: 'normal' | 'abnormal' | 'critical';
   notes?: string;
+  created_at?: string;
 }
 
 interface IVFCycle {
@@ -93,6 +96,7 @@ interface IVFCycle {
   eggs_retrieved?: number;
   embryos_transferred?: number;
   pregnancy_result?: boolean;
+  created_at?: string;
 }
 
 interface Pregnancy {
@@ -107,6 +111,7 @@ interface Pregnancy {
   delivery_date?: string;
   delivery_type?: string;
   outcome?: string;
+  created_at?: string;
 }
 
 interface PatientFile {
@@ -117,6 +122,7 @@ interface PatientFile {
   category?: 'lab' | 'imaging' | 'report' | 'prescription' | 'other';
   uploaded_at: string;
   description?: string;
+  created_at?: string;
 }
 
 // ============================================================================
@@ -254,7 +260,7 @@ const ComprehensivePatientProfile: React.FC = () => {
 
       // Calculate Stats
       const lastVisit = visitsData?.[0]?.created_at || visitsData?.[0]?.visit_date || null;
-      
+
       setStats({
         totalVisits: visitsData?.length || 0,
         totalLabs: labsData?.length || 0,
@@ -303,16 +309,14 @@ const ComprehensivePatientProfile: React.FC = () => {
     <div
       key={patient.id}
       onClick={() => setSelectedPatient(patient)}
-      className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 ${
-        selectedPatient?.id === patient.id
-          ? 'bg-gradient-to-br from-teal-50 to-cyan-50 border-teal-500 shadow-lg'
-          : 'bg-white border-gray-200 hover:border-teal-300 hover:shadow-md'
-      }`}
+      className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 ${selectedPatient?.id === patient.id
+        ? 'bg-gradient-to-br from-teal-50 to-cyan-50 border-teal-500 shadow-lg'
+        : 'bg-white border-gray-200 hover:border-teal-300 hover:shadow-md'
+        }`}
     >
       <div className="flex items-start gap-3">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-          selectedPatient?.id === patient.id ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'
-        }`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${selectedPatient?.id === patient.id ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'
+          }`}>
           <User className="w-6 h-6" />
         </div>
         <div className="flex-1 min-w-0">
@@ -328,9 +332,8 @@ const ComprehensivePatientProfile: React.FC = () => {
             </div>
           )}
         </div>
-        <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${
-          selectedPatient?.id === patient.id ? 'rotate-90' : ''
-        }`} />
+        <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${selectedPatient?.id === patient.id ? 'rotate-90' : ''
+          }`} />
       </div>
     </div>
   );
@@ -343,18 +346,16 @@ const ComprehensivePatientProfile: React.FC = () => {
   ) => (
     <button
       onClick={() => setActiveTab(tab)}
-      className={`flex items-center gap-2 px-4 py-3 rounded-lg font-semibold transition-all ${
-        activeTab === tab
-          ? 'bg-teal-600 text-white shadow-lg'
-          : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-      }`}
+      className={`flex items-center gap-2 px-4 py-3 rounded-lg font-semibold transition-all ${activeTab === tab
+        ? 'bg-teal-600 text-white shadow-lg'
+        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+        }`}
     >
       {icon}
       <span>{label}</span>
       {count !== undefined && (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-          activeTab === tab ? 'bg-white/20' : 'bg-gray-100'
-        }`}>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === tab ? 'bg-white/20' : 'bg-gray-100'
+          }`}>
           {count}
         </span>
       )}
@@ -533,7 +534,7 @@ const ComprehensivePatientProfile: React.FC = () => {
           <History className="w-6 h-6 text-teal-600" />
           النشاط الأخير
         </h3>
-        
+
         {stats.lastVisit && (
           <div className="flex items-center gap-4 p-4 bg-teal-50 rounded-lg mb-3">
             <Clock className="w-6 h-6 text-teal-600" />
@@ -764,13 +765,12 @@ const ComprehensivePatientProfile: React.FC = () => {
                   </p>
                 </div>
                 {lab.status && (
-                  <span className={`px-3 py-1 rounded-lg text-sm font-semibold ${
-                    lab.status === 'normal' ? 'bg-green-100 text-green-700' :
+                  <span className={`px-3 py-1 rounded-lg text-sm font-semibold ${lab.status === 'normal' ? 'bg-green-100 text-green-700' :
                     lab.status === 'abnormal' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
+                      'bg-red-100 text-red-700'
+                    }`}>
                     {lab.status === 'normal' ? 'طبيعي' :
-                     lab.status === 'abnormal' ? 'غير طبيعي' : 'حرج'}
+                      lab.status === 'abnormal' ? 'غير طبيعي' : 'حرج'}
                   </span>
                 )}
               </div>
@@ -837,11 +837,10 @@ const ComprehensivePatientProfile: React.FC = () => {
                   </div>
                 </div>
                 {cycle.status && (
-                  <span className={`px-3 py-1 rounded-lg text-sm font-semibold ${
-                    cycle.status === 'success' ? 'bg-green-100 text-green-700' :
+                  <span className={`px-3 py-1 rounded-lg text-sm font-semibold ${cycle.status === 'success' ? 'bg-green-100 text-green-700' :
                     cycle.status === 'failed' ? 'bg-red-100 text-red-700' :
-                    'bg-yellow-100 text-yellow-700'
-                  }`}>
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
                     {cycle.status}
                   </span>
                 )}
@@ -897,84 +896,32 @@ const ComprehensivePatientProfile: React.FC = () => {
           <p className="text-gray-500 text-lg">لا توجد حالات حمل مسجلة</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-8">
           {pregnancies.map((pregnancy, idx) => (
-            <div key={pregnancy.id} className="bg-white rounded-xl p-6 shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center">
-                    <Baby className="w-6 h-6 text-pink-600" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-lg text-gray-900">حمل #{pregnancies.length - idx}</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(pregnancy.conception_date || pregnancy.lmp || pregnancy.created_at).toLocaleDateString('ar-EG')}
-                    </p>
-                  </div>
-                </div>
+            <div key={pregnancy.id} className="relative">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-teal-100 text-teal-700 font-bold text-sm">
+                  {pregnancies.length - idx}
+                </span>
+                <h4 className="text-xl font-bold text-gray-800">
+                  {pregnancy.status === 'ongoing' ? 'الحمل الحالي (نشط)' : `حمل سابق (${new Date(pregnancy.created_at).getFullYear()})`}
+                </h4>
                 {pregnancy.status && (
-                  <span className={`px-3 py-1 rounded-lg text-sm font-semibold ${
-                    pregnancy.status === 'ongoing' ? 'bg-green-100 text-green-700' :
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${pregnancy.status === 'ongoing' ? 'bg-green-100 text-green-700' :
                     pregnancy.status === 'delivered' ? 'bg-blue-100 text-blue-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
+                      'bg-gray-100 text-gray-700'
+                    }`}>
                     {pregnancy.status}
                   </span>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-                {pregnancy.lmp && (
-                  <div>
-                    <p className="text-sm text-gray-600">آخر دورة</p>
-                    <p className="font-semibold text-gray-900">
-                      {new Date(pregnancy.lmp).toLocaleDateString('ar-EG')}
-                    </p>
-                  </div>
-                )}
-                {pregnancy.edd && (
-                  <div>
-                    <p className="text-sm text-gray-600">الولادة المتوقعة</p>
-                    <p className="font-semibold text-gray-900">
-                      {new Date(pregnancy.edd).toLocaleDateString('ar-EG')}
-                    </p>
-                  </div>
-                )}
-                {pregnancy.gestational_age && (
-                  <div>
-                    <p className="text-sm text-gray-600">عمر الحمل</p>
-                    <p className="font-semibold text-gray-900">{pregnancy.gestational_age}</p>
-                  </div>
-                )}
-              </div>
-
-              {pregnancy.pregnancy_type && (
-                <div className="mb-3">
-                  <p className="text-sm text-gray-600">نوع الحمل</p>
-                  <p className="font-semibold text-gray-900">{pregnancy.pregnancy_type}</p>
-                </div>
-              )}
-
-              {pregnancy.complications && pregnancy.complications.length > 0 && (
-                <div className="p-3 bg-red-50 rounded-lg mb-3">
-                  <p className="text-sm font-semibold text-red-700 mb-2">المضاعفات:</p>
-                  <div className="space-y-1">
-                    {pregnancy.complications.map((comp, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm text-red-600">
-                        <AlertTriangle className="w-4 h-4" />
-                        <span>{comp}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {pregnancy.outcome && (
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">النتيجة</p>
-                  <p className="font-semibold text-gray-900">{pregnancy.outcome}</p>
-                </div>
-              )}
+              <PregnancyFollowUpCard
+                pregnancyId={pregnancy.id}
+                patientName={selectedPatient?.name}
+              // We pass undefined handlers so the card works in read-only/display mode 
+              // or you can implement modal opening if needed here
+              />
             </div>
           ))}
         </div>
@@ -1010,43 +957,39 @@ const ComprehensivePatientProfile: React.FC = () => {
           {files.map((file) => (
             <div key={file.id} className="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow">
               <div className="flex items-start justify-between mb-3">
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                  file.category === 'lab' ? 'bg-blue-100' :
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${file.category === 'lab' ? 'bg-blue-100' :
                   file.category === 'imaging' ? 'bg-purple-100' :
-                  file.category === 'report' ? 'bg-green-100' :
-                  file.category === 'prescription' ? 'bg-orange-100' :
-                  'bg-gray-100'
-                }`}>
+                    file.category === 'report' ? 'bg-green-100' :
+                      file.category === 'prescription' ? 'bg-orange-100' :
+                        'bg-gray-100'
+                  }`}>
                   {file.file_type.includes('image') ? (
-                    <Image className={`w-6 h-6 ${
-                      file.category === 'lab' ? 'text-blue-600' :
+                    <Image className={`w-6 h-6 ${file.category === 'lab' ? 'text-blue-600' :
                       file.category === 'imaging' ? 'text-purple-600' :
-                      file.category === 'report' ? 'text-green-600' :
-                      file.category === 'prescription' ? 'text-orange-600' :
-                      'text-gray-600'
-                    }`} />
+                        file.category === 'report' ? 'text-green-600' :
+                          file.category === 'prescription' ? 'text-orange-600' :
+                            'text-gray-600'
+                      }`} />
                   ) : (
-                    <FileText className={`w-6 h-6 ${
-                      file.category === 'lab' ? 'text-blue-600' :
+                    <FileText className={`w-6 h-6 ${file.category === 'lab' ? 'text-blue-600' :
                       file.category === 'imaging' ? 'text-purple-600' :
-                      file.category === 'report' ? 'text-green-600' :
-                      file.category === 'prescription' ? 'text-orange-600' :
-                      'text-gray-600'
-                    }`} />
+                        file.category === 'report' ? 'text-green-600' :
+                          file.category === 'prescription' ? 'text-orange-600' :
+                            'text-gray-600'
+                      }`} />
                   )}
                 </div>
                 {file.category && (
-                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                    file.category === 'lab' ? 'bg-blue-100 text-blue-700' :
+                  <span className={`px-2 py-1 rounded text-xs font-semibold ${file.category === 'lab' ? 'bg-blue-100 text-blue-700' :
                     file.category === 'imaging' ? 'bg-purple-100 text-purple-700' :
-                    file.category === 'report' ? 'bg-green-100 text-green-700' :
-                    file.category === 'prescription' ? 'bg-orange-100 text-orange-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
+                      file.category === 'report' ? 'bg-green-100 text-green-700' :
+                        file.category === 'prescription' ? 'bg-orange-100 text-orange-700' :
+                          'bg-gray-100 text-gray-700'
+                    }`}>
                     {file.category === 'lab' ? 'تحليل' :
-                     file.category === 'imaging' ? 'أشعة' :
-                     file.category === 'report' ? 'تقرير' :
-                     file.category === 'prescription' ? 'روشتة' : 'أخرى'}
+                      file.category === 'imaging' ? 'أشعة' :
+                        file.category === 'report' ? 'تقرير' :
+                          file.category === 'prescription' ? 'روشتة' : 'أخرى'}
                   </span>
                 )}
               </div>
@@ -1054,7 +997,7 @@ const ComprehensivePatientProfile: React.FC = () => {
               <h4 className="font-semibold text-gray-900 mb-2 truncate" title={file.file_name}>
                 {file.file_name}
               </h4>
-              
+
               <p className="text-sm text-gray-500 mb-3">
                 {new Date(file.uploaded_at || file.created_at).toLocaleDateString('ar-EG')}
               </p>
