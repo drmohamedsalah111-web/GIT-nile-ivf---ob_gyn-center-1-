@@ -3,8 +3,7 @@
  * خدمة ذكية لإدارة مرحلة التنشيط في رحلة الحقن المجهري
  */
 
-import { supabase } from '../lib/supabase';
-import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '../src/lib/supabase';
 
 // ============================================================================
 // TYPES & INTERFACES

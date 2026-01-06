@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS smart_ivf_cycles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   doctor_id UUID NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
-  clinic_id UUID REFERENCES clinics(id),
+  clinic_id UUID, -- Optional, no foreign key constraint
   
   -- معلومات الدورة
   cycle_number INTEGER NOT NULL DEFAULT 1,
@@ -217,7 +217,7 @@ CREATE INDEX IF NOT EXISTS idx_daily_analysis_cycle ON smart_daily_analysis(cycl
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS stimulation_protocols_library (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  clinic_id UUID REFERENCES clinics(id),
+  clinic_id UUID, -- Optional, no foreign key constraint
   
   -- معلومات البروتوكول
   protocol_name TEXT NOT NULL,
@@ -431,7 +431,6 @@ ALTER TABLE clinical_decision_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "doctors_view_own_clinic_smart_cycles" ON smart_ivf_cycles
   FOR SELECT USING (
     doctor_id IN (SELECT id FROM doctors WHERE user_id = auth.uid())
-    OR clinic_id IN (SELECT clinic_id FROM doctors WHERE user_id = auth.uid())
   );
 
 CREATE POLICY "doctors_insert_own_smart_cycles" ON smart_ivf_cycles
@@ -450,7 +449,6 @@ CREATE POLICY "view_visits_for_accessible_cycles" ON smart_monitoring_visits
     cycle_id IN (
       SELECT id FROM smart_ivf_cycles 
       WHERE doctor_id IN (SELECT id FROM doctors WHERE user_id = auth.uid())
-        OR clinic_id IN (SELECT clinic_id FROM doctors WHERE user_id = auth.uid())
     )
   );
 
