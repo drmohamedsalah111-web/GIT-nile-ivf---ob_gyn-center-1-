@@ -1058,13 +1058,17 @@ const ComprehensivePatientProfile: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className={`p-3 rounded-xl transition-colors flex items-center gap-2 ${isSidebarOpen ? 'bg-teal-50 text-teal-700' : 'bg-gray-100 text-gray-700 hover:bg-teal-50 hover:text-teal-700'
+                className={`group relative overflow-hidden px-4 py-2.5 rounded-xl transition-all duration-300 font-bold text-sm flex items-center gap-2 shadow-sm border ${isSidebarOpen
+                    ? 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100'
+                    : 'bg-gradient-to-r from-teal-600 to-teal-500 text-white border-transparent hover:shadow-md'
                   }`}
-                title={isSidebarOpen ? "إخفاء القائمة" : "إظهار القائمة"}
+                title={isSidebarOpen ? "إخفاء القائمة الجانبية" : "إظهار قائمة المرضى"}
               >
-                {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
-                <span className="text-sm font-bold hidden md:inline">
-                  {isSidebarOpen ? "توسيع" : "القائمة"}
+                <div className={`transition-transform duration-300 ${isSidebarOpen ? 'rotate-180' : 'rotate-0'}`}>
+                  {isSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+                </div>
+                <span>
+                  {isSidebarOpen ? "توسيع العرض" : "قائمة المرضى"}
                 </span>
               </button>
 
