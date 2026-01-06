@@ -1,6 +1,7 @@
 /**
  * SMART IVF STIMULATION SERVICE
  * خدمة ذكية لإدارة مرحلة التنشيط في رحلة الحقن المجهري
+ * Updated: 2026-01-06
  */
 
 import { supabase } from '../src/lib/supabase';
