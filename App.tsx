@@ -22,6 +22,7 @@ const AddPatient = React.lazy(() => import('./pages/AddPatient'));
 const Gynecology = React.lazy(() => import('./pages/Gynecology'));
 const IvfJourney = React.lazy(() => import('./pages/IvfJourney'));
 const SmartIVFJourney = React.lazy(() => import('./pages/SmartIVFJourney'));
+const SmartStimulationCopilot = React.lazy(() => import('./pages/SmartStimulationCopilot'));
 const ObstetricsDashboard = React.lazy(() => import('./pages/ObstetricsDashboard'));
 const PatientMasterRecord = React.lazy(() => import('./pages/PatientMasterRecord'));
 const PatientProfile = React.lazy(() => import('./src/pages/PatientProfile'));
@@ -319,6 +320,7 @@ const App: React.FC = () => {
                               <Route path="/gynecology" element={<Gynecology />} />
                               <Route path="/ivf-journey" element={<IvfJourney />} />
                               <Route path="/smart-ivf" element={<SmartIVFJourney />} />
+                              <Route path="/smart-stimulation" element={<SmartStimulationCopilot />} />
                               <Route path="/infertility" element={<InfertilityWorkup />} />
                               <Route path="/obstetrics" element={<ObstetricsDashboard />} />
                               <Route path="/records" element={<PatientMasterRecord />} />
