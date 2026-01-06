@@ -15,7 +15,7 @@ import {
   Weight, Ruler, HeartPulse, Download, Image, Search, Filter,
   ChevronRight, ChevronDown, Star, AlertTriangle, CheckCircle,
   XCircle, ArrowLeft, Eye, FileImage, Paperclip, ExternalLink,
-  PanelLeftClose, PanelLeftOpen
+  Menu
 } from 'lucide-react';
 import { PregnancyFollowUpCard } from '../components/obstetrics/PregnancyFollowUpCard';
 import toast from 'react-hot-toast';
@@ -1069,8 +1069,8 @@ const ComprehensivePatientProfile: React.FC = () => {
       <div className="max-w-7xl mx-auto flex gap-6 relative transition-all duration-300">
         {/* Patients Sidebar */}
         <div className={`transition-all duration-300 ${isSidebarOpen
-            ? 'w-full md:w-1/3 lg:w-1/4 opacity-100'
-            : 'w-0 opacity-0 overflow-hidden'
+          ? 'w-full md:w-1/3 lg:w-1/4 opacity-100'
+          : 'w-0 opacity-0 overflow-hidden'
           }`}>
           <div className="bg-white rounded-2xl shadow-lg p-4 sticky top-6 min-w-[300px]">
             {/* Search */}
@@ -1117,13 +1117,10 @@ const ComprehensivePatientProfile: React.FC = () => {
           {/* Toggle Sidebar Button */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="mb-4 flex items-center gap-2 text-gray-500 hover:text-teal-600 transition-colors"
-            title={isSidebarOpen ? "إخفاء القائمة" : "إظهار القائمة"}
+            className="mb-4 flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm text-gray-600 hover:text-teal-600 hover:border-teal-200 transition-all font-medium"
           >
-            {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
-            <span className="text-sm font-medium">
-              {isSidebarOpen ? "توسيع العرض" : "قائمة المرضى"}
-            </span>
+            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+            <span>{isSidebarOpen ? "إخفاء القائمة" : "قائمة المرضى"}</span>
           </button>
 
           {!selectedPatient ? (
