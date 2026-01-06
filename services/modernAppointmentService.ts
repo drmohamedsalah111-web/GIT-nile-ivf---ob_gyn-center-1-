@@ -86,13 +86,17 @@ class ModernAppointmentService {
         };
       }
 
+      // Get current user for created_by
+      const { data: { user } } = await supabase.auth.getUser();
+
       const { data: appointment, error } = await supabase
         .from('appointments')
         .insert([{
           ...data,
-          status: 'scheduled',
+          status: 'Scheduled',
           priority: data.priority || 'normal',
-          reminder_sent: false
+          reminder_sent: false,
+          created_by: user?.id || data.doctor_id
         }])
         .select()
         .single();

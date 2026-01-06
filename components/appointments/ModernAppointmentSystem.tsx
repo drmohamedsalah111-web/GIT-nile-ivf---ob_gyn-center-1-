@@ -298,13 +298,17 @@ const ModernAppointmentSystem: React.FC<ModernAppointmentSystemProps> = ({ docto
         if (error) throw error;
         toast.success('تم تحديث الموعد بنجاح');
       } else {
+        // Get current user for created_by
+        const { data: { user } } = await supabase.auth.getUser();
+        
         const { error } = await supabase
           .from('appointments')
           .insert([{
             doctor_id: doctorId,
             ...appointmentData,
             status: 'Scheduled',
-            reminder_sent: false
+            reminder_sent: false,
+            created_by: user?.id || doctorId
           }]);
 
         if (error) throw error;
