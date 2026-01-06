@@ -3,6 +3,7 @@ import { Users, Search, Loader, AlertCircle, FileText, Stethoscope, Calendar, Ar
 import { supabase } from '../services/supabaseClient';
 import { authService } from '../services/authService';
 import { appointmentsService } from '../services/appointmentsService';
+import ModernAppointmentSystem from '../components/appointments/ModernAppointmentSystem';
 import toast from 'react-hot-toast';
 
 interface PatientRow {
@@ -36,6 +37,7 @@ type ViewMode = 'day' | 'week' | 'month';
 
 const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddPatient }) => {
 
+  const [activeView, setActiveView] = useState<'appointments' | 'patients'>('appointments');
   const [patients, setPatients] = useState<PatientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -501,19 +503,45 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
           ))}
         </div>
 
-        {/* Smart Appointment Manager */}
-        <div className="bg-white rounded-3xl p-6 shadow-xl shadow-gray-100/50">
-          {renderSmartHeader()}
-
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {viewMode === 'day' && renderDayView()}
-            {viewMode === 'week' && renderWeekView()}
-            {viewMode === 'month' && renderMonthView()}
-          </div>
+        {/* View Tabs */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6 p-2 flex gap-2">
+          <button
+            onClick={() => setActiveView('appointments')}
+            className={`flex-1 py-3 px-6 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
+              activeView === 'appointments'
+                ? 'bg-gradient-to-r from-teal-600 to-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <Calendar size={20} />
+            نظام المواعيد
+          </button>
+          <button
+            onClick={() => setActiveView('patients')}
+            className={`flex-1 py-3 px-6 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
+              activeView === 'patients'
+                ? 'bg-gradient-to-r from-teal-600 to-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <Users size={20} />
+            سجل المرضى
+          </button>
         </div>
 
-        {/* Patients List (Collapsible or just below) - Keeping it simple by removing it from primary view or keeping it at bottom */}
-        <div className="mt-12">
+        {/* Modern Appointment System */}
+        {activeView === 'appointments' && currentDoctorId && (
+          <div className="animate-fade-in">
+            <ModernAppointmentSystem
+              doctorId={currentDoctorId}
+              userRole="doctor"
+            />
+          </div>
+        )}
+
+        {/* Patients List */}
+        {activeView === 'patients' && (
+        <div>
           <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2"><Users className="text-blue-600" /> سجل المرضى</h3>
           {/* ... Patients Table Logic (Simplified for length constraints, reusing basic list) ... */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -551,6 +579,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onViewPatient, onAddP
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* Edit Modal - Reused */}
