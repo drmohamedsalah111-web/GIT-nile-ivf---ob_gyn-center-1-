@@ -58,6 +58,8 @@ const SimpleAppointmentSystem: React.FC<SimpleAppointmentSystemProps> = ({ docto
 
   const loadAppointments = async () => {
     try {
+      console.log(`🔍 Loading appointments for doctor ${doctorId} on date ${selectedDate}`);
+      
       const { data, error } = await supabase
         .from('appointments')
         .select('*')
@@ -66,6 +68,8 @@ const SimpleAppointmentSystem: React.FC<SimpleAppointmentSystemProps> = ({ docto
         .order('appointment_time');
 
       if (error) throw error;
+
+      console.log(`✅ Found ${data?.length || 0} appointments`);
 
       if (data && data.length > 0) {
         const patientIds = [...new Set(data.map(apt => apt.patient_id))];
@@ -78,17 +82,19 @@ const SimpleAppointmentSystem: React.FC<SimpleAppointmentSystemProps> = ({ docto
 
         const formattedAppointments = data.map(apt => ({
           ...apt,
-          patient_name: patientsMap.get(apt.patient_id)?.name,
-          patient_phone: patientsMap.get(apt.patient_id)?.phone
+          patient_name: patientsMap.get(apt.patient_id)?.name || 'مريض غير معروف',
+          patient_phone: patientsMap.get(apt.patient_id)?.phone || ''
         }));
 
+        console.log(`✅ Formatted ${formattedAppointments.length} appointments with patient details`);
         setAppointments(formattedAppointments);
       } else {
         setAppointments([]);
       }
     } catch (error: any) {
-      console.error('Error loading appointments:', error);
+      console.error('❌ Error loading appointments:', error);
       toast.error('حدث خطأ في تحميل المواعيد');
+      setAppointments([]);
     }
   };
 
@@ -100,10 +106,16 @@ const SimpleAppointmentSystem: React.FC<SimpleAppointmentSystemProps> = ({ docto
         .eq('doctor_id', doctorId)
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading patients:', error);
+        throw error;
+      }
+      
+      console.log(`✅ Loaded ${data?.length || 0} patients for doctor ${doctorId}`);
       setPatients(data || []);
-    } catch (error) {
-      console.error('Error loading patients:', error);
+    } catch (error: any) {
+      console.error('❌ Error loading patients:', error);
+      toast.error('حدث خطأ في تحميل المرضى');
     }
   };
 
