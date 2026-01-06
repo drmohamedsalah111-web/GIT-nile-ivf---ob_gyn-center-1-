@@ -89,6 +89,18 @@ DROP POLICY IF EXISTS "Admins can update all visits" ON visits;
 DROP POLICY IF EXISTS "Doctors can delete their visits" ON visits;
 DROP POLICY IF EXISTS "Secretaries can delete visits" ON visits;
 DROP POLICY IF EXISTS "Admins can delete all visits" ON visits;
+DROP POLICY IF EXISTS "doctors_read_visits" ON visits;
+DROP POLICY IF EXISTS "secretaries_read_visits" ON visits;
+DROP POLICY IF EXISTS "admins_read_visits" ON visits;
+DROP POLICY IF EXISTS "doctors_insert_visits" ON visits;
+DROP POLICY IF EXISTS "secretaries_insert_visits" ON visits;
+DROP POLICY IF EXISTS "admins_insert_visits" ON visits;
+DROP POLICY IF EXISTS "doctors_update_visits" ON visits;
+DROP POLICY IF EXISTS "secretaries_update_visits" ON visits;
+DROP POLICY IF EXISTS "admins_update_visits" ON visits;
+DROP POLICY IF EXISTS "doctors_delete_visits" ON visits;
+DROP POLICY IF EXISTS "secretaries_delete_visits" ON visits;
+DROP POLICY IF EXISTS "admins_delete_visits" ON visits;
 
 -- ============================================================================
 -- 📋 الخطوة 3: سياسات SELECT - عرض البيانات
