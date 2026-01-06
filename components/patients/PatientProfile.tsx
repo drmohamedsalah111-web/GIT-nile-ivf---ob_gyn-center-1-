@@ -24,22 +24,21 @@ interface Patient {
 
 interface Visit {
   id: string;
-  visit_date: string;
-  visit_type: string;
+  patient_id: string;
+  doctor_id?: string;
+  date: string;
+  department?: string;
   diagnosis?: string;
-  treatment?: string;
+  prescription?: any; // JSONB array
   notes?: string;
-  follow_up_date?: string;
+  clinical_data?: any; // JSONB
+  created_at: string;
 }
 
-interface Prescription {
-  id: string;
-  medication_name: string;
-  dosage?: string;
-  frequency?: string;
-  duration?: string;
-  notes?: string;
-  created_at: string;
+interface PrescriptionItem {
+  drug: string;
+  dose?: string;
+  category?: string;
 }
 
 interface LabRequest {
@@ -54,7 +53,7 @@ interface LabRequest {
 const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) => {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [visits, setVisits] = useState<Visit[]>([]);
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [allPrescriptions, setAllPrescriptions] = useState<Array<{ visitDate: string; items: PrescriptionItem[] }>>([]);
   const [labRequests, setLabRequests] = useState<LabRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'visits' | 'prescriptions' | 'labs'>('overview');
@@ -96,23 +95,38 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
       .from('visits')
       .select('*')
       .eq('patient_id', patientId)
-      .order('visit_date', { ascending: false })
-      .limit(20);
+      .order('date', { ascending: false })
+      .limit(50);
 
     if (error) throw error;
     setVisits(data || []);
   };
 
   const loadPrescriptions = async () => {
+    // استخراج الأدوية من جميع الزيارات
     const { data, error } = await supabase
-      .from('prescriptions')
-      .select('*')
+      .from('visits')
+      .select('date, prescription')
       .eq('patient_id', patientId)
-      .order('created_at', { ascending: false })
-      .limit(20);
+      .not('prescription', 'is', null)
+      .order('date', { ascending: false })
+      .limit(50);
 
-    if (error) throw error;
-    setPrescriptions(data || []);
+    if (error) {
+      console.error('Error loading prescriptions:', error);
+      setAllPrescriptions([]);
+      return;
+    }
+
+    // تحويل البيانات لصيغة قابلة للعرض
+    const prescriptions = (data || [])
+      .filter(v => v.prescription && Array.isArray(v.prescription) && v.prescription.length > 0)
+      .map(v => ({
+        visitDate: v.date,
+        items: v.prescription
+      }));
+
+    setAllPrescriptions(prescriptions);
   };
 
   const loadLabRequests = async () => {
@@ -155,7 +169,8 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
   }
 
   const lastVisit = visits[0];
-  const activePrescriptions = prescriptions.slice(0, 5);
+  const recentPrescriptions = allPrescriptions.slice(0, 3);
+  const totalPrescriptionItems = allPrescriptions.reduce((sum, p) => sum + p.items.length, 0);
   const pendingLabs = labRequests.filter(lab => lab.status === 'Pending');
 
   return (
@@ -216,8 +231,8 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
           <div className="bg-white rounded-xl shadow-md p-4 border-r-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">العلاجات الحالية</p>
-                <p className="text-2xl font-bold text-gray-900">{activePrescriptions.length}</p>
+                <p className="text-sm text-gray-600 mb-1">إجمالي الأدوية</p>
+                <p className="text-2xl font-bold text-gray-900">{totalPrescriptionItems}</p>
               </div>
               <Pill className="w-8 h-8 text-green-500" />
             </div>
@@ -238,7 +253,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
               <div>
                 <p className="text-sm text-gray-600 mb-1">آخر زيارة</p>
                 <p className="text-sm font-bold text-gray-900">
-                  {lastVisit ? new Date(lastVisit.visit_date).toLocaleDateString('ar-EG') : 'لا توجد'}
+                  {lastVisit ? new Date(lastVisit.date).toLocaleDateString('ar-EG') : 'لا توجد'}
                 </p>
               </div>
               <Clock className="w-8 h-8 text-purple-500" />
@@ -346,7 +361,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
                       <div>
                         <p className="text-sm text-gray-600 mb-1">التاريخ</p>
                         <p className="font-bold text-gray-900">
-                          {new Date(lastVisit.visit_date).toLocaleDateString('ar-EG', {
+                          {new Date(lastVisit.date).toLocaleDateString('ar-EG', {
                             weekday: 'long',
                             year: 'numeric',
                             month: 'long',
@@ -355,8 +370,8 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600 mb-1">نوع الزيارة</p>
-                        <p className="font-bold text-gray-900">{lastVisit.visit_type}</p>
+                        <p className="text-sm text-gray-600 mb-1">القسم</p>
+                        <p className="font-bold text-gray-900">{lastVisit.department || 'عام'}</p>
                       </div>
                     </div>
                     {lastVisit.diagnosis && (
@@ -367,11 +382,21 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
                         </div>
                       </div>
                     )}
-                    {lastVisit.treatment && (
+                    {lastVisit.prescription && Array.isArray(lastVisit.prescription) && lastVisit.prescription.length > 0 && (
                       <div className="mb-4">
-                        <p className="text-sm text-gray-600 mb-1">العلاج</p>
+                        <p className="text-sm text-gray-600 mb-1">الأدوية الموصوفة</p>
                         <div className="bg-white rounded-lg p-3">
-                          <p className="text-gray-900">{lastVisit.treatment}</p>
+                          <ul className="space-y-2">
+                            {lastVisit.prescription.map((med: any, idx: number) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span className="text-green-600 font-bold">•</span>
+                                <div>
+                                  <span className="font-semibold text-gray-900">{med.drug || med.medication_name}</span>
+                                  {med.dose && <span className="text-gray-600 text-sm block">{med.dose}</span>}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       </div>
                     )}
@@ -416,14 +441,14 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <span className="font-bold text-gray-900">
-                              {new Date(visit.visit_date).toLocaleDateString('ar-EG', {
+                              {new Date(visit.date).toLocaleDateString('ar-EG', {
                                 year: 'numeric',
                                 month: 'long',
                                 day: 'numeric'
                               })}
                             </span>
                             <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                              {visit.visit_type}
+                              {visit.department || 'عام'}
                             </span>
                           </div>
                           {visit.diagnosis && (
@@ -432,10 +457,19 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
                               <p className="text-gray-900">{visit.diagnosis}</p>
                             </div>
                           )}
-                          {visit.treatment && (
+                          {visit.prescription && Array.isArray(visit.prescription) && visit.prescription.length > 0 && (
                             <div className="mb-2">
-                              <p className="text-sm text-gray-600 mb-1">العلاج:</p>
-                              <p className="text-gray-900">{visit.treatment}</p>
+                              <p className="text-sm text-gray-600 mb-1">الأدوية الموصوفة:</p>
+                              <div className="bg-green-50 border-r-4 border-green-400 p-3 rounded">
+                                <ul className="space-y-1">
+                                  {visit.prescription.map((med: any, idx: number) => (
+                                    <li key={idx} className="text-sm text-gray-900">
+                                      • <span className="font-semibold">{med.drug || med.medication_name}</span>
+                                      {med.dose && <span className="text-gray-600"> - {med.dose}</span>}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
                             </div>
                           )}
                           {visit.notes && (
@@ -458,51 +492,60 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
               <div className="p-6 border-b bg-gray-50">
                 <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                   <Pill className="w-6 h-6 text-green-600" />
-                  العلاجات والأدوية ({prescriptions.length})
+                  العلاجات والأدوية ({allPrescriptions.length} روشتة - {totalPrescriptionItems} دواء)
                 </h3>
               </div>
-              {prescriptions.length === 0 ? (
+              {allPrescriptions.length === 0 ? (
                 <div className="text-center py-20 text-gray-400">
                   <Pill className="w-16 h-16 mx-auto mb-4" />
                   <p className="text-lg">لا توجد أدوية مسجلة</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
-                  {prescriptions.map((prescription) => (
+                <div className="p-6 space-y-6">
+                  {allPrescriptions.map((prescription, pIndex) => (
                     <div
-                      key={prescription.id}
-                      className="border-2 border-green-200 rounded-xl p-4 hover:border-green-400 transition-colors"
+                      key={pIndex}
+                      className="border-2 border-green-200 rounded-xl p-5 hover:border-green-400 transition-colors bg-gradient-to-r from-green-50 to-teal-50"
                     >
-                      <h4 className="font-bold text-lg text-gray-900 mb-3">
-                        {prescription.medication_name}
-                      </h4>
-                      <div className="space-y-2">
-                        {prescription.dosage && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="text-gray-600">الجرعة:</span>
-                            <span className="font-medium text-gray-900">{prescription.dosage}</span>
+                      <div className="flex items-center justify-between mb-4 pb-3 border-b border-green-200">
+                        <h4 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                          <Calendar className="w-5 h-5 text-green-600" />
+                          روشتة بتاريخ {new Date(prescription.visitDate).toLocaleDateString('ar-EG', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </h4>
+                        <span className="px-3 py-1 bg-green-600 text-white rounded-full text-sm font-medium">
+                          {prescription.items.length} دواء
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {prescription.items.map((med: PrescriptionItem, idx: number) => (
+                          <div
+                            key={idx}
+                            className="bg-white border border-green-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                <span className="text-green-700 font-bold text-sm">{idx + 1}</span>
+                              </div>
+                              <div className="flex-1">
+                                <h5 className="font-bold text-gray-900 mb-1">{med.drug}</h5>
+                                {med.dose && (
+                                  <p className="text-sm text-gray-600 mb-1">
+                                    <span className="font-semibold">الجرعة:</span> {med.dose}
+                                  </p>
+                                )}
+                                {med.category && (
+                                  <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                                    {med.category}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        )}
-                        {prescription.frequency && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="text-gray-600">عدد المرات:</span>
-                            <span className="font-medium text-gray-900">{prescription.frequency}</span>
-                          </div>
-                        )}
-                        {prescription.duration && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="text-gray-600">المدة:</span>
-                            <span className="font-medium text-gray-900">{prescription.duration}</span>
-                          </div>
-                        )}
-                        {prescription.notes && (
-                          <div className="mt-3 bg-gray-50 p-2 rounded text-sm text-gray-700">
-                            {prescription.notes}
-                          </div>
-                        )}
-                        <div className="text-xs text-gray-500 mt-3">
-                          تاريخ الوصف: {new Date(prescription.created_at).toLocaleDateString('ar-EG')}
-                        </div>
+                        ))}
                       </div>
                     </div>
                   ))}
