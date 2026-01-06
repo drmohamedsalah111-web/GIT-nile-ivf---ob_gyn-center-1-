@@ -130,11 +130,23 @@ export const visitsService = {
     const now = new Date().toISOString();
     const visitDate = now.split('T')[0];
 
+    // Get doctor_id from patient record
+    const { data: patient, error: patientError } = await supabase
+      .from('patients')
+      .select('doctor_id')
+      .eq('id', params.patientId)
+      .single();
+
+    if (patientError || !patient) {
+      throw new Error('Patient not found or no doctor assigned');
+    }
+
     const { error } = await supabase
       .from('visits')
       .insert([{
         id,
         patient_id: params.patientId,
+        doctor_id: patient.doctor_id,
         date: visitDate,
         department: params.department,
         diagnosis: params.diagnosis || '',
