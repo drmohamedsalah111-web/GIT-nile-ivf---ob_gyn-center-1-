@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import {
   User, Phone, Calendar, Heart, Activity, Pill, FileText,
-  AlertCircle, Clock, ChevronRight, Plus, Edit2, X, ArrowLeft
+  AlertCircle, Clock, ChevronRight, Plus, Edit2, X, ArrowLeft,
+  Thermometer, Weight, Stethoscope, Eye, ChevronDown, ChevronUp
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -57,6 +58,32 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
   const [labRequests, setLabRequests] = useState<LabRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'visits' | 'prescriptions' | 'labs'>('overview');
+  const [expandedVisits, setExpandedVisits] = useState<Set<string>>(new Set());
+
+  // Toggle visit expansion
+  const toggleVisitExpansion = (visitId: string) => {
+    const newExpanded = new Set(expandedVisits);
+    if (newExpanded.has(visitId)) {
+      newExpanded.delete(visitId);
+    } else {
+      newExpanded.add(visitId);
+    }
+    setExpandedVisits(newExpanded);
+  };
+
+  // Parse clinical data safely
+  const parseClinicalData = (clinicalData: any) => {
+    if (!clinicalData) return null;
+    try {
+      if (typeof clinicalData === 'string') {
+        return JSON.parse(clinicalData);
+      }
+      return clinicalData;
+    } catch (e) {
+      console.error('Error parsing clinical data:', e);
+      return null;
+    }
+  };
 
   useEffect(() => {
     loadPatientData();
@@ -430,57 +457,354 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onClose }) =
                 </div>
               ) : (
                 <div className="divide-y">
-                  {visits.map((visit, index) => (
-                    <div key={visit.id} className="p-6 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center">
-                            <span className="text-teal-600 font-bold">{index + 1}</span>
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="font-bold text-gray-900">
-                              {new Date(visit.date).toLocaleDateString('ar-EG', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </span>
-                            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                              {visit.department || 'عام'}
-                            </span>
-                          </div>
-                          {visit.diagnosis && (
-                            <div className="mb-2">
-                              <p className="text-sm text-gray-600 mb-1">التشخيص:</p>
-                              <p className="text-gray-900">{visit.diagnosis}</p>
-                            </div>
-                          )}
-                          {visit.prescription && Array.isArray(visit.prescription) && visit.prescription.length > 0 && (
-                            <div className="mb-2">
-                              <p className="text-sm text-gray-600 mb-1">الأدوية الموصوفة:</p>
-                              <div className="bg-green-50 border-r-4 border-green-400 p-3 rounded">
-                                <ul className="space-y-1">
-                                  {visit.prescription.map((med: any, idx: number) => (
-                                    <li key={idx} className="text-sm text-gray-900">
-                                      • <span className="font-semibold">{med.drug || med.medication_name}</span>
-                                      {med.dose && <span className="text-gray-600"> - {med.dose}</span>}
-                                    </li>
-                                  ))}
-                                </ul>
+                  {visits.map((visit, index) => {
+                    const clinicalData = parseClinicalData(visit.clinical_data);
+                    const isExpanded = expandedVisits.has(visit.id);
+                    
+                    return (
+                      <div key={visit.id} className="hover:bg-gray-50 transition-colors">
+                        {/* Visit Header - Always visible */}
+                        <div 
+                          className="p-6 cursor-pointer"
+                          onClick={() => toggleVisitExpansion(visit.id)}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0">
+                              <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center">
+                                <span className="text-teal-600 font-bold">{index + 1}</span>
                               </div>
                             </div>
-                          )}
-                          {visit.notes && (
-                            <div className="bg-yellow-50 border-r-4 border-yellow-400 p-3 rounded">
-                              <p className="text-sm text-gray-700">{visit.notes}</p>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <span className="font-bold text-gray-900">
+                                    {new Date(visit.date).toLocaleDateString('ar-EG', {
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric'
+                                    })}
+                                  </span>
+                                  <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                                    {visit.department || 'عام'}
+                                  </span>
+                                  {clinicalData && (
+                                    <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs">
+                                      تفاصيل سريرية
+                                    </span>
+                                  )}
+                                </div>
+                                <button className="text-gray-400 hover:text-gray-600">
+                                  {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                                </button>
+                              </div>
+                              {visit.diagnosis && (
+                                <div className="mb-2">
+                                  <p className="text-gray-700"><span className="font-semibold">التشخيص:</span> {visit.diagnosis}</p>
+                                </div>
+                              )}
+                              {/* Quick prescription count */}
+                              {visit.prescription && Array.isArray(visit.prescription) && visit.prescription.length > 0 && (
+                                <p className="text-sm text-green-600">
+                                  <Pill className="w-4 h-4 inline ml-1" />
+                                  {visit.prescription.length} دواء موصوف
+                                </p>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </div>
+                        
+                        {/* Expanded Visit Details */}
+                        {isExpanded && (
+                          <div className="px-6 pb-6 pt-0">
+                            <div className="mr-16 space-y-4">
+                              
+                              {/* Vitals Section */}
+                              {clinicalData?.vitals && (
+                                <div className="bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl p-4 border border-rose-200">
+                                  <h4 className="font-bold text-rose-800 mb-3 flex items-center gap-2">
+                                    <Thermometer className="w-5 h-5" />
+                                    العلامات الحيوية
+                                  </h4>
+                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                                    {clinicalData.vitals.weight && (
+                                      <div className="bg-white rounded-lg p-3 text-center shadow-sm">
+                                        <Weight className="w-5 h-5 text-rose-600 mx-auto mb-1" />
+                                        <p className="text-xs text-gray-500">الوزن</p>
+                                        <p className="font-bold text-gray-900">{clinicalData.vitals.weight} كجم</p>
+                                      </div>
+                                    )}
+                                    {clinicalData.vitals.height && (
+                                      <div className="bg-white rounded-lg p-3 text-center shadow-sm">
+                                        <User className="w-5 h-5 text-rose-600 mx-auto mb-1" />
+                                        <p className="text-xs text-gray-500">الطول</p>
+                                        <p className="font-bold text-gray-900">{clinicalData.vitals.height} سم</p>
+                                      </div>
+                                    )}
+                                    {clinicalData.vitals.bmi && (
+                                      <div className="bg-white rounded-lg p-3 text-center shadow-sm">
+                                        <Activity className="w-5 h-5 text-rose-600 mx-auto mb-1" />
+                                        <p className="text-xs text-gray-500">BMI</p>
+                                        <p className="font-bold text-gray-900">{clinicalData.vitals.bmi}</p>
+                                      </div>
+                                    )}
+                                    {(clinicalData.vitals.bpSystolic || clinicalData.vitals.bpDiastolic) && (
+                                      <div className="bg-white rounded-lg p-3 text-center shadow-sm">
+                                        <Heart className="w-5 h-5 text-rose-600 mx-auto mb-1" />
+                                        <p className="text-xs text-gray-500">ضغط الدم</p>
+                                        <p className="font-bold text-gray-900">
+                                          {clinicalData.vitals.bpSystolic || '--'}/{clinicalData.vitals.bpDiastolic || '--'}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {clinicalData.vitals.temperature && (
+                                      <div className="bg-white rounded-lg p-3 text-center shadow-sm">
+                                        <Thermometer className="w-5 h-5 text-rose-600 mx-auto mb-1" />
+                                        <p className="text-xs text-gray-500">الحرارة</p>
+                                        <p className="font-bold text-gray-900">{clinicalData.vitals.temperature}°C</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Assessment Section - Complaints */}
+                              {clinicalData?.assessment?.complaints && clinicalData.assessment.complaints.length > 0 && (
+                                <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-xl p-4 border border-amber-200">
+                                  <h4 className="font-bold text-amber-800 mb-3 flex items-center gap-2">
+                                    <AlertCircle className="w-5 h-5" />
+                                    الشكوى الرئيسية
+                                  </h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {clinicalData.assessment.complaints.map((complaint: string, idx: number) => (
+                                      <span key={idx} className="px-3 py-1 bg-white text-amber-800 rounded-full text-sm border border-amber-300">
+                                        {complaint}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* PV Examination */}
+                              {clinicalData?.assessment?.pvExamination && (
+                                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-200">
+                                  <h4 className="font-bold text-purple-800 mb-3 flex items-center gap-2">
+                                    <Stethoscope className="w-5 h-5" />
+                                    الفحص السريري (PV Examination)
+                                  </h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {clinicalData.assessment.pvExamination.vulva && (
+                                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                                        <p className="text-xs text-gray-500 mb-1">الفرج (Vulva)</p>
+                                        <p className="text-gray-900">{clinicalData.assessment.pvExamination.vulva}</p>
+                                      </div>
+                                    )}
+                                    {clinicalData.assessment.pvExamination.vagina && (
+                                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                                        <p className="text-xs text-gray-500 mb-1">المهبل (Vagina)</p>
+                                        <p className="text-gray-900">{clinicalData.assessment.pvExamination.vagina}</p>
+                                      </div>
+                                    )}
+                                    {clinicalData.assessment.pvExamination.cervix && (
+                                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                                        <p className="text-xs text-gray-500 mb-1">عنق الرحم (Cervix)</p>
+                                        <p className="text-gray-900">{clinicalData.assessment.pvExamination.cervix}</p>
+                                      </div>
+                                    )}
+                                    {clinicalData.assessment.pvExamination.adnexa && (
+                                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                                        <p className="text-xs text-gray-500 mb-1">الملحقات (Adnexa)</p>
+                                        <p className="text-gray-900">{clinicalData.assessment.pvExamination.adnexa}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Ultrasound Findings */}
+                              {clinicalData?.assessment?.ultrasound && (
+                                <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-4 border border-cyan-200">
+                                  <h4 className="font-bold text-cyan-800 mb-3 flex items-center gap-2">
+                                    <Eye className="w-5 h-5" />
+                                    نتائج السونار
+                                  </h4>
+                                  <div className="space-y-4">
+                                    {/* Uterus */}
+                                    {clinicalData.assessment.ultrasound.uterus && (
+                                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                                        <p className="font-semibold text-cyan-700 mb-2">الرحم (Uterus)</p>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                                          {clinicalData.assessment.ultrasound.uterus.dimensions && (
+                                            <div>
+                                              <span className="text-gray-500">الأبعاد:</span>
+                                              <span className="text-gray-900 mr-1">{clinicalData.assessment.ultrasound.uterus.dimensions}</span>
+                                            </div>
+                                          )}
+                                          {clinicalData.assessment.ultrasound.uterus.position && (
+                                            <div>
+                                              <span className="text-gray-500">الوضع:</span>
+                                              <span className="text-gray-900 mr-1">{clinicalData.assessment.ultrasound.uterus.position}</span>
+                                            </div>
+                                          )}
+                                          {clinicalData.assessment.ultrasound.uterus.myometrium && (
+                                            <div>
+                                              <span className="text-gray-500">عضلة الرحم:</span>
+                                              <span className="text-gray-900 mr-1">{clinicalData.assessment.ultrasound.uterus.myometrium}</span>
+                                            </div>
+                                          )}
+                                          {clinicalData.assessment.ultrasound.uterus.cavity && (
+                                            <div>
+                                              <span className="text-gray-500">التجويف:</span>
+                                              <span className="text-gray-900 mr-1">{clinicalData.assessment.ultrasound.uterus.cavity}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Endometrium */}
+                                    {clinicalData.assessment.ultrasound.endometrium && (
+                                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                                        <p className="font-semibold text-cyan-700 mb-2">بطانة الرحم (Endometrium)</p>
+                                        <div className="flex gap-4 text-sm">
+                                          {clinicalData.assessment.ultrasound.endometrium.thickness && (
+                                            <div>
+                                              <span className="text-gray-500">السُمك:</span>
+                                              <span className="text-gray-900 mr-1">{clinicalData.assessment.ultrasound.endometrium.thickness} mm</span>
+                                            </div>
+                                          )}
+                                          {clinicalData.assessment.ultrasound.endometrium.pattern && (
+                                            <div>
+                                              <span className="text-gray-500">النمط:</span>
+                                              <span className="text-gray-900 mr-1">{clinicalData.assessment.ultrasound.endometrium.pattern}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Adnexa (Ovaries) */}
+                                    {clinicalData.assessment.ultrasound.adnexa && (
+                                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                                        <p className="font-semibold text-cyan-700 mb-2">المبايض والملحقات (Adnexa)</p>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                                          {clinicalData.assessment.ultrasound.adnexa.rightOvary && (
+                                            <div>
+                                              <span className="text-gray-500">المبيض الأيمن:</span>
+                                              <span className="text-gray-900 mr-1">{clinicalData.assessment.ultrasound.adnexa.rightOvary}</span>
+                                            </div>
+                                          )}
+                                          {clinicalData.assessment.ultrasound.adnexa.leftOvary && (
+                                            <div>
+                                              <span className="text-gray-500">المبيض الأيسر:</span>
+                                              <span className="text-gray-900 mr-1">{clinicalData.assessment.ultrasound.adnexa.leftOvary}</span>
+                                            </div>
+                                          )}
+                                          {clinicalData.assessment.ultrasound.adnexa.pod && (
+                                            <div>
+                                              <span className="text-gray-500">السائل الحوضي (POD):</span>
+                                              <span className="text-gray-900 mr-1">{clinicalData.assessment.ultrasound.adnexa.pod}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Diagnosis & Procedures */}
+                              {(clinicalData?.diagnosis || clinicalData?.procedureOrder) && (
+                                <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-200">
+                                  <h4 className="font-bold text-emerald-800 mb-3 flex items-center gap-2">
+                                    <FileText className="w-5 h-5" />
+                                    التشخيص والإجراءات
+                                  </h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {clinicalData.diagnosis && (
+                                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                                        <p className="text-xs text-gray-500 mb-1">التشخيص</p>
+                                        <p className="text-gray-900 font-medium">{clinicalData.diagnosis}</p>
+                                      </div>
+                                    )}
+                                    {clinicalData.procedureOrder && (
+                                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                                        <p className="text-xs text-gray-500 mb-1">الإجراءات المطلوبة</p>
+                                        <p className="text-gray-900 font-medium">{clinicalData.procedureOrder}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Clinical Notes */}
+                              {clinicalData?.clinicalNotes && (
+                                <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-4 border border-gray-200">
+                                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                    <Edit2 className="w-5 h-5" />
+                                    الملاحظات السريرية
+                                  </h4>
+                                  <div className="bg-white rounded-lg p-3 shadow-sm">
+                                    <p className="text-gray-700 whitespace-pre-wrap">{clinicalData.clinicalNotes}</p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Prescription Details */}
+                              {visit.prescription && Array.isArray(visit.prescription) && visit.prescription.length > 0 && (
+                                <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-xl p-4 border border-green-200">
+                                  <h4 className="font-bold text-green-800 mb-3 flex items-center gap-2">
+                                    <Pill className="w-5 h-5" />
+                                    الأدوية الموصوفة ({visit.prescription.length})
+                                  </h4>
+                                  <div className="bg-white rounded-lg p-3 shadow-sm">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="border-b">
+                                          <th className="text-right py-2 text-gray-600">الدواء</th>
+                                          <th className="text-right py-2 text-gray-600">الجرعة</th>
+                                          <th className="text-right py-2 text-gray-600">التصنيف</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {visit.prescription.map((med: any, idx: number) => (
+                                          <tr key={idx} className="border-b last:border-0">
+                                            <td className="py-2 font-medium text-gray-900">{med.drug || med.medication_name}</td>
+                                            <td className="py-2 text-gray-700">{med.dose || '-'}</td>
+                                            <td className="py-2">
+                                              {med.category && (
+                                                <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                                                  {med.category}
+                                                </span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* General Notes */}
+                              {visit.notes && (
+                                <div className="bg-yellow-50 border-r-4 border-yellow-400 p-4 rounded-lg">
+                                  <p className="text-sm font-semibold text-yellow-800 mb-1">ملاحظات عامة:</p>
+                                  <p className="text-gray-700">{visit.notes}</p>
+                                </div>
+                              )}
+
+                              {/* No clinical data message */}
+                              {!clinicalData && !visit.notes && (!visit.prescription || visit.prescription.length === 0) && (
+                                <div className="text-center py-4 text-gray-400">
+                                  <p>لا توجد تفاصيل سريرية إضافية لهذه الزيارة</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
