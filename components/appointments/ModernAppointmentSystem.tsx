@@ -108,11 +108,7 @@ const ModernAppointmentSystem: React.FC<ModernAppointmentSystemProps> = ({ docto
     try {
       const { data, error } = await supabase
         .from('appointments')
-        .select(`
-          *,
-          patient:patients(name, phone),
-          doctor:doctors(full_name)
-        `)
+        .select('*')
         .eq('doctor_id', doctorId)
         .gte('appointment_date', startDate)
         .lte('appointment_date', endDate)
@@ -124,19 +120,40 @@ const ModernAppointmentSystem: React.FC<ModernAppointmentSystemProps> = ({ docto
         throw error;
       }
 
-      const formattedAppointments = data?.map(apt => ({
-        ...apt,
-        patient_name: apt.patient?.name,
-        patient_phone: apt.patient?.phone,
-        doctor_name: apt.doctor?.full_name,
-        priority: apt.priority || 'normal',
-        reminder_sent: apt.reminder_sent || false
-      })) || [];
+      // Load patient and doctor details separately
+      if (data && data.length > 0) {
+        const patientIds = [...new Set(data.map(apt => apt.patient_id))];
+        
+        const { data: patientsData } = await supabase
+          .from('patients')
+          .select('id, name, phone')
+          .in('id', patientIds);
 
-      setAppointments(formattedAppointments);
+        const { data: doctorData } = await supabase
+          .from('doctors')
+          .select('id, full_name')
+          .eq('id', doctorId)
+          .single();
+
+        const patientsMap = new Map(patientsData?.map(p => [p.id, p]) || []);
+
+        const formattedAppointments = data.map(apt => ({
+          ...apt,
+          patient_name: patientsMap.get(apt.patient_id)?.name,
+          patient_phone: patientsMap.get(apt.patient_id)?.phone,
+          doctor_name: doctorData?.full_name,
+          priority: apt.priority || 'normal',
+          reminder_sent: apt.reminder_sent || false
+        }));
+
+        setAppointments(formattedAppointments);
+      } else {
+        setAppointments([]);
+      }
     } catch (error: any) {
       console.error('❌ Error in loadAppointments:', error);
       toast.error('حدث خطأ في تحميل المواعيد: ' + (error.message || 'خطأ غير معروف'));
+      setAppointments([]);
     }
   };
 
