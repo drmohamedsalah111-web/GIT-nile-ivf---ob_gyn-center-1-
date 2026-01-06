@@ -15,7 +15,7 @@ import {
   Weight, Ruler, HeartPulse, Download, Image, Search, Filter,
   ChevronRight, ChevronDown, Star, AlertTriangle, CheckCircle,
   XCircle, ArrowLeft, Eye, FileImage, Paperclip, ExternalLink,
-  Menu
+  PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { PregnancyFollowUpCard } from '../components/obstetrics/PregnancyFollowUpCard';
 import toast from 'react-hot-toast';
@@ -1054,11 +1054,24 @@ const ComprehensivePatientProfile: React.FC = () => {
                 <p className="text-gray-500 mt-1">مرجع طبي متكامل واحترافي</p>
               </div>
             </div>
+            {/* Sidebar Toggle in Header */}
             <div className="flex items-center gap-3">
-              <button className="p-3 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className={`p-3 rounded-xl transition-colors flex items-center gap-2 ${isSidebarOpen ? 'bg-teal-50 text-teal-700' : 'bg-gray-100 text-gray-700 hover:bg-teal-50 hover:text-teal-700'
+                  }`}
+                title={isSidebarOpen ? "إخفاء القائمة" : "إظهار القائمة"}
+              >
+                {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+                <span className="text-sm font-bold hidden md:inline">
+                  {isSidebarOpen ? "توسيع" : "القائمة"}
+                </span>
+              </button>
+
+              <button className="p-3 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors hidden md:block">
                 <Printer className="w-6 h-6 text-gray-700" />
               </button>
-              <button className="p-3 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+              <button className="p-3 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors hidden md:block">
                 <Download className="w-6 h-6 text-gray-700" />
               </button>
             </div>
@@ -1066,7 +1079,7 @@ const ComprehensivePatientProfile: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto flex gap-6 relative transition-all duration-300">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-6 relative transition-all duration-300">
         {/* Patients Sidebar */}
         <div className={`transition-all duration-300 ${isSidebarOpen
           ? 'w-full md:w-1/3 lg:w-1/4 opacity-100'
@@ -1112,16 +1125,7 @@ const ComprehensivePatientProfile: React.FC = () => {
         </div>
 
         {/* Main Content */}
-        <div className={`transition-all duration-300 flex-1 ${isSidebarOpen ? '' : 'w-full'
-          }`}>
-          {/* Toggle Sidebar Button */}
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="mb-4 flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm text-gray-600 hover:text-teal-600 hover:border-teal-200 transition-all font-medium"
-          >
-            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-            <span>{isSidebarOpen ? "إخفاء القائمة" : "قائمة المرضى"}</span>
-          </button>
+        <div className={`transition-all duration-300 flex-1 ${isSidebarOpen ? '' : 'w-full'}`}>
 
           {!selectedPatient ? (
             <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
