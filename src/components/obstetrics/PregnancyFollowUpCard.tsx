@@ -492,6 +492,22 @@ export const PregnancyFollowUpCard: React.FC<PregnancyFollowUpCardProps> = ({
                     <ChevronRight size={20} />
                 </button>
             )}
+
+            {/* ============================================ */}
+            {/* Edit Dates Modal */}
+            {/* ============================================ */}
+            <EditPregnancyDatesModal
+                isOpen={isEditDatesModalOpen}
+                onClose={() => setIsEditDatesModalOpen(false)}
+                pregnancyId={pregnancy.id}
+                currentLmpDate={pregnancy.lmp_date}
+                currentEddDate={pregnancy.edd_date}
+                currentEddByScan={pregnancy.edd_by_scan}
+                onSuccess={() => {
+                    setIsEditDatesModalOpen(false);
+                    if (pregnancyId) fetchData();
+                }}
+            />
         </div>
     );
 };
