@@ -1,4 +1,5 @@
 import React, { useState, useReducer, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import {
     AlertTriangle,
@@ -34,7 +35,7 @@ import ClinicalInsightsPanel from '../components/ivf/ClinicalInsightsPanel';
 // ============================================================================
 
 interface PatientProfile {
-    id?: string;
+    id?: string | number;
     name?: string;
     age: number;
     bmi: number;
@@ -137,6 +138,7 @@ const ProtocolProposalCard: React.FC<{
 
 const SmartIVFJourney: React.FC = () => {
     // Hooks
+    const navigate = useNavigate();
     const { patients, isLoading: patientsLoading, searchQuery, setSearchQuery } = usePatients();
 
     // State
@@ -356,10 +358,10 @@ const SmartIVFJourney: React.FC = () => {
                         ) : patients.map(p => (
                             <button
                                 key={p.id}
-                                onClick={() => handlePatientSelect(p.id)}
-                                className={`w-full text-left p-3 rounded-lg transition-colors border ${selectedPatientId === p.id
-                                        ? 'bg-indigo-50 border-indigo-500 text-indigo-900 shadow-sm'
-                                        : 'hover:bg-gray-50 border-transparent'
+                                onClick={() => handlePatientSelect(String(p.id))}
+                                className={`w-full text-left p-3 rounded-lg transition-colors border ${selectedPatientId === String(p.id)
+                                    ? 'bg-indigo-50 border-indigo-500 text-indigo-900 shadow-sm'
+                                    : 'hover:bg-gray-50 border-transparent'
                                     }`}
                             >
                                 <div className="font-bold">{p.name}</div>
@@ -434,6 +436,16 @@ const SmartIVFJourney: React.FC = () => {
                             <div className="text-xs text-gray-500 font-bold uppercase tracking-wider">Start Dose</div>
                             <div className="text-xl font-bold text-gray-900">{cycle.suggestedDose} IU</div>
                         </div>
+                    </div>
+
+                    <div className="flex gap-2 mb-4 justify-end">
+                        <button
+                            onClick={() => navigate(`/smart-stimulation?patientId=${selectedPatientId}`)}
+                            className="flex items-center gap-2 bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg font-bold hover:bg-indigo-200 transition-colors"
+                        >
+                            <TrendingUp className="w-4 h-4" />
+                            Go to Copilot Monitoring
+                        </button>
                     </div>
 
                     {/* Insights Panel (Dynamic) */}

@@ -418,5 +418,6 @@ export enum Page {
   OBSTETRICS = 'obstetrics',
   ADMIN = 'admin',
   SAAS_MANAGEMENT = 'saas_management',
-  SUPER_ADMIN = 'super_admin'
+  SUPER_ADMIN = 'super_admin',
+  SMART_STIMULATION = 'smart_stimulation'
 }

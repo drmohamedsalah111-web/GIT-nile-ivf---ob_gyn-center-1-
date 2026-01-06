@@ -11,24 +11,25 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, ScatterChart, Scatter, Cell
 } from 'recharts';
 import {
   Activity, AlertTriangle, CheckCircle, TrendingUp, TrendingDown, Minus,
-  Calendar, Syringe, Pill, Eye, Brain, Target, Zap, Plus, Save, 
+  Calendar, Syringe, Pill, Eye, Brain, Target, Zap, Plus, Save,
   Trash2, Clock, FileText, AlertCircle, Info, Users, Search,
   ArrowRight, ArrowUp, ArrowDown, Droplet, Heart, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { usePatients } from '../src/hooks/usePatients';
-import smartStimulationService, { 
-  SmartIVFCycle, 
-  MonitoringVisit, 
+import smartStimulationService, {
+  SmartIVFCycle,
+  MonitoringVisit,
   CycleStatus,
-  OHSSRisk 
+  OHSSRisk
 } from '../services/smartStimulationService';
 import { dbService } from '../services/dbService';
 
@@ -40,7 +41,6 @@ interface PatientInfo {
   id: string;
   name: string;
   age: number;
-  file_number?: string;
 }
 
 // ============================================================================
@@ -60,7 +60,6 @@ const PatientCard: React.FC<{ patient: PatientInfo }> = ({ patient }) => (
         <h3 className="text-xl font-bold text-gray-900">{patient.name}</h3>
         <div className="flex gap-4 text-sm text-gray-600">
           <span>العمر: {patient.age} سنة</span>
-          {patient.file_number && <span>الملف: {patient.file_number}</span>}
         </div>
       </div>
     </div>
@@ -70,12 +69,12 @@ const PatientCard: React.FC<{ patient: PatientInfo }> = ({ patient }) => (
 /**
  * بطاقة ملخص الدورة
  */
-const CycleSummaryCard: React.FC<{ 
-  cycle: SmartIVFCycle; 
+const CycleSummaryCard: React.FC<{
+  cycle: SmartIVFCycle;
   visitCount: number;
   latestVisit?: MonitoringVisit;
 }> = ({ cycle, visitCount, latestVisit }) => {
-  
+
   const getStatusBadge = (status: CycleStatus) => {
     const badges = {
       stimulation: { text: 'جاري التنشيط', color: 'bg-blue-100 text-blue-800' },
@@ -86,7 +85,7 @@ const CycleSummaryCard: React.FC<{
     };
     return badges[status as keyof typeof badges] || { text: status, color: 'bg-gray-100 text-gray-800' };
   };
-  
+
   const getRiskColor = (risk?: OHSSRisk) => {
     if (!risk) return 'text-gray-500';
     const colors = {
@@ -97,9 +96,9 @@ const CycleSummaryCard: React.FC<{
     };
     return colors[risk];
   };
-  
+
   const badge = getStatusBadge(cycle.status);
-  
+
   return (
     <div className="bg-white border-2 border-gray-200 rounded-xl p-6 mb-6 shadow-sm">
       <div className="flex items-center justify-between mb-4">
@@ -113,27 +112,27 @@ const CycleSummaryCard: React.FC<{
           {badge.text}
         </span>
       </div>
-      
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="text-center p-3 bg-blue-50 rounded-lg">
           <div className="text-2xl font-bold text-blue-600">{visitCount}</div>
           <div className="text-xs text-gray-600">زيارات متابعة</div>
         </div>
-        
+
         <div className="text-center p-3 bg-purple-50 rounded-lg">
           <div className="text-2xl font-bold text-purple-600">
             {latestVisit?.total_follicles || 0}
           </div>
           <div className="text-xs text-gray-600">عدد الحويصلات</div>
         </div>
-        
+
         <div className="text-center p-3 bg-green-50 rounded-lg">
           <div className="text-2xl font-bold text-green-600">
             {latestVisit?.lead_follicle_size?.toFixed(1) || 0}mm
           </div>
           <div className="text-xs text-gray-600">أكبر حويصلة</div>
         </div>
-        
+
         <div className="text-center p-3 bg-pink-50 rounded-lg">
           <div className={`text-2xl font-bold ${getRiskColor(cycle.ohss_risk_level)}`}>
             {cycle.ohss_risk_level || 'منخفض'}
@@ -152,7 +151,7 @@ const AIRecommendationsCard: React.FC<{ visit?: MonitoringVisit }> = ({ visit })
   if (!visit || !visit.ai_recommendations || visit.ai_recommendations.length === 0) {
     return null;
   }
-  
+
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
       case 'critical': return <AlertCircle className="w-5 h-5 text-red-600" />;
@@ -161,7 +160,7 @@ const AIRecommendationsCard: React.FC<{ visit?: MonitoringVisit }> = ({ visit })
       default: return <CheckCircle className="w-5 h-5 text-green-600" />;
     }
   };
-  
+
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical': return 'bg-red-50 border-red-200';
@@ -170,7 +169,7 @@ const AIRecommendationsCard: React.FC<{ visit?: MonitoringVisit }> = ({ visit })
       default: return 'bg-green-50 border-green-200';
     }
   };
-  
+
   return (
     <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-6 mb-6">
       <div className="flex items-center gap-3 mb-4">
@@ -179,11 +178,11 @@ const AIRecommendationsCard: React.FC<{ visit?: MonitoringVisit }> = ({ visit })
         </div>
         <h3 className="text-xl font-bold text-gray-900">التوصيات الذكية</h3>
       </div>
-      
+
       <div className="space-y-3">
         {visit.ai_recommendations.map((rec: any, idx: number) => (
-          <div 
-            key={idx} 
+          <div
+            key={idx}
             className={`flex items-start gap-3 p-4 rounded-lg border-2 ${getSeverityColor(rec.severity)}`}
           >
             {getSeverityIcon(rec.severity)}
@@ -196,7 +195,7 @@ const AIRecommendationsCard: React.FC<{ visit?: MonitoringVisit }> = ({ visit })
           </div>
         ))}
       </div>
-      
+
       {visit.dose_adjustment && visit.dose_adjustment !== 'maintain' && (
         <div className="mt-4 p-4 bg-white/70 rounded-lg border-2 border-indigo-300">
           <div className="flex items-center justify-between">
@@ -227,7 +226,7 @@ const AddVisitForm: React.FC<{
   onSave: () => void;
   onCancel: () => void;
 }> = ({ cycleId, visitCount, lastVisit, onSave, onCancel }) => {
-  
+
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<MonitoringVisit>>({
     cycle_id: cycleId,
@@ -246,22 +245,22 @@ const AddVisitForm: React.FC<{
     antagonist_given: false,
     doctor_notes: ''
   });
-  
+
   const [follicleInput, setFollicleInput] = useState({ right: '', left: '' });
-  
+
   const handleFollicleAdd = (side: 'right' | 'left', value: string) => {
     const size = parseFloat(value);
     if (isNaN(size) || size < 5 || size > 30) return;
-    
+
     const field = side === 'right' ? 'follicles_right' : 'follicles_left';
     setFormData(prev => ({
       ...prev,
       [field]: [...(prev[field] || []), size].sort((a, b) => b - a)
     }));
-    
+
     setFollicleInput(prev => ({ ...prev, [side]: '' }));
   };
-  
+
   const handleFollicleRemove = (side: 'right' | 'left', index: number) => {
     const field = side === 'right' ? 'follicles_right' : 'follicles_left';
     setFormData(prev => ({
@@ -269,11 +268,11 @@ const AddVisitForm: React.FC<{
       [field]: (prev[field] || []).filter((_, i) => i !== index)
     }));
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       await smartStimulationService.addMonitoringVisit(formData as Omit<MonitoringVisit, 'id'>);
       toast.success('تم حفظ الزيارة بنجاح');
@@ -284,7 +283,7 @@ const AddVisitForm: React.FC<{
       setLoading(false);
     }
   };
-  
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full my-8">
@@ -292,7 +291,7 @@ const AddVisitForm: React.FC<{
           <h2 className="text-2xl font-bold text-white">زيارة متابعة جديدة</h2>
           <p className="text-indigo-100">الزيارة رقم {formData.visit_number}</p>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* التاريخ والأيام */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -304,12 +303,12 @@ const AddVisitForm: React.FC<{
               <input
                 type="date"
                 value={formData.visit_date}
-                onChange={(e) => setFormData({...formData, visit_date: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
                 required
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 يوم الدورة
@@ -317,13 +316,13 @@ const AddVisitForm: React.FC<{
               <input
                 type="number"
                 value={formData.cycle_day}
-                onChange={(e) => setFormData({...formData, cycle_day: parseInt(e.target.value)})}
+                onChange={(e) => setFormData({ ...formData, cycle_day: parseInt(e.target.value) })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
                 min="1"
                 required
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 يوم التنشيط
@@ -331,13 +330,13 @@ const AddVisitForm: React.FC<{
               <input
                 type="number"
                 value={formData.stimulation_day}
-                onChange={(e) => setFormData({...formData, stimulation_day: parseInt(e.target.value)})}
+                onChange={(e) => setFormData({ ...formData, stimulation_day: parseInt(e.target.value) })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
                 min="1"
               />
             </div>
           </div>
-          
+
           {/* التحاليل الهرمونية */}
           <div>
             <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -353,12 +352,12 @@ const AddVisitForm: React.FC<{
                   type="number"
                   step="0.01"
                   value={formData.e2_level || ''}
-                  onChange={(e) => setFormData({...formData, e2_level: parseFloat(e.target.value)})}
+                  onChange={(e) => setFormData({ ...formData, e2_level: parseFloat(e.target.value) })}
                   className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
                   placeholder="0"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   LH (mIU/mL)
@@ -367,12 +366,12 @@ const AddVisitForm: React.FC<{
                   type="number"
                   step="0.01"
                   value={formData.lh_level || ''}
-                  onChange={(e) => setFormData({...formData, lh_level: parseFloat(e.target.value)})}
+                  onChange={(e) => setFormData({ ...formData, lh_level: parseFloat(e.target.value) })}
                   className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
                   placeholder="0"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   P4 (ng/mL)
@@ -381,12 +380,12 @@ const AddVisitForm: React.FC<{
                   type="number"
                   step="0.01"
                   value={formData.p4_level || ''}
-                  onChange={(e) => setFormData({...formData, p4_level: parseFloat(e.target.value)})}
+                  onChange={(e) => setFormData({ ...formData, p4_level: parseFloat(e.target.value) })}
                   className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
                   placeholder="0"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   بطانة الرحم (mm)
@@ -395,21 +394,21 @@ const AddVisitForm: React.FC<{
                   type="number"
                   step="0.1"
                   value={formData.endometrium_thickness || ''}
-                  onChange={(e) => setFormData({...formData, endometrium_thickness: parseFloat(e.target.value)})}
+                  onChange={(e) => setFormData({ ...formData, endometrium_thickness: parseFloat(e.target.value) })}
                   className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
                   placeholder="0.0"
                 />
               </div>
             </div>
           </div>
-          
+
           {/* الحويصلات */}
           <div>
             <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
               <Target className="w-5 h-5 text-purple-500" />
               الحويصلات (mm)
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* المبيض الأيمن */}
               <div className="border-2 border-purple-200 rounded-lg p-4 bg-purple-50">
@@ -419,7 +418,7 @@ const AddVisitForm: React.FC<{
                     type="number"
                     step="0.1"
                     value={follicleInput.right}
-                    onChange={(e) => setFollicleInput({...follicleInput, right: e.target.value})}
+                    onChange={(e) => setFollicleInput({ ...follicleInput, right: e.target.value })}
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -455,7 +454,7 @@ const AddVisitForm: React.FC<{
                   ))}
                 </div>
               </div>
-              
+
               {/* المبيض الأيسر */}
               <div className="border-2 border-pink-200 rounded-lg p-4 bg-pink-50">
                 <h4 className="font-bold text-pink-900 mb-3">المبيض الأيسر</h4>
@@ -464,7 +463,7 @@ const AddVisitForm: React.FC<{
                     type="number"
                     step="0.1"
                     value={follicleInput.left}
-                    onChange={(e) => setFollicleInput({...follicleInput, left: e.target.value})}
+                    onChange={(e) => setFollicleInput({ ...follicleInput, left: e.target.value })}
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -502,7 +501,7 @@ const AddVisitForm: React.FC<{
               </div>
             </div>
           </div>
-          
+
           {/* الأدوية */}
           <div>
             <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -517,11 +516,11 @@ const AddVisitForm: React.FC<{
                 <input
                   type="number"
                   value={formData.fsh_dose_given || ''}
-                  onChange={(e) => setFormData({...formData, fsh_dose_given: parseInt(e.target.value)})}
+                  onChange={(e) => setFormData({ ...formData, fsh_dose_given: parseInt(e.target.value) })}
                   className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   HMG (IU)
@@ -529,11 +528,11 @@ const AddVisitForm: React.FC<{
                 <input
                   type="number"
                   value={formData.hmg_dose_given || ''}
-                  onChange={(e) => setFormData({...formData, hmg_dose_given: parseInt(e.target.value)})}
+                  onChange={(e) => setFormData({ ...formData, hmg_dose_given: parseInt(e.target.value) })}
                   className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Antagonist
@@ -542,7 +541,7 @@ const AddVisitForm: React.FC<{
                   <input
                     type="checkbox"
                     checked={formData.antagonist_given || false}
-                    onChange={(e) => setFormData({...formData, antagonist_given: e.target.checked})}
+                    onChange={(e) => setFormData({ ...formData, antagonist_given: e.target.checked })}
                     className="w-5 h-5"
                   />
                   <span>تم إعطاؤه</span>
@@ -550,7 +549,7 @@ const AddVisitForm: React.FC<{
               </div>
             </div>
           </div>
-          
+
           {/* الملاحظات */}
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -559,13 +558,13 @@ const AddVisitForm: React.FC<{
             </label>
             <textarea
               value={formData.doctor_notes || ''}
-              onChange={(e) => setFormData({...formData, doctor_notes: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, doctor_notes: e.target.value })}
               rows={3}
               className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
               placeholder="ملاحظات إضافية..."
             />
           </div>
-          
+
           {/* الأزرار */}
           <div className="flex gap-3 justify-end pt-4 border-t-2 border-gray-200">
             <button
@@ -611,14 +610,14 @@ const ProgressChart: React.FC<{ visits: MonitoringVisit[] }> = ({ visits }) => {
     Total: v.total_follicles || 0,
     Endo: v.endometrium_thickness || 0
   }));
-  
+
   return (
     <div className="bg-white border-2 border-gray-200 rounded-xl p-6 mb-6">
       <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
         <TrendingUp className="w-5 h-5 text-green-600" />
         منحنى التطور
       </h3>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* E2 & Follicles */}
         <div>
@@ -636,7 +635,7 @@ const ProgressChart: React.FC<{ visits: MonitoringVisit[] }> = ({ visits }) => {
             </LineChart>
           </ResponsiveContainer>
         </div>
-        
+
         {/* Follicle & Endometrium Growth */}
         <div>
           <h4 className="text-sm font-semibold text-gray-700 mb-2">نمو الحويصلات والبطانة</h4>
@@ -663,31 +662,44 @@ const ProgressChart: React.FC<{ visits: MonitoringVisit[] }> = ({ visits }) => {
 
 const SmartStimulationCopilot: React.FC = () => {
   const { patients, isLoading: patientsLoading, searchQuery, setSearchQuery } = usePatients();
-  
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   const [selectedPatient, setSelectedPatient] = useState<PatientInfo | null>(null);
   const [currentCycle, setCurrentCycle] = useState<SmartIVFCycle | null>(null);
   const [visits, setVisits] = useState<MonitoringVisit[]>([]);
   const [showAddVisit, setShowAddVisit] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   // Load cycle and visits when patient is selected
   useEffect(() => {
     if (selectedPatient) {
       loadPatientCycle();
     }
   }, [selectedPatient]);
-  
+
+  // Handle URL params for patient selection
+  useEffect(() => {
+    const patientId = searchParams.get('patientId');
+    if (patientId && patients.length > 0 && !selectedPatient) {
+      const patient = patients.find(p => p.id === patientId);
+      if (patient) {
+        setSelectedPatient(patient as PatientInfo);
+      }
+    }
+  }, [searchParams, patients]);
+
   const loadPatientCycle = async () => {
     if (!selectedPatient) return;
-    
+
     setLoading(true);
     try {
       const cycles = await smartStimulationService.getPatientCycles(selectedPatient.id);
-      
+
       // Find active stimulation cycle or most recent
       const activeCycle = cycles.find(c => c.status === 'stimulation' || c.status === 'baseline');
       const cycle = activeCycle || cycles[0];
-      
+
       if (cycle) {
         setCurrentCycle(cycle);
         const cycleVisits = await smartStimulationService.getCycleVisits(cycle.id!);
@@ -703,10 +715,10 @@ const SmartStimulationCopilot: React.FC = () => {
       setLoading(false);
     }
   };
-  
+
   const handleCreateNewCycle = async () => {
     if (!selectedPatient) return;
-    
+
     try {
       const doctor = await dbService.getDoctorIdOrThrow();
       const newCycle: Omit<SmartIVFCycle, 'id'> = {
@@ -720,7 +732,7 @@ const SmartStimulationCopilot: React.FC = () => {
         initial_fsh_dose: 150,
         ohss_risk_level: 'low'
       };
-      
+
       const created = await smartStimulationService.createSmartCycle(newCycle);
       setCurrentCycle(created);
       setVisits([]);
@@ -729,9 +741,9 @@ const SmartStimulationCopilot: React.FC = () => {
       toast.error('خطأ في إنشاء الدورة: ' + error.message);
     }
   };
-  
+
   const latestVisit = visits.length > 0 ? visits[visits.length - 1] : undefined;
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -747,7 +759,7 @@ const SmartStimulationCopilot: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Patient Search */}
         {!selectedPatient && (
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
@@ -755,7 +767,7 @@ const SmartStimulationCopilot: React.FC = () => {
               <Search className="w-6 h-6 text-indigo-600" />
               اختر المريضة
             </h2>
-            
+
             <input
               type="text"
               value={searchQuery}
@@ -763,7 +775,7 @@ const SmartStimulationCopilot: React.FC = () => {
               placeholder="ابحث باسم المريضة أو رقم الملف..."
               className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl text-lg focus:border-indigo-500 focus:outline-none mb-6"
             />
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
               {patients.map(patient => (
                 <button
@@ -773,36 +785,33 @@ const SmartStimulationCopilot: React.FC = () => {
                 >
                   <div className="font-bold text-gray-900">{patient.name}</div>
                   <div className="text-sm text-gray-600">العمر: {patient.age || 'غير محدد'}</div>
-                  {patient.file_number && (
-                    <div className="text-xs text-gray-500">الملف: {patient.file_number}</div>
-                  )}
                 </button>
               ))}
             </div>
           </div>
         )}
-        
+
         {/* Patient & Cycle Info */}
         {selectedPatient && (
           <>
             <PatientCard patient={selectedPatient} />
-            
+
             {loading ? (
               <div className="flex justify-center items-center py-20">
                 <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
               </div>
             ) : currentCycle ? (
               <>
-                <CycleSummaryCard 
-                  cycle={currentCycle} 
+                <CycleSummaryCard
+                  cycle={currentCycle}
                   visitCount={visits.length}
                   latestVisit={latestVisit}
                 />
-                
+
                 {latestVisit && <AIRecommendationsCard visit={latestVisit} />}
-                
+
                 {visits.length > 0 && <ProgressChart visits={visits} />}
-                
+
                 {/* Add Visit Button */}
                 <div className="flex justify-center mb-8">
                   <button
@@ -813,14 +822,14 @@ const SmartStimulationCopilot: React.FC = () => {
                     إضافة زيارة متابعة جديدة
                   </button>
                 </div>
-                
+
                 {/* Visit List */}
                 <div className="bg-white rounded-2xl shadow-lg p-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-4">سجل الزيارات</h3>
                   <div className="space-y-4">
                     {visits.map((visit, idx) => (
-                      <div 
-                        key={visit.id} 
+                      <div
+                        key={visit.id}
                         className="border-2 border-gray-200 rounded-lg p-4 hover:border-indigo-300 transition"
                       >
                         <div className="flex items-center justify-between mb-2">
@@ -839,7 +848,7 @@ const SmartStimulationCopilot: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        
+
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                           <div>
                             <span className="text-gray-500">E2:</span>{' '}
@@ -882,7 +891,7 @@ const SmartStimulationCopilot: React.FC = () => {
             )}
           </>
         )}
-        
+
         {/* Add Visit Modal */}
         {showAddVisit && currentCycle && (
           <AddVisitForm

@@ -54,11 +54,11 @@ import { useParams } from 'react-router-dom';
 const CompleteMedicalRecordWrapper: React.FC = () => {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate = useNavigate();
-  
+
   if (!patientId) {
     return <div className="text-center py-20 text-red-500">معرف المريض مطلوب</div>;
   }
-  
+
   return (
     <React.Suspense fallback={<div className="text-center py-20">جاري التحميل...</div>}>
       <CompleteMedicalRecord patientId={patientId} onClose={() => navigate(-1)} />
@@ -88,6 +88,7 @@ const App: React.FC = () => {
     if (path.includes('/gynecology')) return Page.GYNECOLOGY;
     if (path.includes('/ivf-journey')) return Page.IVF;
     if (path.includes('/smart-ivf')) return Page.SMART_IVF;
+    if (path.includes('/smart-stimulation')) return Page.SMART_STIMULATION;
     if (path.includes('/infertility')) return Page.INFERTILITY_WORKUP;
     if (path.includes('/obstetrics')) return Page.OBSTETRICS;
     if (path.includes('/records')) return Page.PATIENT_RECORD;
@@ -109,6 +110,7 @@ const App: React.FC = () => {
       case Page.GYNECOLOGY: navigate('/gynecology'); break;
       case Page.IVF: navigate('/ivf-journey'); break;
       case Page.SMART_IVF: navigate('/smart-ivf'); break;
+      case Page.SMART_STIMULATION: navigate('/smart-stimulation'); break;
       case Page.INFERTILITY_WORKUP: navigate('/infertility'); break;
       case Page.OBSTETRICS: navigate('/obstetrics'); break;
       case Page.PATIENT_RECORD: navigate('/records'); break;
@@ -149,7 +151,7 @@ const App: React.FC = () => {
                 // For doctors, we use their own ID
                 const activeId = doctor.secretary_doctor_id || doctor.id;
                 setDoctorId(activeId);
-                
+
                 // Check if user must change password (provisioned accounts)
                 if (doctor.must_change_password === true) {
                   setMustChangePassword(true);
@@ -268,84 +270,84 @@ const App: React.FC = () => {
 
           {/* 3. Main Application with Sidebar Layout */}
           <Route path="/*" element={
-            !user ? <Navigate to="/landing" replace /> : 
-            mustChangePassword ? <Navigate to="/force-change-password" replace /> : (
-              <div className="min-h-screen bg-background flex flex-col md:flex-row font-[Tajawal] overflow-hidden">
-                {/* Global Navigation Buttons - Fixed Left Side */}
-                <div className="hidden md:block fixed left-4 top-1/2 transform -translate-y-1/2 z-[60]">
-                  <NavigationButtons showHome={true} homeRoute="/" className="flex-col" />
-                </div>
+            !user ? <Navigate to="/landing" replace /> :
+              mustChangePassword ? <Navigate to="/force-change-password" replace /> : (
+                <div className="min-h-screen bg-background flex flex-col md:flex-row font-[Tajawal] overflow-hidden">
+                  {/* Global Navigation Buttons - Fixed Left Side */}
+                  <div className="hidden md:block fixed left-4 top-1/2 transform -translate-y-1/2 z-[60]">
+                    <NavigationButtons showHome={true} homeRoute="/" className="flex-col" />
+                  </div>
 
-                {/* Sidebar Navigation */}
-                <div className="hidden md:flex flex-none z-[100] relative">
-                  <Sidebar
-                    activePage={activePage}
-                    setPage={setActivePage}
-                    onLogout={handleLogout}
-                    userRole={userRole}
-                  />
-                </div>
+                  {/* Sidebar Navigation */}
+                  <div className="hidden md:flex flex-none z-[100] relative">
+                    <Sidebar
+                      activePage={activePage}
+                      setPage={setActivePage}
+                      onLogout={handleLogout}
+                      userRole={userRole}
+                    />
+                  </div>
 
-                {/* Main Content Area */}
-                <main className="flex-1 min-w-0 h-screen overflow-y-auto no-print pb-20 md:pb-0 relative z-0">
-                  <div className="p-4 md:p-6 max-w-7xl mx-auto w-full">
-                    {/* PC Header Bar */}
-                    <div className="hidden md:flex justify-between items-center mb-6 bg-surface/50 p-4 rounded-2xl border border-borderColor/30">
-                      <h1 className="text-xl font-black text-foreground">
-                        {userRole === 'admin' ? 'إدارة النظام' : `مرحباً بك، ${user?.email?.split('@')[0]}`}
-                      </h1>
-                      <div className="flex items-center gap-3">
-                        <button onClick={() => setShowLabReferences(true)} className="flex items-center gap-2 px-6 py-2 bg-brand/10 hover:bg-brand text-brand hover:text-white rounded-xl font-bold transition-all duration-300">
-                          <BookOpen size={18} /> مرجع التحاليل
-                        </button>
+                  {/* Main Content Area */}
+                  <main className="flex-1 min-w-0 h-screen overflow-y-auto no-print pb-20 md:pb-0 relative z-0">
+                    <div className="p-4 md:p-6 max-w-7xl mx-auto w-full">
+                      {/* PC Header Bar */}
+                      <div className="hidden md:flex justify-between items-center mb-6 bg-surface/50 p-4 rounded-2xl border border-borderColor/30">
+                        <h1 className="text-xl font-black text-foreground">
+                          {userRole === 'admin' ? 'إدارة النظام' : `مرحباً بك، ${user?.email?.split('@')[0]}`}
+                        </h1>
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => setShowLabReferences(true)} className="flex items-center gap-2 px-6 py-2 bg-brand/10 hover:bg-brand text-brand hover:text-white rounded-xl font-bold transition-all duration-300">
+                            <BookOpen size={18} /> مرجع التحاليل
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Content Section */}
+                      <div className="relative">
+                        {clinicId ? (
+                          <SubscriptionGuard clinicId={clinicId}>
+                            <React.Suspense fallback={
+                              <div className="flex flex-col items-center justify-center py-20">
+                                <div className="w-10 h-10 border-4 border-brand border-t-transparent rounded-full animate-spin" />
+                                <p className="mt-4 text-textSecondary font-bold">جاري تحميل الصفحة...</p>
+                              </div>
+                            }>
+                              <Routes>
+                                <Route path="/" element={userRole === 'secretary' ? <SecretaryDashboard /> : <Dashboard />} />
+                                <Route path="/reception" element={<ReceptionDashboard />} />
+                                <Route path="/patients/add" element={<AddPatient />} />
+                                <Route path="/patient-profile" element={<PatientProfile />} />
+                                <Route path="/medical-record/:patientId" element={<CompleteMedicalRecordWrapper />} />
+                                <Route path="/gynecology" element={<Gynecology />} />
+                                <Route path="/ivf-journey" element={<IvfJourney />} />
+                                <Route path="/smart-ivf" element={<SmartIVFJourney />} />
+                                <Route path="/smart-stimulation" element={<SmartStimulationCopilot />} />
+                                <Route path="/infertility" element={<InfertilityWorkup />} />
+                                <Route path="/obstetrics" element={<ObstetricsDashboard />} />
+                                <Route path="/records" element={<PatientMasterRecord />} />
+                                <Route path="/finance" element={<FinanceMobilePage />} />
+                                <Route path="/prescription" element={<PrescriptionPage />} />
+                                <Route path="/settings" element={<Settings user={user} />} />
+                                <Route path="/admin" element={<RequireRole allowedRoles={['admin', 'doctor']}><AdminDashboard /></RequireRole>} />
+                                <Route path="*" element={<Navigate to="/" replace />} />
+                              </Routes>
+                            </React.Suspense>
+                          </SubscriptionGuard>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                            <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin" />
+                            <p className="mt-4 text-textSecondary font-bold text-lg">جاري تحميل البيانات...</p>
+                          </div>
+                        )}
                       </div>
                     </div>
+                  </main>
 
-                    {/* Content Section */}
-                    <div className="relative">
-                      {clinicId ? (
-                        <SubscriptionGuard clinicId={clinicId}>
-                          <React.Suspense fallback={
-                            <div className="flex flex-col items-center justify-center py-20">
-                              <div className="w-10 h-10 border-4 border-brand border-t-transparent rounded-full animate-spin" />
-                              <p className="mt-4 text-textSecondary font-bold">جاري تحميل الصفحة...</p>
-                            </div>
-                          }>
-                            <Routes>
-                              <Route path="/" element={userRole === 'secretary' ? <SecretaryDashboard /> : <Dashboard />} />
-                              <Route path="/reception" element={<ReceptionDashboard />} />
-                              <Route path="/patients/add" element={<AddPatient />} />
-                              <Route path="/patient-profile" element={<PatientProfile />} />
-                              <Route path="/medical-record/:patientId" element={<CompleteMedicalRecordWrapper />} />
-                              <Route path="/gynecology" element={<Gynecology />} />
-                              <Route path="/ivf-journey" element={<IvfJourney />} />
-                              <Route path="/smart-ivf" element={<SmartIVFJourney />} />
-                              <Route path="/smart-stimulation" element={<SmartStimulationCopilot />} />
-                              <Route path="/infertility" element={<InfertilityWorkup />} />
-                              <Route path="/obstetrics" element={<ObstetricsDashboard />} />
-                              <Route path="/records" element={<PatientMasterRecord />} />
-                              <Route path="/finance" element={<FinanceMobilePage />} />
-                              <Route path="/prescription" element={<PrescriptionPage />} />
-                              <Route path="/settings" element={<Settings user={user} />} />
-                              <Route path="/admin" element={<RequireRole allowedRoles={['admin', 'doctor']}><AdminDashboard /></RequireRole>} />
-                              <Route path="*" element={<Navigate to="/" replace />} />
-                            </Routes>
-                          </React.Suspense>
-                        </SubscriptionGuard>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-20 animate-pulse">
-                          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin" />
-                          <p className="mt-4 text-textSecondary font-bold text-lg">جاري تحميل البيانات...</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </main>
-
-                {/* Mobile Navigation */}
-                <BottomNav activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
-              </div>
-            )
+                  {/* Mobile Navigation */}
+                  <BottomNav activePage={activePage} setPage={setActivePage} onLogout={handleLogout} />
+                </div>
+              )
           } />
         </Routes>
 

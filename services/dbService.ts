@@ -113,6 +113,8 @@ const getDoctorIdOrThrow = async (): Promise<{ userId: string; doctorId: string 
 };
 
 export const dbService = {
+  getDoctorIdOrThrow,
+
   // --- Patients ---
   getPatients: async (searchQuery?: string): Promise<Patient[]> => {
     const query = (searchQuery || '').trim();
