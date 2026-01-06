@@ -105,58 +105,86 @@ const ModernAppointmentSystem: React.FC<ModernAppointmentSystemProps> = ({ docto
   const loadAppointments = async () => {
     const { startDate, endDate } = getDateRange();
     
-    const { data, error } = await supabase
-      .from('appointments')
-      .select(`
-        *,
-        patient:patients(name, phone),
-        doctor:doctors(full_name)
-      `)
-      .eq('doctor_id', doctorId)
-      .gte('appointment_date', startDate)
-      .lte('appointment_date', endDate)
-      .order('appointment_date', { ascending: true })
-      .order('appointment_time', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+          *,
+          patient:patients(name, phone),
+          doctor:doctors(full_name)
+        `)
+        .eq('doctor_id', doctorId)
+        .gte('appointment_date', startDate)
+        .lte('appointment_date', endDate)
+        .order('appointment_date', { ascending: true })
+        .order('appointment_time', { ascending: true });
 
-    if (error) throw error;
+      if (error) {
+        console.error('Error loading appointments:', error);
+        throw error;
+      }
 
-    const formattedAppointments = data?.map(apt => ({
-      ...apt,
-      patient_name: apt.patient?.name,
-      patient_phone: apt.patient?.phone,
-      doctor_name: apt.doctor?.full_name
-    })) || [];
+      const formattedAppointments = data?.map(apt => ({
+        ...apt,
+        patient_name: apt.patient?.name,
+        patient_phone: apt.patient?.phone,
+        doctor_name: apt.doctor?.full_name,
+        priority: apt.priority || 'normal',
+        reminder_sent: apt.reminder_sent || false
+      })) || [];
 
-    setAppointments(formattedAppointments);
+      setAppointments(formattedAppointments);
+    } catch (error: any) {
+      console.error('❌ Error in loadAppointments:', error);
+      toast.error('حدث خطأ في تحميل المواعيد: ' + (error.message || 'خطأ غير معروف'));
+    }
   };
 
   const loadPatients = async () => {
-    const { data, error } = await supabase
-      .from('patients')
-      .select('id, name, phone')
-      .order('name');
+    try {
+      const { data, error } = await supabase
+        .from('patients')
+        .select('id, name, phone')
+        .order('name');
 
-    if (error) throw error;
-    setPatients(data || []);
+      if (error) {
+        console.error('Error loading patients:', error);
+        throw error;
+      }
+      
+      setPatients(data || []);
+    } catch (error: any) {
+      console.error('❌ Error in loadPatients:', error);
+      toast.error('حدث خطأ في تحميل المرضى: ' + (error.message || 'خطأ غير معروف'));
+    }
   };
 
   const loadStats = async () => {
     const today = new Date().toISOString().split('T')[0];
     
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('status, appointment_date')
-      .eq('doctor_id', doctorId);
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('status, appointment_date')
+        .eq('doctor_id', doctorId);
 
-    if (error) throw error;
+      if (error) {
+        console.error('Error loading stats:', error);
+        throw error;
+      }
 
-    const total = data?.length || 0;
-    const scheduled = data?.filter(a => a.status === 'scheduled' || a.status === 'confirmed').length || 0;
-    const completed = data?.filter(a => a.status === 'completed').length || 0;
-    const cancelled = data?.filter(a => a.status === 'cancelled').length || 0;
-    const todayAppointments = data?.filter(a => a.appointment_date === today).length || 0;
+      const total = data?.length || 0;
+      const scheduled = data?.filter(a => a.status === 'scheduled' || a.status === 'Scheduled' || a.status === 'confirmed').length || 0;
+      const completed = data?.filter(a => a.status === 'completed' || a.status === 'Completed').length || 0;
+      const cancelled = data?.filter(a => a.status === 'cancelled' || a.status === 'Cancelled').length || 0;
+      const todayAppointments = data?.filter(a => a.appointment_date === today).length || 0;
 
-    setStats({ total, scheduled, completed, cancelled, todayAppointments });
+      setStats({ total, scheduled, completed, cancelled, todayAppointments });
+    } catch (error: any) {
+      console.error('❌ Error in loadStats:', error);
+      // Don't show error toast for stats, just log it
+      setStats({ total: 0, scheduled: 0, completed: 0, cancelled: 0, todayAppointments: 0 });
+    }
   };
 
   // ==================== Real-time Subscription ====================
@@ -224,23 +252,30 @@ const ModernAppointmentSystem: React.FC<ModernAppointmentSystemProps> = ({ docto
         .eq('doctor_id', doctorId)
         .eq('appointment_date', formData.appointment_date)
         .eq('appointment_time', formData.appointment_time)
-        .in('status', ['scheduled', 'confirmed', 'in_progress']);
+        .in('status', ['scheduled', 'Scheduled', 'confirmed', 'in_progress']);
 
       if (conflicts && conflicts.length > 0 && !editingAppointment) {
         toast.error('يوجد موعد آخر في نفس الوقت');
+        setLoading(false);
         return;
+      }
+
+      const appointmentData: any = {
+        patient_id: formData.patient_id,
+        appointment_date: formData.appointment_date,
+        appointment_time: formData.appointment_time,
+        notes: formData.notes
+      };
+
+      // Only add priority if the column exists (optional field)
+      if (formData.priority) {
+        appointmentData.priority = formData.priority;
       }
 
       if (editingAppointment) {
         const { error } = await supabase
           .from('appointments')
-          .update({
-            patient_id: formData.patient_id,
-            appointment_date: formData.appointment_date,
-            appointment_time: formData.appointment_time,
-            priority: formData.priority,
-            notes: formData.notes
-          })
+          .update(appointmentData)
           .eq('id', editingAppointment.id);
 
         if (error) throw error;
@@ -250,12 +285,8 @@ const ModernAppointmentSystem: React.FC<ModernAppointmentSystemProps> = ({ docto
           .from('appointments')
           .insert([{
             doctor_id: doctorId,
-            patient_id: formData.patient_id,
-            appointment_date: formData.appointment_date,
-            appointment_time: formData.appointment_time,
-            status: 'scheduled',
-            priority: formData.priority,
-            notes: formData.notes,
+            ...appointmentData,
+            status: 'Scheduled',
             reminder_sent: false
           }]);
 
@@ -265,9 +296,9 @@ const ModernAppointmentSystem: React.FC<ModernAppointmentSystemProps> = ({ docto
 
       closeModal();
       loadData();
-    } catch (error) {
-      console.error('Error saving appointment:', error);
-      toast.error('حدث خطأ في حفظ الموعد');
+    } catch (error: any) {
+      console.error('❌ Error saving appointment:', error);
+      toast.error('حدث خطأ في حفظ الموعد: ' + (error.message || 'خطأ غير معروف'));
     } finally {
       setLoading(false);
     }
@@ -293,17 +324,29 @@ const ModernAppointmentSystem: React.FC<ModernAppointmentSystemProps> = ({ docto
 
   const handleStatusChange = async (id: string, newStatus: Appointment['status']) => {
     try {
+      // Map modern statuses to existing database statuses
+      const statusMap: Record<string, string> = {
+        'scheduled': 'Scheduled',
+        'confirmed': 'Scheduled',
+        'in_progress': 'Waiting',
+        'completed': 'Completed',
+        'cancelled': 'Cancelled',
+        'no_show': 'Cancelled'
+      };
+
+      const dbStatus = statusMap[newStatus] || newStatus;
+
       const { error } = await supabase
         .from('appointments')
-        .update({ status: newStatus })
+        .update({ status: dbStatus })
         .eq('id', id);
 
       if (error) throw error;
       toast.success('تم تحديث حالة الموعد');
       loadData();
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast.error('حدث خطأ في تحديث الحالة');
+    } catch (error: any) {
+      console.error('❌ Error updating status:', error);
+      toast.error('حدث خطأ في تحديث الحالة: ' + (error.message || 'خطأ غير معروف'));
     }
   };
 
@@ -404,16 +447,20 @@ const ModernAppointmentSystem: React.FC<ModernAppointmentSystemProps> = ({ docto
 
   // ==================== Status Badge ====================
   const getStatusBadge = (status: Appointment['status']) => {
-    const statusConfig = {
+    // Normalize status to handle both old and new formats
+    const normalizedStatus = status?.toLowerCase();
+    
+    const statusConfig: Record<string, { label: string; className: string }> = {
       scheduled: { label: 'محجوز', className: 'bg-blue-100 text-blue-800 border-blue-300' },
       confirmed: { label: 'مؤكد', className: 'bg-green-100 text-green-800 border-green-300' },
+      waiting: { label: 'في الانتظار', className: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
       in_progress: { label: 'جاري', className: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
       completed: { label: 'مكتمل', className: 'bg-gray-100 text-gray-800 border-gray-300' },
       cancelled: { label: 'ملغي', className: 'bg-red-100 text-red-800 border-red-300' },
       no_show: { label: 'لم يحضر', className: 'bg-orange-100 text-orange-800 border-orange-300' }
     };
 
-    const config = statusConfig[status];
+    const config = statusConfig[normalizedStatus] || statusConfig['scheduled'];
     return (
       <span className={`px-3 py-1 rounded-full text-xs font-medium border ${config.className}`}>
         {config.label}
