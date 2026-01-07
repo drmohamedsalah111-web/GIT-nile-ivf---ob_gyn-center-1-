@@ -29,6 +29,8 @@ export const DRUG_DB = {
 export interface PrescriptionPlan {
     protocolName: string;
     explanation: string;
+    protocolGuide: string[]; // Step-by-step guide
+    clinicalNote: string;   // Short memory aid
     medications: {
         role: 'Stimulation' | 'Suppression' | 'Trigger' | 'Luteal';
         drugName: string;
@@ -102,6 +104,13 @@ export class ClinicalEngine {
             return {
                 protocolName: 'GnRH Antagonist Protocol',
                 explanation: 'Best for PCOS/High Responders to significantly reduce OHSS risk. Allows for Agonist Trigger if needed.',
+                clinicalNote: 'Flexible Start, High Safety Profile.',
+                protocolGuide: [
+                    'Step 1: Start Stimulation (FSH) on Day 2 or 3 of the cycle.',
+                    'Step 2: Monitor every 2-3 days.',
+                    'Step 3: add Antagonist (Cetrotide/Orgalutran) when lead follicle reaches 14mm OR Estradiol > 400 pg/mL.',
+                    'Step 4: Triggr with Agonist (Decapeptyl) if > 15 follicles to avoid OHSS.'
+                ],
                 startDay: 'Day 2 or 3 of Cycle',
                 medications: [
                     {
@@ -125,6 +134,13 @@ export class ClinicalEngine {
             return {
                 protocolName: 'Micro-dose Flare Protocol (Or Short Antagonist)',
                 explanation: 'Utilizes the "flare" effect of agonist to boost endogenous FSH. Good for poor responders.',
+                clinicalNote: 'Maximal Stimulation for Low Reserve.',
+                protocolGuide: [
+                    'Step 1: Start Micro-dose Agonist (Decapeptyl/Lupron) on Day 1 or 2.',
+                    'Step 2: Start High Dose Stimulation (FSH/HMG) on Day 2 (Next Day).',
+                    'Step 3: Continue BOTH injections daily until trigger.',
+                    'Goal: Recruit every possible follicle using both endogenous and exogenous FSH.'
+                ],
                 startDay: 'Day 2 of Cycle',
                 medications: [
                     {
@@ -147,6 +163,13 @@ export class ClinicalEngine {
         return {
             protocolName: 'Long Agonist Protocol (Down-Regulation)',
             explanation: 'Standard protocol. Provides excellent control over the cycle and follicular synchronization.',
+            clinicalNote: 'Classic Control & Sync.',
+            protocolGuide: [
+                'Stage 1 (Down-Reg): Start Agonist (Decapeptyl 0.1) on Day 21 of previous cycle.',
+                'Stage 2: Confirm pituitary suppression (Period starts, E2 < 50).',
+                'Stage 3: Start Stimulation (FSH) and REDUCE Agonist dose to half (0.05).',
+                'Stage 4: Continue both until trigger.'
+            ],
             startDay: 'Day 21 of Previous Cycle (Down-Reg)',
             medications: [
                 {

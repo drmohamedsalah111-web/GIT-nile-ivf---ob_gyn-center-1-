@@ -88,17 +88,23 @@ const ProtocolProposalCard: React.FC<{
             </div>
 
             <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-lg">
-                        <Zap className="w-6 h-6" />
+                <div className="flex flex-col md:flex-row md:items-start gap-4 mb-6">
+                    <div className="p-3 bg-indigo-600 text-white rounded-xl shadow-lg shrink-0">
+                        <Zap className="w-8 h-8" />
                     </div>
                     <div>
-                        <h3 className="text-2xl font-bold text-gray-900">{plan.protocolName}</h3>
-                        <p className="text-gray-600 font-medium">{plan.explanation}</p>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-1">{plan.protocolName}</h3>
+                        <p className="text-gray-600 font-medium mb-2">{plan.explanation}</p>
+                        {plan.clinicalNote && (
+                            <div className="inline-block bg-yellow-100 text-yellow-800 text-sm font-bold px-3 py-1 rounded-full border border-yellow-200">
+                                ⭐ {plan.clinicalNote}
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                <div className="bg-white/80 backdrop-blur rounded-lg p-1 border border-indigo-100 mb-6">
+                {/* Medications Grid */}
+                <div className="bg-white/80 backdrop-blur rounded-xl p-1 border border-indigo-100 mb-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
                         {plan.medications.map((med, idx) => (
                             <div key={idx} className="flex items-start gap-4 p-3 bg-white rounded-lg border border-gray-100 shadow-sm hover:border-indigo-200 transition-colors">
@@ -117,6 +123,25 @@ const ProtocolProposalCard: React.FC<{
                         ))}
                     </div>
                 </div>
+
+                {/* Protocol Guide / Steps */}
+                {plan.protocolGuide && (
+                    <div className="bg-indigo-900 text-white rounded-xl p-6 mb-6">
+                        <h4 className="flex items-center gap-2 font-bold mb-4 text-indigo-200 uppercase tracking-widest text-xs">
+                            <FileText className="w-4 h-4" /> Doctor's Pocket Guide
+                        </h4>
+                        <div className="space-y-3">
+                            {plan.protocolGuide.map((step, i) => (
+                                <div key={i} className="flex gap-3">
+                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-700 flex items-center justify-center text-xs font-bold ring-2 ring-indigo-500">
+                                        {i + 1}
+                                    </div>
+                                    <p className="text-indigo-50 font-medium leading-relaxed">{step}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 <div className="flex justify-end">
                     <button
