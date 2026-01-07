@@ -3,7 +3,8 @@ import toast from 'react-hot-toast';
 import {
   LayoutDashboard, Users, Baby, Heart, Settings, LogOut,
   Activity, FileText, Brain, TestTube, DollarSign,
-  Building2, ShieldCheck, Sparkles, ExternalLink, ChevronRight
+  Building2, ShieldCheck, Sparkles, ExternalLink, ChevronRight,
+  ChevronLeft, PanelLeftOpen, PanelLeftClose
 } from 'lucide-react';
 import { DeveloperCard } from './common/DeveloperCard';
 import { NavigationButtons } from './common/NavigationButtons';
@@ -22,6 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
   const { branding } = useBranding();
   const { isDarkMode } = useTheme();
   const [logoError, setLogoError] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     setLogoError(false);
@@ -53,35 +55,45 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
   const hasValidLogo = branding?.logo_url && branding.logo_url.startsWith('http') && !logoError;
 
   return (
-    <aside className="w-64 h-screen flex flex-col bg-surface border-x border-borderColor shadow-xl relative overflow-hidden transition-all duration-300">
-      {/* Clinic Header - More Compact */}
-      <div className="p-5 border-b border-borderColor/50 bg-gradient-to-br from-brand/5 to-transparent relative">
-        <div className="flex flex-col items-center gap-2.5 relative z-10">
-          <div className="w-14 h-14 rounded-xl bg-white dark:bg-zinc-800 border border-brand/20 flex items-center justify-center overflow-hidden shadow-md group hover:scale-105 transition-all duration-300">
+    <aside className={`${isCollapsed ? 'w-20' : 'w-64'} h-screen flex flex-col bg-surface border-x border-borderColor shadow-xl relative overflow-hidden transition-all duration-500 ease-in-out`}>
+      {/* Toggle Button - Floating at the edge */}
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute -left-3 top-24 z-50 w-6 h-6 bg-brand text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all border border-white/20"
+      >
+        {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+      </button>
+
+      {/* Clinic Header - Adaptive */}
+      <div className={`p-5 border-b border-borderColor/50 bg-gradient-to-br from-brand/5 to-transparent relative ${isCollapsed ? 'px-2' : ''}`}>
+        <div className={`flex flex-col items-center gap-2.5 relative z-10 ${isCollapsed ? 'gap-0' : ''}`}>
+          <div className={`${isCollapsed ? 'w-10 h-10' : 'w-14 h-14'} rounded-xl bg-white dark:bg-zinc-800 border border-brand/20 flex items-center justify-center overflow-hidden shadow-md group hover:scale-105 transition-all duration-300`}>
             {hasValidLogo ? (
               <img
                 src={branding.logo_url!}
                 alt="Clinic Logo"
-                className="w-10 h-10 object-contain group-hover:rotate-3 transition-transform"
+                className={`${isCollapsed ? 'w-7 h-7' : 'w-10 h-10'} object-contain group-hover:rotate-3 transition-transform`}
                 onError={() => setLogoError(true)}
               />
             ) : (
               <div className="flex flex-col items-center justify-center text-brand/30">
-                <Building2 size={24} strokeWidth={1.5} />
-                <span className="text-[8px] font-black uppercase tracking-tighter">Nile IVF</span>
+                <Building2 size={isCollapsed ? 18 : 24} strokeWidth={1.5} />
+                {!isCollapsed && <span className="text-[8px] font-black uppercase tracking-tighter">Nile IVF</span>}
               </div>
             )}
           </div>
-          <div className="text-center">
-            <h2 className="text-base font-black text-foreground tracking-tight line-clamp-1">{branding?.clinic_name || 'نظام العيادة'}</h2>
-            <p className="text-[9px] font-bold text-brand uppercase tracking-widest opacity-80 mt-0.5 line-clamp-1">
-              {branding?.specialization || 'Obstetrics & Gynecology'}
-            </p>
-          </div>
+          {!isCollapsed && (
+            <div className="text-center transition-all duration-300 opacity-100 scale-100">
+              <h2 className="text-base font-black text-foreground tracking-tight line-clamp-1">{branding?.clinic_name || 'نظام العيادة'}</h2>
+              <p className="text-[9px] font-bold text-brand uppercase tracking-widest opacity-80 mt-0.5 line-clamp-1">
+                {branding?.specialization || 'Obstetrics & Gynecology'}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Navigation Menu - Compact Items */}
+      {/* Navigation Menu - Adaptive */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-3 space-y-1 no-scrollbar scroll-smooth">
         {menuItems.map((item) => {
           const isActive = activePage === item.id;
@@ -91,7 +103,8 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
             <button
               key={item.id}
               onClick={() => setPage(item.id)}
-              className={`w-full group relative flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 border ${isActive
+              title={isCollapsed ? item.arLabel : ''}
+              className={`w-full group relative flex items-center gap-3 py-2 rounded-lg transition-all duration-200 border ${isCollapsed ? 'justify-center px-0' : 'px-3'} ${isActive
                 ? 'bg-brand/10 text-brand border-brand/20 ring-1 ring-brand/10'
                 : 'bg-transparent text-textSecondary border-transparent hover:bg-brand/5 hover:text-foreground'
                 }`}
@@ -102,28 +115,34 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
               >
                 <Icon size={16} style={{ color: isActive ? '#FFFFFF' : item.color }} />
               </div>
-              <span className={`font-bold text-xs tracking-wide text-right flex-1 ${isActive ? 'text-brand' : 'text-textSecondary'}`}>
-                {item.arLabel}
-              </span>
+
+              {!isCollapsed && (
+                <span className={`font-bold text-xs tracking-wide text-right flex-1 truncate transition-all duration-300 opacity-100`}>
+                  {item.arLabel}
+                </span>
+              )}
+
               {isActive && (
-                <div className="absolute left-1.5 w-1 h-3.5 bg-brand rounded-full transition-all duration-300" />
+                <div className={`absolute left-1.5 w-1 h-3.5 bg-brand rounded-full transition-all duration-300 ${isCollapsed ? 'left-1 w-0.5' : ''}`} />
               )}
             </button>
           );
         })}
       </nav>
 
-      {/* Unified Developer Copyright Section */}
-      <DeveloperCard variant="compact" />
+      {/* Developer Card - Adaptive */}
+      {!isCollapsed && (
+        <DeveloperCard variant="compact" />
+      )}
 
-      {/* Logout - Small */}
-      <div className="p-4 border-t border-borderColor/50 bg-surface/50">
+      {/* Logout - Adaptive */}
+      <div className={`p-4 border-t border-borderColor/50 bg-surface/50 ${isCollapsed ? 'px-2' : ''}`}>
         <button
           onClick={onLogout}
-          className="w-full flex items-center justify-center gap-2 py-2 text-red-500/70 hover:text-red-500 font-bold rounded-lg hover:bg-red-500/5 transition-all text-xs"
+          className={`w-full flex items-center justify-center gap-2 py-2 text-red-500/70 hover:text-red-500 font-bold rounded-lg hover:bg-red-500/5 transition-all text-xs`}
         >
           <LogOut size={14} />
-          <span>تسجيل الخروج</span>
+          {!isCollapsed && <span>تسجيل الخروج</span>}
         </button>
       </div>
     </aside>
