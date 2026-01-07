@@ -9,9 +9,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Target, TrendingUp, AlertCircle, CheckCircle2, Zap, FileText } from 'lucide-react';
+import { Target, TrendingUp, AlertCircle, CheckCircle2, Zap, FileText, BookOpen } from 'lucide-react';
 import smartStimulationService from '../../services/smartStimulationService.unified';
 import type { StimulationProtocol, ProtocolSuggestion, InitialAssessment } from '../../types/smartStimulation.types';
+import { ClinicalEngine } from '../../utils/ClinicalEngine';
 import toast from 'react-hot-toast';
 
 interface SmartProtocolSelectorProps {
@@ -73,7 +74,7 @@ const SmartProtocolSelector: React.FC<SmartProtocolSelectorProps> = ({
 
   const handleProtocolSelect = (protocol: StimulationProtocol) => {
     const suggestion = suggestions.find(s => s.protocol_id === protocol.id);
-    
+
     if (suggestion) {
       setSelectedProtocol(protocol.id);
       onProtocolSelected(protocol, suggestion);
@@ -178,6 +179,9 @@ const SmartProtocolSelector: React.FC<SmartProtocolSelectorProps> = ({
             const isSelected = selectedProtocol === protocol.id;
             const isExpanded = expandedProtocol === protocol.id;
 
+            // Fetch extra details from Clinical Engine
+            const clinicalDetails = ClinicalEngine.getProtocolDetails(protocol.protocol_name);
+
             return (
               <div
                 key={protocol.id}
@@ -198,10 +202,30 @@ const SmartProtocolSelector: React.FC<SmartProtocolSelectorProps> = ({
                         {isSelected && (
                           <CheckCircle2 className="w-6 h-6 text-green-500" />
                         )}
+                        {clinicalDetails?.note && (
+                          <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded-full border border-yellow-200">
+                            ⭐ {clinicalDetails.note}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 mb-2">
                         {protocol.description_ar || protocol.description}
                       </p>
+
+                      {/* Short English Guide (NEW - visible without expansion) */}
+                      {clinicalDetails && (
+                        <div className="bg-indigo-50/50 rounded-lg p-3 border border-indigo-100/50 mb-3" dir="ltr">
+                          <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-tighter mb-1">Quick Protocol Guide</div>
+                          <div className="space-y-1">
+                            {clinicalDetails.guide.slice(0, 2).map((step, i) => (
+                              <div key={i} className="text-xs text-indigo-800 font-medium flex gap-2">
+                                <span className="text-indigo-400">•</span> {step}
+                              </div>
+                            ))}
+                            {clinicalDetails.guide.length > 2 && <div className="text-[10px] text-indigo-400 italic">Expand for more steps...</div>}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Match Score */}
@@ -256,10 +280,9 @@ const SmartProtocolSelector: React.FC<SmartProtocolSelectorProps> = ({
                       onClick={() => handleProtocolSelect(protocol)}
                       className={`
                         flex-1 py-2 px-4 rounded-lg font-semibold transition-colors
-                        ${
-                          isSelected
-                            ? 'bg-green-600 text-white'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        ${isSelected
+                          ? 'bg-green-600 text-white'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700'
                         }
                       `}
                     >
@@ -277,6 +300,26 @@ const SmartProtocolSelector: React.FC<SmartProtocolSelectorProps> = ({
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="border-t-2 border-gray-100 p-5 bg-gray-50 space-y-4">
+
+                    {/* Doctor's Pocket Guide (NEW) */}
+                    {clinicalDetails?.guide && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4" dir="ltr">
+                        <h5 className="flex items-center gap-2 font-bold mb-3 text-indigo-800 uppercase tracking-widest text-xs border-b border-indigo-200 pb-2">
+                          <BookOpen className="w-4 h-4" /> Doctor's Pocket Guide
+                        </h5>
+                        <div className="space-y-2">
+                          {clinicalDetails.guide.map((step, i) => (
+                            <div key={i} className="flex gap-3 text-sm">
+                              <div className="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-200 text-indigo-700 flex items-center justify-center text-xs font-bold">
+                                {i + 1}
+                              </div>
+                              <p className="text-indigo-900 font-medium">{step}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Medications Plan */}
                     {protocol.medications_plan && protocol.medications_plan.length > 0 && (
                       <div>

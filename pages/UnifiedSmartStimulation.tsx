@@ -25,6 +25,7 @@ import toast from 'react-hot-toast';
 import smartStimulationService from '../services/smartStimulationService.unified';
 import SmartProtocolSelector from '../components/ivf/SmartProtocolSelector';
 import UnifiedMonitoringVisitForm from '../components/ivf/UnifiedMonitoringVisitForm';
+import { ClinicalEngine } from '../utils/ClinicalEngine';
 import type {
   SmartIVFCycle,
   SmartMonitoringVisit,
@@ -37,13 +38,13 @@ const UnifiedSmartStimulation: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const cycleIdParam = searchParams.get('cycleId');
-  
+
   const { patients } = usePatients();
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [currentCycle, setCurrentCycle] = useState<SmartIVFCycle | null>(null);
   const [visits, setVisits] = useState<SmartMonitoringVisit[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   // UI State
   const [currentTab, setCurrentTab] = useState<'setup' | 'protocol' | 'monitoring' | 'timeline'>('setup');
   const [showAddVisit, setShowAddVisit] = useState(false);
@@ -80,7 +81,7 @@ const UnifiedSmartStimulation: React.FC = () => {
   const loadCycleData = async (cycleId: string) => {
     try {
       setLoading(true);
-      
+
       const [cycleResult, visitsResult] = await Promise.all([
         smartStimulationService.getCycle(cycleId),
         smartStimulationService.getCycleVisits(cycleId)
@@ -89,7 +90,7 @@ const UnifiedSmartStimulation: React.FC = () => {
       if (cycleResult.data) {
         setCurrentCycle(cycleResult.data);
         setSelectedPatientId(cycleResult.data.patient_id);
-        
+
         // Set appropriate tab based on status
         if (cycleResult.data.status === 'assessment') {
           setCurrentTab('setup');
@@ -152,7 +153,7 @@ const UnifiedSmartStimulation: React.FC = () => {
 
     try {
       setLoading(true);
-      
+
       await smartStimulationService.updateCycle(currentCycle.id, {
         initial_assessment: assessment,
         status: 'protocol'
@@ -207,7 +208,7 @@ const UnifiedSmartStimulation: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 p-6" dir="rtl">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 text-white rounded-2xl p-8 shadow-2xl">
           <div className="flex items-center justify-between">
@@ -246,7 +247,7 @@ const UnifiedSmartStimulation: React.FC = () => {
               <CheckCircle2 className="w-7 h-7 text-indigo-600" />
               اختيار المريضة
             </h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -377,7 +378,7 @@ const UnifiedSmartStimulation: React.FC = () => {
               {currentTab === 'setup' && (
                 <div className="bg-white rounded-2xl shadow-xl p-8">
                   <h2 className="text-2xl font-bold text-gray-900 mb-6">التقييم الأولي</h2>
-                  
+
                   <AssessmentForm
                     initialData={currentCycle.initial_assessment || {}}
                     onSave={handleSaveAssessment}
@@ -396,8 +397,38 @@ const UnifiedSmartStimulation: React.FC = () => {
               )}
 
               {/* Monitoring Tab */}
-              {currentTab === 'monitoring' && (
+              {currentTab === 'monitoring' && currentCycle && (
                 <div className="space-y-6">
+                  {/* Protocol Guide Hero (NEW) */}
+                  {currentCycle.protocol_name && (
+                    <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 text-white rounded-2xl p-6 shadow-xl border-b-4 border-indigo-500" dir="ltr">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                        <div>
+                          <p className="text-indigo-300 text-[10px] font-bold uppercase tracking-widest mb-1">Active Protocol Selection</p>
+                          <h2 className="text-2xl font-bold">{currentCycle.protocol_name}</h2>
+                        </div>
+                        {ClinicalEngine.getProtocolDetails(currentCycle.protocol_name)?.note && (
+                          <div className="bg-yellow-400 text-indigo-950 px-4 py-1.5 rounded-full font-black text-xs shadow-lg flex items-center gap-2">
+                            ⭐ {ClinicalEngine.getProtocolDetails(currentCycle.protocol_name)?.note}
+                          </div>
+                        )}
+                      </div>
+
+                      {ClinicalEngine.getProtocolDetails(currentCycle.protocol_name)?.guide && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          {ClinicalEngine.getProtocolDetails(currentCycle.protocol_name)?.guide.map((step, i) => (
+                            <div key={i} className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:bg-white/20 transition-all">
+                              <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] font-bold mb-2 ring-2 ring-indigo-400/50">
+                                {i + 1}
+                              </div>
+                              <p className="text-xs text-indigo-50 font-medium leading-relaxed">{step}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Visits List */}
                   <div className="bg-white rounded-2xl shadow-xl p-8">
                     <div className="flex items-center justify-between mb-6">
@@ -748,18 +779,18 @@ const TimelineView: React.FC<TimelineViewProps> = ({ visits, cycle }) => {
   return (
     <div className="bg-white rounded-2xl shadow-xl p-8">
       <h2 className="text-2xl font-bold text-gray-900 mb-6">الخط الزمني للدورة</h2>
-      
+
       <div className="space-y-6">
         {visits.map((visit, idx) => (
           <div key={visit.id} className="relative">
             {idx !== visits.length - 1 && (
               <div className="absolute right-8 top-16 bottom-0 w-0.5 bg-gradient-to-b from-teal-300 to-transparent"></div>
             )}
-            
+
             <VisitCard
               visit={visit}
               isExpanded={true}
-              onToggle={() => {}}
+              onToggle={() => { }}
             />
           </div>
         ))}

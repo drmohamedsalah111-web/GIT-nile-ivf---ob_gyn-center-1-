@@ -94,6 +94,78 @@ export class ClinicalEngine {
         return Math.max(75, Math.min(450, Math.round(dose / 37.5) * 37.5));
     }
 
+    static getProtocolDetails(protocolName: string): { guide: string[], note: string, explanation: string } | null {
+        // Standardize input string
+        const p = protocolName.toLowerCase();
+
+        if (p.includes('antagonist')) {
+            return {
+                explanation: 'Best for PCOS/High Responders to significantly reduce OHSS risk. Allows for Agonist Trigger if needed.',
+                note: 'Flexible Start, High Safety Profile.',
+                guide: [
+                    'Step 1: Start Stimulation (FSH) on Day 2 or 3 of the cycle.',
+                    'Step 2: Monitor every 2-3 days.',
+                    'Step 3: add Antagonist (Cetrotide/Orgalutran) when lead follicle reaches 14mm OR Estradiol > 400 pg/mL.',
+                    'Step 4: Triggr with Agonist (Decapeptyl) if > 15 follicles to avoid OHSS.'
+                ]
+            };
+        }
+
+        if (p.includes('flare') || p.includes('micro') || p.includes('short')) {
+            return {
+                explanation: 'Utilizes the "flare" effect of agonist to boost endogenous FSH. Good for poor responders.',
+                note: 'Maximal Stimulation for Low Reserve.',
+                guide: [
+                    'Step 1: Start Micro-dose Agonist (Decapeptyl/Lupron) on Day 1 or 2.',
+                    'Step 2: Start High Dose Stimulation (FSH/HMG) on Day 2 (Next Day).',
+                    'Step 3: Continue BOTH injections daily until trigger.',
+                    'Goal: Recruit every possible follicle using both endogenous and exogenous FSH.'
+                ]
+            };
+        }
+
+        if (p.includes('long') || p.includes('down')) {
+            return {
+                explanation: 'Standard protocol. Provides excellent control over the cycle and follicular synchronization.',
+                note: 'Classic Control & Sync.',
+                guide: [
+                    'Stage 1 (Down-Reg): Start Agonist (Decapeptyl 0.1) on Day 21 of previous cycle.',
+                    'Stage 2: Confirm pituitary suppression (Period starts, E2 < 50).',
+                    'Stage 3: Start Stimulation (FSH) and REDUCE Agonist dose to half (0.05).',
+                    'Stage 4: Continue both until trigger.'
+                ]
+            };
+        }
+
+        if (p.includes('ppos') || p.includes('progestin')) {
+            return {
+                explanation: 'Uses Progestin to prevent premature LH surge. Lower cost, no injections for suppression.',
+                note: 'Easy suppression, requires Freeze-All.',
+                guide: [
+                    'Step 1: Start Progestin (e.g. Duphaston/Cyclogest) and FSH on Day 2 or 3.',
+                    'Step 2: Continue BOTH until trigger day.',
+                    'Step 3: Trigger with hCG or Dual Trigger.',
+                    'Note: Must freeze embryos (Fresh transfer not possible due to progesterone).'
+                ]
+            };
+        }
+
+        if (p.includes('mild') || p.includes('letrozole') || p.includes('minimal')) {
+            return {
+                explanation: 'Uses oral medications with low-dose FSH. Good for ethical reasons or very poor responders.',
+                note: 'Low Cost, Low Follicle Number.',
+                guide: [
+                    'Step 1: Start Letrozole (2.5 - 5mg) on Day 2 for 5 days.',
+                    'Step 2: Start Low-dose FSH (75-150 IU) on Day 4 or 5.',
+                    'Step 3: Add Antagonist only when follicular size reaches 18mm (optional).',
+                    'Step 4: Trigger with hCG.'
+                ]
+            };
+        }
+
+        return null;
+    }
+
     static suggestProtocol(input: AnalysisInput): PrescriptionPlan {
         const dose = this.calculateIdealDose(input);
         const isPCOS = input.pcos || input.amh > 3.5 || input.afc > 20;
@@ -101,16 +173,12 @@ export class ClinicalEngine {
 
         // --- Scenario A: High Responder / PCOS ---
         if (isPCOS) {
+            const details = this.getProtocolDetails('GnRH Antagonist Protocol')!;
             return {
                 protocolName: 'GnRH Antagonist Protocol',
-                explanation: 'Best for PCOS/High Responders to significantly reduce OHSS risk. Allows for Agonist Trigger if needed.',
-                clinicalNote: 'Flexible Start, High Safety Profile.',
-                protocolGuide: [
-                    'Step 1: Start Stimulation (FSH) on Day 2 or 3 of the cycle.',
-                    'Step 2: Monitor every 2-3 days.',
-                    'Step 3: add Antagonist (Cetrotide/Orgalutran) when lead follicle reaches 14mm OR Estradiol > 400 pg/mL.',
-                    'Step 4: Triggr with Agonist (Decapeptyl) if > 15 follicles to avoid OHSS.'
-                ],
+                explanation: details.explanation,
+                clinicalNote: details.note,
+                protocolGuide: details.guide,
                 startDay: 'Day 2 or 3 of Cycle',
                 medications: [
                     {
@@ -131,16 +199,12 @@ export class ClinicalEngine {
 
         // --- Scenario B: Poor Responder (DOR) ---
         if (isPoor) {
+            const details = this.getProtocolDetails('Micro-dose Flare Protocol')!;
             return {
                 protocolName: 'Micro-dose Flare Protocol (Or Short Antagonist)',
-                explanation: 'Utilizes the "flare" effect of agonist to boost endogenous FSH. Good for poor responders.',
-                clinicalNote: 'Maximal Stimulation for Low Reserve.',
-                protocolGuide: [
-                    'Step 1: Start Micro-dose Agonist (Decapeptyl/Lupron) on Day 1 or 2.',
-                    'Step 2: Start High Dose Stimulation (FSH/HMG) on Day 2 (Next Day).',
-                    'Step 3: Continue BOTH injections daily until trigger.',
-                    'Goal: Recruit every possible follicle using both endogenous and exogenous FSH.'
-                ],
+                explanation: details.explanation,
+                clinicalNote: details.note,
+                protocolGuide: details.guide,
                 startDay: 'Day 2 of Cycle',
                 medications: [
                     {
@@ -160,16 +224,12 @@ export class ClinicalEngine {
         }
 
         // --- Scenario C: Normal Responder ---
+        const details = this.getProtocolDetails('Long Agonist Protocol')!;
         return {
             protocolName: 'Long Agonist Protocol (Down-Regulation)',
-            explanation: 'Standard protocol. Provides excellent control over the cycle and follicular synchronization.',
-            clinicalNote: 'Classic Control & Sync.',
-            protocolGuide: [
-                'Stage 1 (Down-Reg): Start Agonist (Decapeptyl 0.1) on Day 21 of previous cycle.',
-                'Stage 2: Confirm pituitary suppression (Period starts, E2 < 50).',
-                'Stage 3: Start Stimulation (FSH) and REDUCE Agonist dose to half (0.05).',
-                'Stage 4: Continue both until trigger.'
-            ],
+            explanation: details.explanation,
+            clinicalNote: details.note,
+            protocolGuide: details.guide,
             startDay: 'Day 21 of Previous Cycle (Down-Reg)',
             medications: [
                 {
@@ -187,6 +247,9 @@ export class ClinicalEngine {
             ]
         };
     }
+
+    // --- Monitoring Analysis (During Cycle) ---
+
 
     // --- Monitoring Analysis (During Cycle) ---
     static analyzeMonitoring(input: AnalysisInput): Recommendation[] {
