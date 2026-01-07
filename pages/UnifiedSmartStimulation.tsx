@@ -55,6 +55,28 @@ const UnifiedSmartStimulation: React.FC = () => {
     }
   }, [cycleIdParam]);
 
+  // عند اختيار المريضة، جلب آخر دورة نشطة تلقائياً
+  useEffect(() => {
+    const loadPatientActiveCycle = async () => {
+      if (selectedPatientId && !cycleIdParam) {
+        setLoading(true);
+        try {
+          const result = await smartStimulationService.getActiveOrLastCycle(selectedPatientId);
+          if (result.data && ['assessment', 'stimulation', 'trigger', 'active', 'baseline', 'protocol'].includes(result.data.status)) {
+            setCurrentCycle(result.data);
+            navigate(`/unified-smart-stimulation?cycleId=${result.data.id}`, { replace: true });
+            toast.success('تم تحميل آخر دورة نشطة للمريضة');
+          }
+        } catch (error) {
+          console.error('Error loading patient active cycle:', error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    loadPatientActiveCycle();
+  }, [selectedPatientId]);
+
   const loadCycleData = async (cycleId: string) => {
     try {
       setLoading(true);
