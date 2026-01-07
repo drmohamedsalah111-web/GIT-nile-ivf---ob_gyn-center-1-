@@ -172,6 +172,41 @@ export const smartStimulationService = {
     }
   },
 
+  /**
+   * جلب آخر دورة نشطة أو أحدث دورة للمريض
+   */
+  async getActiveOrLastCycle(patientId: string): Promise<ApiResponse<SmartIVFCycle | null>> {
+    try {
+      // جلب آخر دورة نشطة (stimulation/assessment/trigger/active)
+      const { data: activeCycles, error: activeError } = await supabase
+        .from('smart_ivf_cycles')
+        .select('*')
+        .eq('patient_id', patientId)
+        .in('status', ['assessment', 'stimulation', 'trigger', 'active'])
+        .order('start_date', { ascending: false })
+        .limit(1);
+      if (activeError) throw activeError;
+      if (activeCycles && activeCycles.length > 0) {
+        return { data: activeCycles[0], error: null };
+      }
+      // إذا لم توجد دورة نشطة، جلب أحدث دورة فقط
+      const { data: lastCycles, error: lastError } = await supabase
+        .from('smart_ivf_cycles')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('start_date', { ascending: false })
+        .limit(1);
+      if (lastError) throw lastError;
+      if (lastCycles && lastCycles.length > 0) {
+        return { data: lastCycles[0], error: null };
+      }
+      return { data: null, error: null };
+    } catch (error: any) {
+      console.error('Error fetching active/last cycle:', error);
+      return { data: null, error };
+    }
+  },
+
   // ============================================================================
   // MONITORING VISITS - UNIFIED (with integrated medications & labs)
   // ============================================================================
