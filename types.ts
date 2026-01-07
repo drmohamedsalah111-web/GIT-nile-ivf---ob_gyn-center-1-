@@ -419,5 +419,6 @@ export enum Page {
   ADMIN = 'admin',
   SAAS_MANAGEMENT = 'saas_management',
   SUPER_ADMIN = 'super_admin',
-  SMART_STIMULATION = 'smart_stimulation'
+  SMART_STIMULATION = 'smart_stimulation',
+  UNIFIED_SMART_STIMULATION = 'unified_smart_stimulation'
 }

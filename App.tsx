@@ -23,6 +23,7 @@ const Gynecology = React.lazy(() => import('./pages/Gynecology'));
 const IvfJourney = React.lazy(() => import('./pages/IvfJourney'));
 const SmartIVFJourney = React.lazy(() => import('./pages/SmartIVFJourney'));
 const SmartStimulationCopilot = React.lazy(() => import('./pages/SmartStimulationCopilot'));
+const UnifiedSmartStimulation = React.lazy(() => import('./pages/UnifiedSmartStimulation'));
 const ObstetricsDashboard = React.lazy(() => import('./pages/ObstetricsDashboard'));
 const PatientMasterRecord = React.lazy(() => import('./pages/PatientMasterRecord'));
 const PatientProfile = React.lazy(() => import('./src/pages/PatientProfile'));
@@ -88,6 +89,7 @@ const App: React.FC = () => {
     if (path.includes('/gynecology')) return Page.GYNECOLOGY;
     if (path.includes('/ivf-journey')) return Page.IVF;
     if (path.includes('/smart-ivf')) return Page.SMART_IVF;
+    if (path.includes('/unified-smart-stimulation')) return Page.UNIFIED_SMART_STIMULATION;
     if (path.includes('/smart-stimulation')) return Page.SMART_STIMULATION;
     if (path.includes('/infertility')) return Page.INFERTILITY_WORKUP;
     if (path.includes('/obstetrics')) return Page.OBSTETRICS;
@@ -110,6 +112,7 @@ const App: React.FC = () => {
       case Page.GYNECOLOGY: navigate('/gynecology'); break;
       case Page.IVF: navigate('/ivf-journey'); break;
       case Page.SMART_IVF: navigate('/smart-ivf'); break;
+      case Page.UNIFIED_SMART_STIMULATION: navigate('/unified-smart-stimulation'); break;
       case Page.SMART_STIMULATION: navigate('/smart-stimulation'); break;
       case Page.INFERTILITY_WORKUP: navigate('/infertility'); break;
       case Page.OBSTETRICS: navigate('/obstetrics'); break;
@@ -323,6 +326,7 @@ const App: React.FC = () => {
                                 <Route path="/ivf-journey" element={<IvfJourney />} />
                                 <Route path="/smart-ivf" element={<SmartIVFJourney />} />
                                 <Route path="/smart-stimulation" element={<SmartStimulationCopilot />} />
+                                <Route path="/unified-smart-stimulation" element={<UnifiedSmartStimulation />} />
                                 <Route path="/infertility" element={<InfertilityWorkup />} />
                                 <Route path="/obstetrics" element={<ObstetricsDashboard />} />
                                 <Route path="/records" element={<PatientMasterRecord />} />
