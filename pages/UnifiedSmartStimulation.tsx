@@ -19,7 +19,10 @@ import {
   Pill,
   Beaker,
   FileText,
-  BarChart3
+  BarChart3,
+  Users,
+  User,
+  RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import smartStimulationService from '../services/smartStimulationService.unified';
@@ -203,6 +206,14 @@ const UnifiedSmartStimulation: React.FC = () => {
     }
   };
 
+  const handleResetPatient = () => {
+    setSelectedPatientId('');
+    setCurrentCycle(null);
+    setVisits([]);
+    setCurrentTab('setup');
+    navigate('/unified-smart-stimulation');
+  };
+
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
 
   return (
@@ -211,8 +222,8 @@ const UnifiedSmartStimulation: React.FC = () => {
 
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 text-white rounded-2xl p-8 shadow-2xl">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <TestTube className="w-10 h-10" />
                 <h1 className="text-4xl font-bold">رحلة التنشيط الذكي المتكامل</h1>
@@ -220,23 +231,49 @@ const UnifiedSmartStimulation: React.FC = () => {
               <p className="text-purple-100 text-lg">
                 نظام موحد متكامل - كل شيء في مكان واحد
               </p>
-              {currentCycle && (
-                <div className="mt-4 flex items-center gap-4 text-sm">
-                  <span className="bg-white/20 px-4 py-1 rounded-full">
-                    دورة رقم {currentCycle.cycle_number}
-                  </span>
-                  <span className="bg-white/20 px-4 py-1 rounded-full">
-                    {currentCycle.status}
-                  </span>
-                  {currentCycle.protocol_name && (
-                    <span className="bg-white/20 px-4 py-1 rounded-full">
-                      {currentCycle.protocol_name}
-                    </span>
-                  )}
-                </div>
-              )}
+
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                {selectedPatient && (
+                  <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-xl backdrop-blur-md border border-white/20">
+                    <Users className="w-5 h-5 text-cyan-200" />
+                    <div>
+                      <p className="text-[10px] text-purple-200 uppercase font-black tracking-widest">المريضة الحالية</p>
+                      <p className="font-bold">{selectedPatient.name}</p>
+                    </div>
+                    {currentCycle && (
+                      <button
+                        onClick={handleResetPatient}
+                        className="mr-4 p-2 bg-white/10 hover:bg-white/30 rounded-lg transition-all group flex items-center gap-2"
+                        title="تغيير المريضة"
+                      >
+                        <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+                        <span className="text-xs font-bold">تغيير المريضة</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {currentCycle && (
+                  <>
+                    <div className="bg-white/10 px-4 py-2 rounded-xl border border-white/10">
+                      <p className="text-[10px] text-purple-200 uppercase font-black tracking-widest">رقم الدورة</p>
+                      <p className="font-bold text-center">{currentCycle.cycle_number}</p>
+                    </div>
+                    <div className="bg-white/10 px-4 py-2 rounded-xl border border-white/10">
+                      <p className="text-[10px] text-purple-200 uppercase font-black tracking-widest">الحالة</p>
+                      <p className="font-bold text-center capitalize">{currentCycle.status}</p>
+                    </div>
+                    {currentCycle.protocol_name && (
+                      <div className="bg-indigo-500/30 px-4 py-2 rounded-xl border border-indigo-400/30 shadow-inner">
+                        <p className="text-[10px] text-indigo-200 uppercase font-black tracking-widest">البروتوكول</p>
+                        <p className="font-bold">{currentCycle.protocol_name}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-            <Activity className="w-20 h-20 opacity-20" />
+            <Activity className="w-20 h-20 opacity-20 hidden lg:block" />
           </div>
         </div>
 
