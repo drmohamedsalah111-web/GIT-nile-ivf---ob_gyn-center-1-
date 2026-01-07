@@ -540,12 +540,41 @@ CREATE TABLE IF NOT EXISTS smart_monitoring_visits (
   lead_follicle_size DECIMAL(4,2),
   cohort_synchrony TEXT CHECK (cohort_synchrony IN ('excellent', 'good', 'fair', 'poor')),
   
-  -- الجرعات المعطاة (Medications Given)
-  fsh_dose_given INTEGER,     -- IU
-  hmg_dose_given INTEGER,     -- IU
+  -- 💊 الأدوية المعطاة في الزيارة (Medications Given - INTEGRATED)
+  medications_given JSONB DEFAULT '[]', -- [{
+    -- "medication_id": "uuid",
+    -- "medication_name": "Gonal-F",
+    -- "medication_name_ar": "جونال إف",
+    -- "medication_type": "gonadotropin_fsh",
+    -- "dose": 150,
+    -- "unit": "IU",
+    -- "route": "SC",
+    -- "time": "08:00",
+    -- "prescribed_by": "uuid",
+    -- "administered_by": "nurse",
+    -- "batch_number": "123456",
+    -- "notes": "تم إعطاء الجرعة بدون مشاكل"
+  -- }]
+  
+  fsh_dose_given INTEGER,     -- IU (summary field)
+  hmg_dose_given INTEGER,     -- IU (summary field)
   antagonist_given BOOLEAN DEFAULT false,
-  antagonist_dose TEXT,
-  other_medications JSONB DEFAULT '[]', -- [{drug, dose, route, time}]
+  
+  -- 🧪 التحاليل المسجلة في الزيارة (Lab Results - INTEGRATED)
+  lab_results JSONB DEFAULT '[]', -- [{
+    -- "test_id": "uuid",
+    -- "test_name": "Estradiol (E2)",
+    -- "test_name_ar": "استراديول",
+    -- "result_value": 850.5,
+    -- "unit": "pg/mL",
+    -- "reference_min": 50,
+    -- "reference_max": 500,
+    -- "is_normal": false,
+    -- "interpretation": "مرتفع - استجابة جيدة",
+    -- "ordered_by": "uuid",
+    -- "verified": true,
+    -- "verified_at": "2024-01-07 10:30:00"
+  -- }]
   
   -- التوصيات الذكية (AI Recommendations)
   ai_recommendations JSONB DEFAULT '[]', -- مصفوفة من التوصيات
@@ -581,9 +610,27 @@ CREATE INDEX IF NOT EXISTS idx_smart_visits_cycle ON smart_monitoring_visits(cyc
 CREATE INDEX IF NOT EXISTS idx_smart_visits_date ON smart_monitoring_visits(visit_date DESC);
 CREATE INDEX IF NOT EXISTS idx_smart_visits_needs_attention ON smart_monitoring_visits(needs_attention) WHERE needs_attention = true;
 
+-- إضافة الأعمدة الجديدة المدمجة إذا لم تكن موجودة (للدعم التراجعي)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'smart_monitoring_visits' 
+                 AND column_name = 'medications_given') THEN
+    ALTER TABLE smart_monitoring_visits ADD COLUMN medications_given JSONB DEFAULT '[]';
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'smart_monitoring_visits' 
+                 AND column_name = 'lab_results') THEN
+    ALTER TABLE smart_monitoring_visits ADD COLUMN lab_results JSONB DEFAULT '[]';
+  END IF;
+END $$;
+
 -- ============================================================================
--- 2.3 جدول الأدوية المعطاة (Medications Administered)
+-- 2.3 جدول الأدوية المعطاة (LEGACY - للدعم التراجعي فقط)
 -- ============================================================================
+-- هذا الجدول محفوظ للتوافق مع البيانات القديمة
+-- البيانات الجديدة يجب أن تُحفظ في medications_given داخل smart_monitoring_visits
 CREATE TABLE IF NOT EXISTS cycle_medications_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cycle_id UUID NOT NULL REFERENCES smart_ivf_cycles(id) ON DELETE CASCADE,
@@ -608,8 +655,10 @@ CREATE TABLE IF NOT EXISTS cycle_medications_log (
   -- السبب والقرار
   reason TEXT,
   prescribed_by UUID REFERENCES doctors(id),
-  administered_by TEXT, -- nurse, patient self, etc.
-  
+  administered_by TEXT, -- nursEGACY - للدعم التراجعي فقط)
+-- ============================================================================
+-- هذا الجدول محفوظ للتوافق مع البيانات القديمة
+-- البيانات الجديدة يجب أن تُحفظ في lab_results داخل smart_monitoring_visits
   -- الملاحظات
   notes TEXT,
   side_effects_reported TEXT,
@@ -887,46 +936,214 @@ BEGIN
   
   RETURN v_result;
 END;
+$$ ============================================================================
+-- 🎯 دالة موحدة للحصول على الزيارة الكاملة مع كل البيانات (Smart Unified Visit)
+-- ============================================================================
+CREATE OR REPLACE FUNCTION get_complete_visit(p_visit_id UUID)
+RETURNS JSONB AS $$
+DECLARE
+  v_result JSONB;
+BEGIN
+  SELECT jsonb_build_object(
+    -- معلومات الزيارة
+    'visit_id', v.id,
+    'visit_number', v.visit_number,
+    'visit_date', v.visit_date,
+    'cycle_day', v.cycle_day,
+    'stimulation_day', v.stimulation_day,
+    
+    -- الهرمونات
+    'hormones', jsonb_build_object(
+      'e2', v.e2_level,
+      'lh', v.lh_level,
+      'p4', v.p4_level,
+      'fsh', v.fsh_level
+    ),
+    
+    -- السونار
+    'ultrasound', jsonb_build_object(
+      'endometrium_thickness', v.endometrium_thickness,
+      'endometrium_pattern', v.endometrium_pattern,
+      'follicles_right', v.follicles_right,
+      'follicles_left', v.follicles_left,
+      'total_follicles', v.total_follicles,
+      'mature_follicles', v.follicles_mature,
+      'lead_follicle', v.lead_follicle_size
+    ),
+    
+    -- الأدوية المعطاة (مدمجة)
+    'medications', v.medications_given,
+    
+    -- التحاليل (مدمجة)
+    'lab_results', v.lab_results,
+    
+    -- التوصيات والتنبيهات
+    'ai_recommendations', v.ai_recommendations,
+    'alerts', v.alerts,
+    'needs_attention', v.needs_attention,
+    
+    -- القرارات السريرية
+    'clinical_decision', jsonb_build_object(
+      'next_visit_date', v.next_visit_date,
+      'ready_for_trigger', v.ready_for_trigger,
+      'dose_adjustment', v.dose_adjustment,
+      'recommended_fsh', v.recommended_fsh_dose,
+      'recommended_hmg', v.recommended_hmg_dose
+    ),
+    
+    -- الملاحظات
+    'doctor_notes', v.doctor_notes,
+    'patient_feedback', v.patient_feedback,
+    'side_effects', v.side_effects
+  ) INTO v_result
+  FROM smart_monitoring_visits v
+  WHERE v.id = p_visit_id;
+  
+  RETURN v_result;
+END;
 $$ LANGUAGE plpgsql;
 
--- دالة للحصول على سجل الأدوية الكامل للدورة
+-- ============================================================================
+-- 🎯 دالة موحدة لإضافة زيارة كاملة مع كل البيانات
+-- ============================================================================
+CREATE OR REPLACE FUNCTION add_complete_visit(
+  p_cycle_id UUID,
+  p_visit_data JSONB
+) RETURNS UUID AS $$
+DECLARE
+  v_visit_id UUID;
+BEGIN
+  INSERT INTO smart_monitoring_visits (
+    cycle_id,
+    visit_number,
+    visit_date,
+    cycle_day,
+    stimulation_day,
+    
+    -- الهرمونات
+    e2_level,
+    lh_level,
+    p4_level,
+    fsh_level,
+    
+    -- السونار
+    endometrium_thickness,
+    endometrium_pattern,
+    follicles_right,
+    follicles_left,
+    
+    -- الأدوية والتحاليل (مدمجة)
+    medications_given,
+    lab_results,
+    
+    -- التوصيات
+    ai_recommendations,
+    alerts,
+    
+    -- الملاحظات
+    doctor_notes
+  ) VALUES (
+    p_cycle_id,
+    CAST(p_visit_data->>'visit_number' AS INTEGER),
+    CAST(p_visit_data->>'visit_date' AS DATE),
+    CAST(p_visit_data->>'cycle_day' AS INTEGER),
+    CAST(p_visit_data->>'stimulation_day' AS INTEGER),
+    
+    CAST(p_visit_data->'hormones'->>'e2' AS DECIMAL),
+    CAST(p_visit_data->'hormones'->>'lh' AS DECIMAL),
+    CAST(p_visit_data->'hormones'->>'p4' AS DECIMAL),
+    CAST(p_visit_data->'hormones'->>'fsh' AS DECIMAL),
+    
+    CAST(p_visit_data->'ultrasound'->>'endometrium_thickness' AS DECIMAL),
+    p_visit_data->'ultrasound'->>'endometrium_pattern',
+    p_visit_data->'ultrasound'->'follicles_right',
+    p_visit_data->'ultrasound'->'follicles_left',
+    
+    p_visit_data->'medications',
+    p_visit_data->'lab_results',
+    
+    p_visit_data->'ai_recommendations',
+    p_visit_data->'alerts',
+    
+    p_visit_data->>'doctor_notes'
+  )
+  RETURNING id INTO v_visit_id;
+  
+  RETURN v_visit_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================================
+-- LEGACY: دوال للتوافق مع الكود القديم
+-- ============================================================================
+-- دالة للحصول على سجل الأدوية الكامل للدورة (LEGACY)
 CREATE OR REPLACE FUNCTION get_cycle_medications_history(p_cycle_id UUID)
 RETURNS JSONB AS $$
 DECLARE
   v_result JSONB;
 BEGIN
-  SELECT jsonb_agg(
-    jsonb_build_object(
+  -- دمج من الجدول القديم والزيارات الجديدة
+  SELECT jsonb_agg(med ORDER BY med->>'date')
+  INTO v_result
+  FROM (
+    -- من الجدول القديم
+    SELECT jsonb_build_object(
       'date', administration_date,
       'day', stimulation_day,
       'medication', medication_name,
       'dose', dose || ' ' || unit,
-      'route', route
-    ) ORDER BY administration_date
-  ) INTO v_result
-  FROM cycle_medications_log
-  WHERE cycle_id = p_cycle_id;
+      'route', route,
+      'source', 'legacy_table'
+    ) as med
+    FROM cycle_medications_log
+    WHERE cycle_id = p_cycle_id
+    
+    UNION ALL
+    
+    -- من الزيارات الجديدة
+    SELECT jsonb_array_elements(medications_given) || jsonb_build_object('source', 'visit') as med
+    FROM smart_monitoring_visits
+    WHERE cycle_id = p_cycle_id
+      AND medications_given IS NOT NULL
+      AND jsonb_array_length(medications_given) > 0
+  ) combined;
   
   RETURN COALESCE(v_result, '[]'::JSONB);
 END;
 $$ LANGUAGE plpgsql;
 
--- دالة للحصول على ملخص التحاليل
+-- دالة للحصول على ملخص التحاليل (LEGACY)
 CREATE OR REPLACE FUNCTION get_cycle_labs_summary(p_cycle_id UUID)
 RETURNS JSONB AS $$
 DECLARE
   v_result JSONB;
 BEGIN
-  SELECT jsonb_agg(
-    jsonb_build_object(
+  -- دمج من الجدول القديم والزيارات الجديدة
+  SELECT jsonb_agg(lab ORDER BY lab->>'date')
+  INTO v_result
+  FROM (
+    -- من الجدول القديم
+    SELECT jsonb_build_object(
       'date', sample_date,
       'day', stimulation_day,
       'test', test_name,
       'value', result_value,
       'unit', unit,
-      'normal', is_normal
-    ) ORDER BY sample_date, test_name
-  ) INTO v_result
+      'normal', is_normal,
+      'source', 'legacy_table'
+    ) as lab
+    FROM cycle_lab_results
+    WHERE cycle_id = p_cycle_id
+    
+    UNION ALL
+    
+    -- من الزيارات الجديدة
+    SELECT jsonb_array_elements(lab_results) || jsonb_build_object('source', 'visit') as lab
+    FROM smart_monitoring_visits
+    WHERE cycle_id = p_cycle_id
+      AND lab_results IS NOT NULL
+      AND jsonb_array_length(lab_results) > 0
+  ) combine
   FROM cycle_lab_results
   WHERE cycle_id = p_cycle_id;
   
@@ -1104,33 +1321,121 @@ CREATE POLICY "view_lab_results_for_accessible_cycles" ON cycle_lab_results
     )
   );
 
-DROP POLICY IF EXISTS "insert_lab_results_for_own_cycles" ON cycle_lab_results;
-CREATE POLICY "insert_lab_results_for_own_cycles" ON cycle_lab_results
-  FOR INSERT WITH CHECK (
-    cycle_id IN (
-      SELECT id FROM smart_ivf_cycles 
-      WHERE doctor_id IN (SELECT id FROM doctors WHERE user_id = auth.uid())
+DRO============================================================================
+-- 🎯 عرض موحد لرحلة الحقن المجهري الكاملة (IVF Journey Timeline)
+-- ============================================================================
+CREATE OR REPLACE VIEW ivf_journey_complete AS
+SELECT 
+  c.id as cycle_id,
+  c.patient_id,
+  p.name as patient_name,
+  p.age as patient_age,
+  c.doctor_id,
+  d.name as doctor_name,
+  c.status as cycle_status,
+  c.cycle_number,
+  c.start_date,
+  c.protocol_name,
+  c.protocol_type,
+  
+  -- رحلة الزيارات الكاملة مع كل البيانات
+  (
+    SELECT jsonb_agg(
+      jsonb_build_object(
+        'visit_number', v.visit_number,
+        'visit_date', v.visit_date,
+        'stimulation_day', v.stimulation_day,
+        'hormones', jsonb_build_object(
+          'e2', v.e2_level,
+          'lh', v.lh_level,
+          'p4', v.p4_level
+        ),
+        'follicles', jsonb_build_object(
+          'total', v.total_follicles,
+          'mature', v.follicles_mature,
+          'lead_size', v.lead_follicle_size,
+          'right', v.follicles_right,
+          'left', v.follicles_left
+        ),
+        'endometrium', jsonb_build_object(
+          'thickness', v.endometrium_thickness,
+          'pattern', v.endometrium_pattern
+        ),
+        'medications', v.medications_given,
+        'lab_results', v.lab_results,
+        'ai_recommendations', v.ai_recommendations,
+        'alerts', v.alerts,
+        'needs_attention', v.needs_attention,
+        'doctor_notes', v.doctor_notes
+      ) ORDER BY v.visit_number
     )
-  );
+    FROM smart_monitoring_visits v
+    WHERE v.cycle_id = c.id
+  ) as journey_timeline,
+  
+  -- إحصائيات الدورة
+  (SELECT COUNT(*) FROM smart_monitoring_visits WHERE cycle_id = c.id) as total_visits,
+  
+  -- آخر قراءات
+  (SELECT e2_level FROM smart_monitoring_visits WHERE cycle_id = c.id ORDER BY visit_date DESC LIMIT 1) as latest_e2,
+  (SELECT total_follicles FROM smart_monitoring_visits WHERE cycle_id = c.id ORDER BY visit_date DESC LIMIT 1) as latest_follicles,
+  (SELECT lead_follicle_size FROM smart_monitoring_visits WHERE cycle_id = c.id ORDER BY visit_date DESC LIMIT 1) as latest_lead_follicle,
+  (SELECT endometrium_thickness FROM smart_monitoring_visits WHERE cycle_id = c.id ORDER BY visit_date DESC LIMIT 1) as latest_endometrium,
+  
+  -- الجرعات الكلية
+  c.total_dose_fsh,
+  c.total_dose_hmg,
+  
+  -- المخاطر والتوقعات
+  c.ohss_risk_level,
+  c.predicted_oocytes,
+  c.ovarian_phenotype,
+  
+  c.created_at,
+  c.updated_at
+FROM smart_ivf_cycles c
+LEFT JOIN patients p ON c.patient_id = p.id
+LEFT JOIN doctors d ON c.doctor_id = d.id;
 
--- ============================================================================
--- SECTION 6: المحفزات التلقائية (Automated Triggers)
--- ============================================================================
-
--- ============================================================================
--- 6.1 TRIGGERS: محفزات لتحديث البيانات تلقائياً
--- ============================================================================
-
--- محفز لتحديث updated_at
-CREATE OR REPLACE FUNCTION update_modified_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS update_smart_cycles_modtime ON smart_ivf_cycles;
+-- عرض مفصل للدورة مع كل المعلومات (LEGACY - للتوافق)
+CREATE OR REPLACE VIEW cycle_complete_details AS
+SELECT 
+  c.id as cycle_id,
+  c.patient_id,
+  p.name as patient_name,
+  p.age,
+  c.doctor_id,
+  d.name as doctor_name,
+  c.status,
+  c.protocol_name,
+  c.protocol_type,
+  c.start_date,
+  c.stimulation_start_date,
+  -- ملخص الزيارات
+  (SELECT COUNT(*) FROM smart_monitoring_visits WHERE cycle_id = c.id) as total_visits,
+  -- آخر قراءات
+  (SELECT e2_level FROM smart_monitoring_visits WHERE cycle_id = c.id ORDER BY visit_date DESC LIMIT 1) as latest_e2,
+  (SELECT total_follicles FROM smart_monitoring_visits WHERE cycle_id = c.id ORDER BY visit_date DESC LIMIT 1) as latest_follicles,
+  (SELECT lead_follicle_size FROM smart_monitoring_visits WHERE cycle_id = c.id ORDER BY visit_date DESC LIMIT 1) as latest_lead_follicle,
+  (SELECT endometrium_thickness FROM smart_monitoring_visits WHERE cycle_id = c.id ORDER BY visit_date DESC LIMIT 1) as latest_endometrium,
+  -- الجرعات
+  c.total_dose_fsh,
+  c.total_dose_hmg,
+  -- عدد الأدوية والتحاليل (من كلا المصدرين)
+  (
+    SELECT COUNT(*) FROM cycle_medications_log WHERE cycle_id = c.id
+  ) + (
+    SELECT COALESCE(SUM(jsonb_array_length(medications_given)), 0)
+    FROM smart_monitoring_visits 
+    WHERE cycle_id = c.id
+  ) as total_medications_given,
+  (
+    SELECT COUNT(*) FROM cycle_lab_results WHERE cycle_id = c.id
+  ) + (
+    SELECT COALESCE(SUM(jsonb_array_length(lab_results)), 0)
+    FROM smart_monitoring_visits 
+    WHERE cycle_id = c.id
+  _cycles;
 CREATE TRIGGER update_smart_cycles_modtime
   BEFORE UPDATE ON smart_ivf_cycles
   FOR EACH ROW
