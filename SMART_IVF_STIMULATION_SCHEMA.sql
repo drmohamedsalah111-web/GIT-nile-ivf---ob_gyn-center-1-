@@ -114,12 +114,21 @@ CREATE INDEX IF NOT EXISTS idx_lab_tests_active ON lab_tests_reference(is_active
 -- ============================================================================
 -- 1.3 جدول بروتوكولات التنشيط الذكية (Smart Stimulation Protocols)
 -- ============================================================================
+
+-- إزالة VIEW إذا كان موجودًا باسم الجدول (لتجنب التعارض)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.views WHERE table_name = 'stimulation_protocols_library') THEN
+    DROP VIEW stimulation_protocols_library CASCADE;
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS stimulation_protocols_library (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id UUID, -- Optional, no foreign key constraint
   
   -- معلومات البروتوكول
-  protocol_name TEXT NOT NULL,
+  protocol_name TEXT NOT NULL UNIQUE,
   protocol_name_ar TEXT NOT NULL,
   protocol_type TEXT NOT NULL CHECK (protocol_type IN (
     'long_agonist',
@@ -213,15 +222,69 @@ CREATE INDEX IF NOT EXISTS idx_protocols_clinic ON stimulation_protocols_library
 CREATE INDEX IF NOT EXISTS idx_protocols_type ON stimulation_protocols_library(protocol_type);
 CREATE INDEX IF NOT EXISTS idx_protocols_active ON stimulation_protocols_library(is_active) WHERE is_active = true;
 
+-- حذف البروتوكولات المكررة مع التعامل مع المراجع الأجنبية
+DO $$
+DECLARE
+  duplicate_record RECORD;
+BEGIN
+  -- لكل بروتوكول مكرر، احتفظ بأحدث نسخة وحدث المراجع
+  FOR duplicate_record IN
+    SELECT a.protocol_name,
+           a.id as keep_id,
+           (
+             SELECT array_agg(id)
+             FROM stimulation_protocols_library b
+             WHERE b.protocol_name = a.protocol_name AND b.id <> a.id
+           ) as ids_to_delete
+    FROM stimulation_protocols_library a
+    WHERE a.id = (
+      SELECT id FROM stimulation_protocols_library b
+      WHERE b.protocol_name = a.protocol_name
+      ORDER BY b.created_at DESC
+      LIMIT 1
+    )
+    AND (
+      SELECT COUNT(*) FROM stimulation_protocols_library b
+      WHERE b.protocol_name = a.protocol_name
+    ) > 1
+  LOOP
+    -- حدث المراجع الأجنبية لتشير إلى البروتوكول المحتفظ به
+    UPDATE smart_ivf_cycles 
+    SET protocol_id = duplicate_record.keep_id 
+    WHERE protocol_id = ANY(duplicate_record.ids_to_delete);
+    -- احذف البروتوكولات المكررة (باستثناء الأحدث)
+    DELETE FROM stimulation_protocols_library 
+    WHERE id = ANY(duplicate_record.ids_to_delete);
+  END LOOP;
+END $$;
+
+-- إضافة قيد UNIQUE على protocol_name إذا لم يكن موجودًا
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'stimulation_protocols_library_protocol_name_key'
+  ) THEN
+    ALTER TABLE stimulation_protocols_library ADD CONSTRAINT stimulation_protocols_library_protocol_name_key UNIQUE (protocol_name);
+  END IF;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
 -- إضافة الأعمدة الجديدة إلى جدول البروتوكولات إذا لم تكن موجودة
 DO $$ 
 BEGIN
-  -- التعامل مع الأعمدة القديمة (medications -> medications_plan)
-  IF EXISTS (SELECT 1 FROM information_schema.columns 
+  -- التأكد من أن stimulation_protocols_library هو جدول وليس view
+  IF EXISTS (SELECT 1 FROM information_schema.tables 
              WHERE table_name = 'stimulation_protocols_library' 
-             AND column_name = 'medications') THEN
-    -- إزالة قيد NOT NULL من العمود القديم
-    ALTER TABLE stimulation_protocols_library ALTER COLUMN medications DROP NOT NULL;
+             AND table_type = 'BASE TABLE') THEN
+    
+    -- التعامل مع الأعمدة القديمة (medications -> medications_plan)
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name = 'stimulation_protocols_library' 
+               AND column_name = 'medications') THEN
+      -- إزالة قيد NOT NULL من العمود القديم
+      ALTER TABLE stimulation_protocols_library ALTER COLUMN medications DROP NOT NULL;
     -- إضافة العمود الجديد إذا لم يكن موجودًا
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_name = 'stimulation_protocols_library' 
@@ -329,6 +392,8 @@ BEGIN
                  AND column_name = 'special_considerations') THEN
     ALTER TABLE stimulation_protocols_library ADD COLUMN special_considerations TEXT;
   END IF;
+  
+  END IF; -- إنهاء التحقق من أن الجدول ليس view
 END $$;
 
 -- ============================================================================
@@ -936,7 +1001,9 @@ BEGIN
   
   RETURN v_result;
 END;
-$$ ============================================================================
+$$ LANGUAGE plpgsql;
+
+-- ============================================================================
 -- 🎯 دالة موحدة للحصول على الزيارة الكاملة مع كل البيانات (Smart Unified Visit)
 -- ============================================================================
 CREATE OR REPLACE FUNCTION get_complete_visit(p_visit_id UUID)
@@ -1143,15 +1210,15 @@ BEGIN
     WHERE cycle_id = p_cycle_id
       AND lab_results IS NOT NULL
       AND jsonb_array_length(lab_results) > 0
-  ) combine
-  FROM cycle_lab_results
-  WHERE cycle_id = p_cycle_id;
+  ) combined;
   
   RETURN COALESCE(v_result, '[]'::JSONB);
 END;
 $$ LANGUAGE plpgsql;
 
--- دالة ذكية لاختيار البروتوكول المناسب
+-- Drop the old function first to allow changing return type
+DROP FUNCTION IF EXISTS suggest_protocol(INTEGER, NUMERIC, INTEGER, NUMERIC, INTEGER);
+
 CREATE OR REPLACE FUNCTION suggest_protocol(
   p_patient_age INTEGER,
   p_amh DECIMAL,
@@ -1161,8 +1228,12 @@ CREATE OR REPLACE FUNCTION suggest_protocol(
 ) RETURNS TABLE (
   protocol_id UUID,
   protocol_name TEXT,
-  match_score DECIMAL,
-  reason TEXT
+  protocol_name_ar TEXT,
+  protocol_type TEXT,
+  match_score INTEGER,
+  reason TEXT,
+  advantages TEXT,
+  expected_oocytes TEXT
 ) AS $$
 BEGIN
   RETURN QUERY
@@ -1171,59 +1242,89 @@ BEGIN
       p.id,
       p.protocol_name,
       p.protocol_name_ar,
-      -- حساب درجة التطابق بناءً على المعايير
+      p.protocol_type,
+      p.advantages,
+      p.expected_oocytes_range,
       (
         CASE 
           WHEN p.selection_criteria->>'age' IS NOT NULL THEN
             CASE WHEN p_patient_age BETWEEN 
               CAST(p.selection_criteria->'age'->>'min' AS INTEGER) AND 
               CAST(p.selection_criteria->'age'->>'max' AS INTEGER)
-            THEN 25 ELSE 0 END
-          ELSE 25
+            THEN 25 
+            WHEN p_patient_age < CAST(p.selection_criteria->'age'->>'min' AS INTEGER) THEN 15
+            WHEN p_patient_age > CAST(p.selection_criteria->'age'->>'max' AS INTEGER) THEN 10
+            ELSE 0 END
+          ELSE 20
         END +
         CASE 
           WHEN p.selection_criteria->>'amh' IS NOT NULL THEN
             CASE WHEN p_amh BETWEEN 
               CAST(p.selection_criteria->'amh'->>'min' AS DECIMAL) AND 
               CAST(p.selection_criteria->'amh'->>'max' AS DECIMAL)
-            THEN 25 ELSE 0 END
-          ELSE 25
+            THEN 30
+            WHEN p_amh < CAST(p.selection_criteria->'amh'->>'min' AS DECIMAL) THEN 10
+            WHEN p_amh > CAST(p.selection_criteria->'amh'->>'max' AS DECIMAL) THEN 10
+            ELSE 0 END
+          ELSE 20
         END +
         CASE 
           WHEN p.selection_criteria->>'afc' IS NOT NULL THEN
             CASE WHEN p_afc BETWEEN 
               CAST(p.selection_criteria->'afc'->>'min' AS INTEGER) AND 
               CAST(p.selection_criteria->'afc'->>'max' AS INTEGER)
-            THEN 25 ELSE 0 END
-          ELSE 25
+            THEN 30
+            WHEN p_afc < CAST(p.selection_criteria->'afc'->>'min' AS INTEGER) THEN 10
+            WHEN p_afc > CAST(p.selection_criteria->'afc'->>'max' AS INTEGER) THEN 10
+            ELSE 0 END
+          ELSE 20
         END +
         CASE 
           WHEN p.selection_criteria->>'bmi' IS NOT NULL AND p_bmi IS NOT NULL THEN
             CASE WHEN p_bmi BETWEEN 
               CAST(p.selection_criteria->'bmi'->>'min' AS DECIMAL) AND 
               CAST(p.selection_criteria->'bmi'->>'max' AS DECIMAL)
-            THEN 25 ELSE 0 END
-          ELSE 25
+            THEN 15
+            ELSE 5 END
+          ELSE 10
         END
       ) as score,
       CASE
-        WHEN p_amh < 1.0 THEN 'AMH منخفض - يحتاج بروتوكول خاص'
-        WHEN p_amh > 4.0 THEN 'AMH مرتفع - خطر OHSS'
-        WHEN p_afc < 5 THEN 'استجابة ضعيفة متوقعة'
-        WHEN p_afc > 20 THEN 'استجابة عالية - حذر من OHSS'
-        ELSE 'مستجيب طبيعي'
-      END as rationale
+        WHEN p_amh < 1.0 OR p_afc < 5 THEN 
+          'استجابة ضعيفة متوقعة - AMH: ' || ROUND(p_amh::numeric, 2) || ' | AFC: ' || p_afc
+        WHEN p_amh > 4.0 OR p_afc > 20 THEN 
+          'استجابة عالية متوقعة - AMH: ' || ROUND(p_amh::numeric, 2) || ' | AFC: ' || p_afc
+        WHEN p_amh BETWEEN 1.5 AND 4.0 AND p_afc BETWEEN 8 AND 20 THEN
+          'مستجيب طبيعي - AMH: ' || ROUND(p_amh::numeric, 2) || ' | AFC: ' || p_afc
+        WHEN p_amh BETWEEN 1.0 AND 1.5 OR p_afc BETWEEN 5 AND 8 THEN
+          'استجابة متوسطة - AMH: ' || ROUND(p_amh::numeric, 2) || ' | AFC: ' || p_afc
+        ELSE 
+          'العمر: ' || p_patient_age || ' | AMH: ' || ROUND(p_amh::numeric, 2) || ' | AFC: ' || p_afc
+      END as rationale,
+      CASE p.protocol_type
+        WHEN 'antagonist' THEN 1
+        WHEN 'long_agonist' THEN 2
+        WHEN 'short_agonist' THEN 3
+        WHEN 'flare_up' THEN 4
+        WHEN 'mini_ivf' THEN 5
+        ELSE 6
+      END as type_priority
     FROM stimulation_protocols_library p
     WHERE p.is_active = true
   )
   SELECT 
     sp.id,
     sp.protocol_name,
+    sp.protocol_name_ar,
+    sp.protocol_type,
     sp.score,
-    sp.rationale
+    sp.rationale,
+    sp.advantages,
+    sp.expected_oocytes_range
   FROM scored_protocols sp
-  ORDER BY sp.score DESC
-  LIMIT 3;
+  WHERE sp.score >= 40
+  ORDER BY sp.score DESC, sp.type_priority ASC
+  LIMIT 5;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1321,9 +1422,10 @@ CREATE POLICY "view_lab_results_for_accessible_cycles" ON cycle_lab_results
     )
   );
 
-DRO============================================================================
+-- ============================================================================
 -- 🎯 عرض موحد لرحلة الحقن المجهري الكاملة (IVF Journey Timeline)
 -- ============================================================================
+DROP VIEW IF EXISTS ivf_journey_complete CASCADE;
 CREATE OR REPLACE VIEW ivf_journey_complete AS
 SELECT 
   c.id as cycle_id,
@@ -1398,6 +1500,7 @@ LEFT JOIN patients p ON c.patient_id = p.id
 LEFT JOIN doctors d ON c.doctor_id = d.id;
 
 -- عرض مفصل للدورة مع كل المعلومات (LEGACY - للتوافق)
+DROP VIEW IF EXISTS cycle_complete_details CASCADE;
 CREATE OR REPLACE VIEW cycle_complete_details AS
 SELECT 
   c.id as cycle_id,
@@ -1435,7 +1538,15 @@ SELECT
     SELECT COALESCE(SUM(jsonb_array_length(lab_results)), 0)
     FROM smart_monitoring_visits 
     WHERE cycle_id = c.id
-  _cycles;
+  ) as total_lab_results
+FROM smart_ivf_cycles c
+LEFT JOIN patients p ON c.patient_id = p.id
+LEFT JOIN doctors d ON c.doctor_id = d.id;
+
+-- ============================================================================
+-- 🔄 المشغلات (Triggers)
+-- ============================================================================
+DROP TRIGGER IF EXISTS update_smart_cycles_modtime ON smart_ivf_cycles;
 CREATE TRIGGER update_smart_cycles_modtime
   BEFORE UPDATE ON smart_ivf_cycles
   FOR EACH ROW
@@ -1525,6 +1636,7 @@ CREATE TRIGGER update_cycle_doses_on_medication_log
 -- ============================================================================
 
 -- عرض ملخص الدورات النشطة
+DROP VIEW IF EXISTS active_smart_cycles_summary CASCADE;
 CREATE OR REPLACE VIEW active_smart_cycles_summary AS
 SELECT 
   c.id,
@@ -1554,6 +1666,7 @@ WHERE c.status IN ('stimulation', 'baseline', 'trigger')
 ORDER BY c.start_date DESC;
 
 -- عرض الزيارات التي تحتاج متابعة
+DROP VIEW IF EXISTS visits_needing_attention CASCADE;
 CREATE OR REPLACE VIEW visits_needing_attention AS
 SELECT 
   v.id,
@@ -1577,42 +1690,8 @@ WHERE v.needs_attention = true
   AND c.status = 'stimulation'
 ORDER BY v.visit_date DESC;
 
--- عرض مفصل للدورة مع كل المعلومات
-CREATE OR REPLACE VIEW cycle_complete_details AS
-SELECT 
-  c.id as cycle_id,
-  c.patient_id,
-  p.name as patient_name,
-  p.age,
-  c.doctor_id,
-  d.name as doctor_name,
-  c.status,
-  c.protocol_name,
-  c.protocol_type,
-  c.start_date,
-  c.stimulation_start_date,
-  -- ملخص الزيارات
-  (SELECT COUNT(*) FROM smart_monitoring_visits WHERE cycle_id = c.id) as total_visits,
-  -- آخر قراءات
-  (SELECT e2_level FROM smart_monitoring_visits WHERE cycle_id = c.id ORDER BY visit_date DESC LIMIT 1) as latest_e2,
-  (SELECT total_follicles FROM smart_monitoring_visits WHERE cycle_id = c.id ORDER BY visit_date DESC LIMIT 1) as latest_follicles,
-  (SELECT lead_follicle_size FROM smart_monitoring_visits WHERE cycle_id = c.id ORDER BY visit_date DESC LIMIT 1) as latest_lead_follicle,
-  (SELECT endometrium_thickness FROM smart_monitoring_visits WHERE cycle_id = c.id ORDER BY visit_date DESC LIMIT 1) as latest_endometrium,
-  -- الجرعات
-  c.total_dose_fsh,
-  c.total_dose_hmg,
-  -- عدد الأدوية والتحاليل
-  (SELECT COUNT(*) FROM cycle_medications_log WHERE cycle_id = c.id) as total_medications_given,
-  (SELECT COUNT(*) FROM cycle_lab_results WHERE cycle_id = c.id) as total_lab_tests,
-  -- المخاطر
-  c.ohss_risk_level,
-  c.predicted_oocytes,
-  c.created_at
-FROM smart_ivf_cycles c
-LEFT JOIN patients p ON c.patient_id = p.id
-LEFT JOIN doctors d ON c.doctor_id = d.id;
-
 -- عرض للأدوية اليومية
+DROP VIEW IF EXISTS daily_medications_schedule CASCADE;
 CREATE OR REPLACE VIEW daily_medications_schedule AS
 SELECT 
   m.cycle_id,
@@ -1634,6 +1713,7 @@ WHERE c.status IN ('stimulation', 'trigger')
 ORDER BY m.administration_date DESC, m.administration_time DESC;
 
 -- عرض للتحاليل الحديثة
+DROP VIEW IF EXISTS recent_lab_results CASCADE;
 CREATE OR REPLACE VIEW recent_lab_results AS
 SELECT 
   l.cycle_id,
@@ -1686,7 +1766,7 @@ INSERT INTO lab_tests_reference (test_name, test_name_ar, test_category, unit, o
 ('Prolactin', 'البرولاكتين', 'hormones', 'ng/mL', '< 25', 'Any time')
 ON CONFLICT (test_name) DO NOTHING;
 
--- إدراج بروتوكول تجريبي محسّن
+-- إدراج بروتوكولات متعددة محسّنة
 INSERT INTO stimulation_protocols_library (
   protocol_name,
   protocol_name_ar,
@@ -1701,32 +1781,175 @@ INSERT INTO stimulation_protocols_library (
   expected_stim_days,
   expected_stim_days_range,
   expected_oocytes_range,
+  advantages,
+  disadvantages,
   is_active
-) VALUES (
+) VALUES 
+-- 1. بروتوكول الأنتاجونيست القياسي
+(
   'Antagonist Protocol - Standard',
   'بروتوكول الأنتاجونيست القياسي',
   'antagonist',
   'Standard antagonist protocol for normal responders',
-  'بروتوكول الأنتاجونيست القياسي للمستجيبين الطبيعيين مع مراقبة دقيقة',
-  '{"age": {"min": 25, "max": 38}, "amh": {"min": 1.5, "max": 4.0}, "afc": {"min": 8, "max": 15}, "bmi": {"min": 18, "max": 32}}'::JSONB,
+  'بروتوكول الأنتاجونيست القياسي للمستجيبين الطبيعيين - مرن وآمن',
+  '{"age": {"min": 20, "max": 38}, "amh": {"min": 1.5, "max": 4.0}, "afc": {"min": 8, "max": 20}, "bmi": {"min": 18, "max": 35}}'::JSONB,
   ARRAY['normal_responder'],
   '[
-    {"medication_name": "FSH", "starting_dose": "150-225", "unit": "IU", "start_day": "Day 2", "route": "SC", "frequency": "daily", "notes": "Adjust based on response"},
-    {"medication_name": "GnRH Antagonist", "starting_dose": "0.25", "unit": "mg", "start_day": "Day 5-6 of stimulation", "route": "SC", "frequency": "daily", "notes": "Start when lead follicle reaches 13-14mm"}
+    {"medication_name": "FSH", "starting_dose": "150-225", "unit": "IU", "start_day": "Day 2", "route": "SC", "frequency": "daily"},
+    {"medication_name": "GnRH Antagonist", "starting_dose": "0.25", "unit": "mg", "start_day": "Day 5-6", "route": "SC", "frequency": "daily"}
   ]'::JSONB,
   '[
-    {"day": 0, "day_label": "Baseline", "required_tests": ["E2", "LH", "P4", "FSH"], "ultrasound": true, "decision_points": ["Confirm no cysts", "Start stimulation"]},
-    {"day": 5, "day_label": "First Check", "required_tests": ["E2", "LH"], "ultrasound": true, "decision_points": ["Assess response", "Consider antagonist start"]},
-    {"day": 7, "day_label": "Mid Stimulation", "required_tests": ["E2", "LH"], "ultrasound": true, "decision_points": ["Adjust doses", "Continue antagonist"]},
-    {"day": 9, "day_label": "Late Stimulation", "required_tests": ["E2", "LH", "P4"], "ultrasound": true, "decision_points": ["Consider trigger timing"]}
+    {"day": 0, "day_label": "Baseline", "required_tests": ["E2", "LH", "P4"], "ultrasound": true},
+    {"day": 5, "day_label": "First Check", "required_tests": ["E2", "LH"], "ultrasound": true},
+    {"day": 8, "day_label": "Mid Stimulation", "required_tests": ["E2", "LH"], "ultrasound": true}
   ]'::JSONB,
-  '{"lead_follicle_min": 18, "mature_follicles_min": 3, "e2_per_follicle": "200-300", "endometrium_min": 7, "lh_max": 10, "p4_max": 1.5}'::JSONB,
+  '{"lead_follicle_min": 18, "mature_follicles_min": 3, "e2_min": 500, "endometrium_min": 7}'::JSONB,
   10,
   '8-12 days',
   '8-15 oocytes',
+  'مرن، قصير المدة، معدل OHSS منخفض، سهل الإدارة',
+  'تكلفة أعلى قليلاً، يحتاج متابعة دقيقة',
+  true
+),
+
+-- 2. بروتوكول الأجونيست الطويل
+(
+  'Long Agonist Protocol',
+  'بروتوكول الأجونيست الطويل',
+  'long_agonist',
+  'Long GnRH agonist protocol with down-regulation',
+  'بروتوكول الأجونيست الطويل مع التثبيط الكامل - الأكثر تقليدية',
+  '{"age": {"min": 20, "max": 40}, "amh": {"min": 1.0, "max": 5.0}, "afc": {"min": 5, "max": 25}, "bmi": {"min": 18, "max": 35}}'::JSONB,
+  ARRAY['normal_responder', 'high_responder'],
+  '[
+    {"medication_name": "GnRH Agonist", "starting_dose": "0.5", "unit": "mg", "start_day": "Day 21 of previous cycle", "route": "SC", "frequency": "daily"},
+    {"medication_name": "FSH", "starting_dose": "150-300", "unit": "IU", "start_day": "After suppression confirmed", "route": "SC", "frequency": "daily"}
+  ]'::JSONB,
+  '[
+    {"day": -14, "day_label": "Start Downreg", "required_tests": [], "ultrasound": false},
+    {"day": 0, "day_label": "Baseline", "required_tests": ["E2", "LH", "P4"], "ultrasound": true},
+    {"day": 6, "day_label": "First Check", "required_tests": ["E2"], "ultrasound": true},
+    {"day": 9, "day_label": "Second Check", "required_tests": ["E2", "LH"], "ultrasound": true}
+  ]'::JSONB,
+  '{"lead_follicle_min": 18, "mature_follicles_min": 3, "e2_min": 500, "endometrium_min": 7}'::JSONB,
+  12,
+  '10-14 days',
+  '10-18 oocytes',
+  'تحكم ممتاز في الدورة، معدل نجاح مثبت، منع LH surge',
+  'مدة أطول، تكلفة أعلى، خطر OHSS أعلى قليلاً',
+  true
+),
+
+-- 3. بروتوكول للاستجابة الضعيفة
+(
+  'Short Agonist Protocol - Poor Responders',
+  'بروتوكول الأجونيست القصير للاستجابة الضعيفة',
+  'short_agonist',
+  'Short agonist protocol for poor responders',
+  'بروتوكول محسّن للمريضات ذوات الاستجابة الضعيفة',
+  '{"age": {"min": 35, "max": 45}, "amh": {"min": 0.5, "max": 1.5}, "afc": {"min": 3, "max": 7}, "bmi": {"min": 18, "max": 35}}'::JSONB,
+  ARRAY['poor_responder'],
+  '[
+    {"medication_name": "GnRH Agonist", "starting_dose": "0.05", "unit": "mg", "start_day": "Day 2", "route": "SC", "frequency": "daily"},
+    {"medication_name": "FSH", "starting_dose": "300-450", "unit": "IU", "start_day": "Day 2", "route": "SC", "frequency": "daily"}
+  ]'::JSONB,
+  '[
+    {"day": 0, "day_label": "Start", "required_tests": ["E2", "FSH", "AMH"], "ultrasound": true},
+    {"day": 5, "day_label": "Early Check", "required_tests": ["E2"], "ultrasound": true},
+    {"day": 8, "day_label": "Mid Check", "required_tests": ["E2", "LH"], "ultrasound": true}
+  ]'::JSONB,
+  '{"lead_follicle_min": 17, "mature_follicles_min": 2, "e2_min": 300, "endometrium_min": 6}'::JSONB,
+  10,
+  '8-12 days',
+  '4-8 oocytes',
+  'مناسب للاستجابة الضعيفة، جرعات عالية فعالة',
+  'معدل حمل أقل، تكلفة عالية للأدوية',
+  true
+),
+
+-- 4. بروتوكول PCOS (تكيس المبايض)
+(
+  'Antagonist Protocol - PCOS Modified',
+  'بروتوكول أنتاجونيست معدّل لتكيس المبايض',
+  'antagonist',
+  'Modified antagonist for PCOS with OHSS risk management',
+  'بروتوكول معدّل لتكيس المبايض مع إدارة خطر فرط التنشيط',
+  '{"age": {"min": 20, "max": 38}, "amh": {"min": 4.0, "max": 15.0}, "afc": {"min": 20, "max": 50}, "bmi": {"min": 18, "max": 40}}'::JSONB,
+  ARRAY['high_responder', 'pcos'],
+  '[
+    {"medication_name": "FSH", "starting_dose": "75-150", "unit": "IU", "start_day": "Day 2", "route": "SC", "frequency": "daily", "notes": "Low dose start"},
+    {"medication_name": "GnRH Antagonist", "starting_dose": "0.25", "unit": "mg", "start_day": "Day 5-6", "route": "SC", "frequency": "daily"},
+    {"medication_name": "Metformin", "starting_dose": "500-1000", "unit": "mg", "start_day": "Continuous", "route": "PO", "frequency": "BID"}
+  ]'::JSONB,
+  '[
+    {"day": 0, "day_label": "Baseline", "required_tests": ["E2", "LH", "Testosterone"], "ultrasound": true},
+    {"day": 5, "day_label": "Early Check", "required_tests": ["E2"], "ultrasound": true},
+    {"day": 7, "day_label": "Mid Check", "required_tests": ["E2", "LH"], "ultrasound": true}
+  ]'::JSONB,
+  '{"lead_follicle_min": 17, "mature_follicles_min": 8, "e2_max": 3500, "endometrium_min": 7}'::JSONB,
+  9,
+  '7-11 days',
+  '15-25 oocytes',
+  'تقليل خطر OHSS، GnRH trigger ممكن، معدل بويضات ممتاز',
+  'يحتاج متابعة حذرة جداً، خطر OHSS موجود',
+  true
+),
+
+-- 5. بروتوكول Mini IVF
+(
+  'Mini IVF Protocol',
+  'بروتوكول التنشيط الخفيف (Mini IVF)',
+  'mini_ivf',
+  'Minimal stimulation IVF protocol',
+  'بروتوكول التنشيط الخفيف - جرعات منخفضة',
+  '{"age": {"min": 35, "max": 45}, "amh": {"min": 0.5, "max": 2.0}, "afc": {"min": 3, "max": 8}, "bmi": {"min": 18, "max": 35}}'::JSONB,
+  ARRAY['poor_responder'],
+  '[
+    {"medication_name": "Clomiphene Citrate", "starting_dose": "100", "unit": "mg", "start_day": "Day 3", "route": "PO", "frequency": "daily"},
+    {"medication_name": "FSH", "starting_dose": "150", "unit": "IU", "start_day": "Day 5", "route": "SC", "frequency": "daily"},
+    {"medication_name": "GnRH Antagonist", "starting_dose": "0.25", "unit": "mg", "start_day": "Day 8", "route": "SC", "frequency": "daily"}
+  ]'::JSONB,
+  '[
+    {"day": 0, "day_label": "Start Clomid", "required_tests": ["E2"], "ultrasound": true},
+    {"day": 5, "day_label": "Add FSH", "required_tests": ["E2"], "ultrasound": true},
+    {"day": 8, "day_label": "Check", "required_tests": ["E2", "LH"], "ultrasound": true}
+  ]'::JSONB,
+  '{"lead_follicle_min": 18, "mature_follicles_min": 2, "e2_min": 200, "endometrium_min": 6}'::JSONB,
+  10,
+  '8-12 days',
+  '3-6 oocytes',
+  'تكلفة أقل بكثير، أقل إجهاداً للمريضة، خطر OHSS منخفض جداً',
+  'عدد بويضات أقل، معدل إلغاء أعلى',
+  true
+),
+
+-- 6. بروتوكول Flare-up
+(
+  'Flare-up Protocol - Microdose',
+  'بروتوكول التنشيط المبكر (Flare-up)',
+  'flare_up',
+  'Microdose flare protocol for poor responders',
+  'بروتوكول التنشيط المبكر بجرعات صغيرة للاستجابة الضعيفة',
+  '{"age": {"min": 35, "max": 45}, "amh": {"min": 0.3, "max": 1.2}, "afc": {"min": 2, "max": 6}, "bmi": {"min": 18, "max": 35}}'::JSONB,
+  ARRAY['poor_responder'],
+  '[
+    {"medication_name": "GnRH Agonist", "starting_dose": "0.05", "unit": "mg", "start_day": "Day 2", "route": "SC", "frequency": "BID"},
+    {"medication_name": "FSH", "starting_dose": "300-450", "unit": "IU", "start_day": "Day 3", "route": "SC", "frequency": "daily"}
+  ]'::JSONB,
+  '[
+    {"day": 0, "day_label": "Start Microdose", "required_tests": ["E2", "FSH"], "ultrasound": true},
+    {"day": 4, "day_label": "Early Check", "required_tests": ["E2"], "ultrasound": true},
+    {"day": 7, "day_label": "Mid Check", "required_tests": ["E2", "LH"], "ultrasound": true}
+  ]'::JSONB,
+  '{"lead_follicle_min": 17, "mature_follicles_min": 2, "e2_min": 300, "endometrium_min": 6}'::JSONB,
+  10,
+  '8-12 days',
+  '3-7 oocytes',
+  'استفادة من flare effect، مناسب جداً للاستجابة الضعيفة',
+  'معقد قليلاً، يحتاج مراقبة دقيقة',
   true
 )
-ON CONFLICT DO NOTHING;
+ON CONFLICT (protocol_name) DO NOTHING;
 
 -- إدراج قواعد معرفية
 INSERT INTO clinical_knowledge_base (
