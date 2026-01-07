@@ -214,15 +214,34 @@ const SmartProtocolSelector: React.FC<SmartProtocolSelectorProps> = ({
 
                       {/* Short English Guide (NEW - visible without expansion) */}
                       {clinicalDetails && (
-                        <div className="bg-indigo-50/50 rounded-lg p-3 border border-indigo-100/50 mb-3" dir="ltr">
-                          <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-tighter mb-1">Quick Protocol Guide</div>
+                        <div
+                          className="bg-indigo-50/50 rounded-lg p-3 border border-indigo-100/50 mb-3 cursor-pointer hover:bg-indigo-100/50 transition-colors group"
+                          dir="ltr"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedProtocol(isExpanded ? null : protocol.id);
+                          }}
+                        >
+                          <div className="flex justify-between items-center mb-1">
+                            <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-tighter">Quick Protocol Guide</div>
+                            {!isExpanded && clinicalDetails.guide.length > 2 && (
+                              <div className="text-[10px] text-indigo-600 font-bold group-hover:underline">View All Steps →</div>
+                            )}
+                            {isExpanded && (
+                              <div className="text-[10px] text-indigo-600 font-bold group-hover:underline">Collapse ↑</div>
+                            )}
+                          </div>
                           <div className="space-y-1">
                             {clinicalDetails.guide.slice(0, 2).map((step, i) => (
                               <div key={i} className="text-xs text-indigo-800 font-medium flex gap-2">
                                 <span className="text-indigo-400">•</span> {step}
                               </div>
                             ))}
-                            {clinicalDetails.guide.length > 2 && <div className="text-[10px] text-indigo-400 italic">Expand for more steps...</div>}
+                            {!isExpanded && clinicalDetails.guide.length > 2 && (
+                              <div className="text-[10px] text-indigo-400 italic mt-1 font-semibold">
+                                Click to see {clinicalDetails.guide.length - 2} more steps...
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -378,27 +397,100 @@ const SmartProtocolSelector: React.FC<SmartProtocolSelectorProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {otherProtocols.map((protocol) => {
               const isSelected = selectedProtocol === protocol.id;
+              const isExpanded = expandedProtocol === protocol.id;
+              const clinicalDetails = ClinicalEngine.getProtocolDetails(protocol.protocol_name);
 
               return (
                 <div
                   key={protocol.id}
                   className={`
-                    bg-white rounded-lg shadow border-2 p-4 transition-all
-                    ${isSelected ? 'border-indigo-500' : 'border-gray-200'}
-                    hover:shadow-md cursor-pointer
+                    bg-white rounded-lg shadow-md border-2 transition-all
+                    ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-200'}
+                    hover:shadow-lg
                   `}
-                  onClick={() => handleProtocolSelect(protocol)}
                 >
-                  <h4 className="font-bold text-gray-900 mb-2">
-                    {protocol.protocol_name_ar || protocol.protocol_name}
-                  </h4>
-                  <p className="text-sm text-gray-600 mb-3">
-                    {protocol.description_ar || protocol.description}
-                  </p>
-                  {isSelected && (
-                    <div className="flex items-center gap-2 text-green-600">
-                      <CheckCircle2 className="w-5 h-5" />
-                      <span className="font-semibold">محدد</span>
+                  <div className="p-4 cursor-pointer" onClick={() => handleProtocolSelect(protocol)}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h4 className="font-bold text-gray-900">
+                        {protocol.protocol_name_ar || protocol.protocol_name}
+                      </h4>
+                      {clinicalDetails?.note && (
+                        <span className="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-yellow-200">
+                          ⭐ {clinicalDetails.note}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                      {protocol.description_ar || protocol.description}
+                    </p>
+
+                    {/* Quick Guide */}
+                    {clinicalDetails && (
+                      <div
+                        className="bg-indigo-50/50 rounded-lg p-2 border border-indigo-100/50 mb-3 cursor-pointer hover:bg-indigo-100/50 transition-colors group"
+                        dir="ltr"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedProtocol(isExpanded ? null : protocol.id);
+                        }}
+                      >
+                        <div className="flex justify-between items-center mb-1">
+                          <div className="text-[9px] font-bold text-indigo-400 uppercase tracking-tighter">Quick Guide</div>
+                          {!isExpanded && <div className="text-[9px] text-indigo-600 font-bold group-hover:underline">View All →</div>}
+                        </div>
+                        <div className="text-[11px] text-indigo-800 font-medium">
+                          • {clinicalDetails.guide[0]}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between mt-2">
+                      {isSelected ? (
+                        <div className="flex items-center gap-2 text-green-600">
+                          <CheckCircle2 className="w-5 h-5" />
+                          <span className="text-sm font-semibold">محدد</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-indigo-600 font-bold hover:underline">اختيار البروتوكول</span>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedProtocol(isExpanded ? null : protocol.id);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expanded Details */}
+                  {isExpanded && (
+                    <div className="border-t-2 border-gray-100 p-4 bg-gray-50 space-y-4 rounded-b-lg">
+                      {/* Doctor's Pocket Guide */}
+                      {clinicalDetails?.guide && (
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-sm" dir="ltr">
+                          <h5 className="font-bold mb-2 text-indigo-800 text-xs flex items-center gap-2">
+                            <BookOpen className="w-3.5 h-3.5" /> DOCTOR'S POCKET GUIDE
+                          </h5>
+                          <div className="space-y-1.5">
+                            {clinicalDetails.guide.map((step, i) => (
+                              <div key={i} className="flex gap-2">
+                                <span className="font-bold text-indigo-400">{i + 1}.</span>
+                                <p className="text-indigo-900">{step}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Other Protocol Details (Medications if any, etc.) */}
+                      {protocol.advantages && (
+                        <div className="text-xs text-green-800 bg-green-50 p-2 rounded border border-green-100">
+                          <span className="font-bold">المميزات: </span> {protocol.advantages}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
