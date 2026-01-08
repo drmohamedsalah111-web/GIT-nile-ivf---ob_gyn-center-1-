@@ -2,6 +2,11 @@
 -- SMART IVF JOURNEY - EXTENDED STAGES (OPU, LAB, TRANSFER)
 -- ============================================================================
 
+-- Dropping existing tables to ensure clean migration (for debugging)
+DROP TABLE IF EXISTS smart_embryo_records CASCADE;
+DROP TABLE IF EXISTS smart_opu_records CASCADE;
+DROP TABLE IF EXISTS smart_transfer_prep CASCADE;
+
 -- 1. OPU (Oocyte Pick-Up) Records
 CREATE TABLE IF NOT EXISTS smart_opu_records (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -27,7 +32,7 @@ CREATE TABLE IF NOT EXISTS smart_embryo_records (
   cycle_id UUID NOT NULL REFERENCES smart_ivf_cycles(id) ON DELETE CASCADE,
   
   embryo_number INTEGER NOT NULL,
-  fertilization_status TEXT CHECK (status IN ('fertilized', 'failed', 'abnormal')),
+  fertilization_status TEXT CHECK (fertilization_status IN ('fertilized', 'failed', 'abnormal')),
   
   -- Individual Status
   status TEXT NOT NULL DEFAULT 'developing' CHECK (
