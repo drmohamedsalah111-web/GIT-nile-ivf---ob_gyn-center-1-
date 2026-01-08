@@ -23,7 +23,10 @@ import type {
   ApiResponse,
   ProtocolSuggestion,
   IVFJourneyComplete,
-  CompleteVisitView
+  CompleteVisitView,
+  SmartOPURecord,
+  SmartEmbryoRecord,
+  SmartTransferPrep
 } from '../types/smartStimulation.types';
 
 // ============================================================================
@@ -115,7 +118,12 @@ export const smartStimulationService = {
     try {
       const { data, error } = await supabase
         .from('smart_ivf_cycles')
-        .select('*')
+        .select(`
+          *,
+          opu_details:smart_opu_records(*),
+          embryo_lab:smart_embryo_records(*),
+          transfer_prep:smart_transfer_prep(*)
+        `)
         .eq('id', cycleId)
         .single();
 
@@ -591,6 +599,57 @@ export const smartStimulationService = {
       return { data, error: null };
     } catch (error: any) {
       console.error('Error fetching decisions:', error);
+      return { data: null, error };
+    }
+  },
+
+  // ============================================================================
+  // OPU, LAB & TRANSFER
+  // ============================================================================
+
+  async saveOPURecord(record: SmartOPURecord): Promise<ApiResponse<SmartOPURecord>> {
+    try {
+      const { data, error } = await supabase
+        .from('smart_opu_records')
+        .upsert([record], { onConflict: 'cycle_id' })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error: any) {
+      console.error('Error saving OPU record:', error);
+      return { data: null, error };
+    }
+  },
+
+  async saveEmbryoRecords(records: SmartEmbryoRecord[]): Promise<ApiResponse<SmartEmbryoRecord[]>> {
+    try {
+      const { data, error } = await supabase
+        .from('smart_embryo_records')
+        .upsert(records, { onConflict: 'cycle_id,embryo_number' })
+        .select();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error: any) {
+      console.error('Error saving embryo records:', error);
+      return { data: null, error };
+    }
+  },
+
+  async saveTransferPrep(prep: SmartTransferPrep): Promise<ApiResponse<SmartTransferPrep>> {
+    try {
+      const { data, error } = await supabase
+        .from('smart_transfer_prep')
+        .upsert([prep], { onConflict: 'cycle_id' })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error: any) {
+      console.error('Error saving transfer prep:', error);
       return { data: null, error };
     }
   },

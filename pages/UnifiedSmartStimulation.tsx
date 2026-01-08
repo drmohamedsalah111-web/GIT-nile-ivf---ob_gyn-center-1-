@@ -22,7 +22,14 @@ import {
   BarChart3,
   Users,
   User,
-  RefreshCw
+  RefreshCw,
+  Egg,
+  Microscope,
+  Baby,
+  Eraser,
+  Save,
+  Trash2,
+  CalendarCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import smartStimulationService from '../services/smartStimulationService.unified';
@@ -49,7 +56,7 @@ const UnifiedSmartStimulation: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   // UI State
-  const [currentTab, setCurrentTab] = useState<'setup' | 'protocol' | 'monitoring' | 'timeline'>('setup');
+  const [currentTab, setCurrentTab] = useState<'setup' | 'protocol' | 'monitoring' | 'opu' | 'lab' | 'transfer' | 'timeline'>('setup');
   const [showAddVisit, setShowAddVisit] = useState(false);
   const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
 
@@ -404,7 +411,52 @@ const UnifiedSmartStimulation: React.FC = () => {
                   `}
                 >
                   <BarChart3 className="w-5 h-5" />
-                  4. الخط الزمني
+                  الخط الزمني
+                </button>
+
+                <button
+                  onClick={() => setCurrentTab('opu')}
+                  disabled={loading || !currentCycle.protocol_id}
+                  className={`
+                    flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all whitespace-nowrap
+                    ${currentTab === 'opu'
+                      ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-lg scale-105'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50'
+                    }
+                  `}
+                >
+                  <Egg className="w-5 h-5" />
+                  سحب البويضات
+                </button>
+
+                <button
+                  onClick={() => setCurrentTab('lab')}
+                  disabled={loading || !currentCycle.opu_details}
+                  className={`
+                    flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all whitespace-nowrap
+                    ${currentTab === 'lab'
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg scale-105'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50'
+                    }
+                  `}
+                >
+                  <Microscope className="w-5 h-5" />
+                  المعمل
+                </button>
+
+                <button
+                  onClick={() => setCurrentTab('transfer')}
+                  disabled={loading || !currentCycle.embryo_lab?.length}
+                  className={`
+                    flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all whitespace-nowrap
+                    ${currentTab === 'transfer'
+                      ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-lg scale-105'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50'
+                    }
+                  `}
+                >
+                  <Baby className="w-5 h-5" />
+                  تهيئة النقل
                 </button>
               </div>
             </div>
@@ -516,6 +568,344 @@ const UnifiedSmartStimulation: React.FC = () => {
                       onCancel={() => setShowAddVisit(false)}
                     />
                   )}
+                </div>
+              )}
+
+              {/* OPU Tab */}
+              {currentTab === 'opu' && currentCycle && (
+                <div className="bg-white rounded-2xl shadow-xl p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-orange-100 text-orange-600 rounded-xl">
+                      <Egg className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">سحب البويضات (OPU)</h2>
+                      <p className="text-gray-500">تسجيل بيانات سحب البويضات ونضجها</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
+                      <label className="block text-sm font-bold text-gray-500 mb-2">عدد البويضات الكلي</label>
+                      <input
+                        type="number"
+                        value={currentCycle.opu_details?.oocytes_retrieved || ''}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 0;
+                          setCurrentCycle({
+                            ...currentCycle,
+                            opu_details: {
+                              ...(currentCycle.opu_details || { cycle_id: currentCycle.id, opu_date: new Date().toISOString().split('T')[0], oocytes_retrieved: 0 }),
+                              oocytes_retrieved: val
+                            }
+                          });
+                        }}
+                        className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-2 text-2xl font-bold focus:border-orange-500 outline-none"
+                      />
+                    </div>
+                    {[
+                      { label: 'بويضات MII', key: 'mii_count', color: 'text-green-600' },
+                      { label: 'بويضات MI', key: 'mi_count', color: 'text-blue-600' },
+                      { label: 'بويضات GV', key: 'gv_count', color: 'text-yellow-600' }
+                    ].map(item => (
+                      <div key={item.key} className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
+                        <label className={`block text-sm font-bold text-gray-500 mb-2 ${item.color}`}>{item.label}</label>
+                        <input
+                          type="number"
+                          value={(currentCycle.opu_details as any)?.[item.key] || ''}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setCurrentCycle({
+                              ...currentCycle,
+                              opu_details: {
+                                ...(currentCycle.opu_details || { cycle_id: currentCycle.id, opu_date: new Date().toISOString().split('T')[0], oocytes_retrieved: 0 }),
+                                [item.key]: val
+                              }
+                            });
+                          }}
+                          className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-2 text-2xl font-bold focus:border-orange-500 outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={async () => {
+                        if (!currentCycle.opu_details) return;
+                        const { error } = await smartStimulationService.saveOPURecord(currentCycle.opu_details);
+                        if (!error) {
+                          toast.success('تم حفظ بيانات السحب');
+                          loadCycleData(currentCycle.id);
+                        } else {
+                          toast.error('حدث خطأ أثناء الحفظ');
+                        }
+                      }}
+                      className="px-8 py-3 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 transition-all shadow-lg flex items-center gap-2"
+                    >
+                      <Save className="w-5 h-5" />
+                      حفظ نتائج السحب
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Lab Tab */}
+              {currentTab === 'lab' && currentCycle && (
+                <div className="bg-white rounded-2xl shadow-xl p-8">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
+                        <Microscope className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-900">متابعة الأجنة</h2>
+                        <p className="text-gray-500">تسجيل وتحديث حالة الأجنة اليومية</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const nextNum = (currentCycle.embryo_lab?.length || 0) + 1;
+                        const newEmbryo: SmartEmbryoRecord = {
+                          cycle_id: currentCycle.id,
+                          embryo_number: nextNum,
+                          status: 'developing',
+                          fertilization_status: 'fertilized',
+                          day_reached: 1
+                        };
+                        setCurrentCycle({
+                          ...currentCycle,
+                          embryo_lab: [...(currentCycle.embryo_lab || []), newEmbryo]
+                        });
+                      }}
+                      className="px-6 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold hover:bg-indigo-100 transition-all flex items-center gap-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                      إضافة جنين
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    {(currentCycle.embryo_lab || []).sort((a, b) => a.embryo_number - b.embryo_number).map((embryo, idx) => (
+                      <div key={idx} className="p-6 border-2 border-gray-100 rounded-2xl bg-gray-50 relative group">
+                        <button
+                          onClick={() => {
+                            const newList = currentCycle.embryo_lab!.filter((_, i) => i !== idx);
+                            setCurrentCycle({ ...currentCycle, embryo_lab: newList });
+                          }}
+                          className="absolute top-4 left-4 p-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        <div className="flex items-center gap-3 mb-4">
+                          <span className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold">
+                            {embryo.embryo_number}
+                          </span>
+                          <span className="font-bold text-gray-700 text-lg">جنين رقم {embryo.embryo_number}</span>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">الحالة الحالية</label>
+                            <select
+                              value={embryo.status}
+                              onChange={(e) => {
+                                const newList = [...currentCycle.embryo_lab!];
+                                newList[idx] = { ...newList[idx], status: e.target.value as any };
+                                setCurrentCycle({ ...currentCycle, embryo_lab: newList });
+                              }}
+                              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none"
+                            >
+                              <option value="developing">نامي (Developing)</option>
+                              <option value="frozen">مجمد (Frozen)</option>
+                              <option value="transferred">تم النقل (Transferred)</option>
+                              <option value="arrested">توقف النمو (Arrested)</option>
+                              <option value="discarded">مستبعد (Discarded)</option>
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-bold text-gray-500 mb-1">الجودة (Grade)</label>
+                              <input
+                                type="text"
+                                value={embryo.grade || ''}
+                                placeholder="4AA, Grade A"
+                                onChange={(e) => {
+                                  const newList = [...currentCycle.embryo_lab!];
+                                  newList[idx] = { ...newList[idx], grade: e.target.value };
+                                  setCurrentCycle({ ...currentCycle, embryo_lab: newList });
+                                }}
+                                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-500 mb-1">اليوم الواصل له</label>
+                              <input
+                                type="number"
+                                value={embryo.day_reached || 0}
+                                onChange={(e) => {
+                                  const newList = [...currentCycle.embryo_lab!];
+                                  newList[idx] = { ...newList[idx], day_reached: parseInt(e.target.value) || 0 };
+                                  setCurrentCycle({ ...currentCycle, embryo_lab: newList });
+                                }}
+                                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {(!currentCycle.embryo_lab || currentCycle.embryo_lab.length === 0) && (
+                    <div className="py-20 text-center text-gray-400 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+                      <Microscope className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                      <p className="text-lg">اضغط على "إضافة جنين" للبدء في تتبع المعمل</p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end mt-8">
+                    <button
+                      onClick={async () => {
+                        if (!currentCycle.embryo_lab) return;
+                        const { error } = await smartStimulationService.saveEmbryoRecords(currentCycle.embryo_lab);
+                        if (!error) {
+                          toast.success('تم حفظ سجلات الأجنة');
+                          loadCycleData(currentCycle.id);
+                        } else {
+                          toast.error('حدث خطأ أثناء الحفظ');
+                        }
+                      }}
+                      className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl flex items-center gap-3"
+                    >
+                      <Save className="w-6 h-6" />
+                      حفظ بيانات المعمل
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Transfer Prep Tab */}
+              {currentTab === 'transfer' && currentCycle && (
+                <div className="bg-white rounded-2xl shadow-xl p-8">
+                  <div className="flex items-center gap-3 mb-8">
+                    <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
+                      <Baby className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">تهيئة النقل</h2>
+                      <p className="text-gray-500">متابعة وتحضير الرحم لاستقبال الأجنة</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="space-y-6">
+                      <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 space-y-6">
+                        <div className="space-y-2">
+                          <label className="text-sm font-bold text-gray-700">تاريخ بدء التحضير</label>
+                          <input
+                            type="date"
+                            value={currentCycle.transfer_prep?.prep_start_date || ''}
+                            onChange={(e) => {
+                              const prep = currentCycle.transfer_prep || { cycle_id: currentCycle.id };
+                              setCurrentCycle({ ...currentCycle, transfer_prep: { ...prep, prep_start_date: e.target.value } });
+                            }}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:border-emerald-500 outline-none font-semibold text-gray-700"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-bold text-gray-700">التاريخ المتوقع للنقل</label>
+                          <input
+                            type="date"
+                            value={currentCycle.transfer_prep?.planned_transfer_date || ''}
+                            onChange={(e) => {
+                              const prep = currentCycle.transfer_prep || { cycle_id: currentCycle.id };
+                              setCurrentCycle({ ...currentCycle, transfer_prep: { ...prep, planned_transfer_date: e.target.value } });
+                            }}
+                            className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl focus:border-emerald-500 outline-none font-bold text-emerald-700 text-lg"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100">
+                        <label className="text-sm font-bold text-gray-700 block mb-4 text-center">سماكة بطانة الرحم (Endometrium)</label>
+                        <div className="flex flex-col items-center gap-6">
+                          <div className="relative w-40 h-40 flex items-center justify-center">
+                            <svg className="w-full h-full transform -rotate-90">
+                              <circle
+                                cx="80"
+                                cy="80"
+                                r="70"
+                                stroke="currentColor"
+                                strokeWidth="12"
+                                fill="transparent"
+                                className="text-gray-200"
+                              />
+                              <circle
+                                cx="80"
+                                cy="80"
+                                r="70"
+                                stroke="currentColor"
+                                strokeWidth="12"
+                                fill="transparent"
+                                strokeDasharray={440}
+                                strokeDashoffset={440 - (440 * (currentCycle.transfer_prep?.endometrium_thickness || 0)) / 15}
+                                strokeLinecap="round"
+                                className="text-emerald-500 transition-all duration-1000"
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <span className="text-4xl font-black text-emerald-600">{currentCycle.transfer_prep?.endometrium_thickness || 0}</span>
+                              <span className="text-xs font-bold text-gray-400">مم</span>
+                            </div>
+                          </div>
+
+                          <input
+                            type="range"
+                            min="4"
+                            max="15"
+                            step="0.1"
+                            value={currentCycle.transfer_prep?.endometrium_thickness || 7}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              const prep = currentCycle.transfer_prep || { cycle_id: currentCycle.id };
+                              setCurrentCycle({ ...currentCycle, transfer_prep: { ...prep, endometrium_thickness: val } });
+                            }}
+                            className="w-full h-3 bg-gray-200 rounded-full appearance-none cursor-pointer accent-emerald-500"
+                          />
+
+                          <div className="text-center">
+                            <span className={`px-4 py-1 rounded-full text-xs font-bold ${(currentCycle.transfer_prep?.endometrium_thickness || 0) >= 8 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                              }`}>
+                              {(currentCycle.transfer_prep?.endometrium_thickness || 0) >= 8 ? 'حالة مثالية' : 'متابعة مطلوبة'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end mt-10">
+                    <button
+                      onClick={async () => {
+                        if (!currentCycle.transfer_prep) return;
+                        const { error } = await smartStimulationService.saveTransferPrep(currentCycle.transfer_prep);
+                        if (!error) {
+                          toast.success('تم حفظ بيانات التهيئة');
+                          loadCycleData(currentCycle.id);
+                        } else {
+                          toast.error('حدث خطأ أثناء الحفظ');
+                        }
+                      }}
+                      className="px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black hover:bg-emerald-700 transition-all shadow-2xl flex items-center gap-3 active:scale-95"
+                    >
+                      <Save className="w-6 h-6" />
+                      تأكيد وحفظ خطة التهيئة
+                    </button>
+                  </div>
                 </div>
               )}
 
