@@ -54,6 +54,7 @@ interface Invoice {
     name: string;
     phone: string;
   };
+  service_summary?: string;
   invoice_items?: Array<{
     description: string;
     quantity: number;
@@ -151,7 +152,8 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
             status,
             appointment_id,
             patient_id,
-            patients(name, phone)
+            patients(name, phone),
+            invoice_items(service_name)
           `)
           .eq('clinic_id', doctorId)
           .gte('created_at', `${startDate}T00:00:00`)
@@ -169,7 +171,8 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
             status,
             appointment_id,
             patient_id,
-            patients(name, phone)
+            patients(name, phone),
+            pos_invoice_items(description)
           `)
           .eq('clinic_id', doctorId)
           .gte('created_at', `${startDate}T00:00:00`)
@@ -193,14 +196,16 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
           invoice_number: inv.invoice_number || `INV-${inv.id.substring(0, 8).toUpperCase()}`,
           patient_name: inv.patients?.name || 'مريض غير معروف',
           patient_phone: inv.patients?.phone || '-',
-          paid_amount: inv.paid_amount || (inv.status?.toLowerCase() === 'paid' ? inv.total_amount : 0)
+          paid_amount: inv.paid_amount || (inv.status?.toLowerCase() === 'paid' ? inv.total_amount : 0),
+          service_summary: (inv.invoice_items || []).map((i: any) => i.service_name).filter(Boolean).join(', ') || '-'
         })),
         ...(posInvoices.data || []).map((inv: any) => ({
           ...inv,
           source_type: 'pos',
           patient_name: inv.patients?.name || 'مريض غير معروف',
           patient_phone: inv.patients?.phone || '-',
-          paid_amount: inv.paid_amount || 0
+          paid_amount: inv.paid_amount || 0,
+          service_summary: (inv.pos_invoice_items || []).map((i: any) => i.description).filter(Boolean).join(', ') || '-'
         }))
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -670,8 +675,8 @@ const InvoicesManagementPage: React.FC<InvoicesManagementPageProps> = ({
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-xs text-gray-500 max-w-[150px] truncate" title={invoice.invoice_items?.map(i => i.description).join(', ')}>
-                        {invoice.invoice_items?.map(i => i.description).join(', ') || '-'}
+                      <div className="text-xs text-gray-500 max-w-[150px] truncate" title={invoice.service_summary}>
+                        {invoice.service_summary || '-'}
                       </div>
                     </td>
                     <td className="px-6 py-4">
