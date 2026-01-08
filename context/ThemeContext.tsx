@@ -6,12 +6,13 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-export type ThemeName = 
+export type ThemeName =
   | 'clinical-pure'      // Default Light
   | 'soft-harmony'       // Ob/Gyn Light
   | 'midnight-pro'       // Modern Dark
   | 'oled-deep'          // High Contrast Dark
-  | 'forest-dim';        // Relaxed Dark
+  | 'forest-dim'         // Relaxed Dark
+  | 'luxury-gold';       // Premium Gold Dark
 
 export interface Theme {
   id: ThemeName;
@@ -68,6 +69,15 @@ export const THEMES: Theme[] = [
     description: 'Relaxed warm dark mode',
     descriptionAr: 'وضع داكن دافئ ومريح',
     icon: '🌲'
+  },
+  {
+    id: 'luxury-gold',
+    name: 'Luxury Gold',
+    nameAr: 'فخامة ذهبية',
+    category: 'dark',
+    description: 'Elegant deep charcoal with gold accents',
+    descriptionAr: 'واجهة فخمة باللون الأسود والذهبي',
+    icon: '✨'
   }
 ];
 
@@ -88,8 +98,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [currentTheme, setCurrentTheme] = useState<ThemeName>(() => {
     // Load from localStorage or default
     const savedTheme = localStorage.getItem('app-theme') as ThemeName;
-    return savedTheme && THEMES.find(t => t.id === savedTheme) 
-      ? savedTheme 
+    return savedTheme && THEMES.find(t => t.id === savedTheme)
+      ? savedTheme
       : 'clinical-pure';
   });
 

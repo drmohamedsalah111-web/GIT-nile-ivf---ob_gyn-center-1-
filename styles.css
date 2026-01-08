@@ -93,6 +93,23 @@
   --warning-color: #fbbf24;
 }
 
+/* Theme 6: Luxury Gold (Premium Dark) */
+[data-theme="luxury-gold"] {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --bg-tertiary: #1f1f1f;
+  --text-main: #ffffff;
+  --text-secondary: #d4d4d8;
+  --text-muted: #a1a1aa;
+  --brand-color: #d4af37; /* Metallic Gold */
+  --brand-hover: #b8860b; /* Dark Goldenrod */
+  --border-color: #3f3f46;
+  --shadow-color: rgba(0, 0, 0, 0.6);
+  --success-color: #10b981;
+  --error-color: #ef4444;
+  --warning-color: #f59e0b;
+}
+
 body {
   font-family: 'Tajawal', sans-serif;
   background-color: var(--bg-primary);
