@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Users, Search, Loader, Calendar } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { authService } from '../services/authService';
+import { patientService } from '../src/services/PatientService';
 import SimpleAppointmentSystem from '../components/appointments/SimpleAppointmentSystem';
+import EditPatientModal from '../src/components/patients/EditPatientModal';
+import { Trash2, Edit2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface PatientRow {
@@ -20,6 +23,11 @@ const DoctorDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentDoctorId, setCurrentDoctorId] = useState<string | null>(null);
 
+  // Management State
+  const [selectedPatient, setSelectedPatient] = useState<PatientRow | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
   useEffect(() => {
     initializeDashboard();
   }, []);
@@ -27,7 +35,7 @@ const DoctorDashboard: React.FC = () => {
   const initializeDashboard = async () => {
     try {
       setLoading(true);
-      
+
       const user = await authService.getCurrentUser();
       if (!user) {
         toast.error('الرجاء تسجيل الدخول');
@@ -66,6 +74,26 @@ const DoctorDashboard: React.FC = () => {
     }
   };
 
+  const handleDeletePatient = async (id: string, name: string) => {
+    if (!window.confirm(`هل أنت متأكد من حذف المريضة "${name}"؟ لا يمكن التراجع عن هذا الإجراء.`)) {
+      return;
+    }
+
+    try {
+      setIsDeleting(id);
+      await patientService.deletePatient(id);
+      toast.success('تم حذف المريضة بنجاح');
+      if (currentDoctorId) {
+        await fetchPatients(currentDoctorId);
+      }
+    } catch (error: any) {
+      console.error('Error deleting patient:', error);
+      toast.error('حدث خطأ أثناء الحذف');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
   const filteredPatients = patients.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.phone.includes(searchQuery)
@@ -92,22 +120,20 @@ const DoctorDashboard: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-6 p-2 flex gap-2">
           <button
             onClick={() => setActiveView('appointments')}
-            className={`flex-1 py-3 px-6 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
-              activeView === 'appointments'
-                ? 'bg-gradient-to-r from-teal-600 to-blue-600 text-white shadow-md'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
+            className={`flex-1 py-3 px-6 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 ${activeView === 'appointments'
+              ? 'bg-gradient-to-r from-teal-600 to-blue-600 text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-50'
+              }`}
           >
             <Calendar size={20} />
             المواعيد
           </button>
           <button
             onClick={() => setActiveView('patients')}
-            className={`flex-1 py-3 px-6 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
-              activeView === 'patients'
-                ? 'bg-gradient-to-r from-teal-600 to-blue-600 text-white shadow-md'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
+            className={`flex-1 py-3 px-6 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 ${activeView === 'patients'
+              ? 'bg-gradient-to-r from-teal-600 to-blue-600 text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-50'
+              }`}
           >
             <Users size={20} />
             المرضى
@@ -152,6 +178,7 @@ const DoctorDashboard: React.FC = () => {
                         <th className="p-4 text-right font-bold text-gray-500 text-sm">العمر</th>
                         <th className="p-4 text-right font-bold text-gray-500 text-sm">الهاتف</th>
                         <th className="p-4 text-right font-bold text-gray-500 text-sm">اسم الزوج</th>
+                        <th className="p-4 text-center font-bold text-gray-500 text-sm">الإجراءات</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -161,6 +188,32 @@ const DoctorDashboard: React.FC = () => {
                           <td className="p-4 text-gray-600">{p.age}</td>
                           <td className="p-4 text-gray-600 font-mono">{p.phone}</td>
                           <td className="p-4 text-gray-600">{p.husband_name || '-'}</td>
+                          <td className="p-4">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setSelectedPatient(p);
+                                  setIsEditModalOpen(true);
+                                }}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="تعديل"
+                              >
+                                <Edit2 size={18} />
+                              </button>
+                              <button
+                                onClick={() => handleDeletePatient(p.id, p.name)}
+                                disabled={isDeleting === p.id}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                title="حذف"
+                              >
+                                {isDeleting === p.id ? (
+                                  <div className="size-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
+                                ) : (
+                                  <Trash2 size={18} />
+                                )}
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -169,6 +222,23 @@ const DoctorDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Edit Modal */}
+        {selectedPatient && (
+          <EditPatientModal
+            patient={selectedPatient}
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setSelectedPatient(null);
+            }}
+            onUpdate={() => {
+              if (currentDoctorId) {
+                fetchPatients(currentDoctorId);
+              }
+            }}
+          />
         )}
       </div>
     </div>
