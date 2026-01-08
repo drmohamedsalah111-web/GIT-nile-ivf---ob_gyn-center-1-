@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { DeveloperCard } from './common/DeveloperCard';
 import { NavigationButtons } from './common/NavigationButtons';
+import { ThemeSwitcher } from './theme/ThemeSwitcher';
 import { Page } from '../types';
 import { useBranding } from '../context/BrandingContext';
 import { useTheme } from '../context/ThemeContext';
@@ -133,6 +134,13 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
       {/* Developer Card - Adaptive */}
       {!isCollapsed && (
         <DeveloperCard variant="compact" />
+      )}
+
+      {/* Theme Switcher - Adaptive */}
+      {!isCollapsed && (
+        <div className="px-4 pb-3">
+          <ThemeSwitcher variant="compact" />
+        </div>
       )}
 
       {/* Logout - Adaptive */}
