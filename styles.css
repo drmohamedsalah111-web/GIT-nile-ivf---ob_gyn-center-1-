@@ -8,6 +8,10 @@
    ======================================== */
 
 /* Theme 1: Clinical Pure (Default Light) */
+:root {
+  --font-primary: 'Cairo', 'Tajawal', 'Almarai', 'IBM Plex Sans Arabic', sans-serif;
+}
+
 :root,
 [data-theme="clinical-pure"] {
   --bg-primary: #ffffff;
@@ -153,10 +157,16 @@
 }
 
 body {
-  font-family: 'Cairo', 'Tajawal', sans-serif;
+  font-family: var(--font-primary);
   background-color: var(--bg-primary);
   color: var(--text-main);
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Global Font Overrides for hardcoded Tailwind classes */
+[class*="font-[Tajawal]"],
+[class*="font-['Tajawal']"] {
+  font-family: var(--font-primary) !important;
 }
 
 ::-webkit-scrollbar {

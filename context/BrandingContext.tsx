@@ -227,6 +227,29 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     fetchBranding();
   }, []);
 
+  // Apply fonts and colors globally
+  useEffect(() => {
+    if (branding) {
+      const root = document.documentElement;
+      const bodyFont = branding.body_font || 'Cairo';
+
+      // Map display name to actual CSS font-family name
+      const fontMap: Record<string, string> = {
+        'Cairo': "'Cairo', sans-serif",
+        'Tajawal': "'Tajawal', sans-serif",
+        'Almarai': "'Almarai', sans-serif",
+        'IBM Plex Sans Arabic': "'IBM Plex Sans Arabic', sans-serif",
+        'ibm': "'IBM Plex Sans Arabic', sans-serif",
+        'almarai': "'Almarai', sans-serif",
+        'cairo': "'Cairo', sans-serif",
+        'tajawal': "'Tajawal', sans-serif"
+      };
+
+      const selectedFont = fontMap[bodyFont] || fontMap['Cairo'];
+      root.style.setProperty('--font-primary', selectedFont);
+    }
+  }, [branding]);
+
   return (
     <BrandingContext.Provider
       value={{

@@ -40,6 +40,7 @@ export default {
         'tajawal': ['Tajawal', 'sans-serif'],
         'almarai': ['Almarai', 'sans-serif'],
         'ibm': ['"IBM Plex Sans Arabic"', 'sans-serif'],
+        'primary': ['var(--font-primary)', 'sans-serif'],
       }
     }
   },
