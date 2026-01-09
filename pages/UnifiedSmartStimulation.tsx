@@ -29,7 +29,11 @@ import {
   Eraser,
   Save,
   Trash2,
-  CalendarCheck
+  CalendarCheck,
+  Printer,
+  ChevronRight,
+  ClipboardList,
+  Zap
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import smartStimulationService from '../services/smartStimulationService.unified';
@@ -59,7 +63,7 @@ const UnifiedSmartStimulation: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   // UI State
-  const [currentTab, setCurrentTab] = useState<'setup' | 'protocol' | 'monitoring' | 'opu' | 'lab' | 'transfer' | 'timeline'>('setup');
+  const [currentTab, setCurrentTab] = useState<'setup' | 'protocol' | 'monitoring' | 'opu' | 'lab' | 'transfer' | 'timeline' | 'summary'>('setup');
   const [showAddVisit, setShowAddVisit] = useState(false);
   const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
 
@@ -460,6 +464,21 @@ const UnifiedSmartStimulation: React.FC = () => {
                 >
                   <Baby className="w-5 h-5" />
                   تهيئة النقل
+                </button>
+
+                <button
+                  onClick={() => setCurrentTab('summary')}
+                  disabled={loading || !currentCycle}
+                  className={`
+                    flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all whitespace-nowrap
+                    ${currentTab === 'summary'
+                      ? 'bg-gradient-to-r from-gray-800 to-black text-white shadow-lg scale-105'
+                      : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50'
+                    }
+                  `}
+                >
+                  <ClipboardList className="w-5 h-5" />
+                  التقرير النهائي
                 </button>
               </div>
             </div>
@@ -915,6 +934,242 @@ const UnifiedSmartStimulation: React.FC = () => {
               {/* Timeline Tab */}
               {currentTab === 'timeline' && (
                 <TimelineView visits={visits} cycle={currentCycle} />
+              )}
+
+              {/* Summary / Final Report Tab */}
+              {currentTab === 'summary' && currentCycle && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="flex items-center justify-between print:hidden">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-gray-900 text-white rounded-xl shadow-lg">
+                        <ClipboardList className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight">التقرير النهائي للدورة</h2>
+                        <p className="text-gray-500 font-medium">سجل متكامل للرحلة العلاجية ونتائج الدورة</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => window.print()}
+                      className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-2xl font-black shadow-xl hover:scale-105 active:scale-95 transition-all"
+                    >
+                      <Printer className="w-5 h-5" />
+                      طباعة التقرير الطبي
+                    </button>
+                  </div>
+
+                  <div className="bg-white border-2 border-gray-100 rounded-3xl shadow-2xl overflow-hidden print:shadow-none print:border-none" id="medical-report">
+                    {/* Report Header for Print */}
+                    <div className="bg-gray-900 text-white p-10 flex justify-between items-center border-b-8 border-indigo-500">
+                      <div>
+                        <h1 className="text-4xl font-black mb-1">MEDICAL CYCLE REPORT</h1>
+                        <p className="text-indigo-300 font-bold tracking-widest uppercase">Smart IVF Copilot Intelligence System</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-black tracking-tighter">NILE IVF CENTER</div>
+                        <div className="text-sm opacity-60">Cycle ID: {currentCycle.id.substring(0, 8).toUpperCase()}</div>
+                      </div>
+                    </div>
+
+                    <div className="p-10 space-y-12">
+                      {/* Patient & Cycle Overview */}
+                      <section>
+                        <h3 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2 border-b-2 border-gray-100 pb-2">
+                          <User className="w-6 h-6 text-indigo-600" /> معلومات المريضة والدورة
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                          <div className="bg-gray-50 p-6 rounded-2xl">
+                            <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">اسم المريضة</span>
+                            <span className="text-xl font-bold">{selectedPatient?.name || 'غير محدد'}</span>
+                          </div>
+                          <div className="bg-gray-50 p-6 rounded-2xl">
+                            <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">العمر / BMI</span>
+                            <span className="text-xl font-bold">{currentCycle.initial_assessment?.age || selectedPatient?.age || '??'} سنة / {currentCycle.initial_assessment?.bmi || '??'}</span>
+                          </div>
+                          <div className="bg-gray-50 p-6 rounded-2xl">
+                            <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">البروتوكول المستخدم</span>
+                            <span className="text-xl font-bold text-indigo-700">{currentCycle.protocol_name || 'لم يحدد'}</span>
+                          </div>
+                          <div className="bg-gray-50 p-6 rounded-2xl">
+                            <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">تاريخ البدء</span>
+                            <span className="text-xl font-bold">{currentCycle.start_date}</span>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* Stimulation Summary */}
+                      <section>
+                        <h3 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2 border-b-2 border-gray-100 pb-2">
+                          <TrendingUp className="w-6 h-6 text-teal-600" /> ملخص مرحلة التنشيط
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="p-6 border-2 border-gray-50 rounded-2xl flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-gray-400 block">إجمالي زيارات المتابعة</span>
+                              <span className="text-3xl font-black text-gray-900">{visits.length} زيارة</span>
+                            </div>
+                            <Calendar className="w-10 h-10 text-gray-200" />
+                          </div>
+                          <div className="p-6 border-2 border-gray-50 rounded-2xl flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-gray-400 block">إجمالي جرعة FSH</span>
+                              <span className="text-3xl font-black text-indigo-600">{visits.reduce((acc, v) => acc + (v.fsh_dose_given || 0), 0)} IU</span>
+                            </div>
+                            <Zap className="w-10 h-10 text-indigo-100" />
+                          </div>
+                          <div className="p-6 border-2 border-gray-50 rounded-2xl flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-gray-400 block">أقصى سماكة للبطانة</span>
+                              <span className="text-3xl font-black text-emerald-600">{Math.max(...visits.map(v => v.endometrium_thickness || 0), 0)} mm</span>
+                            </div>
+                            <Activity className="w-10 h-10 text-emerald-100" />
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* OPU & Lab Summary */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                        <section className="bg-orange-50/30 p-8 rounded-3xl border border-orange-100">
+                          <h3 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2">
+                            <Egg className="w-5 h-5 text-orange-600" /> نتائج سحب البويضات (OPU)
+                          </h3>
+                          {currentCycle.opu_details ? (
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center py-2 border-b border-orange-100">
+                                <span className="font-bold text-gray-600 uppercase text-xs">عدد البويضات الكلي</span>
+                                <span className="text-2xl font-black text-orange-700">{currentCycle.opu_details.oocytes_retrieved}</span>
+                              </div>
+                              <div className="grid grid-cols-3 gap-4">
+                                <div className="text-center p-3 bg-white rounded-xl shadow-sm">
+                                  <span className="text-[10px] font-black text-gray-400 uppercase block">Mature (MII)</span>
+                                  <span className="text-xl font-black text-green-600">{currentCycle.opu_details.mii_count || 0}</span>
+                                </div>
+                                <div className="text-center p-3 bg-white rounded-xl shadow-sm">
+                                  <span className="text-[10px] font-black text-gray-400 uppercase block">Immature (MI)</span>
+                                  <span className="text-xl font-black text-blue-600">{currentCycle.opu_details.mi_count || 0}</span>
+                                </div>
+                                <div className="text-center p-3 bg-white rounded-xl shadow-sm">
+                                  <span className="text-[10px] font-black text-gray-400 uppercase block">GV Stage</span>
+                                  <span className="text-xl font-black text-yellow-600">{currentCycle.opu_details.gv_count || 0}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-gray-400 font-bold">لا توجد بيانات متاحة لسحب البويضات</div>
+                          )}
+                        </section>
+
+                        <section className="bg-indigo-50/30 p-8 rounded-3xl border border-indigo-100">
+                          <h3 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2">
+                            <Microscope className="w-5 h-5 text-indigo-600" /> نتائج المعمل والأجنة
+                          </h3>
+                          {currentCycle.embryo_lab && currentCycle.embryo_lab.length > 0 ? (
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center py-2 border-b border-indigo-100">
+                                <span className="font-bold text-gray-600 uppercase text-xs">إجمالي عدد الأجنة</span>
+                                <span className="text-2xl font-black text-indigo-700">{currentCycle.embryo_lab.length}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {currentCycle.embryo_lab.map((e, idx) => (
+                                  <div key={idx} className="bg-white px-3 py-1 rounded-full border border-indigo-100 text-[10px] font-black text-indigo-600 uppercase">
+                                    #{e.embryo_number}: {e.status} ({e.grade || 'No Grade'})
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-gray-400 font-bold">لا توجد بيانات متاحة للمعمل</div>
+                          )}
+                        </section>
+                      </div>
+
+                      {/* Transfer & Outcome */}
+                      <section className="bg-teal-50/20 p-10 rounded-3xl border-2 border-teal-50">
+                        <h3 className="text-xl font-black text-gray-900 mb-8 flex items-center gap-2 justify-center">
+                          <Baby className="w-6 h-6 text-teal-600" /> النتيجة النهائية وحالة الدورة
+                        </h3>
+
+                        <div className="flex flex-col items-center gap-10">
+                          <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-xl border border-gray-100 print:hidden">
+                            {[
+                              { id: 'stimulation', label: 'Stim Active', color: 'bg-blue-500' },
+                              { id: 'completed', label: 'Success (+ve)', color: 'bg-emerald-500' },
+                              { id: 'cancelled', label: 'Failed (-ve)', color: 'bg-rose-500' }
+                            ].map(btn => (
+                              <button
+                                key={btn.id}
+                                onClick={async () => {
+                                  setLoading(true);
+                                  const { error } = await smartStimulationService.updateCycle(currentCycle.id, { status: btn.id as any });
+                                  if (!error) {
+                                    setCurrentCycle({ ...currentCycle, status: btn.id as any });
+                                    toast.success('تم تحديث حالة الدورة');
+                                  }
+                                  setLoading(false);
+                                }}
+                                className={`px-6 py-3 rounded-xl font-black text-xs transition-all flex items-center gap-2 ${currentCycle.status === btn.id
+                                  ? `${btn.color} text-white shadow-xl scale-110`
+                                  : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                                  }`}
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                {btn.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="p-8 bg-white rounded-3xl shadow-lg border border-gray-50 flex flex-col items-center text-center">
+                              <span className="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">FINAL OUTCOME</span>
+                              <div className={`p-4 rounded-full mb-4 ${currentCycle.status === 'completed' ? 'bg-emerald-100 text-emerald-600' :
+                                currentCycle.status === 'cancelled' ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-400'
+                                }`}>
+                                <TrendingUp className="w-12 h-12" />
+                              </div>
+                              <span className={`text-4xl font-black ${currentCycle.status === 'completed' ? 'text-emerald-600' :
+                                currentCycle.status === 'cancelled' ? 'text-rose-600' : 'text-gray-400'
+                                }`}>
+                                {currentCycle.status === 'completed' ? 'SUCCESSFUL PREGNANCY' :
+                                  currentCycle.status === 'cancelled' ? 'FAILED TO CONCEIVE' : 'IN PROGRESS'}
+                              </span>
+                              <p className="mt-4 text-sm text-gray-400 font-medium max-w-xs">
+                                تم توثيق النتيجة بناءً على الفحوصات المخبرية (Beta-HCG) والمتابعة السريرية.
+                              </p>
+                            </div>
+
+                            <div className="flex flex-col gap-4">
+                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">توصيات الطبيب النهائية</label>
+                              <textarea
+                                value={currentCycle.notes || ''}
+                                onChange={(e) => setCurrentCycle({ ...currentCycle, notes: e.target.value })}
+                                placeholder="اكتب التوصيات الطبية النهائية هنا..."
+                                className="w-full flex-1 p-6 bg-white border-2 border-gray-50 rounded-3xl focus:border-indigo-500 outline-none font-bold text-gray-700 min-h-[200px]"
+                              />
+                              <button
+                                onClick={async () => {
+                                  setLoading(true);
+                                  await smartStimulationService.updateCycle(currentCycle.id, { notes: currentCycle.notes });
+                                  toast.success('تم حفظ التوصيات');
+                                  setLoading(false);
+                                }}
+                                className="px-6 py-3 bg-gray-900 text-white rounded-xl font-black text-xs hover:bg-black transition-all self-end flex items-center gap-2"
+                              >
+                                <Save className="w-4 h-4" /> حفظ التدوينة
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+                    </div>
+
+                    {/* Report Footer */}
+                    <div className="p-10 bg-gray-50 border-t border-gray-100 flex justify-between items-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      <span>Generated by Smart IVF Copilot v3.5</span>
+                      <span>{new Date().toLocaleString()}</span>
+                      <span>Physician Signature: _______________________</span>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </>
