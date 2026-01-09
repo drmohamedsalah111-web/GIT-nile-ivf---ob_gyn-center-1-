@@ -11,7 +11,7 @@ import {
 import toast from 'react-hot-toast';
 import { appointmentService } from '../services/appointmentService';
 import { supabase } from '../../services/supabaseClient';
-import { authService } from '../services/authService';
+import { authService } from '../../services/authService';
 
 interface Patient {
   id: string;
