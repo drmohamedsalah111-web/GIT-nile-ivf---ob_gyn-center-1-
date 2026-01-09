@@ -153,7 +153,7 @@
 }
 
 body {
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Cairo', 'Tajawal', sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-main);
   transition: background-color 0.3s ease, color 0.3s ease;

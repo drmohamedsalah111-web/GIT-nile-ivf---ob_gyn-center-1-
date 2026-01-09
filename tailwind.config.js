@@ -34,6 +34,12 @@ export default {
           800: '#006064',
           900: '#004d40',
         }
+      },
+      fontFamily: {
+        'cairo': ['Cairo', 'sans-serif'],
+        'tajawal': ['Tajawal', 'sans-serif'],
+        'almarai': ['Almarai', 'sans-serif'],
+        'ibm': ['"IBM Plex Sans Arabic"', 'sans-serif'],
       }
     }
   },
