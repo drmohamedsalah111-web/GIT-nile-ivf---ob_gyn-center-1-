@@ -41,7 +41,7 @@ const Reception: React.FC = () => {
 
       // Determine which doctor_id to use
       let doctorId = doctor.id;
-      
+
       // If user is a secretary, use the doctor they're assigned to
       const userRole = await authService.getUserRole(user.id);
       if (userRole === 'secretary' && doctor.secretary_doctor_id) {
@@ -190,13 +190,13 @@ const Reception: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-sm font-bold text-gray-900">{patient.name}</div>
-                        <div className="text-xs text-gray-500 mt-1">{patient.phone} • Age {patient.age}</div>
+                        <div className="text-xs text-gray-500 mt-1">Age {patient.age}</div>
                       </div>
                       <div className="text-right text-xs text-gray-400 font-mono">
-                        {patient.remoteId ? patient.remoteId.slice(0, 6) : `#${patient.id}`}
+                        {String(patient.id).slice(0, 6)}
                       </div>
                     </div>
-                    <div className="mt-3 text-xs text-gray-600 truncate">{patient.history}</div>
+                    <div className="mt-3 text-xs text-gray-600 truncate">{patient.medical_history?.notes || ''}</div>
                   </div>
                 )) : (
                   <div className="text-center text-gray-400 py-8">No patients found matching your search.</div>
@@ -227,13 +227,13 @@ const Reception: React.FC = () => {
                       filteredPatients.map((patient) => (
                         <tr key={patient.id} className="hover:bg-teal-50/30 transition-colors text-sm text-gray-700">
                           <td className="px-6 py-4 font-mono text-xs text-gray-400">
-                            {patient.remoteId ? patient.remoteId.slice(0, 6) : `#${patient.id}`}
+                            {String(patient.id).slice(0, 6)}
                           </td>
                           <td className="px-6 py-4 font-bold text-gray-900">{patient.name}</td>
                           <td className="px-6 py-4">{patient.age}</td>
                           <td className="px-6 py-4">{patient.phone}</td>
-                          <td className="px-6 py-4">{patient.husband_name}</td>
-                          <td className="px-6 py-4 truncate max-w-xs">{patient.history}</td>
+                          <td className="px-6 py-4">{patient.husbandName}</td>
+                          <td className="px-6 py-4 truncate max-w-xs">{patient.medical_history?.notes || ''}</td>
                         </tr>
                       ))
                     ) : (

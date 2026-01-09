@@ -390,7 +390,7 @@ const SmartIVFJourney: React.FC = () => {
                                     }`}
                             >
                                 <div className="font-bold">{p.name}</div>
-                                <div className="text-xs text-gray-500">{p.age} years • {p.phone}</div>
+                                <div className="text-xs text-gray-500">{p.age} years</div>
                             </button>
                         ))}
                     </div>

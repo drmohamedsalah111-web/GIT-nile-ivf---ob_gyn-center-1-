@@ -34,7 +34,6 @@ const PatientLookup: React.FC<Props> = ({ onSelect }) => {
           <div key={p.id} className="p-2 hover:bg-gray-50 rounded flex justify-between items-center">
             <div>
               <div className="font-medium">{p.name}</div>
-              <div className="text-sm text-gray-500">{p.phone}</div>
             </div>
             <div className="text-right">
               {p.total_debt > 0 && <span className="text-red-600 text-sm">دين: {p.total_debt}</span>}

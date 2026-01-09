@@ -457,7 +457,7 @@ const IvfJourney: React.FC = () => {
           <option value="">-- Select Patient --</option>
           {patients.map(patient => (
             <option key={patient.id} value={String(patient.id)}>
-              {patient.name} - {patient.phone}
+              {patient.name}
             </option>
           ))}
         </select>
