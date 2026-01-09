@@ -4,13 +4,14 @@
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Calendar, Clock, CheckCircle, Users, Phone, 
-  RefreshCw, UserPlus, Plus, Search, X 
+import {
+  Calendar, Clock, CheckCircle, Users, Phone,
+  RefreshCw, UserPlus, Plus, Search, X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { appointmentService } from '../services/appointmentService';
 import { supabase } from '../../services/supabaseClient';
+import { authService } from '../services/authService';
 
 interface Patient {
   id: string;
@@ -37,6 +38,10 @@ const ReceptionDashboard: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string>('doctor');
+  const [assignedDoctorId, setAssignedDoctorId] = useState<string | null>(null);
+
   const [appointmentForm, setAppointmentForm] = useState({
     patient_id: '',
     doctor_id: '',
@@ -59,25 +64,31 @@ const ReceptionDashboard: React.FC = () => {
       const today = new Date();
       const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
       const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
-      
+
       console.log('Loading appointments for:', startOfDay, 'to', endOfDay);
-      
+
       // Get today's appointments
-      const { data: appointmentsData, error: appointmentsError } = await supabase
+      let query = supabase
         .from('appointments')
         .select('*')
         .gte('appointment_date', startOfDay)
-        .lte('appointment_date', endOfDay)
-        .order('appointment_date', { ascending: true });
+        .lte('appointment_date', endOfDay);
+
+      // Filter by doctor_id if applicable
+      if (assignedDoctorId) {
+        query = query.eq('doctor_id', assignedDoctorId);
+      }
+
+      const { data: appointmentsData, error: appointmentsError } = await query.order('appointment_date', { ascending: true });
 
       if (appointmentsError) {
         console.error('Appointments error:', appointmentsError);
         throw appointmentsError;
       }
-      
+
       console.log('Found appointments:', appointmentsData?.length || 0);
       console.log('Appointments data:', appointmentsData);
-      
+
       if (!appointmentsData || appointmentsData.length === 0) {
         setAppointments([]);
         return;
@@ -85,13 +96,13 @@ const ReceptionDashboard: React.FC = () => {
 
       // Get unique patient IDs
       const patientIds = [...new Set(appointmentsData.map(a => a.patient_id).filter(Boolean))];
-      
+
       if (patientIds.length === 0) {
         console.log('No patient IDs found');
         setAppointments(appointmentsData);
         return;
       }
-      
+
       // Fetch patient details
       const { data: patientsData, error: patientsError } = await supabase
         .from('patients')
@@ -110,14 +121,14 @@ const ReceptionDashboard: React.FC = () => {
         ...apt,
         patients: patientsMap.get(apt.patient_id)
       }));
-      
+
       // Sort by appointment_time in JavaScript (to handle null values)
       enrichedAppointments.sort((a, b) => {
         const timeA = a.appointment_time || '23:59';
         const timeB = b.appointment_time || '23:59';
         return timeA.localeCompare(timeB);
       });
-      
+
       console.log('Loaded appointments with patients:', enrichedAppointments);
       console.log('⏰ Appointment times:', enrichedAppointments.map(apt => ({
         id: apt.id,
@@ -138,19 +149,47 @@ const ReceptionDashboard: React.FC = () => {
     loadTodayAppointments();
     loadPatients();
     loadDoctors();
-    
+
     // تحديث تلقائي كل 30 ثانية
     const interval = setInterval(loadTodayAppointments, 30000);
     return () => clearInterval(interval);
+  }, [assignedDoctorId]);
+
+  useEffect(() => {
+    const initUser = async () => {
+      try {
+        const user = await authService.getCurrentUser();
+        setCurrentUser(user);
+        if (user) {
+          const role = await authService.getUserRole(user.id);
+          setUserRole(role);
+          const profile = await authService.getDoctorProfile(user.id);
+          const doctorId = profile?.secretary_doctor_id || profile?.id;
+          setAssignedDoctorId(doctorId);
+
+          if (doctorId) {
+            setAppointmentForm(prev => ({ ...prev, doctor_id: doctorId }));
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing user:', error);
+      }
+    };
+    initUser();
   }, []);
 
   const loadPatients = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('patients')
-        .select('id, name, phone')
-        .order('created_at', { ascending: false });
-      
+        .select('id, name, phone');
+
+      if (assignedDoctorId) {
+        query = query.eq('doctor_id', assignedDoctorId);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
       if (error) throw error;
       setPatients(data || []);
     } catch (error) {
@@ -160,18 +199,35 @@ const ReceptionDashboard: React.FC = () => {
 
   const loadDoctors = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('doctors')
         .select('id, name')
-        .eq('user_role', 'doctor')
-        .order('name');
-      
+        .eq('user_role', 'doctor');
+
+      if (assignedDoctorId) {
+        query = query.eq('id', assignedDoctorId);
+      }
+
+      const { data, error } = await query.order('name');
+
       if (error) throw error;
       setDoctors(data || []);
+
+      // Auto-select if only one doctor
+      if (data && data.length === 1 && !appointmentForm.doctor_id) {
+        setAppointmentForm(prev => ({ ...prev, doctor_id: data[0].id }));
+      }
     } catch (error) {
       console.error('Error loading doctors:', error);
     }
   };
+
+  useEffect(() => {
+    if (assignedDoctorId || userRole === 'admin') {
+      loadPatients();
+      loadDoctors();
+    }
+  }, [assignedDoctorId, userRole]);
 
   const handleSubmitAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,13 +298,13 @@ const ReceptionDashboard: React.FC = () => {
         .eq('id', appointmentId);
 
       if (error) throw error;
-      
+
       const messages: Record<string, string> = {
         'Waiting': 'تم تسجيل الحضور ✓',
         'Completed': 'تم إنهاء الكشف ✓',
         'Cancelled': 'تم الإلغاء'
       };
-      
+
       toast.success(messages[newStatus] || 'تم التحديث');
       loadTodayAppointments();
     } catch (error) {
@@ -304,10 +360,10 @@ const ReceptionDashboard: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">استقبال العيادة</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {new Date().toLocaleDateString('ar-EG', { 
-                weekday: 'long', 
-                day: 'numeric', 
-                month: 'long' 
+              {new Date().toLocaleDateString('ar-EG', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long'
               })}
             </p>
           </div>
@@ -396,7 +452,7 @@ const ReceptionDashboard: React.FC = () => {
                     <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Users className="w-6 h-6 text-teal-600" />
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-gray-800 text-lg mb-1">
                         {apt.patients?.name || 'مريض غير معروف'}
@@ -477,7 +533,7 @@ const ReceptionDashboard: React.FC = () => {
                 <X className="w-5 h-5 text-white" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmitAppointment} className="p-6 space-y-4">
               {/* اختيار المريض */}
               <div>
@@ -513,10 +569,11 @@ const ReceptionDashboard: React.FC = () => {
                 <select
                   value={appointmentForm.doctor_id}
                   onChange={(e) => setAppointmentForm(prev => ({ ...prev, doctor_id: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                   required
+                  disabled={doctors.length <= 1}
                 >
-                  <option value="">-- اختر الطبيب --</option>
+                  {doctors.length > 1 && <option value="">-- اختر الطبيب --</option>}
                   {doctors.map(doctor => (
                     <option key={doctor.id} value={doctor.id}>
                       {doctor.name}

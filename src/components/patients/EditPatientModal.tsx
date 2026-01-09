@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 interface Patient {
     id: string;
     name: string;
-    age: number;
+    age?: number;
     phone: string;
     husband_name?: string;
 }

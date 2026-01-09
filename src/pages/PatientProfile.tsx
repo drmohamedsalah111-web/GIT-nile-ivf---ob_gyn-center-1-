@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  User, Phone, Calendar, Mail, MapPin, FileText, 
+import {
+  User, Phone, Calendar, Mail, MapPin, FileText,
   Heart, Activity, ClipboardList, AlertCircle, Printer,
   Edit, Save, X, Plus, Clock, Baby, Syringe, TestTube,
   TrendingUp, History, Pill, Stethoscope, FileHeart,
@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '../../services/supabaseClient';
 import { labService, LabRequest, LabResult } from '../../services/labService';
 import { PageHeader } from '../../components/layout/PageHeader';
+import EditPatientModal from '../components/patients/EditPatientModal';
 
 // --- Types ---
 interface Patient {
@@ -46,6 +47,8 @@ interface Visit {
   treatment?: string;
   clinical_data?: any;
   prescription?: any[];
+  chief_complaint?: string;
+  clinical_findings?: string;
   created_at?: string;
 }
 
@@ -65,6 +68,19 @@ interface Pregnancy {
   status?: string;
   outcome?: string;
   lmp?: string;
+  lmp_date?: string;
+  edd_date?: string;
+  pregnancy_type?: string;
+  conception_method?: string;
+  ga_at_booking_weeks?: number;
+  ga_at_booking_days?: number;
+  delivery_date?: string;
+  delivery_type?: string;
+  birth_weight_grams?: number;
+  baby_gender?: string;
+  progesterone_support?: boolean;
+  thromboprophylaxis?: boolean;
+  risk_factors?: any[];
   created_at?: string;
 }
 
@@ -82,8 +98,8 @@ const TabButton: React.FC<{
     onClick={onClick}
     className={`
       flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-200 font-bold text-sm whitespace-nowrap
-      ${active 
-        ? `bg-white shadow-md ${colorClass} ring-1 ring-opacity-20 ring-current` 
+      ${active
+        ? `bg-white shadow-md ${colorClass} ring-1 ring-opacity-20 ring-current`
         : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
       }
     `}
@@ -160,6 +176,7 @@ const PatientProfile: React.FC = () => {
   const [dataLoading, setDataLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'pregnancy' | 'visits' | 'medications' | 'labs'>('overview');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Navigate to complete medical record
   const openMedicalRecord = (patientId: string) => {
@@ -191,7 +208,7 @@ const PatientProfile: React.FC = () => {
   const loadPatientData = async (patientId: string) => {
     try {
       setDataLoading(true);
-      
+
       // Load Appointments
       const appointmentsPromise = supabase
         .from('appointments')
@@ -199,7 +216,7 @@ const PatientProfile: React.FC = () => {
         .eq('patient_id', patientId)
         .order('created_at', { ascending: false })
         .then(res => ({ data: res.data || [], error: res.error }));
-      
+
       // Load Visits
       const visitsPromise = supabase
         .from('visits')
@@ -207,7 +224,7 @@ const PatientProfile: React.FC = () => {
         .eq('patient_id', patientId)
         .order('created_at', { ascending: false })
         .then(res => ({ data: res.data || [], error: res.error }));
-      
+
       // Load IVF Cycles
       const cyclesPromise = supabase
         .from('ivf_cycles')
@@ -215,7 +232,7 @@ const PatientProfile: React.FC = () => {
         .eq('patient_id', patientId)
         .order('created_at', { ascending: false })
         .then(res => ({ data: res.data || [], error: res.error }));
-      
+
       // Load Pregnancies
       const pregnanciesPromise = supabase
         .from('pregnancies')
@@ -262,7 +279,7 @@ const PatientProfile: React.FC = () => {
     loadPatientData(patient.id);
   };
 
-  const filteredPatients = patients.filter(p => 
+  const filteredPatients = patients.filter(p =>
     p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.phone?.includes(searchTerm) ||
     p.national_id?.includes(searchTerm)
@@ -304,7 +321,7 @@ const PatientProfile: React.FC = () => {
                         </div>
                         <div>
                           <h4 className="font-bold text-gray-800">
-                            {preg.conception_date 
+                            {preg.conception_date
                               ? `حمل بتاريخ ${new Date(preg.conception_date).toLocaleDateString('ar-EG')}`
                               : 'سجل حمل جديد'}
                           </h4>
@@ -313,13 +330,12 @@ const PatientProfile: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        preg.status === 'ongoing' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                      }`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${preg.status === 'ongoing' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                        }`}>
                         {preg.status === 'ongoing' ? 'جاري' : 'منتهي'}
                       </span>
                     </div>
-                    
+
                     <div className="p-4">
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
                         <div className="bg-gray-50 p-3 rounded-lg">
@@ -450,105 +466,105 @@ const PatientProfile: React.FC = () => {
                 {visits.map((visit) => {
                   const visitDate = getVisitDate(visit);
                   const dateParts = getDateParts(visitDate);
-                  
+
                   return (
-                  <div key={visit.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-                    <div className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 font-bold flex-col leading-none">
-                            <span className="text-lg">{dateParts.day}</span>
-                            <span className="text-[10px] uppercase">{dateParts.month}</span>
+                    <div key={visit.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                      <div className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 font-bold flex-col leading-none">
+                              <span className="text-lg">{dateParts.day}</span>
+                              <span className="text-[10px] uppercase">{dateParts.month}</span>
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-gray-800 text-lg">
+                                {visit.diagnosis || visit.department || 'زيارة عامة'}
+                              </h4>
+                              <p className="text-sm text-gray-500">
+                                {formatDate(visitDate)}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="font-bold text-gray-800 text-lg">
-                              {visit.diagnosis || visit.department || 'زيارة عامة'}
-                            </h4>
-                            <p className="text-sm text-gray-500">
-                              {formatDate(visitDate)}
-                            </p>
+                          <button className="text-gray-400 hover:text-blue-600 transition-colors">
+                            <Edit className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        {/* Chief Complaint */}
+                        {visit.chief_complaint && (
+                          <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg mb-3">
+                            <span className="text-xs font-bold text-amber-700 block mb-1">الشكوى الرئيسية:</span>
+                            <p className="text-sm text-gray-800">{visit.chief_complaint}</p>
                           </div>
-                        </div>
-                        <button className="text-gray-400 hover:text-blue-600 transition-colors">
-                          <Edit className="w-5 h-5" />
-                        </button>
-                      </div>
+                        )}
 
-                      {/* Chief Complaint */}
-                      {visit.chief_complaint && (
-                        <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg mb-3">
-                          <span className="text-xs font-bold text-amber-700 block mb-1">الشكوى الرئيسية:</span>
-                          <p className="text-sm text-gray-800">{visit.chief_complaint}</p>
-                        </div>
-                      )}
-
-                      {/* Clinical Findings */}
-                      {visit.clinical_findings && (
-                        <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-3">
-                          <span className="text-xs font-bold text-blue-700 block mb-1">الفحص السريري:</span>
-                          <p className="text-sm text-gray-800">{visit.clinical_findings}</p>
-                        </div>
-                      )}
-
-                      {/* Notes */}
-                      {visit.notes && (
-                        <div className="bg-gray-50 p-3 rounded-lg mb-3 text-gray-700 text-sm leading-relaxed">
-                          <span className="text-xs font-bold text-gray-700 block mb-1">ملاحظات:</span>
-                          {visit.notes}
-                        </div>
-                      )}
-
-                      {/* Clinical Data JSONB */}
-                      {visit.clinical_data && typeof visit.clinical_data === 'object' && Object.keys(visit.clinical_data).length > 0 && (
-                        <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg mb-3">
-                          <span className="text-xs font-bold text-purple-700 block mb-2">البيانات السريرية:</span>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            {Object.entries(visit.clinical_data).map(([key, value]) => (
-                              <div key={key} className="flex justify-between">
-                                <span className="text-gray-600">{key}:</span>
-                                <span className="font-bold text-gray-800">{String(value)}</span>
-                              </div>
-                            ))}
+                        {/* Clinical Findings */}
+                        {visit.clinical_findings && (
+                          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-3">
+                            <span className="text-xs font-bold text-blue-700 block mb-1">الفحص السريري:</span>
+                            <p className="text-sm text-gray-800">{visit.clinical_findings}</p>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Prescription Medications */}
-                      {visit.prescription && Array.isArray(visit.prescription) && visit.prescription.length > 0 && (
-                        <div className="bg-teal-50 border border-teal-200 p-3 rounded-lg mb-3">
-                          <span className="text-xs font-bold text-teal-700 block mb-2 flex items-center gap-1">
-                            <Pill className="w-3 h-3" />
-                            الأدوية الموصوفة:
-                          </span>
-                          <div className="space-y-2">
-                            {visit.prescription.map((med: any, idx: number) => (
-                              <div key={idx} className="flex items-start gap-2 text-xs bg-white p-2 rounded border border-teal-100">
-                                <span className="w-5 h-5 bg-teal-100 rounded-full flex items-center justify-center text-teal-700 font-bold flex-shrink-0">{idx + 1}</span>
-                                <div className="flex-1">
-                                  <p className="font-bold text-gray-800">{med.drug || med.medication || med.name}</p>
-                                  <p className="text-gray-600">الجرعة: {med.dose || med.dosage || '-'}</p>
-                                  {med.duration && <p className="text-gray-600">المدة: {med.duration}</p>}
-                                  {med.frequency && <p className="text-gray-600">التكرار: {med.frequency}</p>}
-                                  {med.notes && <p className="text-gray-500 italic mt-1">{med.notes}</p>}
+                        {/* Notes */}
+                        {visit.notes && (
+                          <div className="bg-gray-50 p-3 rounded-lg mb-3 text-gray-700 text-sm leading-relaxed">
+                            <span className="text-xs font-bold text-gray-700 block mb-1">ملاحظات:</span>
+                            {visit.notes}
+                          </div>
+                        )}
+
+                        {/* Clinical Data JSONB */}
+                        {visit.clinical_data && typeof visit.clinical_data === 'object' && Object.keys(visit.clinical_data).length > 0 && (
+                          <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg mb-3">
+                            <span className="text-xs font-bold text-purple-700 block mb-2">البيانات السريرية:</span>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              {Object.entries(visit.clinical_data).map(([key, value]) => (
+                                <div key={key} className="flex justify-between">
+                                  <span className="text-gray-600">{key}:</span>
+                                  <span className="font-bold text-gray-800">{String(value)}</span>
                                 </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Treatment Text */}
-                      {visit.treatment && (
-                        <div className="flex items-start gap-2 mt-3 pt-3 border-t border-gray-100">
-                          <Pill className="w-4 h-4 text-teal-600 mt-1" />
-                          <div>
-                            <span className="text-xs font-bold text-gray-500 block">خطة العلاج:</span>
-                            <p className="text-sm text-gray-800">{visit.treatment}</p>
+                        {/* Prescription Medications */}
+                        {visit.prescription && Array.isArray(visit.prescription) && visit.prescription.length > 0 && (
+                          <div className="bg-teal-50 border border-teal-200 p-3 rounded-lg mb-3">
+                            <span className="text-xs font-bold text-teal-700 block mb-2 flex items-center gap-1">
+                              <Pill className="w-3 h-3" />
+                              الأدوية الموصوفة:
+                            </span>
+                            <div className="space-y-2">
+                              {visit.prescription.map((med: any, idx: number) => (
+                                <div key={idx} className="flex items-start gap-2 text-xs bg-white p-2 rounded border border-teal-100">
+                                  <span className="w-5 h-5 bg-teal-100 rounded-full flex items-center justify-center text-teal-700 font-bold flex-shrink-0">{idx + 1}</span>
+                                  <div className="flex-1">
+                                    <p className="font-bold text-gray-800">{med.drug || med.medication || med.name}</p>
+                                    <p className="text-gray-600">الجرعة: {med.dose || med.dosage || '-'}</p>
+                                    {med.duration && <p className="text-gray-600">المدة: {med.duration}</p>}
+                                    {med.frequency && <p className="text-gray-600">التكرار: {med.frequency}</p>}
+                                    {med.notes && <p className="text-gray-500 italic mt-1">{med.notes}</p>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+
+                        {/* Treatment Text */}
+                        {visit.treatment && (
+                          <div className="flex items-start gap-2 mt-3 pt-3 border-t border-gray-100">
+                            <Pill className="w-4 h-4 text-teal-600 mt-1" />
+                            <div>
+                              <span className="text-xs font-bold text-gray-500 block">خطة العلاج:</span>
+                              <p className="text-sm text-gray-800">{visit.treatment}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
                   );
                 })}
               </div>
@@ -652,14 +668,13 @@ const PatientProfile: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        req.status === 'Completed' ? 'bg-green-100 text-green-700' : 
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${req.status === 'Completed' ? 'bg-green-100 text-green-700' :
                         req.status === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
-                      }`}>
+                        }`}>
                         {req.status === 'Completed' ? 'مكتمل' : req.status === 'Pending' ? 'قيد الانتظار' : req.status}
                       </span>
                     </div>
-                    
+
                     <div className="p-4">
                       <div className="grid gap-2">
                         {req.items.map((item, idx) => (
@@ -730,7 +745,7 @@ const PatientProfile: React.FC = () => {
                 <History className="w-5 h-5 text-gray-500" />
                 آخر النشاطات
               </h3>
-              
+
               <div className="relative border-r-2 border-gray-100 mr-3 space-y-6 pr-6">
                 {/* Combine and sort recent items */}
                 {[
@@ -738,38 +753,36 @@ const PatientProfile: React.FC = () => {
                   ...pregnancies.map(p => ({ type: 'pregnancy', date: p.created_at || p.conception_date, data: p })),
                   ...labRequests.map(l => ({ type: 'lab', date: l.requestDate, data: l }))
                 ]
-                .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime())
-                .slice(0, 10)
-                .map((item, idx) => (
-                  <div key={idx} className="relative">
-                    <div className={`absolute -right-[31px] top-0 w-4 h-4 rounded-full border-2 border-white shadow-sm ${
-                      item.type === 'visit' ? 'bg-blue-500' : 
-                      item.type === 'pregnancy' ? 'bg-pink-500' : 'bg-purple-500'
-                    }`}></div>
-                    
-                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded mb-1 inline-block ${
-                            item.type === 'visit' ? 'bg-blue-100 text-blue-700' : 
-                            item.type === 'pregnancy' ? 'bg-pink-100 text-pink-700' : 'bg-purple-100 text-purple-700'
-                          }`}>
-                            {item.type === 'visit' ? 'زيارة' : item.type === 'pregnancy' ? 'حمل' : 'تحليل'}
+                  .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime())
+                  .slice(0, 10)
+                  .map((item, idx) => (
+                    <div key={idx} className="relative">
+                      <div className={`absolute -right-[31px] top-0 w-4 h-4 rounded-full border-2 border-white shadow-sm ${item.type === 'visit' ? 'bg-blue-500' :
+                        item.type === 'pregnancy' ? 'bg-pink-500' : 'bg-purple-500'
+                        }`}></div>
+
+                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded mb-1 inline-block ${item.type === 'visit' ? 'bg-blue-100 text-blue-700' :
+                              item.type === 'pregnancy' ? 'bg-pink-100 text-pink-700' : 'bg-purple-100 text-purple-700'
+                              }`}>
+                              {item.type === 'visit' ? 'زيارة' : item.type === 'pregnancy' ? 'حمل' : 'تحليل'}
+                            </span>
+                            <p className="font-bold text-gray-800 text-sm">
+                              {item.type === 'visit' ? (item.data as Visit).diagnosis || 'زيارة عيادة' :
+                                item.type === 'pregnancy' ? 'تسجيل حمل جديد' :
+                                  'طلب تحاليل معملية'}
+                            </p>
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {formatDateShort(item.date)}
                           </span>
-                          <p className="font-bold text-gray-800 text-sm">
-                            {item.type === 'visit' ? (item.data as Visit).diagnosis || 'زيارة عيادة' :
-                             item.type === 'pregnancy' ? 'تسجيل حمل جديد' :
-                             'طلب تحاليل معملية'}
-                          </p>
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {formatDateShort(item.date)}
-                        </span>
                       </div>
                     </div>
-                  </div>
-                ))}
-                
+                  ))}
+
                 {visits.length === 0 && pregnancies.length === 0 && labRequests.length === 0 && (
                   <p className="text-gray-500 text-sm text-center py-4">لا توجد نشاطات حديثة</p>
                 )}
@@ -793,8 +806,8 @@ const PatientProfile: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
-      <PageHeader 
-        title="ملفات المرضى" 
+      <PageHeader
+        title="ملفات المرضى"
         subtitle="السجل الطبي الشامل"
         icon={<User className="w-6 h-6" />}
         showNavigation={true}
@@ -825,11 +838,10 @@ const PatientProfile: React.FC = () => {
                 <button
                   key={patient.id}
                   onClick={() => handleSelectPatient(patient)}
-                  className={`w-full text-right p-3 rounded-lg border transition-all group ${
-                    selectedPatient?.id === patient.id
-                      ? 'bg-teal-50 border-teal-500 shadow-sm'
-                      : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-300'
-                  }`}
+                  className={`w-full text-right p-3 rounded-lg border transition-all group ${selectedPatient?.id === patient.id
+                    ? 'bg-teal-50 border-teal-500 shadow-sm'
+                    : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-300'
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="min-w-0">
@@ -900,7 +912,7 @@ const PatientProfile: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button 
+                    <button
                       onClick={() => openMedicalRecord(selectedPatient.id)}
                       className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all shadow-sm"
                       title="السجل الطبي الشامل"
@@ -908,7 +920,11 @@ const PatientProfile: React.FC = () => {
                       <FolderOpen className="w-5 h-5" />
                       <span className="hidden sm:inline">السجل الطبي الشامل</span>
                     </button>
-                    <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="تعديل البيانات">
+                    <button
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="تعديل البيانات"
+                    >
                       <Edit className="w-5 h-5" />
                     </button>
                     <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="طباعة الملف">
@@ -920,41 +936,41 @@ const PatientProfile: React.FC = () => {
 
               {/* Navigation Tabs */}
               <div className="flex overflow-x-auto pb-2 gap-2 no-scrollbar">
-                <TabButton 
-                  active={activeTab === 'overview'} 
-                  onClick={() => setActiveTab('overview')} 
-                  icon={<Activity className="w-4 h-4" />} 
-                  label="نظرة عامة" 
+                <TabButton
+                  active={activeTab === 'overview'}
+                  onClick={() => setActiveTab('overview')}
+                  icon={<Activity className="w-4 h-4" />}
+                  label="نظرة عامة"
                   colorClass="text-teal-600"
                 />
-                <TabButton 
-                  active={activeTab === 'pregnancy'} 
-                  onClick={() => setActiveTab('pregnancy')} 
-                  icon={<Baby className="w-4 h-4" />} 
-                  label="الحمل" 
+                <TabButton
+                  active={activeTab === 'pregnancy'}
+                  onClick={() => setActiveTab('pregnancy')}
+                  icon={<Baby className="w-4 h-4" />}
+                  label="الحمل"
                   count={pregnancies.length}
                   colorClass="text-pink-600"
                 />
-                <TabButton 
-                  active={activeTab === 'visits'} 
-                  onClick={() => setActiveTab('visits')} 
-                  icon={<Stethoscope className="w-4 h-4" />} 
-                  label="الكشوفات" 
+                <TabButton
+                  active={activeTab === 'visits'}
+                  onClick={() => setActiveTab('visits')}
+                  icon={<Stethoscope className="w-4 h-4" />}
+                  label="الكشوفات"
                   count={visits.length}
                   colorClass="text-blue-600"
                 />
-                <TabButton 
-                  active={activeTab === 'medications'} 
-                  onClick={() => setActiveTab('medications')} 
-                  icon={<Pill className="w-4 h-4" />} 
-                  label="الأدوية" 
+                <TabButton
+                  active={activeTab === 'medications'}
+                  onClick={() => setActiveTab('medications')}
+                  icon={<Pill className="w-4 h-4" />}
+                  label="الأدوية"
                   colorClass="text-teal-600"
                 />
-                <TabButton 
-                  active={activeTab === 'labs'} 
-                  onClick={() => setActiveTab('labs')} 
-                  icon={<Microscope className="w-4 h-4" />} 
-                  label="التحاليل" 
+                <TabButton
+                  active={activeTab === 'labs'}
+                  onClick={() => setActiveTab('labs')}
+                  icon={<Microscope className="w-4 h-4" />}
+                  label="التحاليل"
                   count={labRequests.length}
                   colorClass="text-purple-600"
                 />
@@ -968,6 +984,29 @@ const PatientProfile: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Edit Patient Modal */}
+      {selectedPatient && (
+        <EditPatientModal
+          patient={selectedPatient}
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onUpdate={async () => {
+            // Refresh patient list
+            await loadPatients();
+            // Update the currently selected patient data in local state 
+            // to show reflected changes in the profile header
+            const { data: updatedPatient } = await supabase
+              .from('patients')
+              .select('*')
+              .eq('id', selectedPatient.id)
+              .single();
+            if (updatedPatient) {
+              setSelectedPatient(updatedPatient);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
