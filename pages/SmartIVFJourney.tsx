@@ -20,7 +20,9 @@ import {
     Pill,
     Clock,
     FileText,
-    Info
+    Info,
+    Users,
+    ArrowRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -415,114 +417,189 @@ const SmartIVFJourney: React.FC = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen font-[Tajawal]" dir="ltr">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-600 text-white rounded-2xl p-8 mb-8 shadow-xl relative overflow-hidden">
-                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                                <Brain className="w-8 h-8" />
-                            </div>
-                            <h1 className="text-4xl font-bold">Smart IVF Copilot <span className="text-sm bg-white/20 px-2 py-1 rounded ml-2">v3.0</span></h1>
-                        </div>
-                        <p className="text-indigo-100 text-lg">
-                            Intelligent Protocol Design & Cycle Monitoring System
-                        </p>
+            {/* Premium Header */}
+            <div className="relative mb-10 group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+                <div className="relative bg-gradient-to-r from-indigo-900 via-purple-900 to-indigo-950 text-white rounded-3xl p-8 shadow-2xl overflow-hidden border border-white/10">
+                    <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12 group-hover:rotate-45 transition-transform duration-1000">
+                        <Brain className="w-64 h-64" />
                     </div>
 
-                    <div className="flex flex-col items-end gap-2">
-                        <button
-                            onClick={handleSaveCycle}
-                            disabled={isSaving || !selectedPatientId}
-                            className="flex items-center gap-2 bg-white text-indigo-700 px-6 py-2.5 rounded-full font-bold hover:bg-indigo-50 transition-all disabled:opacity-50 shadow-lg"
-                        >
-                            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                            {cycle.id ? 'Save Changes' : 'Save New Cycle'}
-                        </button>
+                    <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                        <div>
+                            <div className="flex items-center gap-4 mb-3">
+                                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xl border border-white/20 shadow-inner">
+                                    <Brain className="w-10 h-10 text-indigo-300" />
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h1 className="text-4xl font-black tracking-tight">Smart IVF Copilot</h1>
+                                        <span className="bg-indigo-500 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border border-indigo-400">v3.5 ALPHA</span>
+                                    </div>
+                                    <p className="text-indigo-200/80 font-medium tracking-wide">Intelligent Protocol Design & Precision Cycle Optimization</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <div className="hidden md:block h-12 w-px bg-white/10 mx-2"></div>
+                            <button
+                                onClick={handleSaveCycle}
+                                disabled={isSaving || !selectedPatientId}
+                                className="group/btn relative px-8 py-4 bg-white text-indigo-900 rounded-2xl font-black text-sm shadow-xl hover:shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3 overflow-hidden disabled:opacity-50"
+                            >
+                                <div className="absolute inset-0 bg-indigo-50 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300"></div>
+                                <span className="relative flex items-center gap-3">
+                                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                                    {cycle.id ? 'UPDATE CYCLE DATA' : 'FINALIZE & SAVE NEW CYCLE'}
+                                </span>
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
             </div>
 
-            {/* STEP 1: Patient Selection */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white rounded-xl shadow-lg p-6 lg:col-span-1 border border-gray-100">
-                    <div className="flex items-center gap-2 mb-4 text-gray-800">
-                        <User className="w-5 h-5" />
-                        <h3 className="font-bold">Select Patient</h3>
-                    </div>
-                    <div className="relative mb-4">
-                        <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border-2 border-gray-100 rounded-lg focus:border-indigo-500 transition-all"
-                        />
-                    </div>
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                        {patientsLoading ? (
-                            <div className="flex justify-center p-4"><Loader2 className="animate-spin text-indigo-600" /></div>
-                        ) : patients.map(p => (
-                            <button
-                                key={p.id}
-                                onClick={() => handlePatientSelect(String(p.id))}
-                                className={`w-full text-left p-3 rounded-lg transition-colors border ${selectedPatientId === String(p.id)
-                                    ? 'bg-indigo-50 border-indigo-500 text-indigo-900 shadow-sm'
-                                    : 'hover:bg-gray-50 border-transparent'
-                                    }`}
-                            >
-                                <div className="font-bold">{p.name}</div>
-                                <div className="text-xs text-gray-500">{p.age} years</div>
-                            </button>
-                        ))}
+            {/* Main Selection & Assessment Area */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-10">
+                {/* STEP 1: Patient Selection Sidebar */}
+                <div className="lg:col-span-1 space-y-4">
+                    <div className="bg-white rounded-2xl shadow-xl border border-indigo-50 overflow-hidden">
+                        <div className="bg-gray-50/80 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                <Users className="w-4 h-4 text-indigo-500" /> Patient Directory
+                            </h3>
+                            <span className="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-bold">
+                                {patients.length} TOTAL
+                            </span>
+                        </div>
+
+                        <div className="p-4 bg-white border-b border-gray-50">
+                            <div className="relative group">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                                <input
+                                    type="text"
+                                    placeholder="Find patient..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500/10 text-sm font-medium transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="max-h-[380px] overflow-y-auto custom-scrollbar p-2 space-y-1">
+                            {patientsLoading ? (
+                                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                                    <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                                    <span className="text-[10px] font-black text-gray-300 uppercase">Synchronizing...</span>
+                                </div>
+                            ) : patients.map(p => (
+                                <button
+                                    key={p.id}
+                                    onClick={() => handlePatientSelect(String(p.id))}
+                                    className={`relative w-full text-left p-4 rounded-xl transition-all group/p ${selectedPatientId === String(p.id)
+                                        ? 'bg-indigo-600 shadow-lg shadow-indigo-100'
+                                        : 'hover:bg-indigo-50 text-gray-700'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs ${selectedPatientId === String(p.id) ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-600'
+                                            }`}>
+                                            {p.name?.substring(0, 1) || 'P'}
+                                        </div>
+                                        <div>
+                                            <div className={`font-black text-sm tracking-tight ${selectedPatientId === String(p.id) ? 'text-white' : 'text-gray-900 font-bold'}`}>
+                                                {p.name}
+                                            </div>
+                                            <div className={`text-[10px] font-bold uppercase tracking-tighter ${selectedPatientId === String(p.id) ? 'text-indigo-100' : 'text-gray-400'}`}>
+                                                {p.age || '??'} YEARS OLD
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {selectedPatientId === String(p.id) && (
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-indigo-300 rounded-full animate-pulse"></div>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
-                {/* STEP 2: Clinical Parameters */}
-                <div className="bg-white rounded-xl shadow-lg p-6 lg:col-span-2 border border-gray-100">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-2 text-gray-800">
-                            <Activity className="w-5 h-5" />
-                            <h3 className="font-bold">Assessment & Parameters</h3>
-                        </div>
-                        {selectedPatientId && (
-                            <button
-                                onClick={runAiAnalysis}
-                                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-full font-bold hover:shadow-lg hover:scale-105 transition-all text-sm"
-                            >
-                                <Brain className="w-4 h-4" />
-                                Generate Proposal
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                        {[
-                            { l: 'Age', k: 'age', s: 1 }, { l: 'BMI', k: 'bmi', s: 0.1 },
-                            { l: 'AMH', k: 'amh', s: 0.1 }, { l: 'AFC', k: 'afc', s: 1 },
-                            { l: 'Base FSH', k: 'fsh', s: 0.1 }
-                        ].map((f: any) => (
-                            <div key={f.k}>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">{f.l}</label>
-                                <input
-                                    type="number" step={f.s}
-                                    value={profile[f.k as keyof PatientProfile] as number}
-                                    onChange={e => updateProfile(f.k, Number(e.target.value))}
-                                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 font-mono font-bold text-center"
-                                />
+                {/* STEP 2: Clinical Assessment Card */}
+                <div className="lg:col-span-3">
+                    <div className="bg-white rounded-2xl shadow-xl border border-indigo-50 overflow-hidden h-full flex flex-col">
+                        <div className="bg-gray-50/80 px-8 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-indigo-100 rounded-lg">
+                                    <Activity className="w-4 h-4 text-indigo-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Clinical Parameters</h3>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Real-time Patient Phenotyping</p>
+                                </div>
                             </div>
-                        ))}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">PCOS?</label>
-                            <button
-                                onClick={() => updateProfile('pcos', !profile.pcos)}
-                                className={`w-full p-2 border rounded-lg font-bold text-sm transition-colors ${profile.pcos ? 'bg-pink-100 border-pink-300 text-pink-700' : 'bg-gray-50 text-gray-400'}`}
-                            >
-                                {profile.pcos ? 'YES' : 'NO'}
-                            </button>
+
+                            {selectedPatientId && (
+                                <button
+                                    onClick={runAiAnalysis}
+                                    className="group relative px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-black text-xs shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                                >
+                                    <Zap className="w-4 h-4 fill-white animate-pulse" />
+                                    GENERATE AI PROPOSAL
+                                </button>
+                            )}
                         </div>
+
+                        <div className="p-8 flex-1 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-6">
+                            {[
+                                { l: 'Age', k: 'age', s: 1, unit: 'yr', icon: <User className="w-3 h-3" /> },
+                                { l: 'BMI', k: 'bmi', s: 0.1, unit: 'kg/m²', icon: <TrendingUp className="w-3 h-3" /> },
+                                { l: 'AMH', k: 'amh', s: 0.1, unit: 'ng/ml', icon: <Beaker className="w-3 h-3" /> },
+                                { l: 'AFC', k: 'afc', s: 1, unit: 'antral', icon: <Target className="w-3 h-3" /> },
+                                { l: 'Base FSH', k: 'fsh', s: 0.1, unit: 'mIU/ml', icon: <Activity className="w-3 h-3" /> }
+                            ].map((f: any) => (
+                                <div key={f.k} className="space-y-2">
+                                    <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                        {f.icon} {f.l}
+                                    </label>
+                                    <div className="relative group/input">
+                                        <input
+                                            type="number" step={f.s}
+                                            value={profile[f.k as keyof PatientProfile] as number}
+                                            onChange={e => updateProfile(f.k, Number(e.target.value))}
+                                            className="w-full px-4 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none font-black text-xl text-gray-900"
+                                        />
+                                        <span className="absolute right-4 bottom-2 text-[10px] font-black text-indigo-500/40 uppercase pointer-events-none group-focus-within/input:text-indigo-500 transition-colors">
+                                            {f.unit}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                    <AlertTriangle className="w-3 h-3" /> Phenotype
+                                </label>
+                                <button
+                                    onClick={() => updateProfile('pcos', !profile.pcos)}
+                                    className={`w-full group px-4 py-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${profile.pcos
+                                        ? 'bg-red-50 border-red-200 text-red-600 shadow-inner'
+                                        : 'bg-gray-50 border-gray-100 text-gray-400 grayscale hover:grayscale-0 hover:bg-white hover:border-indigo-300'
+                                        }`}
+                                >
+                                    <span className={`text-[10px] font-black uppercase tracking-tighter ${profile.pcos ? 'text-red-500' : 'text-gray-400'}`}>PCOS Diagnostic</span>
+                                    <span className="font-black text-lg leading-none">{profile.pcos ? 'CONFIRMED' : 'NEGATIVE'}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {!selectedPatientId && (
+                            <div className="p-8 bg-indigo-50/30 border-t border-indigo-50 flex items-center justify-center">
+                                <div className="flex items-center gap-3 text-indigo-600/60 font-black text-xs uppercase tracking-widest">
+                                    <ArrowRight className="w-4 h-4 animate-bounce-x" />
+                                    Select a patient to begin AI cycle analysis
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
