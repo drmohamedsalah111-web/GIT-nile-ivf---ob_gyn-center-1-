@@ -22,7 +22,8 @@ export default {
         success: 'var(--success-color)',
         error: 'var(--error-color)',
         warning: 'var(--warning-color)',
-        
+        sidebar: 'var(--bg-sidebar)',
+
         // Keep existing teal colors for backward compatibility
         teal: {
           50: '#e0f2f1',

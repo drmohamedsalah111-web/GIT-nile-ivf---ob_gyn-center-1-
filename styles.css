@@ -23,9 +23,9 @@
   --success-color: #10b981;
   --error-color: #ef4444;
   --warning-color: #f59e0b;
+  --bg-sidebar: #ffffff;
 }
 
-/* Theme 2: Soft Harmony (Ob/Gyn Light) */
 [data-theme="soft-harmony"] {
   --bg-primary: #fffbff;
   --bg-secondary: #fce7f3;
@@ -40,6 +40,7 @@
   --success-color: #10b981;
   --error-color: #ef4444;
   --warning-color: #f59e0b;
+  --bg-sidebar: #fffbff;
 }
 
 /* Theme 3: Midnight Pro (Modern Dark) */
@@ -57,6 +58,7 @@
   --success-color: #34d399;
   --error-color: #f87171;
   --warning-color: #fbbf24;
+  --bg-sidebar: #1e293b;
 }
 
 /* Theme 4: OLED Deep (High Contrast Dark) */
@@ -74,6 +76,7 @@
   --success-color: #22c55e;
   --error-color: #ef4444;
   --warning-color: #eab308;
+  --bg-sidebar: #18181b;
 }
 
 /* Theme 5: Forest Dim (Relaxed Dark) */
@@ -91,9 +94,9 @@
   --success-color: #84cc16;
   --error-color: #ef4444;
   --warning-color: #fbbf24;
+  --bg-sidebar: #292524;
 }
 
-/* Theme 6: Luxury Gold (Premium Dark) */
 [data-theme="luxury-gold"] {
   --bg-primary: #0a0a0a;
   --bg-secondary: #141414;
@@ -110,6 +113,43 @@
   --success-color: #10b981;
   --error-color: #ef4444;
   --warning-color: #f59e0b;
+  --bg-sidebar: #141414;
+}
+
+/* Theme 7: Modern Mint (Sage & Slate) */
+[data-theme="modern-mint"] {
+  --bg-primary: #f0f2f5;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f8f9fa;
+  --text-main: #2d3436;
+  --text-secondary: #636e72;
+  --text-muted: #b2bec3;
+  --brand-color: #52B788;
+  --brand-hover: #40916C;
+  --border-color: #dfe6e9;
+  --shadow-color: rgba(0, 0, 0, 0.05);
+  --success-color: #00b894;
+  --error-color: #d63031;
+  --warning-color: #fdcb6e;
+  --bg-sidebar: #1b263b;
+  /* Sleek Dark Blue Sidebar */
+}
+
+/* Specific overrides for Modern Mint sidebar icons/text */
+[data-theme="modern-mint"] .sidebar-text {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+[data-theme="modern-mint"] .sidebar-active-text {
+  color: #ffffff !important;
+}
+
+[data-theme="modern-mint"] .sidebar-icon {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="modern-mint"] .sidebar-active-icon {
+  color: #ffffff;
 }
 
 body {

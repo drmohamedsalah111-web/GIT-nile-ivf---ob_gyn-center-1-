@@ -12,7 +12,8 @@ export type ThemeName =
   | 'midnight-pro'       // Modern Dark
   | 'oled-deep'          // High Contrast Dark
   | 'forest-dim'         // Relaxed Dark
-  | 'luxury-gold';       // Premium Gold Dark
+  | 'luxury-gold'       // Premium Gold Dark
+  | 'modern-mint';       // Modern Sage & Slate
 
 export interface Theme {
   id: ThemeName;
@@ -78,6 +79,15 @@ export const THEMES: Theme[] = [
     description: 'Elegant deep charcoal with gold accents',
     descriptionAr: 'واجهة فخمة باللون الأسود والذهبي',
     icon: '✨'
+  },
+  {
+    id: 'modern-mint',
+    name: 'Modern Mint',
+    nameAr: 'مودرن مينت',
+    category: 'light',
+    description: 'Fresh sage green with professional slate sidebar',
+    descriptionAr: 'لون أخضر هادئ مع شريط جانبي احترافي',
+    icon: '🍃'
   }
 ];
 

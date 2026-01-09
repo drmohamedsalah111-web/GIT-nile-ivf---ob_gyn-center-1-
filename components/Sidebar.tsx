@@ -55,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
   const hasValidLogo = branding?.logo_url && branding.logo_url.startsWith('http') && !logoError;
 
   return (
-    <aside className={`${isCollapsed ? 'w-20' : 'w-64'} h-screen flex flex-col bg-surface border-x border-borderColor shadow-xl relative overflow-hidden transition-all duration-500 ease-in-out`}>
+    <aside className={`${isCollapsed ? 'w-20' : 'w-64'} h-screen flex flex-col bg-sidebar border-x border-borderColor shadow-xl relative overflow-hidden transition-all duration-500 ease-in-out`}>
       {/* Toggle Button - Floating at the edge */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
@@ -84,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
           </div>
           {!isCollapsed && (
             <div className="text-center transition-all duration-300 opacity-100 scale-100">
-              <h2 className="text-base font-black text-foreground tracking-tight line-clamp-1">{branding?.clinic_name || 'نظام العيادة'}</h2>
+              <h2 className="text-base font-black text-foreground sidebar-text tracking-tight line-clamp-1">{branding?.clinic_name || 'نظام العيادة'}</h2>
               <p className="text-[9px] font-bold text-brand uppercase tracking-widest opacity-80 mt-0.5 line-clamp-1">
                 {branding?.specialization || 'Obstetrics & Gynecology'}
               </p>
@@ -106,18 +106,18 @@ export const Sidebar: React.FC<SidebarProps> = memo(({ activePage, setPage, onLo
               title={isCollapsed ? item.arLabel : ''}
               className={`w-full group relative flex items-center gap-3 py-2 rounded-lg transition-all duration-200 border ${isCollapsed ? 'justify-center px-0' : 'px-3'} ${isActive
                 ? 'bg-brand/10 text-brand border-brand/20 ring-1 ring-brand/10'
-                : 'bg-transparent text-textSecondary border-transparent hover:bg-brand/5 hover:text-foreground'
+                : 'bg-transparent text-textSecondary sidebar-text border-transparent hover:bg-brand/5 hover:text-foreground'
                 }`}
             >
               <div
-                className={`flex-none flex items-center justify-center w-8 h-8 rounded-md transition-all duration-300 ${isActive ? 'bg-brand text-white shadow-sm' : 'bg-surface/50 border border-borderColor/5 group-hover:bg-white dark:group-hover:bg-zinc-800'
+                className={`flex-none flex items-center justify-center w-8 h-8 rounded-md transition-all duration-300 ${isActive ? 'bg-brand text-white shadow-sm' : 'bg-surface/50 sidebar-icon border border-borderColor/5 group-hover:bg-white dark:group-hover:bg-zinc-800'
                   }`}
               >
                 <Icon size={16} style={{ color: isActive ? '#FFFFFF' : item.color }} />
               </div>
 
               {!isCollapsed && (
-                <span className={`font-bold text-xs tracking-wide text-right flex-1 truncate transition-all duration-300 opacity-100`}>
+                <span className={`font-bold text-xs tracking-wide text-right flex-1 truncate transition-all duration-300 opacity-100 ${isActive ? 'sidebar-active-text' : 'sidebar-text'}`}>
                   {item.arLabel}
                 </span>
               )}
