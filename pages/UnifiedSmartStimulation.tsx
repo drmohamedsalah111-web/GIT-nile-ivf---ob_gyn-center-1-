@@ -40,7 +40,10 @@ import type {
   SmartIVFCycle,
   SmartMonitoringVisit,
   StimulationProtocol,
-  ProtocolSuggestion
+  ProtocolSuggestion,
+  SmartEmbryoRecord,
+  SmartOPURecord,
+  SmartTransferPrep
 } from '../types/smartStimulation.types';
 import { usePatients } from '../src/hooks/usePatients';
 

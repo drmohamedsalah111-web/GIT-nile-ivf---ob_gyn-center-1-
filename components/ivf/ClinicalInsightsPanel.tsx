@@ -1,6 +1,6 @@
 import React from 'react';
 import { Recommendation } from '../../utils/ClinicalEngine';
-import { AlertTriangle, Zap, ThermometerSnowflake, Syringe, Info } from 'lucide-react';
+import { AlertTriangle, Zap, ThermometerSnowflake, Syringe, Info, ArrowRight } from 'lucide-react';
 
 interface Props {
     recommendations: Recommendation[];
@@ -11,59 +11,101 @@ const ClinicalInsightsPanel: React.FC<Props> = ({ recommendations }) => {
 
     const getIcon = (category: string) => {
         switch (category) {
-            case 'DOSE': return <Zap className="w-5 h-5 text-yellow-600" />;
-            case 'TRIGGER': return <Syringe className="w-5 h-5 text-purple-600" />;
-            case 'TRANSFER': return <ThermometerSnowflake className="w-5 h-5 text-blue-600" />;
-            default: return <Info className="w-5 h-5 text-gray-600" />;
+            case 'DOSE': return <Zap className="w-5 h-5 text-amber-500" />;
+            case 'TRIGGER': return <Syringe className="w-5 h-5 text-purple-500" />;
+            case 'TRANSFER': return <ThermometerSnowflake className="w-5 h-5 text-cyan-500" />;
+            default: return <Info className="w-5 h-5 text-indigo-500" />;
         }
     };
 
-    const getColor = (priority: string) => {
+    const getColorSet = (priority: string) => {
         return priority === 'Critical'
-            ? 'border-red-200 bg-red-50 text-red-900'
-            : 'border-blue-100 bg-blue-50 text-blue-900';
+            ? {
+                bg: 'bg-red-50/50',
+                border: 'border-red-200',
+                accent: 'bg-red-500',
+                text: 'text-red-950',
+                muted: 'text-red-700/70'
+            }
+            : {
+                bg: 'bg-indigo-50/50',
+                border: 'border-indigo-100',
+                accent: 'bg-indigo-500',
+                text: 'text-indigo-950',
+                muted: 'text-indigo-700/70'
+            };
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div className="flex items-center gap-2 mb-4">
-                <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg">
-                    <Zap className="w-5 h-5 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900">AI Clinical Insights</h3>
-                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-mono">
-                    Engine v2.0
-                </span>
-            </div>
+        <div className="relative mb-10">
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl blur opacity-10"></div>
 
-            <div className="space-y-3">
-                {recommendations.map((rec, i) => (
-                    <div
-                        key={i}
-                        className={`flex items-start gap-4 p-4 rounded-lg border ${getColor(rec.priority)} transition-all hover:shadow-md cursor-default`}
-                    >
-                        <div className="mt-1 flex-shrink-0 bg-white p-2 rounded-full shadow-sm">
-                            {getIcon(rec.category)}
+            <div className="relative bg-white border border-indigo-50 rounded-2xl shadow-xl overflow-hidden">
+                <div className="bg-gray-50 border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-200">
+                            <Zap className="w-5 h-5 text-white" />
                         </div>
-                        <div className="flex-1">
-                            <div className="flex items-center justify-between mb-1">
-                                <h4 className="font-bold text-lg">{rec.action}</h4>
-                                {rec.priority === 'Critical' && (
-                                    <span className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded uppercase">
-                                        <AlertTriangle className="w-3 h-3" /> Critical
-                                    </span>
-                                )}
-                            </div>
-                            <p className="text-sm opacity-90 leading-relaxed">
-                                {rec.reasoning}
-                            </p>
-                            <div className="mt-2 flex items-center gap-4 text-xs opacity-75 font-semibold font-mono">
-                                <span>CATEGORY: {rec.category}</span>
-                                <span>CONFIDENCE: {rec.confidence.toUpperCase()}</span>
-                            </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-900 leading-none mb-1">AI Clinical Intelligence</h3>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Live Cycle Optimization Engine</p>
                         </div>
                     </div>
-                ))}
+                    <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-black tracking-tighter">
+                        V3.5 ACTIVE
+                    </span>
+                </div>
+
+                <div className="p-6 space-y-4">
+                    {recommendations.map((rec, i) => {
+                        const colors = getColorSet(rec.priority);
+                        return (
+                            <div
+                                key={i}
+                                className={`group flex items-start gap-5 p-5 rounded-xl border ${colors.border} ${colors.bg} hover:shadow-md transition-all duration-300`}
+                            >
+                                <div className="mt-1 flex-shrink-0 bg-white p-3 rounded-xl shadow-sm border border-white group-hover:scale-110 transition-transform">
+                                    {getIcon(rec.category)}
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <h4 className={`font-black text-xl ${colors.text} tracking-tight`}>{rec.action}</h4>
+                                            {rec.priority === 'Critical' && (
+                                                <span className="flex items-center gap-1.5 text-[10px] font-black text-white bg-red-500 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm animate-pulse">
+                                                    <AlertTriangle className="w-3 h-3" /> Critical
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <p className={`text-sm leading-relaxed opacity-90 font-medium ${colors.text}`}>
+                                        {rec.reasoning}
+                                    </p>
+                                    <div className="mt-4 flex items-center gap-6">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Confidence</span>
+                                            <div className="flex gap-0.5">
+                                                {[1, 2, 3].map(dot => (
+                                                    <div key={dot} className={`w-3 h-1 rounded-full ${dot <= (rec.confidence === 'High' ? 3 : rec.confidence === 'Medium' ? 2 : 1)
+                                                            ? colors.accent : 'bg-gray-200'
+                                                        }`}></div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="h-3 w-px bg-gray-200"></div>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Area</span>
+                                            <span className={`text-[10px] font-black ${colors.text} uppercase`}>{rec.category}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="self-center hidden group-hover:block animate-in fade-in slide-in-from-left-2">
+                                    <ArrowRight className={`w-5 h-5 ${colors.muted}`} />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );

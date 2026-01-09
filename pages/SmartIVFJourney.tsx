@@ -19,7 +19,8 @@ import {
     Syringe,
     Pill,
     Clock,
-    FileText
+    FileText,
+    Info
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -74,83 +75,166 @@ interface SmartCycle {
 }
 
 // ============================================================================
-// COMPONENT: AI PROTOCOL PROPOSAL CARD (New)
+// COMPONENT: PREMIUM AI PROTOCOL PROPOSAL CARD (v4.0)
 // ============================================================================
 
 const ProtocolProposalCard: React.FC<{
     plan: PrescriptionPlan,
     onApply: () => void
 }> = ({ plan, onApply }) => {
+    const [showGuide, setShowGuide] = useState(false);
+    const [showMedAlts, setShowMedAlts] = useState<number | null>(null);
+
     return (
-        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-100 rounded-xl p-6 mb-8 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Brain className="w-32 h-32 text-indigo-900" />
-            </div>
+        <div className="relative group perspective-1000 mb-12">
+            {/* Background Glow */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
 
-            <div className="relative z-10">
-                <div className="flex flex-col md:flex-row md:items-start gap-4 mb-6">
-                    <div className="p-3 bg-indigo-600 text-white rounded-xl shadow-lg shrink-0">
-                        <Zap className="w-8 h-8" />
+            <div className="relative bg-white/90 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden shadow-2xl">
+                {/* Header Section */}
+                <div className="bg-gradient-to-r from-indigo-900 to-purple-900 p-8 text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
+                        <Brain className="w-48 h-48" />
                     </div>
-                    <div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-1">{plan.protocolName}</h3>
-                        <p className="text-gray-600 font-medium mb-2">{plan.explanation}</p>
-                        {plan.clinicalNote && (
-                            <div className="inline-block bg-yellow-100 text-yellow-800 text-sm font-bold px-3 py-1 rounded-full border border-yellow-200">
-                                ⭐ {plan.clinicalNote}
-                            </div>
-                        )}
-                    </div>
-                </div>
 
-                {/* Medications Grid */}
-                <div className="bg-white/80 backdrop-blur rounded-xl p-1 border border-indigo-100 mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
-                        {plan.medications.map((med, idx) => (
-                            <div key={idx} className="flex items-start gap-4 p-3 bg-white rounded-lg border border-gray-100 shadow-sm hover:border-indigo-200 transition-colors">
-                                <div className={`p-2 rounded-full ${med.role === 'Stimulation' ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-600'}`}>
-                                    {med.role === 'Stimulation' ? <Syringe size={20} /> : <Pill size={20} />}
-                                </div>
-                                <div>
-                                    <div className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">{med.role}</div>
-                                    <div className="font-bold text-lg text-gray-800">{med.drugName}</div>
-                                    <div className="text-indigo-600 font-mono font-bold">{med.dose}</div>
-                                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                        <Clock size={12} /> {med.instruction}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                    <div className="relative z-10">
+                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                            <span className="bg-indigo-500/30 backdrop-blur-md text-indigo-100 text-xs font-bold px-3 py-1 rounded-full border border-indigo-400/30 flex items-center gap-1">
+                                <Zap className="w-3 h-3" /> AI SUGGESTED PROTOCOL
+                            </span>
+                            <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1 ${plan.riskProfile === 'Low' ? 'bg-green-500/20 text-green-200 border-green-500/30' :
+                                plan.riskProfile === 'Moderate' ? 'bg-yellow-500/20 text-yellow-200 border-yellow-500/30' :
+                                    'bg-red-500/20 text-red-200 border-red-500/30'
+                                }`}>
+                                <AlertTriangle className="w-3 h-3" /> RISK: {plan.riskProfile.toUpperCase()}
+                            </span>
+                            <span className="bg-white/10 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/20 ml-auto">
+                                {plan.startDay}
+                            </span>
+                        </div>
+
+                        <h2 className="text-4xl font-extrabold mb-2 tracking-tight">{plan.protocolName}</h2>
+                        <p className="text-indigo-100 text-lg max-w-3xl leading-relaxed opacity-90">
+                            {plan.explanation}
+                        </p>
                     </div>
                 </div>
 
-                {/* Protocol Guide / Steps */}
-                {plan.protocolGuide && (
-                    <div className="bg-indigo-900 text-white rounded-xl p-6 mb-6">
-                        <h4 className="flex items-center gap-2 font-bold mb-4 text-indigo-200 uppercase tracking-widest text-xs">
-                            <FileText className="w-4 h-4" /> Doctor's Pocket Guide
-                        </h4>
-                        <div className="space-y-3">
-                            {plan.protocolGuide.map((step, i) => (
-                                <div key={i} className="flex gap-3">
-                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-700 flex items-center justify-center text-xs font-bold ring-2 ring-indigo-500">
-                                        {i + 1}
-                                    </div>
-                                    <p className="text-indigo-50 font-medium leading-relaxed">{step}</p>
+                <div className="p-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Left Side: Rationale & Medications */}
+                        <div className="space-y-8">
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                    <Target className="w-4 h-4 text-indigo-500" /> Clinical Rationale
+                                </h3>
+                                <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-5 text-gray-700 leading-relaxed italic">
+                                    "{plan.successRationale}"
                                 </div>
-                            ))}
+                            </div>
+
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                    <Syringe className="w-4 h-4 text-purple-500" /> Medication Regimen
+                                </h3>
+                                <div className="space-y-3">
+                                    {plan.medications.map((med, idx) => (
+                                        <div key={idx} className="relative bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:border-indigo-300 transition-all">
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex gap-4">
+                                                    <div className={`p-3 rounded-xl ${med.role === 'Stimulation' ? 'bg-blue-50 text-blue-600' :
+                                                        med.role === 'Suppression' ? 'bg-purple-50 text-purple-600' :
+                                                            'bg-pink-50 text-pink-600'
+                                                        }`}>
+                                                        {med.role === 'Stimulation' ? <Zap size={24} /> : <Syringe size={24} />}
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter mb-0.5">{med.role}</div>
+                                                        <div className="text-xl font-bold text-gray-900">{med.drugName}</div>
+                                                        <div className="text-indigo-600 font-black text-lg">{med.dose}</div>
+                                                        <p className="text-xs text-gray-500 mt-1">{med.instruction}</p>
+                                                    </div>
+                                                </div>
+
+                                                {med.alternatives && med.alternatives.length > 0 && (
+                                                    <button
+                                                        onClick={() => setShowMedAlts(showMedAlts === idx ? null : idx)}
+                                                        className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50 px-2 py-1 rounded transition-colors"
+                                                    >
+                                                        {showMedAlts === idx ? 'CLOSE' : 'ALTERNATIVES'}
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {showMedAlts === idx && med.alternatives && (
+                                                <div className="mt-4 pt-4 border-t border-dashed border-gray-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Equivalent Options:</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {med.alternatives.map(alt => (
+                                                            <span key={alt} className="bg-gray-50 text-gray-700 text-xs font-semibold px-2 py-1 rounded-md border border-gray-200">
+                                                                {alt}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right Side: Step-by-Step Guide */}
+                        <div className="bg-gray-950 rounded-2xl p-8 text-indigo-50 shadow-inner relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+
+                            <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                <FileText className="w-4 h-4" /> Comprehensive Protocol Guide
+                            </h3>
+
+                            <div className="space-y-6 relative z-10">
+                                {plan.protocolGuide.map((step, i) => (
+                                    <div key={i} className="flex gap-4 group/step">
+                                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-xs font-bold text-indigo-300 group-hover/step:bg-indigo-500 group-hover/step:text-white transition-all duration-300">
+                                            {i + 1}
+                                        </div>
+                                        <div className="pt-1">
+                                            <p className="text-gray-300 group-hover/step:text-white transition-colors leading-relaxed">
+                                                {step}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-8 p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
+                                <div className="flex gap-3">
+                                    <div className="p-2 bg-indigo-500/20 rounded-lg h-fit">
+                                        <Info className="w-4 h-4 text-indigo-300" />
+                                    </div>
+                                    <p className="text-xs text-indigo-200/80 leading-relaxed">
+                                        <span className="font-bold block text-indigo-200 mb-1">Clinic Note:</span>
+                                        {plan.clinicalNote}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                )}
 
-                <div className="flex justify-end">
-                    <button
-                        onClick={onApply}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                    >
-                        <CheckCircle className="w-5 h-5" />
-                        Accept & Start Cycle
-                    </button>
+                    {/* Action Footer */}
+                    <div className="mt-10 pt-8 border-t border-gray-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
+                            <Clock className="w-4 h-4" /> Estimated Duration: 10-14 days of stimulation
+                        </div>
+
+                        <button
+                            onClick={onApply}
+                            className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white px-10 py-4 rounded-2xl font-black text-lg shadow-xl hover:shadow-2xl hover:scale-105 transition-all active:scale-95 flex items-center gap-3"
+                        >
+                            <CheckCircle className="w-6 h-6" />
+                            IMPLEMENT PROTOCOL
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
