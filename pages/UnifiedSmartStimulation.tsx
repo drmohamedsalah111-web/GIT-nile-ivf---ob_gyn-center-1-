@@ -229,6 +229,10 @@ const UnifiedSmartStimulation: React.FC = () => {
   };
 
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
+  const lastVisit = React.useMemo(() =>
+    visits.length > 0 ? visits[visits.length - 1] : undefined,
+    [visits]
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 p-6" dir="rtl">
@@ -586,6 +590,7 @@ const UnifiedSmartStimulation: React.FC = () => {
                     <UnifiedMonitoringVisitForm
                       cycleId={currentCycle.id}
                       cycleStartDate={currentCycle.start_date}
+                      lastVisit={lastVisit}
                       onSuccess={handleVisitAdded}
                       onCancel={() => setShowAddVisit(false)}
                     />

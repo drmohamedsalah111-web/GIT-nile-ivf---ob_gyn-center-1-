@@ -17,7 +17,8 @@ import {
   Plus,
   Trash2,
   AlertCircle,
-  TrendingUp
+  TrendingUp,
+  Zap
 } from 'lucide-react';
 import smartStimulationService from '../../services/smartStimulationService.unified';
 import type {
@@ -34,6 +35,7 @@ import toast from 'react-hot-toast';
 interface UnifiedMonitoringVisitFormProps {
   cycleId: string;
   cycleStartDate: string;
+  lastVisit?: SmartMonitoringVisit;
   onSuccess?: (visit: SmartMonitoringVisit) => void;
   onCancel?: () => void;
 }
@@ -41,6 +43,7 @@ interface UnifiedMonitoringVisitFormProps {
 const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
   cycleId,
   cycleStartDate,
+  lastVisit,
   onSuccess,
   onCancel
 }) => {
@@ -81,7 +84,19 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
   useEffect(() => {
     loadReferences();
     calculateCycleDay(visitDate);
-  }, []);
+
+    // [Smart Memory] Pre-fill from last visit
+    if (lastVisit) {
+      if (lastVisit.medications_given && lastVisit.medications_given.length > 0) {
+        setMedications(lastVisit.medications_given.map(m => ({
+          ...m,
+          id: undefined // New record
+        })));
+      }
+      if (lastVisit.endometrium_pattern) setEndoPattern(lastVisit.endometrium_pattern);
+      if (lastVisit.doctor_notes) setDoctorNotes(`متابعة من الزيارة السابقة: ${lastVisit.doctor_notes}`);
+    }
+  }, [lastVisit]);
 
   useEffect(() => {
     calculateCycleDay(visitDate);
@@ -171,15 +186,15 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
   const updateLabResult = (index: number, field: keyof LabResult, value: any) => {
     const updated = [...labResults];
     updated[index] = { ...updated[index], [field]: value };
-    
+
     // Auto-determine if normal
     if (field === 'result_value' && updated[index].reference_min && updated[index].reference_max) {
       const val = parseFloat(value);
-      updated[index].is_normal = 
-        val >= (updated[index].reference_min || 0) && 
+      updated[index].is_normal =
+        val >= (updated[index].reference_min || 0) &&
         val <= (updated[index].reference_max || Infinity);
     }
-    
+
     setLabResults(updated);
   };
 
@@ -196,24 +211,24 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
         visit_date: visitDate,
         cycle_day: cycleDay,
         stimulation_day: stimulationDay,
-        
+
         // Hormones
         e2_level: e2 ? parseFloat(e2) : undefined,
         lh_level: lh ? parseFloat(lh) : undefined,
         p4_level: p4 ? parseFloat(p4) : undefined,
-        
+
         // Ultrasound
         endometrium_thickness: endoThickness ? parseFloat(endoThickness) : undefined,
         endometrium_pattern: endoPattern || undefined,
         follicles_right: folliclesRight,
         follicles_left: folliclesLeft,
-        
+
         // ✅ UNIFIED: Medications integrated
         medications_given: medications,
-        
+
         // ✅ UNIFIED: Lab results integrated
         lab_results: labResults,
-        
+
         // Clinical notes
         doctor_notes: doctorNotes || undefined
       };
@@ -223,7 +238,7 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
       if (error) throw error;
 
       toast.success('تم حفظ الزيارة بنجاح ✓');
-      
+
       if (onSuccess && data) {
         onSuccess(data);
       }
@@ -239,14 +254,20 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
     <div className="space-y-6" dir="rtl">
       {/* Header */}
       <div className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-xl p-6 shadow-lg">
-        <div className="flex items-center gap-3">
-          <Calendar className="w-8 h-8" />
-          <div>
-            <h2 className="text-2xl font-bold">زيارة متابعة متكاملة</h2>
-            <p className="text-teal-100">
-              هرمونات + سونار + أدوية + تحاليل في سجل واحد
-            </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Calendar className="w-8 h-8" />
+            <div>
+              <h2 className="text-2xl font-bold">زيارة متابعة متكاملة</h2>
+              <p className="text-teal-100">هرمونات + سونار + أدوية + تحاليل في سجل واحد</p>
+            </div>
           </div>
+          {lastVisit && (
+            <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-xl border border-white/30 flex items-center gap-2 animate-pulse">
+              <Zap className="w-4 h-4 text-yellow-300" />
+              <span className="text-[10px] font-black uppercase tracking-tighter">Smart Memory Active</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -355,7 +376,7 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
           <TrendingUp className="w-5 h-5 text-purple-600" />
           السونار
         </h3>
-        
+
         {/* Endometrium */}
         <div className="mb-4">
           <h4 className="font-semibold text-gray-800 mb-3">بطانة الرحم</h4>
