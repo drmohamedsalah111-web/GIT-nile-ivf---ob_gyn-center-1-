@@ -21,6 +21,9 @@ export function usePatients() {
     const [error, setError] = useState<Error | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+    const [version, setVersion] = useState(0);
+
+    const refresh = () => setVersion(v => v + 1);
 
     useEffect(() => {
         const handle = setTimeout(() => {
@@ -35,7 +38,7 @@ export function usePatients() {
             try {
                 setIsLoading(true);
                 setError(null);
-                
+
                 const data = await dbService.getPatients(debouncedSearchQuery || undefined);
                 console.log('✅ usePatients hook - Successfully fetched patients:', data.length);
                 setPatients(data);
@@ -49,7 +52,7 @@ export function usePatients() {
         };
 
         fetchPatients();
-    }, [debouncedSearchQuery]);
+    }, [debouncedSearchQuery, version]);
 
     const addPatient = async (patient: Omit<Patient, 'id' | 'created_at' | 'updated_at'>) => {
         try {
@@ -58,9 +61,9 @@ export function usePatients() {
                 age: patient.age,
                 phone: patient.phone,
                 husbandName: patient.husband_name,
-                history: patient.medical_history
+                medical_history: patient.medical_history
             });
-            
+
             setPatients(prev => [newPatient, ...prev]);
             console.log('✅ usePatients hook - Patient added:', newPatient.id);
             return newPatient.id;
@@ -73,7 +76,7 @@ export function usePatients() {
     const updatePatient = async (id: string, patient: Partial<Patient>) => {
         try {
             const updateData: any = {};
-            
+
             if (patient.name !== undefined) updateData.name = patient.name;
             if (patient.age !== undefined) updateData.age = patient.age;
             if (patient.phone !== undefined) updateData.phone = patient.phone;
@@ -122,6 +125,7 @@ export function usePatients() {
         setSearchQuery,
         addPatient,
         updatePatient,
-        deletePatient
+        deletePatient,
+        refresh
     };
 }

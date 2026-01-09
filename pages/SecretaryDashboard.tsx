@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Clock, Plus, Search, Phone, User, History, ChevronDown, LogOut, Bell, Settings, FileText, CheckCircle, AlertCircle, Zap, RefreshCw, Receipt, DollarSign, LayoutDashboard } from 'lucide-react';
+import { Calendar, Users, Clock, Plus, Search, Phone, User, History, ChevronDown, LogOut, Bell, Settings, FileText, CheckCircle, AlertCircle, Zap, RefreshCw, Receipt, DollarSign, LayoutDashboard, Edit2 } from 'lucide-react';
 import { authService } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import { appointmentsService } from '../services/appointmentsService';
@@ -7,6 +7,7 @@ import { visitsService } from '../services/visitsService';
 import { InvoicesManagementPage } from '../components/invoices';
 import CollectionsManagement from '../components/invoices/CollectionsManagement';
 import SimpleAppointmentSystem from '../components/appointments/SimpleAppointmentSystem';
+import EditPatientModal from '../src/components/patients/EditPatientModal';
 import toast from 'react-hot-toast';
 
 const SecretaryDashboard: React.FC = () => {
@@ -24,6 +25,10 @@ const SecretaryDashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [editingAppointment, setEditingAppointment] = useState<any | null>(null);
+
+  // Edit Patient State
+  const [selectedPatientForEdit, setSelectedPatientForEdit] = useState<any | null>(null);
+  const [isEditPatientModalOpen, setIsEditPatientModalOpen] = useState(false);
 
   const [appointmentForm, setAppointmentForm] = useState({
     patientId: '',
@@ -351,12 +356,12 @@ const SecretaryDashboard: React.FC = () => {
     );
   }
 
-  const tabItems = [    { id: 'smart_appointments', label: '🎯 المواعيد الذكية', icon: Calendar },    { id: 'dashboard', label: 'نظرة عامة', icon: LayoutDashboard },
-    { id: 'calendar', label: 'المواعيد', icon: Calendar },
-    { id: 'waiting', label: 'الانتظار', icon: Clock },
-    { id: 'patients', label: 'المرضى', icon: Users },
-    { id: 'invoices', label: 'الفواتير', icon: Receipt },
-    { id: 'collections', label: 'التحصيل', icon: DollarSign },
+  const tabItems = [{ id: 'smart_appointments', label: '🎯 المواعيد الذكية', icon: Calendar }, { id: 'dashboard', label: 'نظرة عامة', icon: LayoutDashboard },
+  { id: 'calendar', label: 'المواعيد', icon: Calendar },
+  { id: 'waiting', label: 'الانتظار', icon: Clock },
+  { id: 'patients', label: 'المرضى', icon: Users },
+  { id: 'invoices', label: 'الفواتير', icon: Receipt },
+  { id: 'collections', label: 'التحصيل', icon: DollarSign },
   ];
 
   return (
@@ -430,7 +435,7 @@ const SecretaryDashboard: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="bg-white dark:bg-zinc-800 rounded-3xl border border-borderColor/50 shadow-sm min-h-[500px] overflow-hidden">
-        
+
         {/* Simple Appointments System 🎯 */}
         {activeView === 'smart_appointments' && secretary?.secretary_doctor_id && (
           <div className="animate-fade-in">
@@ -828,6 +833,7 @@ const SecretaryDashboard: React.FC = () => {
                     <th className="px-6 py-4">الهاتف</th>
                     <th className="px-6 py-4">الزوج</th>
                     <th className="px-6 py-4">الزيارات</th>
+                    <th className="px-6 py-4">الإجراءات</th>
                     <th className="px-6 py-4 rounded-l-2xl">تاريخ التسجيل</th>
                   </tr>
                 </thead>
@@ -841,6 +847,18 @@ const SecretaryDashboard: React.FC = () => {
                         <span className="bg-brand/10 text-brand px-3 py-1 rounded-lg text-xs font-black">
                           {patientVisits[patient.id]?.length || 0} زيارة
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => {
+                            setSelectedPatientForEdit(patient);
+                            setIsEditPatientModalOpen(true);
+                          }}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="تعديل"
+                        >
+                          <Edit2 size={16} />
+                        </button>
                       </td>
                       <td className="px-6 py-4 text-xs font-bold text-textSecondary">
                         {new Date(patient.created_at).toLocaleDateString('ar-EG')}
@@ -884,6 +902,21 @@ const SecretaryDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Patient Modal */}
+      {selectedPatientForEdit && (
+        <EditPatientModal
+          patient={selectedPatientForEdit}
+          isOpen={isEditPatientModalOpen}
+          onClose={() => {
+            setIsEditPatientModalOpen(false);
+            setSelectedPatientForEdit(null);
+          }}
+          onUpdate={() => {
+            loadPatients();
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { UserPlus, Search, Phone, User, History } from 'lucide-react';
+import { UserPlus, Search, Phone, User, History, Edit2 } from 'lucide-react';
 import { usePatients } from '../src/hooks/usePatients';
 import { authService } from '../services/authService';
+import EditPatientModal from '../src/components/patients/EditPatientModal';
 import toast from 'react-hot-toast';
 
 const Reception: React.FC = () => {
@@ -16,7 +17,11 @@ const Reception: React.FC = () => {
   });
 
   // PowerSync hook
-  const { patients, addPatient, searchQuery, setSearchQuery, isLoading } = usePatients();
+  const { patients, addPatient, searchQuery, setSearchQuery, isLoading, refresh } = usePatients();
+
+  // Edit Patient State
+  const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
 
 
@@ -196,7 +201,20 @@ const Reception: React.FC = () => {
                         {String(patient.id).slice(0, 6)}
                       </div>
                     </div>
-                    <div className="mt-3 text-xs text-gray-600 truncate">{patient.medical_history?.notes || ''}</div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="text-xs text-gray-600 truncate flex-1">{patient.medical_history?.notes || ''}</div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPatient(patient);
+                          setIsEditModalOpen(true);
+                        }}
+                        className="p-1 px-2 flex items-center gap-1 text-teal-600 hover:bg-teal-50 rounded text-[10px] font-bold transition-colors"
+                      >
+                        <Edit2 size={12} />
+                        تعديل
+                      </button>
+                    </div>
                   </div>
                 )) : (
                   <div className="text-center text-gray-400 py-8">No patients found matching your search.</div>
@@ -214,6 +232,7 @@ const Reception: React.FC = () => {
                       <th className="px-6 py-4">Phone</th>
                       <th className="px-6 py-4">Husband</th>
                       <th className="px-6 py-4">History</th>
+                      <th className="px-6 py-4">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -234,6 +253,18 @@ const Reception: React.FC = () => {
                           <td className="px-6 py-4">{patient.phone}</td>
                           <td className="px-6 py-4">{patient.husbandName}</td>
                           <td className="px-6 py-4 truncate max-w-xs">{patient.medical_history?.notes || ''}</td>
+                          <td className="px-6 py-4">
+                            <button
+                              onClick={() => {
+                                setSelectedPatient(patient);
+                                setIsEditModalOpen(true);
+                              }}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="تعديل"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          </td>
                         </tr>
                       ))
                     ) : (
@@ -249,6 +280,21 @@ const Reception: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Edit Modal */}
+        {selectedPatient && (
+          <EditPatientModal
+            patient={selectedPatient}
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setSelectedPatient(null);
+            }}
+            onUpdate={() => {
+              refresh();
+            }}
+          />
+        )}
       </div>
     </div>
   );
