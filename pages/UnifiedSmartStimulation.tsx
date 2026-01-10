@@ -296,6 +296,105 @@ const UnifiedSmartStimulation: React.FC = () => {
     printWindow.document.close();
   };
 
+  const handlePrintPrescription = (visit: SmartMonitoringVisit) => {
+    const printWindow = window.open('', '', 'height=800,width=800');
+    if (!printWindow) return;
+
+    const patientName = selectedPatient?.name || 'مريضة غير محددة';
+    const meds = visit.medications_given || [];
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+        <head>
+          <meta charset="UTF-8">
+          <title>Prescription - Nile IVF</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
+            body { font-family: 'Cairo', sans-serif; }
+            @media print {
+              .no-print { display: none; }
+              body { margin: 0; padding: 20px; }
+            }
+          </style>
+        </head>
+        <body class="bg-white p-8">
+          <div class="max-w-2xl mx-auto border-4 border-double border-gray-900 p-8 min-h-[800px] flex flex-col">
+            <!-- Header -->
+            <div class="flex justify-between items-start border-b-2 border-gray-900 pb-4 mb-6">
+              <div class="text-right">
+                <h1 class="text-2xl font-black">مركز النيل للحقن المجهري</h1>
+                <p class="text-sm font-bold">د. محمد صلاح جير - وحدة الحقن المجهري</p>
+                <p class="text-[10px]">استشاري أمراض النساء والتوليد والعقم</p>
+              </div>
+              <div class="text-center">
+                <div class="w-16 h-16 bg-gray-900 text-white flex items-center justify-center rounded-full font-black text-xs mb-1">NILE IVF</div>
+              </div>
+            </div>
+
+            <!-- Patient Info -->
+            <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg mb-8 border border-gray-200">
+              <div class="text-right">
+                <span class="text-xs font-bold text-gray-400">اسم المريضة:</span>
+                <p class="font-black text-lg">${patientName}</p>
+              </div>
+              <div class="text-left">
+                <span class="text-xs font-bold text-gray-400">التاريخ:</span>
+                <p class="font-black">${visit.visit_date}</p>
+              </div>
+            </div>
+
+            <!-- Prescription Body -->
+            <div class="flex-1">
+              <div class="text-4xl font-serif font-black mb-6 border-b-2 border-gray-100 pb-2">Rx</div>
+              
+              <div class="space-y-8">
+                ${meds.map(med => `
+                  <div class="border-b border-gray-100 pb-4">
+                    <div class="flex justify-between items-baseline mb-2">
+                      <h3 class="text-xl font-bold text-gray-900">${med.medication_name}</h3>
+                      <span class="text-sm font-bold bg-gray-100 px-2 py-0.5 rounded">${med.dose} ${med.unit}</span>
+                    </div>
+                    ${med.notes ? `<p class="text-lg font-bold text-gray-700 bg-blue-50/50 p-3 rounded-xl border-r-4 border-blue-500">${med.notes}</p>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+
+              ${visit.doctor_notes ? `
+                <div class="mt-12 bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-200">
+                  <h4 class="text-xs font-black text-gray-400 uppercase mb-2">تعليمات إضافية</h4>
+                  <p class="text-gray-800 font-bold leading-relaxed">${visit.doctor_notes}</p>
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- Footer -->
+            <div class="mt-auto border-t-2 border-gray-900 pt-4 flex justify-between items-end">
+              <div class="text-[10px] text-gray-500">
+                <p>العنوان: المنصورة - المشاية السفلية</p>
+                <p>تليفون: 01004455667</p>
+              </div>
+              <div class="text-center">
+                <div class="h-16 w-32 border border-gray-200 rounded flex items-center justify-center text-[10px] text-gray-300 italic mb-1">توقيع الطبيب</div>
+                <p class="text-[10px] font-black">أ.د / محمد صلاح جير</p>
+              </div>
+            </div>
+          </div>
+          <script>
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 p-6" dir="rtl">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -641,6 +740,7 @@ const UnifiedSmartStimulation: React.FC = () => {
                             visit={visit}
                             isExpanded={expandedVisitId === visit.id}
                             onToggle={() => setExpandedVisitId(expandedVisitId === visit.id ? null : visit.id)}
+                            onPrintPrescription={() => handlePrintPrescription(visit)}
                           />
                         ))}
                       </div>
@@ -1363,9 +1463,10 @@ interface VisitCardProps {
   visit: SmartMonitoringVisit;
   isExpanded: boolean;
   onToggle: () => void;
+  onPrintPrescription?: () => void;
 }
 
-const VisitCard: React.FC<VisitCardProps> = ({ visit, isExpanded, onToggle }) => {
+const VisitCard: React.FC<VisitCardProps> = ({ visit, isExpanded, onToggle, onPrintPrescription }) => {
   return (
     <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-md border-2 border-gray-200 hover:border-teal-300 transition-all overflow-hidden">
       {/* Header - Always Visible */}
@@ -1386,9 +1487,23 @@ const VisitCard: React.FC<VisitCardProps> = ({ visit, isExpanded, onToggle }) =>
             </div>
           </div>
 
-          <button className="text-gray-400 hover:text-gray-600">
-            {isExpanded ? '▼' : '◀'}
-          </button>
+          <div className="flex items-center gap-3">
+            {visit.medications_given && visit.medications_given.length > 0 && onPrintPrescription && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPrintPrescription();
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-sm"
+              >
+                <Printer className="w-3 h-3" />
+                طباعة الروشتة
+              </button>
+            )}
+            <button className="text-gray-400 hover:text-gray-600">
+              {isExpanded ? '▼' : '◀'}
+            </button>
+          </div>
         </div>
 
         {/* Quick Stats */}

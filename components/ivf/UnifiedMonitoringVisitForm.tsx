@@ -18,7 +18,8 @@ import {
   Trash2,
   AlertCircle,
   TrendingUp,
-  Zap
+  Zap,
+  Search
 } from 'lucide-react';
 import smartStimulationService from '../../services/smartStimulationService.unified';
 import type {
@@ -80,6 +81,9 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
 
   // Clinical Notes
   const [doctorNotes, setDoctorNotes] = useState('');
+
+  // Search and Grouping
+  const [medSearch, setMedSearch] = useState('');
 
   useEffect(() => {
     loadReferences();
@@ -531,19 +535,74 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
         </div>
 
         {showAddMed && (
-          <div className="mb-4 bg-blue-50 rounded-lg p-4">
-            <h4 className="font-semibold text-blue-900 mb-3">اختر دواء:</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto">
-              {medicationsRef.map((med) => (
-                <button
-                  key={med.id}
-                  onClick={() => addMedication(med)}
-                  className="text-right px-4 py-2 bg-white border-2 border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-                >
-                  <div className="font-semibold">{med.medication_name_ar}</div>
-                  <div className="text-sm text-gray-600">{med.medication_name}</div>
-                </button>
-              ))}
+          <div className="mb-4 bg-gray-50 border-2 border-blue-100 rounded-xl p-4 shadow-inner">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+              <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                <Search className="w-4 h-4 text-blue-500" />
+                اختر الدواء المطلوب
+              </h4>
+              <div className="relative flex-1 max-w-md">
+                <input
+                  type="text"
+                  placeholder="بحث باسم الدواء (Gonal, Menopur...)"
+                  value={medSearch}
+                  onChange={(e) => setMedSearch(e.target.value)}
+                  className="w-full px-4 py-2 border-2 border-blue-200 rounded-lg focus:border-blue-500 focus:ring-0 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-6 max-h-[400px] overflow-y-auto px-1">
+              {['gonadotropin_fsh', 'gonadotropin_hmg', 'gnrh_agonist', 'gnrh_antagonist', 'trigger_hcg', 'trigger_gnrh', 'progesterone', 'estrogen', 'other'].map(type => {
+                const medsInGroup = medicationsRef.filter(m =>
+                  m.medication_type === type &&
+                  (m.medication_name.toLowerCase().includes(medSearch.toLowerCase()) ||
+                    m.medication_name_ar.includes(medSearch))
+                );
+
+                if (medsInGroup.length === 0) return null;
+
+                const getTypeName = (t: string) => {
+                  switch (t) {
+                    case 'gonadotropin_fsh': return 'أدوية تنشيط (FSH)';
+                    case 'gonadotropin_hmg': return 'أدوية تنشيط (HMG)';
+                    case 'gnrh_agonist': return 'منبهات (Agonist)';
+                    case 'gnrh_antagonist': return 'مضادات (Antagonist)';
+                    case 'trigger_hcg': return 'حقن تفجيرية (hCG)';
+                    case 'trigger_gnrh': return 'حقن تفجيرية (Agonist)';
+                    case 'progesterone': return 'دعم بروجسترون';
+                    case 'estrogen': return 'دعم استروجين';
+                    default: return 'أدوية إضافية';
+                  }
+                };
+
+                return (
+                  <div key={type} className="space-y-2">
+                    <h5 className="text-xs font-black text-blue-600 uppercase tracking-widest border-b border-blue-100 pb-1">
+                      {getTypeName(type)}
+                    </h5>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                      {medsInGroup.map((med) => (
+                        <button
+                          key={med.id}
+                          onClick={() => {
+                            addMedication(med);
+                            setMedSearch('');
+                          }}
+                          className="flex flex-col items-center justify-center p-3 bg-white border-2 border-gray-100 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all text-center group shadow-sm hover:shadow-md"
+                        >
+                          <div className="text-[13px] font-bold text-gray-800 group-hover:text-blue-700 leading-tight mb-1">
+                            {med.medication_name}
+                          </div>
+                          <div className="text-[10px] text-gray-500 font-medium">
+                            {med.medication_name_ar}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -551,63 +610,77 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
         {medications.length > 0 ? (
           <div className="space-y-3">
             {medications.map((med, idx) => (
-              <div key={idx} className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="font-bold text-blue-900">{med.medication_name_ar || med.medication_name}</div>
-                    <div className="text-sm text-blue-700">{med.medication_type}</div>
+              <div key={idx} className="bg-white border-2 border-blue-50 rounded-xl p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-1.5 h-full bg-blue-500"></div>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="text-xl font-black text-gray-900">{med.medication_name_ar || med.medication_name}</div>
+                      <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                        {med.medication_type.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <div className="text-sm font-bold text-blue-600 font-mono">{med.medication_name}</div>
                   </div>
                   <button
                     onClick={() => removeMedication(idx)}
-                    className="text-red-600 hover:text-red-900"
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                   >
                     <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">الجرعة</label>
-                    <input
-                      type="number"
-                      value={med.dose}
-                      onChange={(e) => updateMedication(idx, 'dose', parseFloat(e.target.value) || 0)}
-                      className="w-full px-2 py-1 border rounded"
-                    />
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-gray-500 uppercase tracking-wider block">الجرعة (Dose)</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={med.dose}
+                        onChange={(e) => updateMedication(idx, 'dose', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-0 font-bold text-gray-900"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">الوحدة</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-gray-500 uppercase tracking-wider block">الوحدة (Unit)</label>
                     <input
                       type="text"
                       value={med.unit}
                       onChange={(e) => updateMedication(idx, 'unit', e.target.value)}
-                      className="w-full px-2 py-1 border rounded"
+                      className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-0 font-bold text-gray-700"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">الطريق</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-gray-500 uppercase tracking-wider block">طريقة الإعطاء (Route)</label>
                     <select
                       value={med.route}
                       onChange={(e) => updateMedication(idx, 'route', e.target.value)}
-                      className="w-full px-2 py-1 border rounded"
+                      className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-0 font-bold text-gray-700"
                     >
                       <option value="SC">SC (تحت الجلد)</option>
-                      <option value="IM">IM (عضلي)</option>
-                      <option value="PO">PO (فموي)</option>
-                      <option value="PV">PV (مهبلي)</option>
-                      <option value="PR">PR (شرجي)</option>
+                      <option value="IM">IM (حقن عضلي)</option>
+                      <option value="PO">PO (بالفم)</option>
+                      <option value="PV">PV (لبوس مهبلي)</option>
+                      <option value="PR">PR (لبوس شرجي)</option>
                     </select>
                   </div>
                 </div>
+
                 {/* Instructions / Notes in Arabic */}
-                <div className="mt-3">
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">تعليمات الاستخدام (بالعربية)</label>
+                <div className="mt-4 space-y-1.5">
+                  <label className="text-[11px] font-black text-blue-600 uppercase tracking-wider flex items-center gap-2">
+                    <Activity className="w-3 h-3" />
+                    تعليمات الاستخدام في الروشتة (Usage)
+                  </label>
                   <textarea
                     value={med.notes || ''}
                     onChange={(e) => updateMedication(idx, 'notes', e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-blue-100 rounded-lg text-sm bg-white focus:border-blue-300"
+                    className="w-full px-4 py-3 bg-blue-50/30 border-2 border-blue-100/50 rounded-xl text-sm text-gray-800 focus:bg-white focus:border-blue-400 transition-all font-medium"
                     rows={2}
-                    placeholder="مثال: يؤخذ في نفس الموعد يومياً..."
+                    placeholder="مثال: يتم الحقن في تمام الساعة ٩ مساءً..."
                   />
+                  <div className="text-[10px] text-blue-400 italic">هذا النص سيظهر في روشتة المريضة باللغة العربية.</div>
                 </div>
               </div>
             ))}
