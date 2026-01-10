@@ -234,6 +234,68 @@ const UnifiedSmartStimulation: React.FC = () => {
     [visits]
   );
 
+  const handlePrintReport = () => {
+    const reportElement = document.getElementById('medical-report');
+    if (!reportElement) {
+      toast.error('لم يتم العثور على محتوى التقرير');
+      return;
+    }
+
+    const printWindow = window.open('', '', 'height=800,width=1000');
+    if (!printWindow) {
+      toast.error('يرجى السماح بالنوافذ المنبثقة للطباعة');
+      return;
+    }
+
+    const content = reportElement.innerHTML;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+        <head>
+          <meta charset="UTF-8">
+          <title>Medical Cycle Report - Nile IVF</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Tajawal:wght@400;700;900&display=swap');
+            body { 
+              font-family: 'Tajawal', sans-serif; 
+              background: white;
+              padding: 0;
+              margin: 0;
+            }
+            @media print {
+              .print\\:hidden { display: none !important; }
+              body { padding: 0; margin: 0; }
+              .shadow-2xl { shadow: none !important; }
+              .rounded-3xl { border-radius: 0 !important; }
+              .border-2 { border: 1px solid #eee !important; }
+            }
+            /* Force background colors in print */
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+          </style>
+        </head>
+        <body class="p-0">
+          <div class="max-w-4xl mx-auto">
+            ${content}
+          </div>
+          <script>
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 p-6" dir="rtl">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -955,7 +1017,7 @@ const UnifiedSmartStimulation: React.FC = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => window.print()}
+                      onClick={handlePrintReport}
                       className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-2xl font-black shadow-xl hover:scale-105 active:scale-95 transition-all"
                     >
                       <Printer className="w-5 h-5" />
