@@ -6,8 +6,8 @@
  * 2. شغّل: node create-super-admin.js
  */
 
-const bcrypt = require('bcryptjs');
-const { createClient } = require('@supabase/supabase-js');
+import bcrypt from 'bcryptjs';
+import { createClient } from '@supabase/supabase-js';
 
 // إعدادات Supabase (استبدلها بإعداداتك)
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'YOUR_SUPABASE_URL';
