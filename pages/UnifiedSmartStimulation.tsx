@@ -97,6 +97,13 @@ const UnifiedSmartStimulation: React.FC = () => {
     loadPatientActiveCycle();
   }, [selectedPatientId]);
 
+  // Persist Tab Change
+  useEffect(() => {
+    if (currentCycle?.id) {
+      localStorage.setItem(`ivf_last_tab_${currentCycle.id}`, currentTab);
+    }
+  }, [currentTab, currentCycle?.id]);
+
   const loadCycleData = async (cycleId: string) => {
     try {
       setLoading(true);
@@ -110,13 +117,18 @@ const UnifiedSmartStimulation: React.FC = () => {
         setCurrentCycle(cycleResult.data);
         setSelectedPatientId(cycleResult.data.patient_id);
 
-        // Set appropriate tab based on status
-        if (cycleResult.data.status === 'assessment') {
-          setCurrentTab('setup');
-        } else if (cycleResult.data.status === 'protocol') {
-          setCurrentTab('protocol');
+        // SMART TAB MEMORY: Restore previous tab or set default based on status
+        const savedTab = localStorage.getItem(`ivf_last_tab_${cycleId}`);
+        if (savedTab && ['setup', 'protocol', 'monitoring', 'opu', 'lab', 'transfer', 'timeline', 'summary', 'archive'].includes(savedTab)) {
+          setCurrentTab(savedTab as any);
         } else {
-          setCurrentTab('monitoring');
+          if (cycleResult.data.status === 'assessment') {
+            setCurrentTab('setup');
+          } else if (cycleResult.data.status === 'protocol') {
+            setCurrentTab('protocol');
+          } else {
+            setCurrentTab('monitoring');
+          }
         }
       }
 
@@ -604,20 +616,6 @@ const UnifiedSmartStimulation: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => setCurrentTab('archive')}
-                  className={`
-                    flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all whitespace-nowrap
-                    ${currentTab === 'archive'
-                      ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg scale-105'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }
-                  `}
-                >
-                  <History className="w-5 h-5" />
-                  الأرشيف والسبق
-                </button>
-
-                <button
                   onClick={() => setCurrentTab('lab')}
                   disabled={loading || !currentCycle.opu_details}
                   className={`
@@ -660,6 +658,20 @@ const UnifiedSmartStimulation: React.FC = () => {
                 >
                   <ClipboardList className="w-5 h-5" />
                   التقرير النهائي
+                </button>
+
+                <button
+                  onClick={() => setCurrentTab('archive')}
+                  className={`
+                    flex items-center gap-2 px-6 py-3 rounded-xl font-black transition-all whitespace-nowrap border-2
+                    ${currentTab === 'archive'
+                      ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)] scale-110'
+                      : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                    }
+                  `}
+                >
+                  <History className="w-5 h-5" />
+                  الأرشيف والسبق
                 </button>
               </div>
             </div>
@@ -1382,7 +1394,7 @@ const UnifiedSmartStimulation: React.FC = () => {
           </>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 
@@ -1760,8 +1772,8 @@ const ArchiveView: React.FC<ArchiveViewProps> = ({ patientId, onLoadCycle, curre
             <div
               key={cycle.id}
               className={`p-6 rounded-2xl border-2 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${cycle.id === currentCycleId
-                  ? 'border-indigo-500 bg-indigo-50/50 shadow-md'
-                  : 'border-gray-100 bg-gray-50 hover:border-indigo-200 hover:bg-white'
+                ? 'border-indigo-500 bg-indigo-50/50 shadow-md'
+                : 'border-gray-100 bg-gray-50 hover:border-indigo-200 hover:bg-white'
                 }`}
             >
               <div className="flex items-center gap-6">
@@ -1773,8 +1785,8 @@ const ArchiveView: React.FC<ArchiveViewProps> = ({ patientId, onLoadCycle, curre
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="text-lg font-bold text-gray-900">{cycle.protocol_name || 'بدون بروتوكول محدد'}</h3>
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${cycle.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
-                        cycle.status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
-                          'bg-blue-100 text-blue-700'
+                      cycle.status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
+                        'bg-blue-100 text-blue-700'
                       }`}>
                       {cycle.status === 'completed' ? 'Success (+ve)' :
                         cycle.status === 'cancelled' ? 'Failed (-ve)' : cycle.status}
