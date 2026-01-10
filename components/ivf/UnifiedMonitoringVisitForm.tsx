@@ -151,9 +151,10 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
       medication_name: medRef.medication_name,
       medication_name_ar: medRef.medication_name_ar,
       medication_type: medRef.medication_type,
-      dose: 0,
+      dose: parseFloat(medRef.typical_starting_dose || '0') || 0,
       unit: medRef.unit,
-      route: medRef.route[0] || 'SC'
+      route: medRef.route[0] || 'SC',
+      notes: medRef.timing_instructions // Pre-fill with Arabic instructions
     };
     setMedications([...medications, newMed]);
     setShowAddMed(false);
@@ -592,8 +593,21 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
                       <option value="SC">SC (تحت الجلد)</option>
                       <option value="IM">IM (عضلي)</option>
                       <option value="PO">PO (فموي)</option>
+                      <option value="PV">PV (مهبلي)</option>
+                      <option value="PR">PR (شرجي)</option>
                     </select>
                   </div>
+                </div>
+                {/* Instructions / Notes in Arabic */}
+                <div className="mt-3">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">تعليمات الاستخدام (بالعربية)</label>
+                  <textarea
+                    value={med.notes || ''}
+                    onChange={(e) => updateMedication(idx, 'notes', e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-blue-100 rounded-lg text-sm bg-white focus:border-blue-300"
+                    rows={2}
+                    placeholder="مثال: يؤخذ في نفس الموعد يومياً..."
+                  />
                 </div>
               </div>
             ))}
