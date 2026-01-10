@@ -98,6 +98,7 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
         })));
       }
       if (lastVisit.endometrium_pattern) setEndoPattern(lastVisit.endometrium_pattern);
+      if (lastVisit.endometrium_thickness) setEndoThickness(lastVisit.endometrium_thickness.toString());
       if (lastVisit.doctor_notes) setDoctorNotes(`متابعة من الزيارة السابقة: ${lastVisit.doctor_notes}`);
     }
   }, [lastVisit]);
@@ -230,6 +231,14 @@ const UnifiedMonitoringVisitForm: React.FC<UnifiedMonitoringVisitFormProps> = ({
 
         // ✅ UNIFIED: Medications integrated
         medications_given: medications,
+
+        // Calculate legacy summary fields for reporting
+        fsh_dose_given: medications
+          .filter(m => m.medication_type === 'gonadotropin_fsh')
+          .reduce((sum, m) => sum + (m.dose || 0), 0),
+        hmg_dose_given: medications
+          .filter(m => m.medication_type === 'gonadotropin_hmg')
+          .reduce((sum, m) => sum + (m.dose || 0), 0),
 
         // ✅ UNIFIED: Lab results integrated
         lab_results: labResults,

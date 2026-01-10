@@ -33,7 +33,9 @@ import {
   Printer,
   ChevronRight,
   ClipboardList,
-  Zap
+  Zap,
+  History,
+  Archive
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import smartStimulationService from '../services/smartStimulationService.unified';
@@ -63,7 +65,7 @@ const UnifiedSmartStimulation: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   // UI State
-  const [currentTab, setCurrentTab] = useState<'setup' | 'protocol' | 'monitoring' | 'opu' | 'lab' | 'transfer' | 'timeline' | 'summary'>('setup');
+  const [currentTab, setCurrentTab] = useState<'setup' | 'protocol' | 'monitoring' | 'opu' | 'lab' | 'transfer' | 'timeline' | 'summary' | 'archive'>('setup');
   const [showAddVisit, setShowAddVisit] = useState(false);
   const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
 
@@ -602,6 +604,20 @@ const UnifiedSmartStimulation: React.FC = () => {
                 </button>
 
                 <button
+                  onClick={() => setCurrentTab('archive')}
+                  className={`
+                    flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all whitespace-nowrap
+                    ${currentTab === 'archive'
+                      ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg scale-105'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }
+                  `}
+                >
+                  <History className="w-5 h-5" />
+                  الأرشيف والسبق
+                </button>
+
+                <button
                   onClick={() => setCurrentTab('lab')}
                   disabled={loading || !currentCycle.opu_details}
                   className={`
@@ -1103,6 +1119,18 @@ const UnifiedSmartStimulation: React.FC = () => {
                 <TimelineView visits={visits} cycle={currentCycle} />
               )}
 
+              {/* Archive Tab */}
+              {currentTab === 'archive' && selectedPatientId && (
+                <ArchiveView
+                  patientId={selectedPatientId}
+                  onLoadCycle={(id) => {
+                    loadCycleData(id);
+                    navigate(`/unified-smart-stimulation?cycleId=${id}`, { replace: true });
+                  }}
+                  currentCycleId={currentCycle?.id}
+                />
+              )}
+
               {/* Summary / Final Report Tab */}
               {currentTab === 'summary' && currentCycle && (
                 <div className="space-y-8 animate-in fade-in duration-500">
@@ -1180,14 +1208,26 @@ const UnifiedSmartStimulation: React.FC = () => {
                           <div className="p-6 border-2 border-gray-50 rounded-2xl flex items-center justify-between">
                             <div>
                               <span className="text-xs font-bold text-gray-400 block">إجمالي جرعة FSH</span>
-                              <span className="text-3xl font-black text-indigo-600">{visits.reduce((acc, v) => acc + (v.fsh_dose_given || 0), 0)} IU</span>
+                              <span className="text-3xl font-black text-indigo-600">
+                                {visits.reduce((acc, v) => {
+                                  let dose = v.fsh_dose_given || 0;
+                                  if (dose === 0 && v.medications_given) {
+                                    dose = v.medications_given
+                                      .filter(m => m.medication_type === 'gonadotropin_fsh')
+                                      .reduce((sum, m) => sum + (m.dose || 0), 0);
+                                  }
+                                  return acc + dose;
+                                }, 0)} IU
+                              </span>
                             </div>
                             <Zap className="w-10 h-10 text-indigo-100" />
                           </div>
                           <div className="p-6 border-2 border-gray-50 rounded-2xl flex items-center justify-between">
                             <div>
                               <span className="text-xs font-bold text-gray-400 block">أقصى سماكة للبطانة</span>
-                              <span className="text-3xl font-black text-emerald-600">{Math.max(...visits.map(v => v.endometrium_thickness || 0), 0)} mm</span>
+                              <span className="text-3xl font-black text-emerald-600">
+                                {Math.max(...visits.map(v => v.endometrium_thickness || 0), 0)} mm
+                              </span>
                             </div>
                             <Activity className="w-10 h-10 text-emerald-100" />
                           </div>
@@ -1661,6 +1701,110 @@ const TimelineView: React.FC<TimelineViewProps> = ({ visits, cycle }) => {
             />
           </div>
         ))}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// Archive View Component
+// ============================================================================
+interface ArchiveViewProps {
+  patientId: string;
+  onLoadCycle: (cycleId: string) => void;
+  currentCycleId?: string;
+}
+
+const ArchiveView: React.FC<ArchiveViewProps> = ({ patientId, onLoadCycle, currentCycleId }) => {
+  const [cycles, setCycles] = useState<SmartIVFCycle[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    loadArchive();
+  }, [patientId]);
+
+  const loadArchive = async () => {
+    setLoading(true);
+    try {
+      const { data } = await smartStimulationService.getPatientCycles(patientId);
+      if (data) setCycles(data);
+    } catch (error) {
+      console.error('Error loading archive:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <div className="p-20 text-center text-gray-400">جاري تحميل الأرشيف...</div>;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-xl p-8 animate-in fade-in duration-500">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="p-3 bg-amber-100 text-amber-600 rounded-xl">
+          <Archive className="w-8 h-8" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">أرشيف دورات المريضة</h2>
+          <p className="text-gray-500">عرض تاريخ جميع محاولات التنشيط السابقة</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {cycles.length === 0 ? (
+          <div className="py-20 text-center text-gray-400 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+            <Eraser className="w-16 h-16 mx-auto mb-4 opacity-20" />
+            <p className="text-lg">لا توجد دورات سابقة مسجلة لهذه المريضة</p>
+          </div>
+        ) : (
+          cycles.map((cycle) => (
+            <div
+              key={cycle.id}
+              className={`p-6 rounded-2xl border-2 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${cycle.id === currentCycleId
+                  ? 'border-indigo-500 bg-indigo-50/50 shadow-md'
+                  : 'border-gray-100 bg-gray-50 hover:border-indigo-200 hover:bg-white'
+                }`}
+            >
+              <div className="flex items-center gap-6">
+                <div className="w-14 h-14 rounded-xl bg-white shadow-sm flex flex-col items-center justify-center border border-gray-100">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">Cycle</span>
+                  <span className="text-xl font-black text-indigo-600">#{cycle.cycle_number}</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-lg font-bold text-gray-900">{cycle.protocol_name || 'بدون بروتوكول محدد'}</h3>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${cycle.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                        cycle.status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
+                          'bg-blue-100 text-blue-700'
+                      }`}>
+                      {cycle.status === 'completed' ? 'Success (+ve)' :
+                        cycle.status === 'cancelled' ? 'Failed (-ve)' : cycle.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm font-medium text-gray-500">
+                    <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {cycle.start_date}</span>
+                    {cycle.initial_assessment?.age && (
+                      <span className="flex items-center gap-1"><User className="w-4 h-4" /> {cycle.initial_assessment.age} سنة</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {cycle.id === currentCycleId ? (
+                  <span className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg">الدورة الحالية</span>
+                ) : (
+                  <button
+                    onClick={() => onLoadCycle(cycle.id)}
+                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-indigo-100 text-indigo-600 rounded-xl font-bold hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all active:scale-95"
+                  >
+                    عرض التفاصيل
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

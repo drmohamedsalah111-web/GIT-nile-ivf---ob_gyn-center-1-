@@ -709,6 +709,10 @@ export interface AddVisitInput {
   // Medications given
   medications_given?: MedicationGiven[];
 
+  // Support summary fields
+  fsh_dose_given?: number;
+  hmg_dose_given?: number;
+
   // Lab results
   lab_results?: LabResult[];
 
